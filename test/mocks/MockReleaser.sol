@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
 
