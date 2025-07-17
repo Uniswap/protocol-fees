@@ -9,7 +9,9 @@ import {AssetSink} from "../../src/AssetSink.sol";
 contract MockReleaser {
   AssetSink public assetSink;
 
-  constructor() {}
+  constructor(address _assetSink) {
+    assetSink = AssetSink(_assetSink);
+  }
 
   function setAssetSink(AssetSink _assetSink) external {
     assetSink = _assetSink;

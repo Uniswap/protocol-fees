@@ -29,15 +29,18 @@ contract AssetSinkTest is Test {
   function setUp() public {
     alice = makeAddr("alice");
     bob = makeAddr("bob");
+    owner = makeAddr("owner");
     unauthorizedUser = makeAddr("unauthorizedUser");
 
     // Deploy mock contracts first
     mockToken = new MockERC20("MOCK", "MOCK", 18);
     mockRevertingReceiver = new MockRevertingReceiver();
-    mockReleaser = new MockReleaser();
 
-    assetSink = new AssetSink(address(mockReleaser));
-    mockReleaser.setAssetSink(assetSink);
+    assetSink = new AssetSink(owner);
+    mockReleaser = new MockReleaser(address(assetSink));
+
+    vm.prank(owner);
+    assetSink.setReleaser(address(mockReleaser));
 
     // Mint tokens and send to AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
@@ -149,6 +152,21 @@ contract AssetSinkTest is Test {
     assertEq(asset.balanceOf(address(assetSink)), 0);
   }
 
+  function test_setReleaser() public {
+    MockReleaser newReleaser = new MockReleaser(address(assetSink));
+    vm.prank(owner);
+    assetSink.setReleaser(address(newReleaser));
+    assertEq(assetSink.releaser(), address(newReleaser));
+  }
+
+  function test_setReleaser_Unauthorized() public {
+    MockReleaser newReleaser = new MockReleaser(address(assetSink));
+    vm.expectRevert("UNAUTHORIZED");
+    assetSink.setReleaser(address(newReleaser));
+
+    assertEq(assetSink.releaser(), address(mockReleaser));
+  }
+
   /*//////////////////////////////////////////////////////////////
                            FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
@@ -171,9 +189,12 @@ contract AssetSinkTest is Test {
     vm.assume(amount > 0 && amount <= 1000 ether);
 
     // Create new AssetSink with releaser
-    MockReleaser fuzzReleaser = new MockReleaser();
-    AssetSink fuzzSink = new AssetSink(address(fuzzReleaser));
-    fuzzReleaser.setAssetSink(fuzzSink);
+    AssetSink fuzzSink = new AssetSink(address(owner));
+    MockReleaser fuzzReleaser = new MockReleaser(address(fuzzSink));
+
+    vm.prank(owner);
+    fuzzSink.setReleaser(address(fuzzReleaser));
+
     vm.deal(address(fuzzSink), amount);
     Currency nativeAsset = Currency.wrap(address(0));
 
