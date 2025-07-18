@@ -6,19 +6,17 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {IFirepitDestination} from "../interfaces/IFirepitDestination.sol";
 import {Nonce} from "../base/Nonce.sol";
+import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
-contract FirepitSource is Nonce {
-  IERC20 public immutable RESOURCE;
-  uint256 public immutable THRESHOLD;
-  IL1CrossDomainMessenger public immutable MESSENGER;
-  address public immutable L2_TARGET;
+abstract contract FirepitSource is FirepitImmutable, Nonce {
+  constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
 
-  constructor(address _resource, uint256 _threshold, address _messenger, address _l2Target) {
-    RESOURCE = IERC20(_resource);
-    THRESHOLD = _threshold;
-    MESSENGER = IL1CrossDomainMessenger(_messenger);
-    L2_TARGET = _l2Target;
-  }
+  function _sendReleaseMessage(
+    Currency[] memory assets,
+    address claimer,
+    uint256 deadline,
+    bytes memory addtlData
+  ) internal virtual;
 
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
@@ -32,12 +30,7 @@ contract FirepitSource is Nonce {
     // therefore, only transfer the resource to the contract
     RESOURCE.transferFrom(msg.sender, address(this), THRESHOLD);
 
-    // Calls Releaser.torch(assets, claimer) on L2
-    MESSENGER.sendMessage(
-      L2_TARGET,
-      abi.encodeCall(IFirepitDestination.claimTo, (assets, claimer, deadline)),
-      l2GasLimit
-    );
+    _sendReleaseMessage(assets, claimer, deadline, abi.encode(l2GasLimit));
   }
 
   // TODO: resource recovery for failed messages
