@@ -9,28 +9,57 @@ import {Nonce} from "../base/Nonce.sol";
 import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
 abstract contract FirepitSource is FirepitImmutable, Nonce {
+  uint256 public constant DEFAULT_BRIDGE_ID = 0;
+  mapping(uint256 nonce => address nonceOwner) public nonceOwners;
+
   constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
 
   function _sendReleaseMessage(
+    uint256 bridgeId,
+    uint256 destinationNonce,
     Currency[] memory assets,
     address claimer,
     uint256 deadline,
     bytes memory addtlData
   ) internal virtual;
 
+  function replayTorch(
+    uint256 bridgeId,
+    uint256 destinationNonce,
+    Currency[] memory assets,
+    address claimer,
+    uint32 l2GasLimit
+  ) external {
+    require(nonceOwners[destinationNonce] == msg.sender, "Not the nonce owner");
+    _sendReleaseMessage(
+      bridgeId,
+      destinationNonce,
+      assets,
+      claimer,
+      block.timestamp + 30 minutes,
+      abi.encode(l2GasLimit)
+    );
+  }
+
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
-  function torch(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
-    external
-    checkNonce(_nonce)
-  {
+  function torch(
+    uint256 localNonce,
+    uint256 destinationNonce,
+    Currency[] memory assets,
+    address claimer,
+    uint32 l2GasLimit
+  ) external handleNonce(localNonce) {
     uint256 deadline = block.timestamp + 30 minutes;
+    nonceOwners[destinationNonce] = msg.sender;
 
     // In the event of a cancelled / faulty message, ensure the RESOURCE is recoverable
     // therefore, only transfer the resource to the contract
-    RESOURCE.transferFrom(msg.sender, address(this), THRESHOLD);
+    RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
 
-    _sendReleaseMessage(assets, claimer, deadline, abi.encode(l2GasLimit));
+    _sendReleaseMessage(
+      DEFAULT_BRIDGE_ID, destinationNonce, assets, claimer, deadline, abi.encode(l2GasLimit)
+    );
   }
 
   // TODO: resource recovery for failed messages

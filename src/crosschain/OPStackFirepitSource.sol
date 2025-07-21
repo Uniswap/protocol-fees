@@ -18,6 +18,8 @@ contract OPStackFirepitSource is FirepitSource {
   }
 
   function _sendReleaseMessage(
+    uint256, // bridgeId
+    uint256 destinationNonce,
     Currency[] memory assets,
     address claimer,
     uint256 deadline,
@@ -26,7 +28,7 @@ contract OPStackFirepitSource is FirepitSource {
     (uint32 l2GasLimit) = abi.decode(addtlData, (uint32));
     MESSENGER.sendMessage(
       L2_TARGET,
-      abi.encodeCall(IFirepitDestination.claimTo, (assets, claimer, deadline)),
+      abi.encodeCall(IFirepitDestination.claimTo, (destinationNonce, assets, claimer, deadline)),
       l2GasLimit
     );
   }

@@ -5,10 +5,11 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {AssetSink} from "../AssetSink.sol";
+import {Nonce} from "../base/Nonce.sol";
 
 /// @notice a contract for receiving crosschain messages. Validates messages and releases assets
 /// from the AssetSink
-contract FirepitDestination {
+contract FirepitDestination is Nonce {
   AssetSink public immutable ASSET_SINK;
   IL1CrossDomainMessenger public immutable MESSENGER;
 
@@ -34,10 +35,11 @@ contract FirepitDestination {
   /// @notice Calls Asset Sink to release assets to a destination
   /// @dev only callable by the messenger via the authorized L1 source contract
   /// @dev reverts when the message exceeds the deadline
-  function claimTo(Currency[] memory assets, address claimer, uint256 deadline)
+  function claimTo(uint256 _nonce, Currency[] memory assets, address claimer, uint256 deadline)
     external
     onlyMessengerAndFirepitSource
     checkDeadline(deadline)
+    handleNonce(_nonce)
   {
     for (uint256 i; i < assets.length; i++) {
       ASSET_SINK.release(assets[i], claimer);

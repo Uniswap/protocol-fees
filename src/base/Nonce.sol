@@ -4,12 +4,9 @@ pragma solidity ^0.8.29;
 contract Nonce {
   uint256 public nonce;
 
-  modifier checkNonce(uint256 _nonce) {
+  modifier handleNonce(uint256 _nonce) {
     require(_nonce == nonce);
     _;
-  }
-
-  function _incrementNonce() internal {
     unchecked {
       nonce++;
     }
