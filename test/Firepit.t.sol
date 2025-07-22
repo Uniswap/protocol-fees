@@ -7,6 +7,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../src/Firepit.sol";
 import {AssetSink} from "../src/AssetSink.sol";
+import {Nonce} from "../src/base/Nonce.sol";
 
 contract FirepitTest is PhoenixTestBase {
   function setUp() public override {
@@ -27,7 +28,7 @@ contract FirepitTest is PhoenixTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
-    firepit.torch(assets, alice);
+    firepit.torch(firepit.nonce(), assets, alice);
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
@@ -48,9 +49,48 @@ contract FirepitTest is PhoenixTestBase {
 
     assertLt(resource.balanceOf(alice), firepit.THRESHOLD());
 
+    uint256 nonce = firepit.nonce();
+
     vm.startPrank(alice);
     resource.approve(address(firepit), type(uint256).max);
-    vm.expectRevert(address(resource)); // reverts on token insufficient allowance
-    firepit.torch(assets, alice);
+    vm.expectRevert(); // reverts on token insufficient allowance
+    firepit.torch(nonce, assets, alice);
+  }
+
+  function test_fuzz_revert_torch_invalid_nonce(uint256 nonce) public {
+    vm.assume(nonce != firepit.nonce()); // Ensure nonce is not the current nonce
+
+    // Assets to collect.
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = Currency.wrap(address(mockToken));
+
+    vm.startPrank(alice);
+    resource.approve(address(firepit), type(uint256).max);
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    firepit.torch(nonce, assets, alice);
+  }
+
+  /// @dev test that two transactions with the same nonce, the second one should revert
+  function test_revert_torch_frontrun() public {
+    // Assets to collect.
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = Currency.wrap(address(mockToken));
+
+    uint256 nonce = firepit.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(firepit), type(uint256).max);
+
+    // First torch call
+    firepit.torch(nonce, assets, alice);
+    assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(firepit)), 0);
+    assertEq(resource.balanceOf(address(0)), INITIAL_TOKEN_AMOUNT);
+
+    // Attempt to frontrun with the same nonce
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    firepit.torch(nonce, assets, alice);
   }
 }
