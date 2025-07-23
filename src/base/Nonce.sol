@@ -8,9 +8,9 @@ abstract contract Nonce {
 
   modifier handleNonce(uint256 _nonce) {
     require(_nonce == nonce, InvalidNonce());
-    _;
     unchecked {
       ++nonce;
     }
+    _;
   }
 }
