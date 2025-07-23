@@ -2,12 +2,13 @@
 pragma solidity ^0.8.29;
 
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
+import {Owned} from "solmate/auth/Owned.sol";
 
 /// @title AssetSink
 /// @notice Sink for protocol fees
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
-contract AssetSink {
+contract AssetSink is Owned {
   using CurrencyLibrary for Currency;
 
   /// @notice Emitted when asset fees are successfully claimed
@@ -20,7 +21,7 @@ contract AssetSink {
   error Unauthorized();
 
   /// @notice Address that can release assets from the sink
-  address public immutable releaser;
+  address public releaser;
 
   /// @notice Ensures only the releaser can call the modified function
   modifier onlyReleaser() {
@@ -29,10 +30,8 @@ contract AssetSink {
   }
 
   /// @notice Creates a new AssetSink with the specified releaser
-  /// @param _releaser The address that is allowed to release assets from the sink
-  constructor(address _releaser) {
-    releaser = _releaser;
-  }
+  /// @param _owner The permissioned address over the AssetSink
+  constructor(address _owner) Owned(_owner) {}
 
   /// @notice Releases all accumulated assets to the specified recipient
   /// @param asset The asset to release
@@ -44,5 +43,9 @@ contract AssetSink {
       asset.transfer(recipient, amount);
       emit FeesClaimed(asset, recipient, amount);
     }
+  }
+
+  function setReleaser(address _releaser) external onlyOwner {
+    releaser = _releaser;
   }
 }
