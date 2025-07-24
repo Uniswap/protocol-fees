@@ -7,6 +7,10 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/Firepit.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
+import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
+import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
+
+import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
 
 contract PhoenixTestBase is Test {
   address owner;
@@ -17,6 +21,9 @@ contract PhoenixTestBase is Test {
 
   AssetSink assetSink;
   Firepit firepit;
+  OPStackFirepitSource opStackFirepitSource;
+  MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
+  FirepitDestination firepitDestination;
 
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
   uint256 public constant INITIAL_NATIVE_AMOUNT = 10 ether;
@@ -35,6 +42,17 @@ contract PhoenixTestBase is Test {
     mockToken = new MockERC20("MockToken", "MTK", 18);
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
+
+    firepitDestination =
+      new FirepitDestination(owner, address(assetSink), address(mockCrossDomainMessenger));
+    opStackFirepitSource = new OPStackFirepitSource(
+      address(resource),
+      INITIAL_TOKEN_AMOUNT,
+      address(mockCrossDomainMessenger),
+      address(firepitDestination)
+    );
+    vm.prank(owner);
+    firepitDestination.setAllowableSource(address(opStackFirepitSource), true);
 
     // Supply tokens to the AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
