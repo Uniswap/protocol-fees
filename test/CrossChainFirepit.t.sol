@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {PhoenixTestBase, FirepitDestination} from "./utils/PhoenixTestBase.sol";
 import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
@@ -40,6 +40,33 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
     assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+  }
+
+  /// @dev torch SUCCEEDS on reverting tokens
+  function test_torch_release_revertingToken() public {
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+
+    vm.expectEmit(true, true, false, false);
+    emit FirepitDestination.FailedRelease(
+      Currency.unwrap(Currency.wrap(address(revertingToken))), alice, ""
+    );
+    opStackFirepitSource.torch(
+      opStackFirepitSource.nonce(),
+      firepitDestination.nonce(),
+      releaseMockReverting,
+      alice,
+      L2_GAS_LIMIT
+    );
+    vm.stopPrank();
+
+    // resource still burned
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+
+    // alice did NOT receive the reverting token
+    assertEq(revertingToken.balanceOf(alice), 0);
   }
 
   function test_torch_release_native() public {}

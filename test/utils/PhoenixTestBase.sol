@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import {RevertingToken} from "../mocks/RevertingToken.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/Firepit.sol";
@@ -18,6 +19,7 @@ contract PhoenixTestBase is Test {
   address bob;
   MockERC20 resource;
   MockERC20 mockToken;
+  RevertingToken revertingToken;
 
   AssetSink assetSink;
   Firepit firepit;
@@ -30,6 +32,8 @@ contract PhoenixTestBase is Test {
 
   Currency[] releaseMockToken = new Currency[](1);
   Currency[] releaseMockNative = new Currency[](1);
+  Currency[] releaseMockReverting = new Currency[](1);
+  Currency[] releaseMockTokens = new Currency[](2);
   Currency[] releaseMockBoth = new Currency[](2);
   Currency[][] fuzzReleaseAny = new Currency[][](2);
 
@@ -40,6 +44,7 @@ contract PhoenixTestBase is Test {
 
     resource = new MockERC20("BurnableResource", "BNR", 18);
     mockToken = new MockERC20("MockToken", "MTK", 18);
+    revertingToken = new RevertingToken("RevertingToken", "RTK", 18);
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
@@ -50,6 +55,9 @@ contract PhoenixTestBase is Test {
       address(mockCrossDomainMessenger),
       address(firepitDestination)
     );
+
+    revertingToken.setRevertFrom(address(assetSink), true);
+
     vm.startPrank(owner);
     firepitDestination.setAllowableSource(address(opStackFirepitSource), true);
     firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
@@ -57,17 +65,13 @@ contract PhoenixTestBase is Test {
 
     // Supply tokens to the AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
+    revertingToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
 
     // Supply native tokens to the AssetSink
     vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
 
     // Define releasable assets
-    releaseMockToken[0] = Currency.wrap(address(mockToken));
-    releaseMockNative[0] = CurrencyLibrary.ADDRESS_ZERO;
-    releaseMockBoth[0] = Currency.wrap(address(mockToken));
-    releaseMockBoth[1] = CurrencyLibrary.ADDRESS_ZERO;
-    fuzzReleaseAny[0] = releaseMockToken;
-    fuzzReleaseAny[1] = releaseMockNative;
+    __createReleaseArrays();
 
     // Mint burnable resource to test users
     resource.mint(alice, INITIAL_TOKEN_AMOUNT);
@@ -75,5 +79,20 @@ contract PhoenixTestBase is Test {
 
     vm.deal(alice, INITIAL_NATIVE_AMOUNT);
     vm.deal(bob, INITIAL_NATIVE_AMOUNT);
+  }
+
+  function __createReleaseArrays() private {
+    releaseMockToken[0] = Currency.wrap(address(mockToken));
+    releaseMockNative[0] = CurrencyLibrary.ADDRESS_ZERO;
+    releaseMockReverting[0] = Currency.wrap(address(revertingToken));
+
+    releaseMockBoth[0] = Currency.wrap(address(mockToken));
+    releaseMockBoth[1] = CurrencyLibrary.ADDRESS_ZERO;
+
+    releaseMockTokens[0] = Currency.wrap(address(mockToken));
+    releaseMockTokens[1] = Currency.wrap(address(revertingToken));
+
+    fuzzReleaseAny[0] = releaseMockToken;
+    fuzzReleaseAny[1] = releaseMockNative;
   }
 }
