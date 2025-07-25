@@ -43,16 +43,17 @@ contract PhoenixTestBase is Test {
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
-    firepitDestination =
-      new FirepitDestination(owner, address(assetSink), address(mockCrossDomainMessenger));
+    firepitDestination = new FirepitDestination(owner, address(assetSink));
     opStackFirepitSource = new OPStackFirepitSource(
       address(resource),
       INITIAL_TOKEN_AMOUNT,
       address(mockCrossDomainMessenger),
       address(firepitDestination)
     );
-    vm.prank(owner);
+    vm.startPrank(owner);
     firepitDestination.setAllowableSource(address(opStackFirepitSource), true);
+    firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
+    vm.stopPrank();
 
     // Supply tokens to the AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);

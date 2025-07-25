@@ -11,18 +11,25 @@ import {Nonce} from "../base/Nonce.sol";
 /// from the AssetSink
 contract FirepitDestination is Nonce, Owned {
   AssetSink public immutable ASSET_SINK;
-  IL1CrossDomainMessenger public immutable MESSENGER;
 
-  /// @notice the L1 contract address FirepitSource
+  /// @notice the local contract(s) that are allowed to call this contract, i.e. Message Relayers
+  mapping(address callers => bool allowed) public allowableCallers;
+
+  /// @notice the source contract(s) that are allowed to originate messages to this contract, i.e.
+  /// FirepitSource
   mapping(address source => bool allowed) public allowableSources;
 
-  constructor(address _owner, address _assetSink, address _messenger) Owned(_owner) {
+  event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
+
+  constructor(address _owner, address _assetSink) Owned(_owner) {
     ASSET_SINK = AssetSink(_assetSink);
-    MESSENGER = IL1CrossDomainMessenger(_messenger);
   }
 
-  modifier onlyMessengerAndFirepitSource() {
-    require(msg.sender == address(MESSENGER) && allowableSources[MESSENGER.xDomainMessageSender()]);
+  modifier onlyAllowed() {
+    require(
+      allowableCallers[msg.sender]
+        && allowableSources[IL1CrossDomainMessenger(msg.sender).xDomainMessageSender()]
+    );
     _;
   }
 
@@ -36,13 +43,20 @@ contract FirepitDestination is Nonce, Owned {
   /// @dev reverts when the message exceeds the deadline
   function claimTo(uint256 _nonce, Currency[] memory assets, address claimer, uint256 deadline)
     external
-    onlyMessengerAndFirepitSource
+    onlyAllowed
     checkDeadline(deadline)
     handleNonce(_nonce)
   {
     for (uint256 i; i < assets.length; i++) {
-      ASSET_SINK.release(assets[i], claimer);
+      try ASSET_SINK.release(assets[i], claimer) {}
+      catch (bytes memory reason) {
+        emit FailedRelease(Currency.unwrap(assets[i]), claimer, reason);
+      }
     }
+  }
+
+  function setAllowableCallers(address callers, bool isAllowed) external onlyOwner {
+    allowableCallers[callers] = isAllowed;
   }
 
   function setAllowableSource(address source, bool isAllowed) external onlyOwner {
