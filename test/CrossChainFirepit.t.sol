@@ -69,6 +69,26 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(revertingToken.balanceOf(alice), 0);
   }
 
+  /// @dev torch SUCCEEDS on insufficient balance
+  function test_torch_release_insufficientBalance() public {
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = Currency.wrap(address(0xffdeadbeefc0ffeebabeff));
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectEmit(true, true, false, false);
+    emit FirepitDestination.FailedRelease(Currency.unwrap(assets[0]), alice, "");
+    opStackFirepitSource.torch(
+      opStackFirepitSource.nonce(), firepitDestination.nonce(), assets, alice, L2_GAS_LIMIT
+    );
+    vm.stopPrank();
+
+    // resource still burned
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+  }
+
   function test_torch_release_native() public {}
 
   function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {}
