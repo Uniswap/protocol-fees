@@ -5,21 +5,23 @@ import {Owned} from "solmate/auth/Owned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {AssetSink} from "../AssetSink.sol";
-import {Nonce} from "../base/Nonce.sol";
+import {SoftNonce} from "../base/Nonce.sol";
 
 /// @notice a contract for receiving crosschain messages. Validates messages and releases assets
 /// from the AssetSink
-contract FirepitDestination is Nonce, Owned {
-  AssetSink public immutable ASSET_SINK;
+contract FirepitDestination is SoftNonce, Owned {
+  /// @notice the source contract that is allowed to originate messages to this contract
+  /// i.e. FirepitSource
+  address public allowableSource;
 
   /// @notice the local contract(s) that are allowed to call this contract, i.e. Message Relayers
   mapping(address callers => bool allowed) public allowableCallers;
 
-  /// @notice the source contract(s) that are allowed to originate messages to this contract, i.e.
-  /// FirepitSource
-  mapping(address source => bool allowed) public allowableSources;
+  AssetSink public immutable ASSET_SINK;
 
   event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
+
+  error UnauthorizedCall();
 
   constructor(address _owner, address _assetSink) Owned(_owner) {
     ASSET_SINK = AssetSink(_assetSink);
@@ -28,7 +30,8 @@ contract FirepitDestination is Nonce, Owned {
   modifier onlyAllowed() {
     require(
       allowableCallers[msg.sender]
-        && allowableSources[IL1CrossDomainMessenger(msg.sender).xDomainMessageSender()]
+        && allowableSource == IL1CrossDomainMessenger(msg.sender).xDomainMessageSender(),
+      UnauthorizedCall()
     );
     _;
   }
@@ -59,7 +62,7 @@ contract FirepitDestination is Nonce, Owned {
     allowableCallers[callers] = isAllowed;
   }
 
-  function setAllowableSource(address source, bool isAllowed) external onlyOwner {
-    allowableSources[source] = isAllowed;
+  function setAllowableSource(address source) external onlyOwner {
+    allowableSource = source;
   }
 }

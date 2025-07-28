@@ -26,13 +26,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    opStackFirepitSource.torch(
-      opStackFirepitSource.nonce(),
-      firepitDestination.nonce(),
-      releaseMockToken,
-      alice,
-      L2_GAS_LIMIT
-    );
+    opStackFirepitSource.torch(opStackFirepitSource.nonce(), releaseMockToken, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
@@ -52,11 +46,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
       Currency.unwrap(Currency.wrap(address(revertingToken))), alice, ""
     );
     opStackFirepitSource.torch(
-      opStackFirepitSource.nonce(),
-      firepitDestination.nonce(),
-      releaseMockReverting,
-      alice,
-      L2_GAS_LIMIT
+      opStackFirepitSource.nonce(), releaseMockReverting, alice, L2_GAS_LIMIT
     );
     vm.stopPrank();
 
@@ -78,9 +68,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(true, true, false, false);
     emit FirepitDestination.FailedRelease(Currency.unwrap(assets[0]), alice, "");
-    opStackFirepitSource.torch(
-      opStackFirepitSource.nonce(), firepitDestination.nonce(), assets, alice, L2_GAS_LIMIT
-    );
+    opStackFirepitSource.torch(opStackFirepitSource.nonce(), assets, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
     // resource still burned

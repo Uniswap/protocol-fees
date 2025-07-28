@@ -10,7 +10,6 @@ import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
 abstract contract FirepitSource is FirepitImmutable, Nonce {
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
-  mapping(uint256 nonce => address nonceOwner) public nonceOwners;
 
   constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
 
@@ -34,7 +33,7 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
   //   require(nonceOwners[destinationNonce] == msg.sender, "Not the nonce owner");
   //   _sendReleaseMessage(
   //     bridgeId,
-  //     destinationNonce,
+  //     nonce = 100, // current value is 101, but pass 100 ??
   //     assets,
   //     claimer,
   //     block.timestamp + 30 minutes,
@@ -44,24 +43,18 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
 
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
-  function torch(
-    uint256 localNonce,
-    uint256 destinationNonce,
-    Currency[] memory assets,
-    address claimer,
-    uint32 l2GasLimit
-  ) external handleNonce(localNonce) {
-    uint256 deadline = block.timestamp + 30 minutes;
-    nonceOwners[destinationNonce] = msg.sender;
+  function torch(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
+    external
+    handleNonce(_nonce)
+  {
+    uint256 deadline = block.timestamp + 30 minutes; // TODO: specify a value
 
     // In the event of a cancelled / faulty message, ensure the RESOURCE is recoverable
     // therefore, only transfer the resource to the contract
     RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
 
     _sendReleaseMessage(
-      DEFAULT_BRIDGE_ID, destinationNonce, assets, claimer, deadline, abi.encode(l2GasLimit)
+      DEFAULT_BRIDGE_ID, _nonce, assets, claimer, deadline, abi.encode(l2GasLimit)
     );
   }
-
-  // TODO: resource recovery for failed messages
 }

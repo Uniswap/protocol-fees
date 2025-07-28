@@ -59,7 +59,7 @@ contract PhoenixTestBase is Test {
     revertingToken.setRevertFrom(address(assetSink), true);
 
     vm.startPrank(owner);
-    firepitDestination.setAllowableSource(address(opStackFirepitSource), true);
+    firepitDestination.setAllowableSource(address(opStackFirepitSource));
     firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
     vm.stopPrank();
 
