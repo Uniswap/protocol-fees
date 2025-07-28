@@ -59,7 +59,8 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(revertingToken.balanceOf(alice), 0);
   }
 
-  /// @dev torch SUCCEEDS on insufficient balance
+  /// @dev torch SUCCEEDS on *releasing* an insufficient balance
+  /// @dev note torch FAILS on an insufficient balance of the RESOURCE token
   function test_torch_release_insufficientBalance() public {
     Currency[] memory assets = new Currency[](1);
     assets[0] = Currency.wrap(address(0xffdeadbeefc0ffeebabeff));
@@ -77,12 +78,77 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
   }
 
-  function test_torch_release_native() public {}
+  function test_torch_release_native() public {
+    uint256 bobNativeBefore = CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob);
+    uint256 assetSinkNativeBefore = CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink));
 
-  function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {}
+    assertGt(assetSinkNativeBefore, 0);
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), 0);
 
-  function test_fuzz_revert_torch_invalid_nonce(uint256 nonce, uint256 seed) public {}
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    opStackFirepitSource.torch(opStackFirepitSource.nonce(), releaseMockNative, bob, L2_GAS_LIMIT);
+    vm.stopPrank();
+
+    // resource burned
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+
+    // bob received native asset
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob), bobNativeBefore + assetSinkNativeBefore);
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
+  }
+
+  /// @dev insufficient balance of the RESOURCE token will lead to a revert
+  function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {
+    amount = bound(amount, 1, resource.balanceOf(alice));
+
+    // alice spends some of her resource and is below the threshold
+    vm.prank(alice);
+    resource.transfer(bob, amount);
+
+    // alice does not have the threshold amount
+    assertLt(resource.balanceOf(alice), opStackFirepitSource.THRESHOLD());
+
+    uint256 _nonce = opStackFirepitSource.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectRevert();
+    opStackFirepitSource.torch(
+      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT
+    );
+    vm.stopPrank();
+  }
+
+  function test_fuzz_revert_torch_invalid_nonce(uint256 _nonce, uint256 seed) public {
+    vm.assume(_nonce != opStackFirepitSource.nonce());
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    opStackFirepitSource.torch(
+      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT
+    );
+    vm.stopPrank();
+  }
 
   /// @dev test that two transactions with the same nonce, the second one should revert
-  function test_revert_torch_frontrun() public {}
+  function test_revert_torch_frontrun() public {
+    uint256 _nonce = opStackFirepitSource.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    opStackFirepitSource.torch(_nonce, releaseMockBoth, alice, L2_GAS_LIMIT);
+    vm.stopPrank();
+
+    vm.startPrank(bob);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    opStackFirepitSource.torch(_nonce, releaseMockBoth, bob, L2_GAS_LIMIT);
+    vm.stopPrank();
+  }
 }
