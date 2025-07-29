@@ -50,7 +50,7 @@ contract FirepitDestination is SoftNonce, Owned {
     external
     onlyAllowed
     checkDeadline(deadline)
-    handleNonce(_nonce)
+    handleSoftNonce(_nonce)
   {
     for (uint256 i; i < assets.length; i++) {
       try ASSET_SINK.release(assets[i], claimer) {}
