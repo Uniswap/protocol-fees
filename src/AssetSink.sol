@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {Owned} from "solmate/auth/Owned.sol";
+import {Owned} from "solmate/src/auth/Owned.sol";
 
 /// @title AssetSink
 /// @notice Sink for protocol fees
@@ -48,4 +48,6 @@ contract AssetSink is Owned {
   function setReleaser(address _releaser) external onlyOwner {
     releaser = _releaser;
   }
+
+  receive() external payable {}
 }

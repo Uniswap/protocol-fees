@@ -10,7 +10,7 @@ contract MockReleaser {
   AssetSink public assetSink;
 
   constructor(address _assetSink) {
-    assetSink = AssetSink(_assetSink);
+    assetSink = AssetSink(payable(_assetSink));
   }
 
   function setAssetSink(AssetSink _assetSink) external {
