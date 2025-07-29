@@ -10,6 +10,7 @@ import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
 abstract contract FirepitSource is FirepitImmutable, Nonce {
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
+  uint256 public constant DEFAULT_DEADLINE = 30 minutes; // TODO: verify if this is correct duration
 
   constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
 
@@ -47,10 +48,8 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
     external
     handleNonce(_nonce)
   {
-    uint256 deadline = block.timestamp + 30 minutes; // TODO: specify a value
+    uint256 deadline = block.timestamp + DEFAULT_DEADLINE;
 
-    // In the event of a cancelled / faulty message, ensure the RESOURCE is recoverable
-    // therefore, only transfer the resource to the contract
     RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
 
     _sendReleaseMessage(
