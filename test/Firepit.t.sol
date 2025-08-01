@@ -9,6 +9,12 @@ contract FirepitTest is PhoenixTestBase {
   function setUp() public override {
     super.setUp();
 
+    // Supply tokens to the AssetSink
+    mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
+
+    // Supply native tokens to the AssetSink
+    vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
+
     vm.prank(owner);
     assetSink.setReleaser(address(firepit));
   }

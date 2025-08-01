@@ -36,12 +36,6 @@ contract PhoenixTestBase is Test {
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
-    // Supply tokens to the AssetSink
-    mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
-
-    // Supply native tokens to the AssetSink
-    vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
-
     // Define releasable assets
     releaseMockToken[0] = Currency.wrap(address(mockToken));
     releaseMockNative[0] = CurrencyLibrary.ADDRESS_ZERO;

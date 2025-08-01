@@ -3,45 +3,38 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 
 import {V4FeeController} from "src/feeControllers/V4FeeController.sol";
-import {AssetSink} from "src/AssetSink.sol";
 import {MockPoolManager} from "./mocks/MockPoolManager.sol";
+import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 
-contract TestV4FeeController is Test {
+contract TestV4FeeController is PhoenixTestBase {
   MockPoolManager poolManager;
   V4FeeController feeController;
-  address owner;
-  AssetSink assetSink;
-  Currency mockToken;
+
   Currency mockNative;
+  Currency mockCurrency;
 
-  uint256 public constant INITIAL_TOKEN_AMOUNT = 15e18;
-  uint256 public constant INITIAL_NATIVE_AMOUNT = 2e18;
-
-  function setUp() public {
-    owner = makeAddr("owner");
+  function setUp() public override {
+    super.setUp();
 
     poolManager = new MockPoolManager(owner);
 
-    assetSink = new AssetSink(owner);
     feeController = new V4FeeController(address(poolManager), address(assetSink));
 
     vm.prank(owner);
     poolManager.setProtocolFeeController(address(feeController));
 
     // Create mock tokens.
-    MockERC20 mock = new MockERC20("MockToken", "MTK", 18);
-    mockToken = Currency.wrap(address(mock));
+    mockCurrency = Currency.wrap(address(mockToken));
     mockNative = CurrencyLibrary.ADDRESS_ZERO;
 
     // Mint mock tokens to mock pool manager.
-    mock.mint(address(poolManager), INITIAL_TOKEN_AMOUNT);
+    mockToken.mint(address(poolManager), INITIAL_TOKEN_AMOUNT);
     vm.deal(address(poolManager), INITIAL_NATIVE_AMOUNT);
 
     // Create mock protocolFees.
-    poolManager.setProtocolFeesAccrued(mockToken, INITIAL_TOKEN_AMOUNT);
+    poolManager.setProtocolFeesAccrued(mockCurrency, INITIAL_TOKEN_AMOUNT);
     poolManager.setProtocolFeesAccrued(mockNative, INITIAL_NATIVE_AMOUNT);
   }
 
@@ -49,9 +42,13 @@ contract TestV4FeeController is Test {
     assertEq(address(poolManager.protocolFeeController()), address(feeController));
   }
 
+  function test_assetSink_isSet() public view {
+    assertEq(feeController.feeSink(), address(assetSink));
+  }
+
   function test_collect_full_success() public {
     Currency[] memory currency = new Currency[](1);
-    currency[0] = mockToken;
+    currency[0] = mockCurrency;
 
     uint256[] memory amountRequested = new uint256[](1);
     amountRequested[0] = 0;
@@ -62,13 +59,13 @@ contract TestV4FeeController is Test {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockToken.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(poolManager)), 0);
+    assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT);
+    assertEq(mockCurrency.balanceOf(address(poolManager)), 0);
   }
 
   function test_collect_partial_success() public {
     Currency[] memory currency = new Currency[](1);
-    currency[0] = mockToken;
+    currency[0] = mockCurrency;
 
     uint256[] memory amountRequested = new uint256[](1);
     amountRequested[0] = 1e18;
@@ -79,19 +76,19 @@ contract TestV4FeeController is Test {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockToken.balanceOf(address(assetSink)), 1e18);
-    assertEq(mockToken.balanceOf(address(poolManager)), INITIAL_TOKEN_AMOUNT - 1e18);
+    assertEq(mockCurrency.balanceOf(address(assetSink)), 1e18);
+    assertEq(mockCurrency.balanceOf(address(poolManager)), INITIAL_TOKEN_AMOUNT - 1e18);
   }
 
   function test_collect_revertsWithAmountCollectedTooLow() public {
     Currency[] memory currency = new Currency[](1);
-    currency[0] = mockToken;
+    currency[0] = mockCurrency;
 
     /// Request the full amount, expect the full amount to be collected.
     uint256[] memory amountRequested = new uint256[](1);
     amountRequested[0] = 0;
     uint256[] memory amountExpected = new uint256[](1);
-    amountExpected[0] = 15e18;
+    amountExpected[0] = INITIAL_TOKEN_AMOUNT;
 
     // someone else collects.
     feeController.collect(currency, amountRequested, amountExpected);
