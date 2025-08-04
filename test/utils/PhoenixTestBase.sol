@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
-import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/Firepit.sol";
@@ -35,12 +35,6 @@ contract PhoenixTestBase is Test {
     mockToken = new MockERC20("MockToken", "MTK", 18);
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
-
-    // Supply tokens to the AssetSink
-    mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
-
-    // Supply native tokens to the AssetSink
-    vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
 
     // Define releasable assets
     releaseMockToken[0] = Currency.wrap(address(mockToken));
