@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {Owned} from "solmate/auth/Owned.sol";
+import {Owned} from "solmate/src/auth/Owned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {AssetSink} from "../AssetSink.sol";
@@ -26,7 +26,7 @@ contract FirepitDestination is SoftNonce, Owned {
   event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
 
   constructor(address _owner, address _assetSink) Owned(_owner) {
-    ASSET_SINK = AssetSink(_assetSink);
+    ASSET_SINK = AssetSink(payable(_assetSink));
   }
 
   modifier onlyAllowed() {

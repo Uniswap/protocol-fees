@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
-import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {AssetSink} from "../src/AssetSink.sol";
@@ -153,14 +153,14 @@ contract AssetSinkTest is Test {
   }
 
   function test_setReleaser() public {
-    MockReleaser newReleaser = new MockReleaser(address(assetSink));
+    MockReleaser newReleaser = new MockReleaser(payable(address(assetSink)));
     vm.prank(owner);
     assetSink.setReleaser(address(newReleaser));
     assertEq(assetSink.releaser(), address(newReleaser));
   }
 
   function test_setReleaser_Unauthorized() public {
-    MockReleaser newReleaser = new MockReleaser(address(assetSink));
+    MockReleaser newReleaser = new MockReleaser(payable(address(assetSink)));
     vm.expectRevert("UNAUTHORIZED");
     assetSink.setReleaser(address(newReleaser));
 

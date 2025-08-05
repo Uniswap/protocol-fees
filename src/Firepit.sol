@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {SafeTransferLib, ERC20} from "solmate/utils/SafeTransferLib.sol";
+import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 import {AssetSink} from "./AssetSink.sol";
 import {Nonce} from "./base/Nonce.sol";
 
@@ -16,7 +16,7 @@ contract Firepit is Nonce {
   constructor(address _resource, uint256 _threshold, address _assetSink) {
     RESOURCE = ERC20(_resource);
     THRESHOLD = _threshold;
-    ASSET_SINK = AssetSink(_assetSink);
+    ASSET_SINK = AssetSink(payable(_assetSink));
   }
 
   function torch(uint256 _nonce, Currency[] memory assets, address recipient)
