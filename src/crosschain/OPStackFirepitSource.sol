@@ -22,13 +22,12 @@ contract OPStackFirepitSource is FirepitSource {
     uint256 destinationNonce,
     Currency[] memory assets,
     address claimer,
-    uint256 deadline,
     bytes memory addtlData
   ) internal override {
     (uint32 l2GasLimit) = abi.decode(addtlData, (uint32));
     MESSENGER.sendMessage(
       L2_TARGET,
-      abi.encodeCall(IFirepitDestination.claimTo, (destinationNonce, assets, claimer, deadline)),
+      abi.encodeCall(IFirepitDestination.claimTo, (destinationNonce, assets, claimer)),
       l2GasLimit
     );
   }

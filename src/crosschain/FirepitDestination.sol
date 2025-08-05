@@ -38,18 +38,11 @@ contract FirepitDestination is SoftNonce, Owned {
     _;
   }
 
-  modifier checkDeadline(uint256 timestamp) {
-    require(block.timestamp <= timestamp);
-    _;
-  }
-
   /// @notice Calls Asset Sink to release assets to a destination
   /// @dev only callable by the messenger via the authorized L1 source contract
-  /// @dev reverts when the message exceeds the deadline
-  function claimTo(uint256 _nonce, Currency[] memory assets, address claimer, uint256 deadline)
+  function claimTo(uint256 _nonce, Currency[] memory assets, address claimer)
     external
     onlyAllowed
-    checkDeadline(deadline)
     handleSoftNonce(_nonce)
   {
     for (uint256 i; i < assets.length; i++) {

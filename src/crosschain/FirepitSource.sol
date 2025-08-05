@@ -19,28 +19,8 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
     uint256 destinationNonce,
     Currency[] memory assets,
     address claimer,
-    uint256 deadline,
     bytes memory addtlData
   ) internal virtual;
-
-  /// TODO: DRAFT
-  // function replayTorch(
-  //   uint256 bridgeId,
-  //   uint256 destinationNonce,
-  //   Currency[] memory assets,
-  //   address claimer,
-  //   uint32 l2GasLimit
-  // ) external {
-  //   require(nonceOwners[destinationNonce] == msg.sender, "Not the nonce owner");
-  //   _sendReleaseMessage(
-  //     bridgeId,
-  //     nonce = 100, // current value is 101, but pass 100 ??
-  //     assets,
-  //     claimer,
-  //     block.timestamp + 30 minutes,
-  //     abi.encode(l2GasLimit)
-  //   );
-  // }
 
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
@@ -48,12 +28,8 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
     external
     handleNonce(_nonce)
   {
-    uint256 deadline = block.timestamp + DEFAULT_DEADLINE;
-
     RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
 
-    _sendReleaseMessage(
-      DEFAULT_BRIDGE_ID, _nonce, assets, claimer, deadline, abi.encode(l2GasLimit)
-    );
+    _sendReleaseMessage(DEFAULT_BRIDGE_ID, _nonce, assets, claimer, abi.encode(l2GasLimit));
   }
 }
