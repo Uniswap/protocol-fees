@@ -154,22 +154,29 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
   /// @dev test that insufficient gas DOES NOT revert
   function test_fuzz_torch_insufficient_gas(uint8 seed) public {
-    uint256 _nonce = opStackFirepitSource.nonce();
+    uint256 currentNonce = opStackFirepitSource.nonce();
+    uint256 currentDestinationNonce = firepitDestination.nonce();
+
+    TestBalances memory aliceBalances = _testBalances(alice);
 
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(false, false, false, false, address(firepitDestination), 1);
     emit FirepitDestination.FailedRelease(address(0), address(0), "");
     opStackFirepitSource.torch{gas: 150_000 + 500}(
-      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
+      currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
     );
     vm.stopPrank();
 
-    // subsequent torch fails on invalid nonce
-    vm.startPrank(bob);
-    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    vm.expectRevert(Nonce.InvalidNonce.selector);
-    opStackFirepitSource.torch(_nonce, releaseMockBoth, bob, L2_GAS_LIMIT);
-    vm.stopPrank();
+    // alice did not receive any assets
+    TestBalances memory aliceBalancesAfter = _testBalances(alice);
+    assertEq(aliceBalancesAfter.native, aliceBalances.native);
+    assertEq(aliceBalancesAfter.mockToken, aliceBalances.mockToken);
+
+    // nonces should have been incremented
+    uint256 newNonce = opStackFirepitSource.nonce();
+    uint256 newDestinationNonce = firepitDestination.nonce();
+    assertEq(newNonce, currentNonce + 1);
+    assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
 }

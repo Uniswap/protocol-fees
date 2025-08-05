@@ -37,6 +37,13 @@ contract PhoenixTestBase is Test {
   Currency[] releaseMockBoth = new Currency[](2);
   Currency[][] fuzzReleaseAny = new Currency[][](2);
 
+  struct TestBalances {
+    uint256 resource;
+    uint256 mockToken;
+    uint256 revertingToken;
+    uint256 native;
+  }
+
   function setUp() public virtual {
     owner = makeAddr("owner");
     alice = makeAddr("alice");
@@ -94,5 +101,14 @@ contract PhoenixTestBase is Test {
 
     fuzzReleaseAny[0] = releaseMockToken;
     fuzzReleaseAny[1] = releaseMockNative;
+  }
+
+  function _testBalances(address owner) internal returns (TestBalances memory) {
+    return TestBalances({
+      resource: resource.balanceOf(owner),
+      mockToken: mockToken.balanceOf(owner),
+      revertingToken: revertingToken.balanceOf(owner),
+      native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(owner)
+    });
   }
 }
