@@ -5,13 +5,13 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {AssetSink} from "../AssetSink.sol";
-import {SoftNonce} from "../base/Nonce.sol";
+import {Nonce} from "../base/Nonce.sol";
 
 error UnauthorizedCall();
 
 /// @notice a contract for receiving crosschain messages. Validates messages and releases assets
 /// from the AssetSink
-contract FirepitDestination is SoftNonce, Owned {
+contract FirepitDestination is Nonce, Owned {
   /// @notice the source contract that is allowed to originate messages to this contract i.e.
   /// FirepitSource
   /// @dev updatable by owner
@@ -22,6 +22,7 @@ contract FirepitDestination is SoftNonce, Owned {
   mapping(address callers => bool allowed) public allowableCallers;
 
   AssetSink public immutable ASSET_SINK;
+  uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
 
   event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
 
@@ -43,9 +44,14 @@ contract FirepitDestination is SoftNonce, Owned {
   function claimTo(uint256 _nonce, Currency[] memory assets, address claimer)
     external
     onlyAllowed
-    handleSoftNonce(_nonce)
+    handleNonce(_nonce)
   {
     for (uint256 i; i < assets.length; i++) {
+      if (gasleft() < MINIMUM_RELEASE_GAS) {
+        emit FailedRelease(Currency.unwrap(assets[i]), claimer, "Insufficient gas for release");
+        return;
+      }
+
       try ASSET_SINK.release(assets[i], claimer) {}
       catch (bytes memory reason) {
         emit FailedRelease(Currency.unwrap(assets[i]), claimer, reason);

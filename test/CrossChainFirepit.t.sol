@@ -151,4 +151,25 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     opStackFirepitSource.torch(_nonce, releaseMockBoth, bob, L2_GAS_LIMIT);
     vm.stopPrank();
   }
+
+  /// @dev test that insufficient gas DOES NOT revert
+  function test_fuzz_torch_insufficient_gas(uint8 seed) public {
+    uint256 _nonce = opStackFirepitSource.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectEmit(false, false, false, false, address(firepitDestination), 1);
+    emit FirepitDestination.FailedRelease(address(0), address(0), "");
+    opStackFirepitSource.torch{gas: 150_000 + 500}(
+      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
+    );
+    vm.stopPrank();
+
+    // subsequent torch fails on invalid nonce
+    vm.startPrank(bob);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    opStackFirepitSource.torch(_nonce, releaseMockBoth, bob, L2_GAS_LIMIT);
+    vm.stopPrank();
+  }
 }
