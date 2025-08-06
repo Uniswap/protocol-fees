@@ -14,11 +14,10 @@ contract WormholeReceiver {
 
   function _validateOrigins(address source, address caller) internal virtual {}
 
-  function _claimTo(
-    uint256 destinationNonce,
-    Currency[] memory assets,
-    address recipient
-  ) internal virtual {}
+  function _claimTo(uint256 destinationNonce, Currency[] memory assets, address recipient)
+    internal
+    virtual
+  {}
 
   // Update receiveWormholeMessages to include the source address check
   function receiveWormholeMessages(
@@ -31,7 +30,8 @@ contract WormholeReceiver {
     _validateOrigins(address(uint160(uint256(sourceAddress))), msg.sender);
 
     // Decode the payload to extract the message
-    (uint256 nonce, Currency[] memory assets, address recipient) = abi.decode(payload, (uint256, Currency[], address));
+    (uint256 nonce, Currency[] memory assets, address recipient) =
+      abi.decode(payload, (uint256, Currency[], address));
     _claimTo(nonce, assets, recipient);
   }
 }
