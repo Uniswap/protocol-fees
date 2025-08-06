@@ -179,4 +179,25 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(newNonce, currentNonce + 1);
     assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
+
+  function test_fuzz_gas_torch(uint8 seed, uint32 gasUsed) public {
+    vm.assume(120_000 < gasUsed);
+
+    uint256 currentNonce = opStackFirepitSource.nonce();
+    uint256 currentDestinationNonce = firepitDestination.nonce();
+
+    // the cross-chain message always succeeds
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+    opStackFirepitSource.torch{gas: gasUsed}(
+      currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, gasUsed
+    );
+    vm.stopPrank();
+
+    // nonces should have been incremented
+    uint256 newNonce = opStackFirepitSource.nonce();
+    uint256 newDestinationNonce = firepitDestination.nonce();
+    assertEq(newNonce, currentNonce + 1);
+    assertEq(newDestinationNonce, currentDestinationNonce + 1);
+  }
 }
