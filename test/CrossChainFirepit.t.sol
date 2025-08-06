@@ -102,6 +102,32 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
   }
 
+  function test_torch_release_OOGToken() public {
+    uint256 currentNonce = opStackFirepitSource.nonce();
+    uint256 currentDestinationNonce = firepitDestination.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+
+    vm.expectEmit(true, true, false, false);
+    emit FirepitDestination.FailedRelease(
+      Currency.unwrap(Currency.wrap(address(oogToken))), alice, ""
+    );
+    opStackFirepitSource.torch(opStackFirepitSource.nonce(), releaseMockOOG, alice, L2_GAS_LIMIT);
+    vm.stopPrank();
+
+    // resource still burned
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+
+    // nonces should have been incremented
+    uint256 newNonce = opStackFirepitSource.nonce();
+    uint256 newDestinationNonce = firepitDestination.nonce();
+    assertEq(newNonce, currentNonce + 1);
+    assertEq(newDestinationNonce, currentDestinationNonce + 1);
+  }
+
   /// @dev insufficient balance of the RESOURCE token will lead to a revert
   function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {
     amount = bound(amount, 1, resource.balanceOf(alice));

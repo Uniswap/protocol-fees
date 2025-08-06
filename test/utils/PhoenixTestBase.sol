@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {RevertingToken} from "../mocks/RevertingToken.sol";
+import {OOGToken} from "../mocks/OOGToken.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/Firepit.sol";
@@ -20,6 +21,7 @@ contract PhoenixTestBase is Test {
   MockERC20 resource;
   MockERC20 mockToken;
   RevertingToken revertingToken;
+  OOGToken oogToken;
 
   AssetSink assetSink;
   Firepit firepit;
@@ -33,6 +35,7 @@ contract PhoenixTestBase is Test {
   Currency[] releaseMockToken = new Currency[](1);
   Currency[] releaseMockNative = new Currency[](1);
   Currency[] releaseMockReverting = new Currency[](1);
+  Currency[] releaseMockOOG = new Currency[](1);
   Currency[] releaseMockTokens = new Currency[](2);
   Currency[] releaseMockBoth = new Currency[](2);
   Currency[][] fuzzReleaseAny = new Currency[][](2);
@@ -41,6 +44,7 @@ contract PhoenixTestBase is Test {
     uint256 resource;
     uint256 mockToken;
     uint256 revertingToken;
+    uint256 oogToken;
     uint256 native;
   }
 
@@ -52,6 +56,7 @@ contract PhoenixTestBase is Test {
     resource = new MockERC20("BurnableResource", "BNR", 18);
     mockToken = new MockERC20("MockToken", "MTK", 18);
     revertingToken = new RevertingToken("RevertingToken", "RTK", 18);
+    oogToken = new OOGToken("OOGToken", "OOGT", 18);
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
@@ -73,6 +78,7 @@ contract PhoenixTestBase is Test {
     // Supply tokens to the AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
     revertingToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
+    oogToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
 
     // Supply native tokens to the AssetSink
     vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
@@ -92,6 +98,7 @@ contract PhoenixTestBase is Test {
     releaseMockToken[0] = Currency.wrap(address(mockToken));
     releaseMockNative[0] = CurrencyLibrary.ADDRESS_ZERO;
     releaseMockReverting[0] = Currency.wrap(address(revertingToken));
+    releaseMockOOG[0] = Currency.wrap(address(oogToken));
 
     releaseMockBoth[0] = Currency.wrap(address(mockToken));
     releaseMockBoth[1] = CurrencyLibrary.ADDRESS_ZERO;
@@ -108,6 +115,7 @@ contract PhoenixTestBase is Test {
       resource: resource.balanceOf(owner),
       mockToken: mockToken.balanceOf(owner),
       revertingToken: revertingToken.balanceOf(owner),
+      oogToken: oogToken.balanceOf(owner),
       native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(owner)
     });
   }
