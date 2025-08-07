@@ -42,7 +42,7 @@ contract PhoenixTestBase is Test {
   Currency[] releaseMalicious = new Currency[](3);
   Currency[] releaseMockTokens = new Currency[](2);
   Currency[] releaseMockBoth = new Currency[](2);
-  Currency[][] fuzzReleaseAny = new Currency[][](2);
+  Currency[][] fuzzReleaseAny = new Currency[][](4);
 
   struct TestBalances {
     uint256 resource;
@@ -114,12 +114,14 @@ contract PhoenixTestBase is Test {
     releaseMockTokens[0] = Currency.wrap(address(mockToken));
     releaseMockTokens[1] = Currency.wrap(address(revertingToken));
 
-    fuzzReleaseAny[0] = releaseMockToken;
-    fuzzReleaseAny[1] = releaseMockNative;
-
     releaseMalicious[0] = Currency.wrap(address(revertingToken));
     releaseMalicious[1] = Currency.wrap(address(oogToken));
     releaseMalicious[2] = Currency.wrap(address(revertBombToken));
+
+    fuzzReleaseAny[0] = releaseMockToken;
+    fuzzReleaseAny[1] = releaseMockNative;
+    fuzzReleaseAny[2] = releaseMockBoth;
+    fuzzReleaseAny[3] = releaseMalicious;
   }
 
   function _testBalances(address owner) internal returns (TestBalances memory) {

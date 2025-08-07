@@ -189,7 +189,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(false, false, false, false, address(firepitDestination), 1);
     emit FirepitDestination.FailedRelease(address(0), address(0), "");
-    opStackFirepitSource.torch{gas: 150_000 + 500}(
+    opStackFirepitSource.torch{gas: 150_000}(
       currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
     );
     vm.stopPrank();
