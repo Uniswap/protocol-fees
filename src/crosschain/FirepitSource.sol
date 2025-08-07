@@ -10,7 +10,6 @@ import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
 abstract contract FirepitSource is FirepitImmutable, Nonce {
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
-  uint256 public constant DEFAULT_DEADLINE = 30 minutes; // TODO: verify if this is correct duration
 
   constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
 
