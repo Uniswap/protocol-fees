@@ -23,7 +23,7 @@ contract FirepitDestination is Nonce, Owned {
 
   AssetSink public immutable ASSET_SINK;
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
-  uint256 public constant MAXIMUM_RELEASE_GAS = 300_000;
+  uint256 public constant REMAINDER_GAS = 10_000;
 
   event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
 
@@ -53,7 +53,7 @@ contract FirepitDestination is Nonce, Owned {
         return;
       }
 
-      try ASSET_SINK.release{gas: gasleft() - 20_000}(assets[i], claimer) {}
+      try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
       catch (bytes memory reason) {
         emit FailedRelease(Currency.unwrap(assets[i]), claimer, reason);
       }
