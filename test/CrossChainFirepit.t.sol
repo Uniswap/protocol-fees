@@ -43,7 +43,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
     vm.expectEmit(true, true, false, false);
     emit FirepitDestination.FailedRelease(
-      Currency.unwrap(Currency.wrap(address(revertingToken))), alice, ""
+      Currency.unwrap(Currency.wrap(address(revertingToken))), alice
     );
     opStackFirepitSource.torch(
       opStackFirepitSource.nonce(), releaseMockReverting, alice, L2_GAS_LIMIT
@@ -68,7 +68,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(true, true, false, false);
-    emit FirepitDestination.FailedRelease(Currency.unwrap(assets[0]), alice, "");
+    emit FirepitDestination.FailedRelease(Currency.unwrap(assets[0]), alice);
     opStackFirepitSource.torch(opStackFirepitSource.nonce(), assets, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
@@ -110,9 +110,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
 
     vm.expectEmit(true, true, false, false);
-    emit FirepitDestination.FailedRelease(
-      Currency.unwrap(Currency.wrap(address(oogToken))), alice, ""
-    );
+    emit FirepitDestination.FailedRelease(Currency.unwrap(Currency.wrap(address(oogToken))), alice);
     opStackFirepitSource.torch(opStackFirepitSource.nonce(), releaseMockOOG, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
@@ -188,7 +186,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(false, false, false, false, address(firepitDestination), 1);
-    emit FirepitDestination.FailedRelease(address(0), address(0), "");
+    emit FirepitDestination.FailedRelease(address(0), address(0));
     opStackFirepitSource.torch{gas: 150_000}(
       currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
     );
@@ -206,7 +204,8 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
 
-  function test_fuzz_gas_torch(uint8 seed, uint32 revertLength, uint32 gasUsed) public {
+  /// @dev releasing a revert token, OOG token, or revert bomb token are still successful
+  function test_fuzz_gas_torch_malicious(uint32 gasUsed, uint32 revertLength) public {
     vm.assume(120_000 < gasUsed);
     try revertBombToken.setBigReason(revertLength) {} catch {}
 
@@ -216,9 +215,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     // the cross-chain message always succeeds
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    opStackFirepitSource.torch{gas: gasUsed}(
-      currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, gasUsed
-    );
+    opStackFirepitSource.torch{gas: gasUsed}(currentNonce, releaseMalicious, alice, gasUsed);
     vm.stopPrank();
 
     // nonces should have been incremented

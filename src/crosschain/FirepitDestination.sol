@@ -25,7 +25,7 @@ contract FirepitDestination is Nonce, Owned {
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
   uint256 public constant REMAINDER_GAS = 10_000;
 
-  event FailedRelease(address indexed asset, address indexed claimer, bytes reason);
+  event FailedRelease(address indexed asset, address indexed claimer);
 
   constructor(address _owner, address _assetSink) Owned(_owner) {
     ASSET_SINK = AssetSink(payable(_assetSink));
@@ -49,13 +49,13 @@ contract FirepitDestination is Nonce, Owned {
   {
     for (uint256 i; i < assets.length; i++) {
       if (gasleft() < MINIMUM_RELEASE_GAS) {
-        emit FailedRelease(Currency.unwrap(assets[i]), claimer, "Insufficient gas for release");
+        emit FailedRelease(Currency.unwrap(assets[i]), claimer);
         return;
       }
 
       try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
       catch (bytes memory) {
-        emit FailedRelease(Currency.unwrap(assets[i]), claimer, "");
+        emit FailedRelease(Currency.unwrap(assets[i]), claimer);
       }
     }
   }
