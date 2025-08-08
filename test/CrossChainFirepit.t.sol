@@ -206,8 +206,9 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
 
-  function test_fuzz_gas_torch(uint8 seed, uint32 gasUsed) public {
+  function test_fuzz_gas_torch(uint8 seed, uint32 revertLength, uint32 gasUsed) public {
     vm.assume(120_000 < gasUsed);
+    try revertBombToken.setBigReason(revertLength) {} catch {}
 
     uint256 currentNonce = opStackFirepitSource.nonce();
     uint256 currentDestinationNonce = firepitDestination.nonce();

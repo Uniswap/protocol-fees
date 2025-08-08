@@ -54,8 +54,8 @@ contract FirepitDestination is Nonce, Owned {
       }
 
       try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
-      catch (bytes memory reason) {
-        emit FailedRelease(Currency.unwrap(assets[i]), claimer, reason);
+      catch (bytes memory) {
+        emit FailedRelease(Currency.unwrap(assets[i]), claimer, "");
       }
     }
   }
