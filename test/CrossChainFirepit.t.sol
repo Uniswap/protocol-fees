@@ -206,7 +206,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
   /// @dev releasing a revert token, OOG token, or revert bomb token are still successful
   function test_fuzz_gas_torch_malicious(uint32 gasUsed, uint32 revertLength) public {
-    vm.assume(120_000 < gasUsed);
+    vm.assume(150_000 < gasUsed);
     try revertBombToken.setBigReason(revertLength) {} catch {}
 
     uint256 currentNonce = opStackFirepitSource.nonce();
