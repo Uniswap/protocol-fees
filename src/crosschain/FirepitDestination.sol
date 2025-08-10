@@ -53,10 +53,19 @@ contract FirepitDestination is Nonce, Owned {
         return;
       }
 
-      try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
-      catch {
-        emit FailedRelease(Currency.unwrap(assets[i]), claimer);
+      // equivalent to, but limit the return data to 0
+      // try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
+      // catch {
+      //   emit FailedRelease(Currency.unwrap(assets[i]), claimer);
+      // }
+      bytes memory callData = abi.encodeWithSelector(AssetSink.release.selector, assets[i], claimer);
+      bool success;
+      address target = address(ASSET_SINK);
+      assembly {
+        success :=
+          call(sub(gas(), REMAINDER_GAS), target, 0, add(callData, 0x20), mload(callData), 0, 0)
       }
+      if (!success) emit FailedRelease(Currency.unwrap(assets[i]), claimer);
     }
   }
 
