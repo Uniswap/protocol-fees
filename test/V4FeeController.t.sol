@@ -59,7 +59,8 @@ contract TestV4FeeController is PhoenixTestBase {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT);
+    // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
+    assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT * 2);
     assertEq(mockCurrency.balanceOf(address(poolManager)), 0);
   }
 
@@ -76,7 +77,8 @@ contract TestV4FeeController is PhoenixTestBase {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockCurrency.balanceOf(address(assetSink)), 1e18);
+    // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
+    assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT + 1e18);
     assertEq(mockCurrency.balanceOf(address(poolManager)), INITIAL_TOKEN_AMOUNT - 1e18);
   }
 
@@ -114,7 +116,8 @@ contract TestV4FeeController is PhoenixTestBase {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockNative.balanceOf(address(assetSink)), INITIAL_NATIVE_AMOUNT);
+    // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
+    assertEq(mockNative.balanceOf(address(assetSink)), INITIAL_NATIVE_AMOUNT * 2);
     assertEq(mockNative.balanceOf(address(poolManager)), 0);
   }
 
@@ -131,7 +134,8 @@ contract TestV4FeeController is PhoenixTestBase {
     // Anyone can call collect.
     feeController.collect(currency, amountRequested, amountExpected);
 
-    assertEq(mockNative.balanceOf(address(assetSink)), 1e18);
+    // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
+    assertEq(mockNative.balanceOf(address(assetSink)), INITIAL_NATIVE_AMOUNT + 1e18);
     assertEq(mockNative.balanceOf(address(poolManager)), INITIAL_NATIVE_AMOUNT - 1e18);
   }
 
