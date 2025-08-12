@@ -42,8 +42,8 @@ contract TestV4FeeController is PhoenixTestBase {
     poolManager.setProtocolFeesAccrued(mockNative, INITIAL_NATIVE_AMOUNT);
 
     poolKey = PoolKey({
-      currency0: mockCurrency,
-      currency1: mockNative,
+      currency0: mockNative,
+      currency1: mockCurrency,
       fee: 3000,
       tickSpacing: 60,
       hooks: IHooks(address(0))
@@ -175,6 +175,13 @@ contract TestV4FeeController is PhoenixTestBase {
     feeController.setMerkleRoot(bytes32(0));
   }
 
+  function test_setMerkleRoot_revertsWithInvalidCaller_fuzz(address caller) public {
+    vm.assume(caller != owner);
+    vm.startPrank(caller);
+    vm.expectRevert(abi.encode("UNAUTHORIZED"));
+    feeController.setMerkleRoot(bytes32(uint256(40)));
+  }
+
   function test_setMerkleRoot_success() public {
     assertEq(feeController.merkleRoot(), bytes32(uint256(0)));
     vm.prank(owner);
@@ -250,6 +257,8 @@ contract TestV4FeeController is PhoenixTestBase {
     feeController.triggerFeeUpdate(pool2, protocolFee2, proof2);
 
     assertEq(poolManager.getProtocolFee(pool2.toId()), protocolFee2);
+    // Assert that the fee for the other pool is not updated.
+    assertEq(poolManager.getProtocolFee(poolKey.toId()), 0);
   }
 
   /// @dev Helper function to hash two nodes in merkle tree

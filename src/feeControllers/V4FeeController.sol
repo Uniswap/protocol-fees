@@ -57,9 +57,11 @@ contract V4FeeController is Owned {
   /// @notice Triggers the fee update for the given pool key.
   /// @param _poolKey The pool key to update the fee for.
   /// @param newProtocolFee The new protocol fee to set.
-  function triggerFeeUpdate(PoolKey memory _poolKey, uint24 newProtocolFee, bytes32[] memory proof)
-    external
-  {
+  function triggerFeeUpdate(
+    PoolKey calldata _poolKey,
+    uint24 newProtocolFee,
+    bytes32[] memory proof
+  ) external {
     bytes32 node = keccak256(abi.encode(_poolKey, newProtocolFee));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
 
