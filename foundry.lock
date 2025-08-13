@@ -1,0 +1,20 @@
+{
+  "lib/v4-core": {
+    "rev": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc"
+  },
+  "lib/murky": {
+    "tag": {
+      "name": "v0.1.0",
+      "rev": "5feccd1253d7da820f7cccccdedf64471025455d"
+    }
+  },
+  "lib/forge-std": {
+    "rev": "77041d2ce690e692d6e03cc812b57d1ddaa4d505"
+  },
+  "lib/solmate": {
+    "rev": "e5e0ed64c75e74974151780884e59071d026d84e"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "e34251682bac9c3252af30e91e999f13dd098b9f"
+  }
+}
