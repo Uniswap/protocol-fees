@@ -6,7 +6,7 @@ import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol
 import {IFirepitDestination} from "../interfaces/IFirepitDestination.sol";
 import {FirepitSource} from "./FirepitSource.sol";
 
-contract OPStackFirepitSource is FirepitSource {
+contract DemoFirepitSource is FirepitSource {
   IL1CrossDomainMessenger public immutable MESSENGER;
   address public immutable L2_TARGET;
 

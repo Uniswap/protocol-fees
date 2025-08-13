@@ -10,7 +10,7 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/Firepit.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
-import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
+import {DemoFirepitSource} from "../../src/crosschain/DemoFirepitSource.sol";
 import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
 
 import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
@@ -27,7 +27,7 @@ contract PhoenixTestBase is Test {
 
   AssetSink assetSink;
   Firepit firepit;
-  OPStackFirepitSource opStackFirepitSource;
+  DemoFirepitSource firepitSource;
   MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
   FirepitDestination firepitDestination;
 
@@ -67,7 +67,7 @@ contract PhoenixTestBase is Test {
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
     firepitDestination = new FirepitDestination(owner, address(assetSink));
-    opStackFirepitSource = new OPStackFirepitSource(
+    firepitSource = new DemoFirepitSource(
       address(resource),
       INITIAL_TOKEN_AMOUNT,
       address(mockCrossDomainMessenger),
@@ -77,7 +77,7 @@ contract PhoenixTestBase is Test {
     revertingToken.setRevertFrom(address(assetSink), true);
 
     vm.startPrank(owner);
-    firepitDestination.setAllowableSource(address(opStackFirepitSource));
+    firepitDestination.setAllowableSource(address(firepitSource));
     firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
     vm.stopPrank();
 
