@@ -45,9 +45,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     emit FirepitDestination.FailedRelease(
       Currency.unwrap(Currency.wrap(address(revertingToken))), alice
     );
-    firepitSource.torch(
-      firepitSource.nonce(), releaseMockReverting, alice, L2_GAS_LIMIT
-    );
+    firepitSource.torch(firepitSource.nonce(), releaseMockReverting, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
     // resource still burned
@@ -142,9 +140,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.startPrank(alice);
     resource.approve(address(firepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectRevert();
-    firepitSource.torch(
-      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT
-    );
+    firepitSource.torch(_nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT);
     vm.stopPrank();
   }
 
@@ -154,9 +150,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.startPrank(alice);
     resource.approve(address(firepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectRevert(Nonce.InvalidNonce.selector);
-    firepitSource.torch(
-      _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT
-    );
+    firepitSource.torch(_nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT);
     vm.stopPrank();
   }
 

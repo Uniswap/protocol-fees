@@ -29,6 +29,7 @@ contract PhoenixTestBase is Test {
   Firepit firepit;
   DemoFirepitSource firepitSource;
   MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
+  address mockWormhole;
   FirepitDestination firepitDestination;
 
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
@@ -70,8 +71,9 @@ contract PhoenixTestBase is Test {
     firepitSource = new DemoFirepitSource(
       address(resource),
       INITIAL_TOKEN_AMOUNT,
+      address(firepitDestination),
       address(mockCrossDomainMessenger),
-      address(firepitDestination)
+      address(mockWormhole)
     );
 
     revertingToken.setRevertFrom(address(assetSink), true);
