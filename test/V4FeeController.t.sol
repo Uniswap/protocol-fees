@@ -218,14 +218,17 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 targetLeaf = keccak256(abi.encode(poolKey, targetFee));
     bytes32 dummyLeaf = keccak256(abi.encode("dummy"));
 
-    bytes32 merkleRoot = keccak256(abi.encodePacked(dummyLeaf, targetLeaf));
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = targetLeaf;
+    leaves[1] = dummyLeaf;
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
 
     // Set the merkle root
     vm.prank(owner);
     feeController.setMerkleRoot(merkleRoot);
 
-    bytes32[] memory proof = new bytes32[](1);
-    proof[0] = dummyLeaf;
+    bytes32[] memory proof = merkle.getProof(leaves, 0);
 
     feeController.triggerFeeUpdate(poolKey, targetFee, proof);
 
@@ -250,14 +253,17 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 leaf1 = keccak256(abi.encode(poolKey, protocolFee1));
     bytes32 leaf2 = keccak256(abi.encode(pool2, protocolFee2));
 
-    bytes32 merkleRoot = keccak256(abi.encodePacked(leaf1, leaf2));
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = leaf1;
+    leaves[1] = leaf2;
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
 
     vm.prank(owner);
     feeController.setMerkleRoot(merkleRoot);
 
     // Generate proof for pool2
-    bytes32[] memory proof2 = new bytes32[](1);
-    proof2[0] = leaf1;
+    bytes32[] memory proof2 = merkle.getProof(leaves, 1);
 
     feeController.triggerFeeUpdate(pool2, protocolFee2, proof2);
 
