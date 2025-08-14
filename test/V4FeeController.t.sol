@@ -5,11 +5,11 @@ import {Test} from "forge-std/Test.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {Merkle} from "murky/src/Merkle.sol";
 
 import {V4FeeController} from "src/feeControllers/V4FeeController.sol";
 import {MockPoolManager} from "./mocks/MockPoolManager.sol";
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
-import {Merkle} from "lib/murky/src/Merkle.sol";
 import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
 
 contract TestV4FeeController is PhoenixTestBase {

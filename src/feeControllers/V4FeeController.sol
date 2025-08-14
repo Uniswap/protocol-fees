@@ -49,6 +49,7 @@ contract V4FeeController is Owned {
   }
 
   /// @notice Sets the merkle root for the fee controller.
+  /// @dev only callable by owner
   /// @param _merkleRoot The merkle root to set.
   function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
     merkleRoot = _merkleRoot;
@@ -57,6 +58,8 @@ contract V4FeeController is Owned {
   /// @notice Triggers the fee update for the given pool key.
   /// @param _poolKey The pool key to update the fee for.
   /// @param newProtocolFee The new protocol fee to set.
+  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
+  /// from leaves of keccak256(abi.encode(poolKey, protocolFee)).
   function triggerFeeUpdate(
     PoolKey calldata _poolKey,
     uint24 newProtocolFee,
