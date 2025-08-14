@@ -3,14 +3,16 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {IWormholeReceiver} from "../../interfaces/external/IWormholeReceiver.sol";
+import {UnifiedMessageReceiver} from "../UnifiedMessageReceiver.sol";
 
 contract WormholeReceiver is IWormholeReceiver {
-  function _validateOrigins(address source, address caller) internal virtual {}
+  address public immutable wormholeRelayer;
+  UnifiedMessageReceiver public immutable unifiedMessageReceiver;
 
-  function _claimTo(uint256 destinationNonce, Currency[] memory assets, address recipient)
-    internal
-    virtual
-  {}
+  constructor(address _wormhole, address _unifiedMessageReceiver) {
+    wormholeRelayer = _wormhole;
+    unifiedMessageReceiver = UnifiedMessageReceiver(_unifiedMessageReceiver);
+  }
 
   /// @inheritdoc IWormholeReceiver
   function receiveWormholeMessages(
@@ -20,11 +22,14 @@ contract WormholeReceiver is IWormholeReceiver {
     uint16, // source chain
     bytes32 // delivery hash
   ) external payable {
-    _validateOrigins(address(uint160(uint256(sourceAddress))), msg.sender);
+    // receive messages only from wormhole
+    require(msg.sender == wormholeRelayer, "Unauthorized sender");
 
     // Decode the payload to extract the message
     (uint256 nonce, Currency[] memory assets, address recipient) =
       abi.decode(payload, (uint256, Currency[], address));
-    _claimTo(nonce, assets, recipient);
+    unifiedMessageReceiver.receiveMessage(
+      address(uint160(uint256(sourceAddress))), nonce, assets, recipient
+    );
   }
 }
