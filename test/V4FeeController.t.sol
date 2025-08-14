@@ -9,6 +9,8 @@ import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {V4FeeController} from "src/feeControllers/V4FeeController.sol";
 import {MockPoolManager} from "./mocks/MockPoolManager.sol";
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {Merkle} from "lib/murky/src/Merkle.sol";
+import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
 
 contract TestV4FeeController is PhoenixTestBase {
   MockPoolManager poolManager;
@@ -18,6 +20,8 @@ contract TestV4FeeController is PhoenixTestBase {
   Currency mockCurrency;
 
   PoolKey poolKey;
+
+  Merkle merkle;
 
   function setUp() public override {
     super.setUp();
@@ -50,6 +54,8 @@ contract TestV4FeeController is PhoenixTestBase {
     });
 
     poolManager.mockInitialize(poolKey);
+
+    merkle = new Merkle();
   }
 
   function test_feeController_isSet() public view {
@@ -212,8 +218,7 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 targetLeaf = keccak256(abi.encode(poolKey, targetFee));
     bytes32 dummyLeaf = keccak256(abi.encode("dummy"));
 
-    bytes32 merkleRoot =
-      targetLeaf < dummyLeaf ? _hashPair(targetLeaf, dummyLeaf) : _hashPair(dummyLeaf, targetLeaf);
+    bytes32 merkleRoot = keccak256(abi.encodePacked(dummyLeaf, targetLeaf));
 
     // Set the merkle root
     vm.prank(owner);
@@ -245,7 +250,7 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 leaf1 = keccak256(abi.encode(poolKey, protocolFee1));
     bytes32 leaf2 = keccak256(abi.encode(pool2, protocolFee2));
 
-    bytes32 merkleRoot = leaf1 < leaf2 ? _hashPair(leaf1, leaf2) : _hashPair(leaf2, leaf1);
+    bytes32 merkleRoot = keccak256(abi.encodePacked(leaf1, leaf2));
 
     vm.prank(owner);
     feeController.setMerkleRoot(merkleRoot);
@@ -261,8 +266,94 @@ contract TestV4FeeController is PhoenixTestBase {
     assertEq(poolManager.getProtocolFee(poolKey.toId()), 0);
   }
 
-  /// @dev Helper function to hash two nodes in merkle tree
-  function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
-    return keccak256(abi.encodePacked(a, b));
+  function test_triggerFeeUpdate_multiPool_success() public {
+    PoolKey[] memory poolKeys = new PoolKey[](4);
+    poolKeys[0] = poolKey;
+    poolKeys[1] = PoolKey({
+      currency0: mockNative,
+      currency1: mockCurrency,
+      fee: 500,
+      tickSpacing: 10,
+      hooks: IHooks(address(0))
+    });
+    poolKeys[2] = PoolKey({
+      currency0: mockCurrency,
+      currency1: mockNative,
+      fee: 1000,
+      tickSpacing: 20,
+      hooks: IHooks(address(0))
+    });
+    poolKeys[3] = PoolKey({
+      currency0: mockCurrency,
+      currency1: mockNative,
+      fee: 2000,
+      tickSpacing: 40,
+      hooks: IHooks(address(0))
+    });
+
+    /// Initialize the other pools.
+    poolManager.mockInitialize(poolKeys[1]);
+    poolManager.mockInitialize(poolKeys[2]);
+    poolManager.mockInitialize(poolKeys[3]);
+
+    uint24[] memory fees = new uint24[](4);
+    fees[0] = 1000;
+    fees[1] = 500;
+    fees[2] = 1000;
+    fees[3] = 300;
+
+    bytes32[] memory leaves = new bytes32[](4);
+    for (uint256 i = 0; i < 4; i++) {
+      leaves[i] = keccak256(abi.encode(poolKeys[i], fees[i]));
+    }
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
+
+    vm.prank(owner);
+    feeController.setMerkleRoot(merkleRoot);
+
+    bytes32[] memory proof0 = merkle.getProof(leaves, 0);
+
+    /// Trigger the fee update for pool0.
+    feeController.triggerFeeUpdate(poolKeys[0], fees[0], proof0);
+
+    /// Assert that the fee for pool0 is updated, and that the other pools are not updated.
+    assertEq(poolManager.getProtocolFee(poolKeys[0].toId()), fees[0]);
+    assertEq(poolManager.getProtocolFee(poolKeys[1].toId()), 0);
+    assertEq(poolManager.getProtocolFee(poolKeys[2].toId()), 0);
+    assertEq(poolManager.getProtocolFee(poolKeys[3].toId()), 0);
+
+    /// Trigger the fee updates for the rest of the pools.
+
+    bytes32[] memory proof1 = merkle.getProof(leaves, 1);
+    bytes32[] memory proof2 = merkle.getProof(leaves, 2);
+    bytes32[] memory proof3 = merkle.getProof(leaves, 3);
+
+    feeController.triggerFeeUpdate(poolKeys[1], fees[1], proof1);
+    feeController.triggerFeeUpdate(poolKeys[2], fees[2], proof2);
+    feeController.triggerFeeUpdate(poolKeys[3], fees[3], proof3);
+
+    /// Assert that the fees for all the pools are updated.
+    assertEq(poolManager.getProtocolFee(poolKeys[1].toId()), fees[1]);
+    assertEq(poolManager.getProtocolFee(poolKeys[2].toId()), fees[2]);
+    assertEq(poolManager.getProtocolFee(poolKeys[3].toId()), fees[3]);
+  }
+
+  function test_triggerFeeUpdate_revertsInvalidProtocolFee() public {
+    uint24 invalidFee = 1001;
+
+    bytes32 leaf = keccak256(abi.encode(poolKey, invalidFee));
+    bytes32 dummyLeaf = keccak256("dummy");
+
+    bytes32 merkleRoot = keccak256(abi.encodePacked(leaf, dummyLeaf));
+
+    bytes32[] memory proof = new bytes32[](1);
+    proof[0] = dummyLeaf;
+
+    vm.prank(owner);
+    feeController.setMerkleRoot(merkleRoot);
+
+    vm.expectRevert(abi.encodeWithSelector(IProtocolFees.ProtocolFeeTooLarge.selector, invalidFee));
+    feeController.triggerFeeUpdate(poolKey, invalidFee, proof);
   }
 }
