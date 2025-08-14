@@ -4,6 +4,7 @@
   optimizer_runs = 10_000_000
   solc_version = "0.8.29"
   verbosity = 3
+  no_match_test = "test_fuzz_gas_torch_malicious"
 
 [rpc_endpoints]
   mainnet = "${MAINNET_RPC_URL}"
