@@ -11,7 +11,10 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {Firepit} from "../../src/Firepit.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
 import {DemoFirepitSource} from "../../src/crosschain/DemoFirepitSource.sol";
+import {UnifiedMessageReceiver} from "../../src/crosschain/UnifiedMessageReceiver.sol";
 import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
+import {OPStackReceiver} from "../../src/crosschain/modules/OPStackReceiver.sol";
+import {WormholeReceiver} from "../../src/crosschain/modules/WormholeReceiver.sol";
 
 import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
 
@@ -31,6 +34,9 @@ contract PhoenixTestBase is Test {
   MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
   address mockWormhole;
   FirepitDestination firepitDestination;
+  UnifiedMessageReceiver unifiedMessageReceiver;
+  OPStackReceiver opStackReceiver;
+  WormholeReceiver wormholeReceiver;
 
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
   uint256 public constant INITIAL_NATIVE_AMOUNT = 10 ether;
@@ -67,7 +73,9 @@ contract PhoenixTestBase is Test {
     assetSink = new AssetSink(owner);
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
-    firepitDestination = new FirepitDestination(owner, address(assetSink));
+    unifiedMessageReceiver = new UnifiedMessageReceiver(owner);
+    firepitDestination =
+      new FirepitDestination(owner, address(assetSink), address(unifiedMessageReceiver));
     firepitSource = new DemoFirepitSource(
       address(resource),
       INITIAL_TOKEN_AMOUNT,
@@ -75,12 +83,18 @@ contract PhoenixTestBase is Test {
       address(mockCrossDomainMessenger),
       address(mockWormhole)
     );
+    opStackReceiver =
+      new OPStackReceiver(address(mockCrossDomainMessenger), address(unifiedMessageReceiver));
+    wormholeReceiver = new WormholeReceiver(address(mockWormhole), address(unifiedMessageReceiver));
 
     revertingToken.setRevertFrom(address(assetSink), true);
 
     vm.startPrank(owner);
-    firepitDestination.setAllowableSource(address(firepitSource));
-    firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
+    firepitDestination.setAllowableCaller(address(unifiedMessageReceiver));
+    unifiedMessageReceiver.setAllowableSource(address(firepitSource));
+    unifiedMessageReceiver.setFirepitDestination(address(firepitDestination));
+    unifiedMessageReceiver.setAllowableCaller(address(mockCrossDomainMessenger), true);
+    unifiedMessageReceiver.setAllowableCaller(address(wormholeReceiver), true);
     vm.stopPrank();
 
     // Supply tokens to the AssetSink

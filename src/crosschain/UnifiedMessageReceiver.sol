@@ -6,16 +6,14 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IFirepitDestination} from "../interfaces/IFirepitDestination.sol";
 
 contract UnifiedMessageReceiver is Owned {
-  IFirepitDestination firepitDestination;
+  IFirepitDestination public firepitDestination;
 
-  address allowableSource;
+  address public allowableSource;
 
   /// @dev Owner is expected to update to accept new bridge adapters
   mapping(address callers => bool allowed) public allowableCallers;
 
-  constructor(address _releaser, address _owner) Owned(_owner) {
-    firepitDestination = IFirepitDestination(_releaser);
-  }
+  constructor(address _owner) Owned(_owner) {}
 
   modifier allowed(address source) {
     require(allowableSource == source, "Caller not allowed");

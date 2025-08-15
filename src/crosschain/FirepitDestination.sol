@@ -12,14 +12,9 @@ error UnauthorizedCall();
 /// @notice a contract for receiving crosschain messages. Validates messages and releases assets
 /// from the AssetSink
 contract FirepitDestination is Nonce, Owned {
-  /// @notice the source contract that is allowed to originate messages to this contract i.e.
-  /// FirepitSource
+  /// @notice The unified messaging bridge that can call this contract
   /// @dev updatable by owner
-  address public allowableSource;
-
-  /// @notice the local contract(s) that are allowed to call this contract, i.e. Message Relayers
-  /// @dev updatable by owner
-  mapping(address callers => bool allowed) public allowableCallers;
+  address public allowableCaller;
 
   AssetSink public immutable ASSET_SINK;
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
@@ -27,16 +22,13 @@ contract FirepitDestination is Nonce, Owned {
 
   event FailedRelease(address indexed asset, address indexed claimer);
 
-  constructor(address _owner, address _assetSink) Owned(_owner) {
+  constructor(address _owner, address _assetSink, address _allowableCaller) Owned(_owner) {
     ASSET_SINK = AssetSink(payable(_assetSink));
+    allowableCaller = _allowableCaller;
   }
 
   modifier onlyAllowed() {
-    require(
-      allowableCallers[msg.sender]
-        && allowableSource == IL1CrossDomainMessenger(msg.sender).xDomainMessageSender(),
-      UnauthorizedCall()
-    );
+    require(msg.sender == allowableCaller, UnauthorizedCall());
     _;
   }
 
@@ -69,11 +61,7 @@ contract FirepitDestination is Nonce, Owned {
     }
   }
 
-  function setAllowableCallers(address callers, bool isAllowed) external onlyOwner {
-    allowableCallers[callers] = isAllowed;
-  }
-
-  function setAllowableSource(address source) external onlyOwner {
-    allowableSource = source;
+  function setAllowableCaller(address _newAllowableCaller) external onlyOwner {
+    allowableCaller = _newAllowableCaller;
   }
 }
