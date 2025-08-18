@@ -81,7 +81,7 @@ contract PhoenixTestBase is Test {
     firepitSource = new DemoFirepitSource(
       address(resource),
       INITIAL_TOKEN_AMOUNT,
-      address(firepitDestination),
+      address(unifiedMessageReceiver),
       address(mockCrossDomainMessenger),
       address(mockWormholeRelayer)
     );

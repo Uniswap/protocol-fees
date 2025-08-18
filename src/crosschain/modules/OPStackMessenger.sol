@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {IL1CrossDomainMessenger} from "../../interfaces/IL1CrossDomainMessenger.sol";
-import {IFirepitDestination} from "../../interfaces/IFirepitDestination.sol";
+import {UnifiedMessageReceiver} from "../UnifiedMessageReceiver.sol";
 
 abstract contract OPStackMessenger {
   IL1CrossDomainMessenger public immutable messenger;
@@ -22,7 +22,9 @@ abstract contract OPStackMessenger {
   ) internal {
     messenger.sendMessage(
       _l2Target(),
-      abi.encodeCall(IFirepitDestination.claimTo, (destinationNonce, assets, claimer)),
+      abi.encodeCall(
+        UnifiedMessageReceiver.receiveMessage, (address(this), destinationNonce, assets, claimer)
+      ),
       l2GasLimit
     );
   }
