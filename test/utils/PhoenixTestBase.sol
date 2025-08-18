@@ -17,6 +17,7 @@ import {OPStackReceiver} from "../../src/crosschain/modules/OPStackReceiver.sol"
 import {WormholeReceiver} from "../../src/crosschain/modules/WormholeReceiver.sol";
 
 import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
+import {MockWormholeRelayer} from "../mocks/MockWormholeRelayer.sol";
 
 contract PhoenixTestBase is Test {
   address owner;
@@ -32,6 +33,7 @@ contract PhoenixTestBase is Test {
   Firepit firepit;
   DemoFirepitSource firepitSource;
   MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
+  MockWormholeRelayer mockWormholeRelayer = new MockWormholeRelayer();
   address mockWormhole;
   FirepitDestination firepitDestination;
   UnifiedMessageReceiver unifiedMessageReceiver;
@@ -81,11 +83,12 @@ contract PhoenixTestBase is Test {
       INITIAL_TOKEN_AMOUNT,
       address(firepitDestination),
       address(mockCrossDomainMessenger),
-      address(mockWormhole)
+      address(mockWormholeRelayer)
     );
     opStackReceiver =
       new OPStackReceiver(address(mockCrossDomainMessenger), address(unifiedMessageReceiver));
-    wormholeReceiver = new WormholeReceiver(address(mockWormhole), address(unifiedMessageReceiver));
+    wormholeReceiver =
+      new WormholeReceiver(address(mockWormholeRelayer), address(unifiedMessageReceiver));
 
     revertingToken.setRevertFrom(address(assetSink), true);
 

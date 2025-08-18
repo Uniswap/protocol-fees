@@ -27,8 +27,7 @@ abstract contract WormholeMessenger {
     wormholeRelayer.sendPayloadToEvm{value: quote}(
       targetChain,
       _l2Target(),
-      abi.encode(destinationNonce, assets, claimer), // Payload contains the message and sender
-        // address
+      abi.encode(destinationNonce, assets, claimer),
       0, // No receiver value needed
       l2GasLimit // Gas limit for the transaction
     );
