@@ -7,10 +7,10 @@ contract MockWormholeRelayer {
   function quoteEVMDeliveryPrice(
     uint16, // targetChain
     uint256, // receiverValue
-    uint32 l2GasLimit
+    uint256 l2GasLimit
   ) external pure returns (uint256, uint256) {
     // Mock implementation: return a fixed price based on the gas limit
-    return (l2GasLimit * 1000, 0); // Example: 1000 wei per gas unit
+    return (uint256(l2GasLimit) * 1000, 0); // Example: 1000 wei per gas unit
   }
 
   function sendPayloadToEvm(
@@ -18,7 +18,7 @@ contract MockWormholeRelayer {
     address targetAddress,
     bytes memory payload,
     uint256 receiverValue,
-    uint32 l2GasLimit
+    uint256 l2GasLimit
   ) external payable {
     bytes[] memory vaas;
     uint16 sourceChain;

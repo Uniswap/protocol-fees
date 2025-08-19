@@ -6,12 +6,15 @@ import {IWormholeRelayer} from "../../interfaces/external/IWormholeRelayer.sol";
 
 abstract contract WormholeMessenger {
   IWormholeRelayer public immutable wormholeRelayer;
+  address public immutable wormholeReceiver;
 
-  constructor(address _wormholeRelayer) {
+  /// @dev thrown when the caller does not provide enough gas for Wormhole
+  error InsufficientGas();
+
+  constructor(address _wormholeRelayer, address _wormholeReceiver) {
     wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
+    wormholeReceiver = _wormholeReceiver;
   }
-
-  function _l2Target() internal view virtual returns (address);
 
   function _messageWormhole(
     uint256 destinationNonce,
@@ -26,7 +29,7 @@ abstract contract WormholeMessenger {
 
     wormholeRelayer.sendPayloadToEvm{value: quote}(
       targetChain,
-      _l2Target(),
+      wormholeReceiver,
       abi.encode(destinationNonce, assets, claimer),
       0, // No receiver value needed
       l2GasLimit // Gas limit for the transaction

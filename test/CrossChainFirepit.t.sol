@@ -218,4 +218,25 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(newNonce, currentNonce + 1);
     assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
+
+  function test_fuzz_torch_wormhole(uint8 seed) public {
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(firepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), 0);
+
+    (uint256 wormholeCost,) = mockWormholeRelayer.quoteEVMDeliveryPrice(0, 0, L2_GAS_LIMIT);
+
+    vm.startPrank(alice);
+    resource.approve(address(firepitSource), INITIAL_TOKEN_AMOUNT);
+    firepitSource.torch{value: wormholeCost}(
+      1, firepitSource.nonce(), fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, L2_GAS_LIMIT
+    );
+    vm.stopPrank();
+
+    assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(firepitSource)), 0);
+    assertEq(resource.balanceOf(address(0)), firepitSource.THRESHOLD());
+  }
 }

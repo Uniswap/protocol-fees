@@ -76,6 +76,10 @@ contract PhoenixTestBase is Test {
     firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
     unifiedMessageReceiver = new UnifiedMessageReceiver(owner);
+    opStackReceiver =
+      new OPStackReceiver(address(mockCrossDomainMessenger), address(unifiedMessageReceiver));
+    wormholeReceiver =
+      new WormholeReceiver(address(mockWormholeRelayer), address(unifiedMessageReceiver));
     firepitDestination =
       new FirepitDestination(owner, address(assetSink), address(unifiedMessageReceiver));
     firepitSource = new DemoFirepitSource(
@@ -83,12 +87,9 @@ contract PhoenixTestBase is Test {
       INITIAL_TOKEN_AMOUNT,
       address(unifiedMessageReceiver),
       address(mockCrossDomainMessenger),
-      address(mockWormholeRelayer)
+      address(mockWormholeRelayer),
+      address(wormholeReceiver)
     );
-    opStackReceiver =
-      new OPStackReceiver(address(mockCrossDomainMessenger), address(unifiedMessageReceiver));
-    wormholeReceiver =
-      new WormholeReceiver(address(mockWormholeRelayer), address(unifiedMessageReceiver));
 
     revertingToken.setRevertFrom(address(assetSink), true);
 

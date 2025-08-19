@@ -25,10 +25,31 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
   /// message to release the assets
   function torch(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
     external
+    payable
     handleNonce(_nonce)
   {
+    _torch(DEFAULT_BRIDGE_ID, _nonce, assets, claimer, abi.encode(l2GasLimit));
+  }
+
+  function torch(
+    uint256 bridgeId,
+    uint256 _nonce,
+    Currency[] memory assets,
+    address claimer,
+    uint32 l2GasLimit
+  ) external payable handleNonce(_nonce) {
+    _torch(bridgeId, _nonce, assets, claimer, abi.encode(l2GasLimit));
+  }
+
+  function _torch(
+    uint256 bridgeId,
+    uint256 _nonce,
+    Currency[] memory assets,
+    address claimer,
+    bytes memory addtlData
+  ) internal {
     RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
 
-    _sendReleaseMessage(DEFAULT_BRIDGE_ID, _nonce, assets, claimer, abi.encode(l2GasLimit));
+    _sendReleaseMessage(bridgeId, _nonce, assets, claimer, addtlData);
   }
 }

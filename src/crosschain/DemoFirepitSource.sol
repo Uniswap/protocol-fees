@@ -14,21 +14,17 @@ contract DemoFirepitSource is FirepitSource, OPStackMessenger, WormholeMessenger
     uint256 _threshold,
     address l2Target_,
     address _opMessenger,
-    address _wormhole
+    address _wormholeRelayer,
+    address _wormholeReceiver
   )
     FirepitSource(_resource, _threshold)
     OPStackMessenger(_opMessenger)
-    WormholeMessenger(_wormhole)
+    WormholeMessenger(_wormholeRelayer, _wormholeReceiver)
   {
     L2_TARGET = l2Target_;
   }
 
-  function _l2Target()
-    internal
-    view
-    override(OPStackMessenger, WormholeMessenger)
-    returns (address)
-  {
+  function _l2Target() internal view override returns (address) {
     return L2_TARGET;
   }
 
@@ -43,7 +39,9 @@ contract DemoFirepitSource is FirepitSource, OPStackMessenger, WormholeMessenger
       (uint32 l2GasLimit) = abi.decode(addtlData, (uint32));
       _messageOP(destinationNonce, assets, claimer, l2GasLimit);
     } else if (bridgeId == 1) {
-      (uint32 l2GasLimit, uint16 targetChain) = abi.decode(addtlData, (uint32, uint16));
+      // TODO: designate targetChain via calldata?
+      uint16 targetChain = 1;
+      (uint32 l2GasLimit) = abi.decode(addtlData, (uint32));
       _messageWormhole(destinationNonce, assets, claimer, l2GasLimit, targetChain);
     } else {
       revert("Unsupported bridge ID");
