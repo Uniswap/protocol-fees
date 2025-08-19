@@ -19,12 +19,13 @@ contract MockWormholeRelayer {
     bytes memory payload,
     uint256 receiverValue,
     uint256 l2GasLimit
-  ) external payable {
+  ) external payable returns (uint64) {
     bytes[] memory vaas;
     uint16 sourceChain;
     bytes32 deliveryHash;
     IWormholeReceiver(targetAddress).receiveWormholeMessages{gas: l2GasLimit, value: receiverValue}(
       payload, vaas, bytes32(uint256(uint160(msg.sender))), sourceChain, deliveryHash
     );
+    return 0;
   }
 }
