@@ -25,7 +25,7 @@ abstract contract WormholeMessenger {
   ) internal {
     uint256 cost = msg.value;
     (uint256 quote,) = wormholeRelayer.quoteEVMDeliveryPrice(targetChain, 0, l2GasLimit);
-    require(cost >= quote, "Insufficient funds");
+    require(cost >= quote, InsufficientGas());
 
     wormholeRelayer.sendPayloadToEvm{value: quote}(
       targetChain,

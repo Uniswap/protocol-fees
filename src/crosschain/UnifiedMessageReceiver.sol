@@ -13,11 +13,13 @@ contract UnifiedMessageReceiver is Owned {
   /// @dev Owner is expected to update to accept new bridge adapters
   mapping(address callers => bool allowed) public allowableCallers;
 
+  error CallerNotAllowed();
+
   constructor(address _owner) Owned(_owner) {}
 
   modifier allowed(address source) {
-    require(allowableSource == source, "Caller not allowed");
-    require(allowableCallers[msg.sender], "Caller not allowed");
+    if (allowableSource != source) revert CallerNotAllowed();
+    if (!allowableCallers[msg.sender]) revert CallerNotAllowed();
     _;
   }
 
