@@ -144,14 +144,14 @@ contract PhoenixTestBase is Test {
     fuzzReleaseAny[3] = releaseMalicious;
   }
 
-  function _testBalances(address owner) internal returns (TestBalances memory) {
+  function _testBalances(address _owner) internal returns (TestBalances memory) {
     return TestBalances({
-      resource: resource.balanceOf(owner),
-      mockToken: mockToken.balanceOf(owner),
-      revertingToken: revertingToken.balanceOf(owner),
-      oogToken: oogToken.balanceOf(owner),
-      revertBombToken: revertBombToken.balanceOf(owner),
-      native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(owner)
+      resource: resource.balanceOf(_owner),
+      mockToken: mockToken.balanceOf(_owner),
+      revertingToken: revertingToken.balanceOf(_owner),
+      oogToken: oogToken.balanceOf(_owner),
+      revertBombToken: revertBombToken.balanceOf(_owner),
+      native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(_owner)
     });
   }
 }

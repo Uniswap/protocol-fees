@@ -3,7 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {AssetSink} from "../AssetSink.sol";
 import {Nonce} from "../base/Nonce.sol";
 

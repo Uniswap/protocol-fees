@@ -6,12 +6,12 @@ import {IWormholeReceiver} from "../../interfaces/external/IWormholeReceiver.sol
 import {UnifiedMessageReceiver} from "../UnifiedMessageReceiver.sol";
 
 contract WormholeReceiver is IWormholeReceiver {
-  address public immutable wormholeRelayer;
-  UnifiedMessageReceiver public immutable unifiedMessageReceiver;
+  address public immutable WORMHOLE_RELAYER;
+  UnifiedMessageReceiver public immutable UNIFIED_MESSAGE_RECEIVER;
 
   constructor(address _wormhole, address _unifiedMessageReceiver) {
-    wormholeRelayer = _wormhole;
-    unifiedMessageReceiver = UnifiedMessageReceiver(_unifiedMessageReceiver);
+    WORMHOLE_RELAYER = _wormhole;
+    UNIFIED_MESSAGE_RECEIVER = UnifiedMessageReceiver(_unifiedMessageReceiver);
   }
 
   /// @inheritdoc IWormholeReceiver
@@ -23,12 +23,12 @@ contract WormholeReceiver is IWormholeReceiver {
     bytes32 // delivery hash
   ) external payable {
     // receive messages only from wormhole
-    require(msg.sender == wormholeRelayer, "Unauthorized sender");
+    require(msg.sender == WORMHOLE_RELAYER, "Unauthorized sender");
 
     // Decode the payload to extract the message
     (uint256 nonce, Currency[] memory assets, address recipient) =
       abi.decode(payload, (uint256, Currency[], address));
-    unifiedMessageReceiver.receiveMessage(
+    UNIFIED_MESSAGE_RECEIVER.receiveMessage(
       address(uint160(uint256(sourceAddress))), nonce, assets, recipient
     );
   }

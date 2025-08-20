@@ -5,15 +5,15 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IWormholeRelayer} from "../../interfaces/external/IWormholeRelayer.sol";
 
 abstract contract WormholeMessenger {
-  IWormholeRelayer public immutable wormholeRelayer;
-  address public immutable wormholeReceiver;
+  IWormholeRelayer public immutable WORMHOLE_RELAYER;
+  address public immutable WORMHOLE_RECEIVER;
 
   /// @dev thrown when the caller does not provide enough gas for Wormhole
   error InsufficientGas();
 
   constructor(address _wormholeRelayer, address _wormholeReceiver) {
-    wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
-    wormholeReceiver = _wormholeReceiver;
+    WORMHOLE_RELAYER = IWormholeRelayer(_wormholeRelayer);
+    WORMHOLE_RECEIVER = _wormholeReceiver;
   }
 
   function _messageWormhole(
@@ -24,12 +24,12 @@ abstract contract WormholeMessenger {
     uint16 targetChain
   ) internal {
     uint256 cost = msg.value;
-    (uint256 quote,) = wormholeRelayer.quoteEVMDeliveryPrice(targetChain, 0, l2GasLimit);
+    (uint256 quote,) = WORMHOLE_RELAYER.quoteEVMDeliveryPrice(targetChain, 0, l2GasLimit);
     require(cost >= quote, InsufficientGas());
 
-    wormholeRelayer.sendPayloadToEvm{value: quote}(
+    WORMHOLE_RELAYER.sendPayloadToEvm{value: quote}(
       targetChain,
-      wormholeReceiver,
+      WORMHOLE_RECEIVER,
       abi.encode(destinationNonce, assets, claimer),
       0, // No receiver value needed
       l2GasLimit // Gas limit for the transaction

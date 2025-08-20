@@ -6,10 +6,10 @@ import {IL1CrossDomainMessenger} from "../../interfaces/IL1CrossDomainMessenger.
 import {UnifiedMessageReceiver} from "../UnifiedMessageReceiver.sol";
 
 abstract contract OPStackMessenger {
-  IL1CrossDomainMessenger public immutable messenger;
+  IL1CrossDomainMessenger public immutable MESSENGER;
 
   constructor(address _messenger) {
-    messenger = IL1CrossDomainMessenger(_messenger);
+    MESSENGER = IL1CrossDomainMessenger(_messenger);
   }
 
   function _l2Target() internal view virtual returns (address);
@@ -20,7 +20,7 @@ abstract contract OPStackMessenger {
     address claimer,
     uint32 l2GasLimit
   ) internal {
-    messenger.sendMessage(
+    MESSENGER.sendMessage(
       _l2Target(),
       abi.encodeCall(
         UnifiedMessageReceiver.receiveMessage, (address(this), destinationNonce, assets, claimer)

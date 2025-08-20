@@ -3,8 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
-import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
-import {IFirepitDestination} from "../interfaces/IFirepitDestination.sol";
 import {Nonce} from "../base/Nonce.sol";
 import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 

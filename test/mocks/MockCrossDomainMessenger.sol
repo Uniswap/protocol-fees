@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {FirepitSource} from "../../src/crosschain/FirepitSource.sol";
 import {IL1CrossDomainMessenger} from "../../src/interfaces/IL1CrossDomainMessenger.sol";
-import {Currency} from "v4-core/types/Currency.sol";
 
 contract MockCrossDomainMessenger is IL1CrossDomainMessenger {
   address public sender;
