@@ -2,13 +2,15 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
 import {IFirepitDestination} from "../interfaces/IFirepitDestination.sol";
 import {Nonce} from "../base/Nonce.sol";
 import {FirepitImmutable} from "../base/FirepitImmutable.sol";
 
 abstract contract FirepitSource is FirepitImmutable, Nonce {
+  using SafeTransferLib for ERC20;
+
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
 
   constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
@@ -48,7 +50,7 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
     address claimer,
     bytes memory addtlData
   ) internal {
-    RESOURCE.transferFrom(msg.sender, address(0), THRESHOLD);
+    RESOURCE.safeTransferFrom(msg.sender, address(0), THRESHOLD);
 
     _sendReleaseMessage(bridgeId, _nonce, assets, claimer, addtlData);
   }
