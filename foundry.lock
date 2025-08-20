@@ -2,6 +2,15 @@
   "lib/v4-core": {
     "rev": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc"
   },
+  "lib/openzeppelin-contracts": {
+    "rev": "e34251682bac9c3252af30e91e999f13dd098b9f"
+  },
+  "lib/axelar-gmp-sdk-solidity": {
+    "tag": {
+      "name": "v6.0.6",
+      "rev": "00682b6c3db0cc922ec0c4ea3791852c93d7ae31"
+    }
+  },
   "lib/murky": {
     "tag": {
       "name": "v0.1.0",
@@ -13,8 +22,5 @@
   },
   "lib/solmate": {
     "rev": "e5e0ed64c75e74974151780884e59071d026d84e"
-  },
-  "lib/openzeppelin-contracts": {
-    "rev": "e34251682bac9c3252af30e91e999f13dd098b9f"
   }
 }

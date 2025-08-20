@@ -13,3 +13,6 @@
 [submodule "lib/murky"]
 	path = lib/murky
 	url = https://github.com/dmfxyz/murky
+[submodule "lib/axelar-gmp-sdk-solidity"]
+	path = lib/axelar-gmp-sdk-solidity
+	url = https://github.com/axelarnetwork/axelar-gmp-sdk-solidity

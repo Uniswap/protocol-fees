@@ -1,1 +1,2 @@
 solmate/=lib/solmate/
+axelar-gmp-sdk-solidity/=lib/axelar-gmp-sdk-solidity/
