@@ -89,4 +89,36 @@ contract FirepitTest is PhoenixTestBase {
     vm.expectRevert(Nonce.InvalidNonce.selector);
     firepit.torch(nonce, releaseMockToken, alice);
   }
+
+  function test_fuzz_revert_setThreshold(address caller, uint256 newThreshold) public {
+    vm.assume(caller != owner);
+
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    firepit.setThreshold(newThreshold);
+  }
+
+  function test_fuzz_newThreshold(uint256 newThreshold) public {
+    vm.assume(newThreshold != firepit.threshold());
+
+    vm.prank(owner);
+    firepit.setThreshold(newThreshold);
+
+    deal(address(resource), alice, newThreshold);
+
+    assertEq(resource.balanceOf(alice), newThreshold);
+    assertEq(resource.balanceOf(address(firepit)), 0);
+    assertEq(resource.balanceOf(address(0)), 0);
+
+    uint256 currentNonce = firepit.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(firepit), newThreshold);
+    firepit.torch(currentNonce, releaseMockBoth, alice);
+
+    assertEq(firepit.nonce(), currentNonce + 1);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(firepit)), 0);
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+  }
 }
