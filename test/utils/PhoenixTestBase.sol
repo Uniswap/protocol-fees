@@ -21,6 +21,7 @@ contract PhoenixTestBase is Test {
   address bob;
   MockERC20 resource;
   MockERC20 mockToken;
+  MockERC20 mockToken1;
   RevertingToken revertingToken;
   OOGToken oogToken;
   RevertBombToken revertBombToken;
@@ -60,6 +61,7 @@ contract PhoenixTestBase is Test {
 
     resource = new MockERC20("BurnableResource", "BNR", 18);
     mockToken = new MockERC20("MockToken", "MTK", 18);
+    mockToken1 = new MockERC20("MockToken1", "MTK1", 18);
     revertingToken = new RevertingToken("RevertingToken", "RTK", 18);
     oogToken = new OOGToken("OOGToken", "OOGT", 18);
     revertBombToken = new RevertBombToken("RevertBombToken", "RBT", 18);
