@@ -64,10 +64,12 @@ contract PhoenixTestBase is Test {
     oogToken = new OOGToken("OOGToken", "OOGT", 18);
     revertBombToken = new RevertBombToken("RevertBombToken", "RBT", 18);
     assetSink = new AssetSink(owner);
-    firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
+    firepit =
+      new Firepit(address(owner), address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
 
     firepitDestination = new FirepitDestination(owner, address(assetSink));
     opStackFirepitSource = new OPStackFirepitSource(
+      owner,
       address(resource),
       INITIAL_TOKEN_AMOUNT,
       address(mockCrossDomainMessenger),

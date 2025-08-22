@@ -26,7 +26,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
   }
 
   function test_torch_release_native() public {
@@ -41,7 +41,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
   }
 
   function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {
@@ -51,7 +51,7 @@ contract FirepitTest is PhoenixTestBase {
     vm.prank(alice);
     resource.transfer(address(0), amount);
 
-    assertLt(resource.balanceOf(alice), firepit.THRESHOLD());
+    assertLt(resource.balanceOf(alice), firepit.threshold());
 
     uint256 nonce = firepit.nonce();
 

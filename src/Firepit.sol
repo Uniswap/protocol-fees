@@ -12,8 +12,8 @@ contract Firepit is FirepitImmutable, Nonce {
 
   AssetSink public immutable ASSET_SINK;
 
-  constructor(address _resource, uint256 _threshold, address _assetSink)
-    FirepitImmutable(_resource, _threshold)
+  constructor(address _owner, address _resource, uint256 _threshold, address _assetSink)
+    FirepitImmutable(_resource, _threshold, _owner)
   {
     ASSET_SINK = AssetSink(payable(_assetSink));
   }
@@ -22,7 +22,7 @@ contract Firepit is FirepitImmutable, Nonce {
     external
     handleNonce(_nonce)
   {
-    RESOURCE.safeTransferFrom(msg.sender, address(0), THRESHOLD);
+    RESOURCE.safeTransferFrom(msg.sender, address(0), threshold);
 
     for (uint256 i = 0; i < assets.length; i++) {
       ASSET_SINK.release(assets[i], recipient);

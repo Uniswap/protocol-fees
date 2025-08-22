@@ -33,7 +33,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
-    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.threshold());
   }
 
   /// @dev torch SUCCEEDS on reverting tokens
@@ -53,7 +53,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     // resource still burned
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
-    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.threshold());
 
     // alice did NOT receive the reverting token
     assertEq(revertingToken.balanceOf(alice), 0);
@@ -75,7 +75,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     // resource still burned
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
-    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.threshold());
   }
 
   function test_torch_release_native() public {
@@ -95,7 +95,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     // resource burned
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
-    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.threshold());
 
     // bob received native asset
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob), bobNativeBefore + assetSinkNativeBefore);
@@ -117,7 +117,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     // resource still burned
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
-    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), opStackFirepitSource.threshold());
 
     // nonces should have been incremented
     uint256 newNonce = opStackFirepitSource.nonce();
@@ -135,7 +135,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     resource.transfer(bob, amount);
 
     // alice does not have the threshold amount
-    assertLt(resource.balanceOf(alice), opStackFirepitSource.THRESHOLD());
+    assertLt(resource.balanceOf(alice), opStackFirepitSource.threshold());
 
     uint256 _nonce = opStackFirepitSource.nonce();
 
