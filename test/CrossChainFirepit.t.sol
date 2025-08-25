@@ -5,7 +5,7 @@ import {PhoenixTestBase, FirepitDestination} from "./utils/PhoenixTestBase.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {Firepit} from "../src/Firepit.sol";
+import {Firepit} from "../src/releasers/Firepit.sol";
 import {AssetSink} from "../src/AssetSink.sol";
 import {Nonce} from "../src/base/Nonce.sol";
 

@@ -8,7 +8,7 @@ import {OOGToken} from "../mocks/OOGToken.sol";
 import {RevertBombToken} from "../mocks/RevertBombToken.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {Firepit} from "../../src/Firepit.sol";
+import {Firepit} from "../../src/releasers/Firepit.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
 import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
 import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
