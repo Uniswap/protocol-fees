@@ -90,12 +90,18 @@ contract FirepitTest is PhoenixTestBase {
     firepit.torch(nonce, releaseMockToken, alice);
   }
 
-  function test_fuzz_revert_setThreshold(address caller, uint256 newThreshold) public {
-    vm.assume(caller != owner);
+  function test_fuzz_setThresholdSetter(address caller, address newSetter) public {
+    vm.startPrank(caller);
+    if (caller != firepit.owner()) vm.expectRevert("UNAUTHORIZED");
+    firepit.setThresholdSetter(newSetter);
+    vm.stopPrank();
+  }
 
-    vm.prank(caller);
-    vm.expectRevert("UNAUTHORIZED");
+  function test_fuzz_revert_setThreshold(address caller, uint256 newThreshold) public {
+    vm.startPrank(caller);
+    if (caller != firepit.thresholdSetter()) vm.expectRevert("UNAUTHORIZED");
     firepit.setThreshold(newThreshold);
+    vm.stopPrank();
   }
 
   function test_fuzz_newThreshold(uint256 newThreshold) public {

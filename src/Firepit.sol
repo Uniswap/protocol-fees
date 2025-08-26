@@ -12,9 +12,13 @@ contract Firepit is FirepitImmutable, Nonce {
 
   AssetSink public immutable ASSET_SINK;
 
-  constructor(address _owner, address _resource, uint256 _threshold, address _assetSink)
-    FirepitImmutable(_resource, _threshold, _owner)
-  {
+  constructor(
+    address _owner,
+    address _thresholdSetter,
+    address _resource,
+    uint256 _threshold,
+    address _assetSink
+  ) FirepitImmutable(_resource, _threshold, _owner, _thresholdSetter) {
     ASSET_SINK = AssetSink(payable(_assetSink));
   }
 

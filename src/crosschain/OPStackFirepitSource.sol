@@ -12,11 +12,12 @@ contract OPStackFirepitSource is FirepitSource {
 
   constructor(
     address _owner,
+    address _thresholdSetter,
     address _resource,
     uint256 _threshold,
     address _messenger,
     address _l2Target
-  ) FirepitSource(_owner, _resource, _threshold) {
+  ) FirepitSource(_owner, _thresholdSetter, _resource, _threshold) {
     MESSENGER = IL1CrossDomainMessenger(_messenger);
     L2_TARGET = _l2Target;
   }

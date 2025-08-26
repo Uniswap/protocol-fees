@@ -5,15 +5,28 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 import {ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 
 abstract contract FirepitImmutable is Owned {
-  ERC20 public immutable RESOURCE;
   uint256 public threshold;
+  address public thresholdSetter;
+  ERC20 public immutable RESOURCE;
 
-  constructor(address _resource, uint256 _threshold, address _owner) Owned(_owner) {
-    RESOURCE = ERC20(_resource);
-    threshold = _threshold;
+  modifier onlyThresholdSetter() {
+    require(msg.sender == thresholdSetter, "UNAUTHORIZED");
+    _;
   }
 
-  function setThreshold(uint256 _threshold) external onlyOwner {
+  constructor(address _resource, uint256 _threshold, address _owner, address _thresholdSetter)
+    Owned(_owner)
+  {
+    RESOURCE = ERC20(_resource);
+    threshold = _threshold;
+    thresholdSetter = _thresholdSetter;
+  }
+
+  function setThresholdSetter(address _thresholdSetter) external onlyOwner {
+    thresholdSetter = _thresholdSetter;
+  }
+
+  function setThreshold(uint256 _threshold) external onlyThresholdSetter {
     threshold = _threshold;
   }
 }

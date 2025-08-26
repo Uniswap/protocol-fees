@@ -13,8 +13,8 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
 
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
 
-  constructor(address _owner, address _resource, uint256 _threshold)
-    FirepitImmutable(_resource, _threshold, _owner)
+  constructor(address _owner, address _thresholdSetter, address _resource, uint256 _threshold)
+    FirepitImmutable(_resource, _threshold, _owner, _thresholdSetter)
   {}
 
   function _sendReleaseMessage(
