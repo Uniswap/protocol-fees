@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {Currency} from "v4-core/types/Currency.sol";
-import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
-import {FirepitImmutable} from "../base/FirepitImmutable.sol";
-import {AssetSink} from "../AssetSink.sol";
-import {Nonce} from "../base/Nonce.sol";
-import {SwapReleaser} from "./SwapReleaser.sol";
+import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
-contract Firepit is SwapReleaser {
-  constructor(address _resource, uint256 _threshold, address _assetSink)
-    SwapReleaser(_resource, _threshold, _assetSink, address(0))
-  {}
+/// @title Firepit
+/// @notice An ExchangeReleaser with recipient set to the burn address address(0)
+contract Firepit is ExchangeReleaser {
+  constructor(
+    address _owner,
+    address _thresholdSetter,
+    address _resource,
+    uint256 _threshold,
+    address _assetSink
+  ) ExchangeReleaser(_owner, _thresholdSetter, _resource, _threshold, _assetSink, address(0)) {}
 }

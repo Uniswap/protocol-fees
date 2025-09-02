@@ -3,17 +3,23 @@ pragma solidity ^0.8.29;
 
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {SwapReleaser} from "../src/releasers/SwapReleaser.sol";
+import {ExchangeReleaser} from "../src/releasers/ExchangeReleaser.sol";
 import {Nonce} from "../src/base/Nonce.sol";
 
-contract SwapReleaserTest is PhoenixTestBase {
-  SwapReleaser public swapReleaser;
+contract ExchangeReleaserTest is PhoenixTestBase {
+  ExchangeReleaser public swapReleaser;
   address public recipient = makeAddr("RECIPIENT");
 
   function setUp() public override {
     super.setUp();
-    swapReleaser =
-      new SwapReleaser(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink), recipient);
+    swapReleaser = new ExchangeReleaser(
+      address(owner),
+      address(owner),
+      address(resource),
+      INITIAL_TOKEN_AMOUNT,
+      address(assetSink),
+      recipient
+    );
 
     vm.prank(owner);
     assetSink.setReleaser(address(swapReleaser));
@@ -32,7 +38,7 @@ contract SwapReleaserTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(swapReleaser)), 0);
-    assertEq(resource.balanceOf(recipient), swapReleaser.THRESHOLD());
+    assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
   }
 
   function test_torch_release_native() public {
@@ -47,7 +53,7 @@ contract SwapReleaserTest is PhoenixTestBase {
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(swapReleaser)), 0);
-    assertEq(resource.balanceOf(recipient), swapReleaser.THRESHOLD());
+    assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
   }
 
   function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {
@@ -56,7 +62,7 @@ contract SwapReleaserTest is PhoenixTestBase {
     // alice spends some of her resources
     vm.prank(alice);
     resource.transfer(recipient, amount);
-    assertLt(resource.balanceOf(alice), swapReleaser.THRESHOLD());
+    assertLt(resource.balanceOf(alice), swapReleaser.threshold());
 
     uint256 nonce = swapReleaser.nonce();
 
