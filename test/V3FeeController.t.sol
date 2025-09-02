@@ -37,7 +37,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.prank(factory.owner());
     factory.setOwner(owner);
 
-    feeController = new V3FeeController(address(factory), address(assetSink), factory.owner());
+    feeController = new V3FeeController(address(factory), address(assetSink), factory.owner(), factory.owner());
 
     /// Transfer ownership to the fee controller.
     vm.prank(factory.owner());
