@@ -37,7 +37,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.prank(factory.owner());
     factory.setOwner(owner);
 
-    feeController = new V3FeeController(address(factory), address(assetSink), factory.owner(), factory.owner());
+    feeController =
+      new V3FeeController(address(factory), address(assetSink), factory.owner(), factory.owner());
 
     /// Transfer ownership to the fee controller.
     vm.prank(factory.owner());
@@ -272,12 +273,86 @@ contract V3FeeControllerTest is PhoenixTestBase {
     feeController.triggerFeeUpdate(pool, invalidFee, invalidFee, proof);
   }
 
+  function test_fuzz_setFeeSetter(address newFeeSetter) public {
+    vm.prank(owner);
+    feeController.setFeeSetter(newFeeSetter);
+    assertEq(feeController.feeSetter(), newFeeSetter);
+  }
+
+  function test_fuzz_revert_setFeeSetter(address caller, address newFeeSetter) public {
+    vm.assume(caller != feeController.owner());
+
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    feeController.setFeeSetter(newFeeSetter);
+  }
+
+  function test_fuzz_setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFee) public {
+    vm.prank(feeController.feeSetter());
+    feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
+    assertEq(feeController.defaultFees(feeTier), defaultFee);
+  }
+
+  function test_fuzz_revert_setDefaultFeeByFeeTier(address caller, uint24 feeTier, uint8 defaultFee)
+    public
+  {
+    vm.assume(caller != feeController.feeSetter());
+
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
+  }
+
+  function test_defaultFee(uint8 defaultFee) public {
+    vm.assume(defaultFee >= 4 && defaultFee <= 10);
+
+    vm.prank(feeController.feeSetter());
+    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
+    feeController.triggerDefaultFee(pool);
+
+    uint8 poolFees = _getProtocolFees(pool);
+    assertEq(poolFees, defaultFee | defaultFee << 4);
+
+    // default fee does not cross-pollute other pools
+    poolFees = _getProtocolFees(pool1);
+    assertEq(poolFees, 0);
+    feeController.triggerDefaultFee(pool1);
+    poolFees = _getProtocolFees(pool1);
+    assertEq(poolFees, 0);
+  }
+
+  function test_revert_defaultFee(uint8 defaultFee) public {
+    vm.assume(0 < defaultFee && (defaultFee < 4 || defaultFee > 10));
+
+    vm.prank(feeController.feeSetter());
+    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
+
+    vm.expectRevert();
+    feeController.triggerDefaultFee(pool);
+  }
+
+  function test_triggerDefaultFee_zero() public {
+    uint8 defaultFee = 4;
+
+    vm.prank(feeController.feeSetter());
+    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
+    feeController.triggerDefaultFee(pool);
+    uint8 poolFees = _getProtocolFees(pool);
+    assertEq(poolFees, defaultFee | defaultFee << 4);
+
+    vm.prank(feeController.feeSetter());
+    feeController.setDefaultFeeByFeeTier(3000, 0);
+    feeController.triggerDefaultFee(pool);
+    poolFees = _getProtocolFees(pool);
+    assertEq(poolFees, 0);
+  }
+
   function _mockSetProtocolFees(uint128 token0, uint128 token1) internal {
     uint256 toSet = uint256(token1) << 128 | uint256(token0);
     vm.store(pool, bytes32(slot), bytes32(toSet));
   }
 
-  function _getProtocolFees(address _pool) internal returns (uint8 poolFeesPacked) {
+  function _getProtocolFees(address _pool) internal view returns (uint8 poolFeesPacked) {
     (,,,,, uint8 poolFees,) = IUniswapV3Pool(_pool).slot0();
     return poolFees;
   }
