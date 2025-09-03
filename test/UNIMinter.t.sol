@@ -584,4 +584,3 @@ contract UNIMinterTest is Test {
     assertEq(UNI.balanceOf(bob), expectedMintAmount * 5000 / MAX_SHARES);
   }
 }
-
