@@ -27,12 +27,9 @@ abstract contract ResourceManager is Owned {
     _;
   }
 
-  constructor(address _resource, uint256 _threshold, address _owner, address _recipient)
-    Owned(_owner)
-  {
+  constructor(address _resource, address _owner, address _recipient) Owned(_owner) {
     RESOURCE = ERC20(_resource);
     RESOURCE_RECIPIENT = _recipient;
-    threshold = _threshold;
     thresholdSetter = _owner;
   }
 

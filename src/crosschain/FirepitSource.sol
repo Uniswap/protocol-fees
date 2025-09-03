@@ -13,9 +13,7 @@ abstract contract FirepitSource is ResourceManager, Nonce {
 
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
 
-  constructor(address _owner, address _resource, uint256 _threshold)
-    ResourceManager(_resource, _threshold, _owner, address(0))
-  {}
+  constructor(address _owner, address _resource) ResourceManager(_resource, _owner, address(0)) {}
 
   function _sendReleaseMessage(
     uint256 bridgeId,
