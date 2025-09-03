@@ -8,7 +8,7 @@ import {OOGToken} from "../mocks/OOGToken.sol";
 import {RevertBombToken} from "../mocks/RevertBombToken.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {Firepit} from "../../src/Firepit.sol";
+import {Firepit} from "../../src/releasers/Firepit.sol";
 import {AssetSink} from "../../src/AssetSink.sol";
 import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
 import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
@@ -21,6 +21,7 @@ contract PhoenixTestBase is Test {
   address bob;
   MockERC20 resource;
   MockERC20 mockToken;
+  MockERC20 mockToken1;
   RevertingToken revertingToken;
   OOGToken oogToken;
   RevertBombToken revertBombToken;
@@ -60,14 +61,19 @@ contract PhoenixTestBase is Test {
 
     resource = new MockERC20("BurnableResource", "BNR", 18);
     mockToken = new MockERC20("MockToken", "MTK", 18);
+    mockToken1 = new MockERC20("MockToken1", "MTK1", 18);
     revertingToken = new RevertingToken("RevertingToken", "RTK", 18);
     oogToken = new OOGToken("OOGToken", "OOGT", 18);
     revertBombToken = new RevertBombToken("RevertBombToken", "RBT", 18);
     assetSink = new AssetSink(owner);
-    firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
+    firepit = new Firepit(
+      address(owner), address(owner), address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink)
+    );
 
     firepitDestination = new FirepitDestination(owner, address(assetSink));
     opStackFirepitSource = new OPStackFirepitSource(
+      owner,
+      owner,
       address(resource),
       INITIAL_TOKEN_AMOUNT,
       address(mockCrossDomainMessenger),
@@ -124,14 +130,14 @@ contract PhoenixTestBase is Test {
     fuzzReleaseAny[3] = releaseMalicious;
   }
 
-  function _testBalances(address owner) internal returns (TestBalances memory) {
+  function _testBalances(address _owner) internal returns (TestBalances memory) {
     return TestBalances({
-      resource: resource.balanceOf(owner),
-      mockToken: mockToken.balanceOf(owner),
-      revertingToken: revertingToken.balanceOf(owner),
-      oogToken: oogToken.balanceOf(owner),
-      revertBombToken: revertBombToken.balanceOf(owner),
-      native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(owner)
+      resource: resource.balanceOf(_owner),
+      mockToken: mockToken.balanceOf(_owner),
+      revertingToken: revertingToken.balanceOf(_owner),
+      oogToken: oogToken.balanceOf(_owner),
+      revertBombToken: revertBombToken.balanceOf(_owner),
+      native: CurrencyLibrary.ADDRESS_ZERO.balanceOf(_owner)
     });
   }
 }

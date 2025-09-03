@@ -13,72 +13,72 @@ contract FirepitTest is PhoenixTestBase {
     assetSink.setReleaser(address(firepit));
   }
 
-  function test_torch_release_erc20() public {
+  function test_release_release_erc20() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
     assertEq(resource.balanceOf(address(0)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
-    firepit.torch(firepit.nonce(), releaseMockToken, alice);
+    firepit.release(firepit.nonce(), releaseMockToken, alice);
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
   }
 
-  function test_torch_release_native() public {
+  function test_release_release_native() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
     assertEq(resource.balanceOf(address(0)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
-    firepit.torch(firepit.nonce(), releaseMockNative, alice);
+    firepit.release(firepit.nonce(), releaseMockNative, alice);
 
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.THRESHOLD());
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
   }
 
-  function test_fuzz_revert_torch_insufficient_balance(uint256 amount, uint256 seed) public {
+  function test_fuzz_revert_release_insufficient_balance(uint256 amount, uint256 seed) public {
     amount = bound(amount, 1, resource.balanceOf(alice));
 
     // alice spends some of her resources
     vm.prank(alice);
     resource.transfer(address(0), amount);
 
-    assertLt(resource.balanceOf(alice), firepit.THRESHOLD());
+    assertLt(resource.balanceOf(alice), firepit.threshold());
 
     uint256 nonce = firepit.nonce();
 
     vm.startPrank(alice);
     resource.approve(address(firepit), type(uint256).max);
     vm.expectRevert(); // reverts on token insufficient allowance
-    firepit.torch(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
+    firepit.release(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
   }
 
-  function test_fuzz_revert_torch_invalid_nonce(uint256 nonce, uint256 seed) public {
+  function test_fuzz_revert_release_invalid_nonce(uint256 nonce, uint256 seed) public {
     vm.assume(nonce != firepit.nonce()); // Ensure nonce is not the current nonce
 
     vm.startPrank(alice);
     resource.approve(address(firepit), type(uint256).max);
     vm.expectRevert(Nonce.InvalidNonce.selector);
-    firepit.torch(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
+    firepit.release(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
   }
 
   /// @dev test that two transactions with the same nonce, the second one should revert
-  function test_revert_torch_frontrun() public {
+  function test_revert_release_frontrun() public {
     uint256 nonce = firepit.nonce();
 
     vm.startPrank(alice);
     resource.approve(address(firepit), type(uint256).max);
 
-    // First torch call
-    firepit.torch(nonce, releaseMockToken, alice);
+    // First release call
+    firepit.release(nonce, releaseMockToken, alice);
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
@@ -87,6 +87,44 @@ contract FirepitTest is PhoenixTestBase {
 
     // Attempt to frontrun with the same nonce
     vm.expectRevert(Nonce.InvalidNonce.selector);
-    firepit.torch(nonce, releaseMockToken, alice);
+    firepit.release(nonce, releaseMockToken, alice);
+  }
+
+  function test_fuzz_setThresholdSetter(address caller, address newSetter) public {
+    vm.startPrank(caller);
+    if (caller != firepit.owner()) vm.expectRevert("UNAUTHORIZED");
+    firepit.setThresholdSetter(newSetter);
+    vm.stopPrank();
+  }
+
+  function test_fuzz_revert_setThreshold(address caller, uint256 newThreshold) public {
+    vm.startPrank(caller);
+    if (caller != firepit.thresholdSetter()) vm.expectRevert("UNAUTHORIZED");
+    firepit.setThreshold(newThreshold);
+    vm.stopPrank();
+  }
+
+  function test_fuzz_newThreshold(uint256 newThreshold) public {
+    vm.assume(newThreshold != firepit.threshold());
+
+    vm.prank(owner);
+    firepit.setThreshold(newThreshold);
+
+    deal(address(resource), alice, newThreshold);
+
+    assertEq(resource.balanceOf(alice), newThreshold);
+    assertEq(resource.balanceOf(address(firepit)), 0);
+    assertEq(resource.balanceOf(address(0)), 0);
+
+    uint256 currentNonce = firepit.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(firepit), newThreshold);
+    firepit.release(currentNonce, releaseMockBoth, alice);
+
+    assertEq(firepit.nonce(), currentNonce + 1);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(firepit)), 0);
+    assertEq(resource.balanceOf(address(0)), firepit.threshold());
   }
 }

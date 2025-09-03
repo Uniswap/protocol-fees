@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+pragma solidity ^0.8.29;
+
+import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {CurrencyLibrary} from "v4-core/types/Currency.sol";
+import {ExchangeReleaser} from "../src/releasers/ExchangeReleaser.sol";
+import {Nonce} from "../src/base/Nonce.sol";
+
+contract ExchangeReleaserTest is PhoenixTestBase {
+  ExchangeReleaser public swapReleaser;
+  address public recipient = makeAddr("RECIPIENT");
+
+  function setUp() public override {
+    super.setUp();
+    swapReleaser = new ExchangeReleaser(
+      address(owner),
+      address(owner),
+      address(resource),
+      INITIAL_TOKEN_AMOUNT,
+      address(assetSink),
+      recipient
+    );
+
+    vm.prank(owner);
+    assetSink.setReleaser(address(swapReleaser));
+  }
+
+  function test_release_release_erc20() public {
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(swapReleaser)), 0);
+    assertEq(resource.balanceOf(recipient), 0);
+
+    vm.startPrank(alice);
+    resource.approve(address(swapReleaser), INITIAL_TOKEN_AMOUNT);
+    swapReleaser.release(swapReleaser.nonce(), releaseMockToken, alice);
+
+    assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(swapReleaser)), 0);
+    assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
+  }
+
+  function test_release_release_native() public {
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(swapReleaser)), 0);
+    assertEq(resource.balanceOf(recipient), 0);
+
+    vm.startPrank(alice);
+    resource.approve(address(swapReleaser), INITIAL_TOKEN_AMOUNT);
+    swapReleaser.release(swapReleaser.nonce(), releaseMockNative, alice);
+
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(swapReleaser)), 0);
+    assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
+  }
+
+  function test_fuzz_revert_release_insufficient_balance(uint256 amount, uint256 seed) public {
+    amount = bound(amount, 1, resource.balanceOf(alice));
+
+    // alice spends some of her resources
+    vm.prank(alice);
+    resource.transfer(recipient, amount);
+    assertLt(resource.balanceOf(alice), swapReleaser.threshold());
+
+    uint256 nonce = swapReleaser.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(swapReleaser), type(uint256).max);
+    vm.expectRevert(); // reverts on token insufficient allowance
+    swapReleaser.release(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
+  }
+
+  function test_fuzz_revert_release_invalid_nonce(uint256 nonce, uint256 seed) public {
+    vm.assume(nonce != swapReleaser.nonce()); // Ensure nonce is not the current nonce
+
+    vm.startPrank(alice);
+    resource.approve(address(swapReleaser), type(uint256).max);
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    swapReleaser.release(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
+  }
+
+  /// @dev test that two transactions with the same nonce, the second one should revert
+  function test_revert_release_frontrun() public {
+    uint256 nonce = swapReleaser.nonce();
+
+    vm.startPrank(alice);
+    resource.approve(address(swapReleaser), type(uint256).max);
+
+    // First release call
+    swapReleaser.release(nonce, releaseMockToken, alice);
+    assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(resource.balanceOf(alice), 0);
+    assertEq(resource.balanceOf(address(swapReleaser)), 0);
+    assertEq(resource.balanceOf(recipient), INITIAL_TOKEN_AMOUNT);
+
+    // Attempt to frontrun with the same nonce
+    vm.expectRevert(Nonce.InvalidNonce.selector);
+    swapReleaser.release(nonce, releaseMockToken, alice);
+  }
+}

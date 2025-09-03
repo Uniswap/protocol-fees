@@ -26,6 +26,7 @@ contract V3FeeController is Owned {
 
   bytes32 public merkleRoot;
 
+  /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.
     address pool;
@@ -35,12 +36,14 @@ contract V3FeeController is Owned {
     /// @param amount1Requested The amount of token1 to collect. If this is higher than the total
     /// collectable amount, it will collect all but 1 wei of the total token1 allotment.
     uint128 amount1Requested;
-    /// @param amount0Expected The amount of token0 that is expected to be collected. Collection
-    /// reverts if this amount is not met.
-    uint128 amount0Expected;
-    /// @param amount1Expected The amount of token1 that is expected to be collected. Collection
-    /// reverts if this amount is not met.
-    uint128 amount1Expected;
+  }
+
+  /// @notice The returned amounts of token0 and token1 that are collected.
+  struct Collected {
+    /// @param amount0Collected The amount of token0 that is collected.
+    uint128 amount0Collected;
+    /// @param amount1Collected The amount of token1 that is collected.
+    uint128 amount1Collected;
   }
 
   constructor(address _factory, address _feeSink, address _owner) Owned(_owner) {
@@ -57,18 +60,20 @@ contract V3FeeController is Owned {
 
   /// @notice Collects the protocol fees for the given pool.
   /// @param collectParams The parameters for the collection. See CollectParams for more details.
-  function collect(CollectParams[] calldata collectParams) external {
+  function collect(CollectParams[] calldata collectParams)
+    external
+    returns (Collected[] memory amountsCollected)
+  {
+    amountsCollected = new Collected[](collectParams.length);
     for (uint256 i = 0; i < collectParams.length; i++) {
       CollectParams calldata params = collectParams[i];
       (uint256 amount0Collected, uint256 amount1Collected) = IUniswapV3PoolOwnerActions(params.pool)
         .collectProtocol(FEE_SINK, params.amount0Requested, params.amount1Requested);
 
-      if (amount0Collected < params.amount0Expected) {
-        revert AmountCollectedTooLow(amount0Collected, params.amount0Expected);
-      }
-      if (amount1Collected < params.amount1Expected) {
-        revert AmountCollectedTooLow(amount1Collected, params.amount1Expected);
-      }
+      amountsCollected[i] = Collected({
+        amount0Collected: uint128(amount0Collected),
+        amount1Collected: uint128(amount1Collected)
+      });
     }
   }
 

@@ -13,7 +13,9 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
 
   uint256 public constant DEFAULT_BRIDGE_ID = 0;
 
-  constructor(address _resource, uint256 _threshold) FirepitImmutable(_resource, _threshold) {}
+  constructor(address _owner, address _thresholdSetter, address _resource, uint256 _threshold)
+    FirepitImmutable(_resource, _threshold, _owner, _thresholdSetter)
+  {}
 
   function _sendReleaseMessage(
     uint256 bridgeId,
@@ -25,11 +27,11 @@ abstract contract FirepitSource is FirepitImmutable, Nonce {
 
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
-  function torch(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
+  function release(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
     external
     handleNonce(_nonce)
   {
-    RESOURCE.safeTransferFrom(msg.sender, address(0), THRESHOLD);
+    RESOURCE.safeTransferFrom(msg.sender, address(0), threshold);
 
     _sendReleaseMessage(DEFAULT_BRIDGE_ID, _nonce, assets, claimer, abi.encode(l2GasLimit));
   }
