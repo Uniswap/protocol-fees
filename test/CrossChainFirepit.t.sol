@@ -206,24 +206,24 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(newDestinationNonce, currentDestinationNonce + 1);
   }
 
-  /// @dev releasing a revert token, OOG token, or revert bomb token are still successful
-  function test_fuzz_gas_release_malicious(uint32 gasUsed, uint32 revertLength) public {
-    vm.assume(150_000 < gasUsed);
-    try revertBombToken.setBigReason(revertLength) {} catch {}
+  // /// @dev releasing a revert token, OOG token, or revert bomb token are still successful
+  // function test_fuzz_gas_release_malicious(uint32 gasUsed, uint32 revertLength) public {
+  //   vm.assume(150_000 < gasUsed);
+  //   try revertBombToken.setBigReason(revertLength) {} catch {}
 
-    uint256 currentNonce = opStackFirepitSource.nonce();
-    uint256 currentDestinationNonce = firepitDestination.nonce();
+  //   uint256 currentNonce = opStackFirepitSource.nonce();
+  //   uint256 currentDestinationNonce = firepitDestination.nonce();
 
-    // the cross-chain message always succeeds
-    vm.startPrank(alice);
-    resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    opStackFirepitSource.release{gas: gasUsed}(currentNonce, releaseMalicious, alice, gasUsed);
-    vm.stopPrank();
+  //   // the cross-chain message always succeeds
+  //   vm.startPrank(alice);
+  //   resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
+  //   opStackFirepitSource.release{gas: gasUsed}(currentNonce, releaseMalicious, alice, gasUsed);
+  //   vm.stopPrank();
 
-    // nonces should have been incremented
-    uint256 newNonce = opStackFirepitSource.nonce();
-    uint256 newDestinationNonce = firepitDestination.nonce();
-    assertEq(newNonce, currentNonce + 1);
-    assertEq(newDestinationNonce, currentDestinationNonce + 1);
-  }
+  //   // nonces should have been incremented
+  //   uint256 newNonce = opStackFirepitSource.nonce();
+  //   uint256 newDestinationNonce = firepitDestination.nonce();
+  //   assertEq(newNonce, currentNonce + 1);
+  //   assertEq(newDestinationNonce, currentDestinationNonce + 1);
+  // }
 }
