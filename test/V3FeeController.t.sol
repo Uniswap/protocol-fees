@@ -328,50 +328,6 @@ contract V3FeeControllerTest is PhoenixTestBase {
     feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
   }
 
-  function test_defaultFee(uint8 defaultFee) public {
-    vm.assume(defaultFee >= 4 && defaultFee <= 10);
-
-    vm.prank(feeController.feeSetter());
-    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
-    feeController.triggerDefaultFee(pool);
-
-    uint8 poolFees = _getProtocolFees(pool);
-    assertEq(poolFees, defaultFee | defaultFee << 4);
-
-    // default fee does not cross-pollute other pools
-    poolFees = _getProtocolFees(pool1);
-    assertEq(poolFees, 0);
-    feeController.triggerDefaultFee(pool1);
-    poolFees = _getProtocolFees(pool1);
-    assertEq(poolFees, 0);
-  }
-
-  function test_revert_defaultFee(uint8 defaultFee) public {
-    vm.assume(0 < defaultFee && (defaultFee < 4 || defaultFee > 10));
-
-    vm.prank(feeController.feeSetter());
-    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
-
-    vm.expectRevert();
-    feeController.triggerDefaultFee(pool);
-  }
-
-  function test_triggerDefaultFee_zero() public {
-    uint8 defaultFee = 4;
-
-    vm.prank(feeController.feeSetter());
-    feeController.setDefaultFeeByFeeTier(3000, defaultFee);
-    feeController.triggerDefaultFee(pool);
-    uint8 poolFees = _getProtocolFees(pool);
-    assertEq(poolFees, defaultFee | defaultFee << 4);
-
-    vm.prank(feeController.feeSetter());
-    feeController.setDefaultFeeByFeeTier(3000, 0);
-    feeController.triggerDefaultFee(pool);
-    poolFees = _getProtocolFees(pool);
-    assertEq(poolFees, 0);
-  }
-
   function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeTier() public {
     vm.prank(owner);
     vm.expectRevert(V3FeeController.InvalidFeeTier.selector);

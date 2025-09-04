@@ -107,14 +107,6 @@ contract V3FeeController is Owned {
     defaultFees[feeTier] = defaultFeeValue;
   }
 
-  /// @notice Push a default fee to a given pool. Callable by anyone
-  /// @dev Reverts if the defaultFee value is invalid
-  /// @param pool The pool address to push the default fee to
-  function triggerDefaultFee(address pool) external {
-    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue, feeValue);
-  }
-
   /// @notice Triggers the fee update for the given pool.
   /// @param pool The pool address to update the fee for.
   /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
