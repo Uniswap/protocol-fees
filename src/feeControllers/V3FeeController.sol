@@ -46,7 +46,7 @@ contract V3FeeController is Owned {
     uint128 amount1Collected;
   }
 
-  constructor(address _factory, address _feeSink, address _owner) Owned(_owner) {
+  constructor(address _factory, address _feeSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     FEE_SINK = _feeSink;
   }

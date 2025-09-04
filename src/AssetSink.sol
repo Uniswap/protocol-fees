@@ -30,8 +30,8 @@ contract AssetSink is Owned {
   }
 
   /// @notice Creates a new AssetSink with the specified releaser
-  /// @param _owner The permissioned address over the AssetSink
-  constructor(address _owner) Owned(_owner) {}
+
+  constructor() Owned(msg.sender) {}
 
   /// @notice Releases all accumulated assets to the specified recipient
   /// @param asset The asset to release
