@@ -15,8 +15,6 @@ contract AssetSink is Owned {
   /// @param amount Amount of fees transferred to the recipient
   event FeesClaimed(Currency indexed asset, address indexed recipient, uint256 amount);
 
-  event FailedRelease(Currency indexed asset, address indexed recipient);
-
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 
