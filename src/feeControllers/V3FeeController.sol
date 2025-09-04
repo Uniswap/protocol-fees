@@ -101,4 +101,31 @@ contract V3FeeController is Owned {
 
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeProtocol0, feeProtocol1);
   }
+
+  /// @notice Triggers the fee update for the given pools.
+  /// @param pools The pools to update the fee for.
+  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
+  /// from leaves of keccak256(abi.encode(pool, feeProtocol0, feeProtocol1)).
+  /// @param proofFlags The flags for the merkle proof.
+  function batchTriggerFeeUpdate(
+    address[] calldata pools,
+    bytes32[] calldata proof,
+    bool[] calldata proofFlags
+  ) external {
+    bytes32[] memory leaves = new bytes32[](pools.length);
+    for (uint256 i = 0; i < pools.length; i++) {
+      address pool = pools[i];
+      leaves[i] = _hash(pool);
+      // IUniswapV3PoolOwnerActions(pool).setFeeProtocol(poolInfo.feeProtocol0,
+      // poolInfo.feeProtocol1);
+    }
+    if (!MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves)) revert InvalidProof();
+  }
+
+  function _hash(address pool) internal pure returns (bytes32 poolHash) {
+    assembly ("memory-safe") {
+      mstore(0, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
+      poolHash := keccak256(0, 0x20)
+    }
+  }
 }
