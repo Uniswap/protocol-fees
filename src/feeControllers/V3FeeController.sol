@@ -21,6 +21,9 @@ contract V3FeeController is Owned {
   /// @notice Thrown when the merkle proof is invalid.
   error InvalidProof();
 
+  /// @notice Thrown when trying to set a default fee for a non-enabled fee tier.
+  error InvalidFeeTier();
+
   IUniswapV3Factory public immutable FACTORY;
 
   address public immutable FEE_SINK;
@@ -55,10 +58,10 @@ contract V3FeeController is Owned {
     _;
   }
 
-  constructor(address _factory, address _feeSink, address _owner, address _feeSetter) Owned(_owner) {
+  constructor(address _factory, address _feeSink, address _owner) Owned(_owner) {
     FACTORY = IUniswapV3Factory(_factory);
     FEE_SINK = _feeSink;
-    feeSetter = _feeSetter;
+    feeSetter = _owner;
   }
 
   /// @notice Enables new fee tiers on the Uniswap V3 Factory.
@@ -100,6 +103,7 @@ contract V3FeeController is Owned {
   /// @param defaultFeeValue The default fee value to set. Expressed as the denominator on the
   /// inclusive interval [4, 10]
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
+    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) revert InvalidFeeTier();
     defaultFees[feeTier] = defaultFeeValue;
   }
 
@@ -113,20 +117,15 @@ contract V3FeeController is Owned {
 
   /// @notice Triggers the fee update for the given pool.
   /// @param pool The pool address to update the fee for.
-  /// @param feeProtocol0 The new protocol fee for token0.
-  /// @param feeProtocol1 The new protocol fee for token1.
   /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
-  /// from leaves of keccak256(abi.encode(pool, feeProtocol0, feeProtocol1)).
-  function triggerFeeUpdate(
-    address pool,
-    uint8 feeProtocol0,
-    uint8 feeProtocol1,
-    bytes32[] calldata proof
-  ) external {
-    bytes32 node = keccak256(abi.encode(pool, feeProtocol0, feeProtocol1));
+  /// from leaves of keccak256(abi.encode(pool)).
+  function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
+    bytes32 node = keccak256(abi.encode(pool));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
 
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeProtocol0, feeProtocol1);
+    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
+
+    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }
 
   /// @notice Set a new `feeSetter` address. Only callable by owner

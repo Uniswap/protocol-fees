@@ -130,7 +130,7 @@ contract PhoenixTestBase is Test {
     fuzzReleaseAny[3] = releaseMalicious;
   }
 
-  function _testBalances(address _owner) internal returns (TestBalances memory) {
+  function _testBalances(address _owner) internal view returns (TestBalances memory) {
     return TestBalances({
       resource: resource.balanceOf(_owner),
       mockToken: mockToken.balanceOf(_owner),
