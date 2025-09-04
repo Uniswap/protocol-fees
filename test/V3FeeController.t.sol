@@ -250,6 +250,39 @@ contract V3FeeControllerTest is PhoenixTestBase {
     assertEq(_getProtocolFees(pools[2]), fees[2] | fees[2] << 4);
   }
 
+  function test_triggerFeeUpdate_9000Pool_success_gas() public {
+    address[] memory pools = new address[](9000);
+    bytes32[] memory leaves = new bytes32[](9000);
+    for (uint256 i = 0; i < 9000; i++) {
+      MockERC20 token_i = new MockERC20("Token", "TKN", 18);
+      address pool_i = factory.createPool(address(token_i), address(mockToken1), uint24(500));
+      IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
+      pools[i] = pool_i;
+      leaves[i] = keccak256(abi.encode(pool_i, 10, 10));
+    }
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
+
+    vm.prank(owner);
+    feeController.setMerkleRoot(merkleRoot);
+
+    bytes32[] memory proof0 = merkle.getProof(leaves, 0);
+    bytes32[] memory proof4500 = merkle.getProof(leaves, 4500);
+    bytes32[] memory proof8999 = merkle.getProof(leaves, 8999);
+
+    /// Trigger the fee update for pool at index 0.
+    feeController.triggerFeeUpdate(pools[0], 10, 10, proof0);
+    vm.snapshotGasLastCall("triggerFeeUpdate_0");
+
+    /// Trigger the fee update for pool at index 4500.
+    feeController.triggerFeeUpdate(pools[4500], 10, 10, proof4500);
+    vm.snapshotGasLastCall("triggerFeeUpdate_4500");
+
+    /// Trigger the fee update for pool at index 8999.
+    feeController.triggerFeeUpdate(pools[8999], 10, 10, proof8999);
+    vm.snapshotGasLastCall("triggerFeeUpdate_8999");
+  }
+
   function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(uint8 invalidFee) public {
     vm.assume(0 < invalidFee);
     vm.assume(invalidFee < 4 || invalidFee > 10);
