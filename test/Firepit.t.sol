@@ -90,6 +90,16 @@ contract FirepitTest is PhoenixTestBase {
     firepit.release(nonce, releaseMockToken, alice);
   }
 
+  /// @dev on a single chain releaser, malicious tokens will hard revert
+  function test_revert_release_revertingToken() public {
+    uint256 nonce = firepit.nonce();
+    vm.startPrank(alice);
+    resource.approve(address(firepit), type(uint256).max);
+
+    vm.expectRevert();
+    firepit.release(nonce, releaseMockReverting, alice);
+  }
+
   function test_fuzz_setThresholdSetter(address caller, address newSetter) public {
     vm.startPrank(caller);
     if (caller != firepit.owner()) vm.expectRevert("UNAUTHORIZED");

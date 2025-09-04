@@ -40,9 +40,6 @@ contract ExchangeReleaser is ResourceManager, Nonce {
     handleNonce(_nonce)
   {
     RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
-
-    for (uint256 i = 0; i < assets.length; i++) {
-      ASSET_SINK.release(assets[i], recipient);
-    }
+    ASSET_SINK.releaseChecked(assets, recipient);
   }
 }
