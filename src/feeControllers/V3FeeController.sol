@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
+import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3PoolOwnerActions} from
   "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
@@ -20,11 +21,17 @@ contract V3FeeController is Owned {
   /// @notice Thrown when the merkle proof is invalid.
   error InvalidProof();
 
+  /// @notice Thrown when trying to set a default fee for a non-enabled fee tier.
+  error InvalidFeeTier();
+
   IUniswapV3Factory public immutable FACTORY;
 
   address public immutable FEE_SINK;
 
   bytes32 public merkleRoot;
+  address public feeSetter;
+
+  mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
   /// @notice The input parameters for the collection.
   struct CollectParams {
@@ -46,6 +53,12 @@ contract V3FeeController is Owned {
     uint128 amount1Collected;
   }
 
+  modifier onlyFeeSetter() {
+    require(msg.sender == feeSetter, "UNAUTHORIZED");
+    _;
+  }
+
+  /// @dev At construction, the fee setter defaults to 0 and its on the owner to set.
   constructor(address _factory, address _feeSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     FEE_SINK = _feeSink;
@@ -80,25 +93,37 @@ contract V3FeeController is Owned {
   /// @notice Sets the merkle root for the fee controller.
   /// @dev only callable by owner
   /// @param _merkleRoot The merkle root to set.
-  function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+  function setMerkleRoot(bytes32 _merkleRoot) external onlyFeeSetter {
     merkleRoot = _merkleRoot;
+  }
+
+  /// @notice Designate a default fee value for a given fee tier. Only callable by the feeSetter
+  /// @dev performs NO validation if the default fee value is indeed valid
+  /// @param feeTier The fee tier to set the default fee for.
+  /// @param defaultFeeValue The default fee value to set. Expressed as the denominator on the
+  /// inclusive interval [4, 10]
+  function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
+    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) revert InvalidFeeTier();
+    defaultFees[feeTier] = defaultFeeValue;
   }
 
   /// @notice Triggers the fee update for the given pool.
   /// @param pool The pool address to update the fee for.
-  /// @param feeProtocol0 The new protocol fee for token0.
-  /// @param feeProtocol1 The new protocol fee for token1.
   /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
-  /// from leaves of keccak256(abi.encode(pool, feeProtocol0, feeProtocol1)).
-  function triggerFeeUpdate(
-    address pool,
-    uint8 feeProtocol0,
-    uint8 feeProtocol1,
-    bytes32[] calldata proof
-  ) external {
-    bytes32 node = keccak256(abi.encode(pool, feeProtocol0, feeProtocol1));
+  /// from leaves of keccak256(abi.encode(pool)).
+  function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
+    bytes32 node = keccak256(abi.encode(pool));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
 
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeProtocol0, feeProtocol1);
+    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
+
+    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+  }
+
+  /// @notice Set a new `feeSetter` address. Only callable by owner
+  /// @dev Performs no validation checks
+  /// @param newFeeSetter The new fee setter address.
+  function setFeeSetter(address newFeeSetter) external onlyOwner {
+    feeSetter = newFeeSetter;
   }
 }
