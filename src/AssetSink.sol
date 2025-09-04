@@ -17,6 +17,8 @@ contract AssetSink is Owned {
   /// @param amount Amount of fees transferred to the recipient
   event FeesClaimed(Currency indexed asset, address indexed recipient, uint256 amount);
 
+  event FailedRelease(Currency indexed asset, address indexed recipient);
+
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 
@@ -42,6 +44,21 @@ contract AssetSink is Owned {
     if (amount > 0) {
       asset.transfer(recipient, amount);
       emit FeesClaimed(asset, recipient, amount);
+    }
+  }
+
+  function release(Currency[] calldata assets, address recipient) external onlyReleaser {
+    Currency asset;
+    for (uint256 i; i < assets.length; i++) {
+      asset = assets[i];
+      uint256 amount = asset.balanceOfSelf();
+      if (amount > 0) {
+        try asset.transfer(recipient, amount) {
+          emit FeesClaimed(asset, recipient, amount);
+        } catch {
+          emit FailedRelease(Currency.unwrap(asset), recipient);
+        }
+      }
     }
   }
 
