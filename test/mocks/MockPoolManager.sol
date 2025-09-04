@@ -12,7 +12,7 @@ import {Pool} from "v4-core/libraries/Pool.sol";
 contract MockPoolManager is ProtocolFees {
   error NotSupported();
 
-  uint160 SQRT_PRICE_1_1 = 79_228_162_514_264_337_593_543_950_336;
+  uint160 constant SQRT_PRICE_1_1 = 79_228_162_514_264_337_593_543_950_336;
 
   constructor(address initialOwner) ProtocolFees(initialOwner) {}
 

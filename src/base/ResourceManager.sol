@@ -3,7 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {ERC20} from "solmate/src/utils/SafeTransferLib.sol";
-import {AssetSink} from "../AssetSink.sol";
 
 /// @title ResourceManager
 /// @notice A contract that holds immutable state for the resource token and the resource recipient
