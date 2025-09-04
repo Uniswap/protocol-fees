@@ -131,7 +131,8 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
     // alice spends some of her resource and is below the threshold
     vm.prank(alice);
-    resource.transfer(bob, amount);
+    bool success = resource.transfer(bob, amount);
+    assertTrue(success);
 
     // alice does not have the threshold amount
     assertLt(resource.balanceOf(alice), opStackFirepitSource.threshold());

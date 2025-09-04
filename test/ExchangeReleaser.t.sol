@@ -57,7 +57,8 @@ contract ExchangeReleaserTest is PhoenixTestBase {
 
     // alice spends some of her resources
     vm.prank(alice);
-    resource.transfer(recipient, amount);
+    bool success = resource.transfer(recipient, amount);
+    assertTrue(success);
     assertLt(resource.balanceOf(alice), swapReleaser.threshold());
 
     uint256 nonce = swapReleaser.nonce();

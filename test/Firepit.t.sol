@@ -49,7 +49,8 @@ contract FirepitTest is PhoenixTestBase {
 
     // alice spends some of her resources
     vm.prank(alice);
-    resource.transfer(address(0), amount);
+    bool success = resource.transfer(address(0), amount);
+    assertTrue(success);
 
     assertLt(resource.balanceOf(alice), firepit.threshold());
 
