@@ -23,9 +23,8 @@ contract FirepitDestination is Nonce, Owned {
 
   AssetSink public immutable ASSET_SINK;
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
-  uint256 public constant REMAINDER_GAS = 10_000;
 
-  event FailedRelease(address indexed asset, address indexed claimer);
+  event FailedRelease(uint256 indexed _nonce, address indexed _claimer);
 
   constructor(address _owner, address _assetSink) Owned(_owner) {
     ASSET_SINK = AssetSink(payable(_assetSink));
@@ -47,25 +46,14 @@ contract FirepitDestination is Nonce, Owned {
     onlyAllowed
     handleNonce(_nonce)
   {
-    for (uint256 i; i < assets.length; i++) {
-      if (gasleft() < MINIMUM_RELEASE_GAS) {
-        emit FailedRelease(Currency.unwrap(assets[i]), claimer);
-        return;
-      }
-
-      // equivalent to, but limit the return data to 0
-      // try ASSET_SINK.release{gas: gasleft() - REMAINDER_GAS}(assets[i], claimer) {}
-      // catch {
-      //   emit FailedRelease(Currency.unwrap(assets[i]), claimer);
-      // }
-      bytes memory callData = abi.encodeWithSelector(AssetSink.release.selector, assets[i], claimer);
-      bool success;
-      address target = address(ASSET_SINK);
-      assembly {
-        success :=
-          call(sub(gas(), REMAINDER_GAS), target, 0, add(callData, 0x20), mload(callData), 0, 0)
-      }
-      if (!success) emit FailedRelease(Currency.unwrap(assets[i]), claimer);
+    if (gasleft() < MINIMUM_RELEASE_GAS) {
+      emit FailedRelease(_nonce, claimer);
+      return;
+    }
+    try ASSET_SINK.releaseChecked(assets, claimer) {}
+    catch {
+      emit FailedRelease(_nonce, claimer);
+      return;
     }
   }
 

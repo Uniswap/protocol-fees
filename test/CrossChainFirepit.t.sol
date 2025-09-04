@@ -40,16 +40,13 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
   /// @dev release SUCCEEDS on reverting tokens
   function test_release_release_revertingToken() public {
+    uint256 nonce = opStackFirepitSource.nonce();
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
 
     vm.expectEmit(true, true, false, false);
-    emit FirepitDestination.FailedRelease(
-      Currency.unwrap(Currency.wrap(address(revertingToken))), alice
-    );
-    opStackFirepitSource.release(
-      opStackFirepitSource.nonce(), releaseMockReverting, alice, L2_GAS_LIMIT
-    );
+    emit FirepitDestination.FailedRelease(nonce, alice);
+    opStackFirepitSource.release(nonce, releaseMockReverting, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
     // resource still burned
@@ -67,11 +64,13 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     Currency[] memory assets = new Currency[](1);
     assets[0] = Currency.wrap(address(0xffdeadbeefc0ffeebabeff));
 
+    uint256 nonce = opStackFirepitSource.nonce();
+
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(true, true, false, false);
-    emit FirepitDestination.FailedRelease(Currency.unwrap(assets[0]), alice);
-    opStackFirepitSource.release(opStackFirepitSource.nonce(), assets, alice, L2_GAS_LIMIT);
+    emit FirepitDestination.FailedRelease(nonce, alice);
+    opStackFirepitSource.release(nonce, assets, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
     // resource still burned
@@ -112,7 +111,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
 
     vm.expectEmit(true, true, false, false);
-    emit FirepitDestination.FailedRelease(Currency.unwrap(Currency.wrap(address(oogToken))), alice);
+    emit FirepitDestination.FailedRelease(currentNonce, alice);
     opStackFirepitSource.release(opStackFirepitSource.nonce(), releaseMockOOG, alice, L2_GAS_LIMIT);
     vm.stopPrank();
 
@@ -188,7 +187,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
     vm.expectEmit(false, false, false, false, address(firepitDestination), 1);
-    emit FirepitDestination.FailedRelease(address(0), address(0));
+    emit FirepitDestination.FailedRelease(0, address(0));
     opStackFirepitSource.release{gas: 150_000}(
       currentNonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice, 150_000
     );
