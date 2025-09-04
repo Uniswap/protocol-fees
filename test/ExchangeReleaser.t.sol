@@ -12,17 +12,13 @@ contract ExchangeReleaserTest is PhoenixTestBase {
 
   function setUp() public override {
     super.setUp();
-    swapReleaser = new ExchangeReleaser(
-      address(owner),
-      address(owner),
-      address(resource),
-      INITIAL_TOKEN_AMOUNT,
-      address(assetSink),
-      recipient
-    );
+    // owner is the msg.sender
+    vm.startPrank(owner);
+    swapReleaser = new ExchangeReleaser(address(resource), address(assetSink), recipient);
 
-    vm.prank(owner);
     assetSink.setReleaser(address(swapReleaser));
+    swapReleaser.setThreshold(INITIAL_TOKEN_AMOUNT);
+    vm.stopPrank();
   }
 
   function test_release_release_erc20() public {
