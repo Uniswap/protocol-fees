@@ -28,9 +28,21 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
   uint256 slot = 3;
 
+  PoolObject poolObject0;
+  PoolObject poolObject1;
+
+  address feeSetter;
+
   struct ProtocolFees {
     uint128 token0;
     uint128 token1;
+  }
+
+  struct PoolObject {
+    address pool;
+    uint24 fee;
+    /// token1 | token0
+    uint8 protocolFee;
   }
 
   function setUp() public override {
@@ -46,11 +58,16 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.prank(factory.owner());
     factory.setOwner(address(feeController));
 
+    feeSetter = feeController.feeSetter();
+
     // Create pool.
     pool = factory.createPool(address(mockToken), address(mockToken1), 3000);
     pool1 = factory.createPool(address(mockToken), address(mockToken1), 10_000);
     IUniswapV3Pool(pool).initialize(SQRT_PRICE_1_1);
     IUniswapV3Pool(pool1).initialize(SQRT_PRICE_1_1);
+
+    poolObject0 = PoolObject({pool: pool, fee: 3000, protocolFee: 0});
+    poolObject1 = PoolObject({pool: pool1, fee: 10_000, protocolFee: 0});
 
     // Mint tokens.
     mockToken.mint(address(pool), INITIAL_TOKEN_AMOUNT);
@@ -59,7 +76,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     merkle = new Merkle();
   }
 
-  function test_feeController_isOwner() public {
+  function test_feeController_isOwner() public view {
     assertEq(address(factory.owner()), address(feeController));
   }
 
@@ -130,7 +147,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
   function test_setMerkleRoot_success() public {
     assertEq(feeController.merkleRoot(), bytes32(uint256(0)));
-    vm.prank(owner);
+    vm.prank(feeSetter);
     feeController.setMerkleRoot(bytes32(uint256(40)));
 
     assertEq(feeController.merkleRoot(), bytes32(uint256(40)));
@@ -138,25 +155,27 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
   function test_setMerkleRoot_success_fuzz(bytes32 merkleRoot) public {
     assertEq(feeController.merkleRoot(), bytes32(uint256(0)));
-    vm.prank(owner);
+    vm.prank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
     assertEq(feeController.merkleRoot(), merkleRoot);
   }
 
   function test_setMerkleRoot_revertsWithInvalidProof() public {
-    vm.prank(owner);
+    vm.prank(feeSetter);
     feeController.setMerkleRoot(bytes32(uint256(40)));
 
     vm.expectRevert(V3FeeController.InvalidProof.selector);
-    feeController.triggerFeeUpdate(pool, 10, 10, new bytes32[](0));
+    feeController.triggerFeeUpdate(pool, new bytes32[](0));
   }
 
   function test_triggerFeeUpdate_withValidMerkleProof() public {
     uint8 fee0 = 5;
     uint8 fee1 = 10;
 
+    poolObject0.protocolFee = fee1 << 4 | fee0;
+
     // Generate leaf nodes.
-    bytes32 targetLeaf = keccak256(abi.encode(pool, fee0, fee1));
+    bytes32 targetLeaf = keccak256(abi.encode(poolObject0.pool));
     bytes32 dummyLeaf = keccak256(abi.encode("dummy"));
 
     bytes32[] memory leaves = new bytes32[](2);
@@ -166,23 +185,27 @@ contract V3FeeControllerTest is PhoenixTestBase {
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
     // Set the merkle root
-    vm.prank(owner);
+    vm.startPrank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(poolObject0.fee, poolObject0.protocolFee);
+    vm.stopPrank();
 
     bytes32[] memory proof = merkle.getProof(leaves, 0);
 
-    feeController.triggerFeeUpdate(pool, fee0, fee1, proof);
-    (,,,,, uint8 poolFees,) = IUniswapV3Pool(pool).slot0();
-    assertEq(poolFees, fee0 | fee1 << 4);
+    feeController.triggerFeeUpdate(poolObject0.pool, proof);
+    (,,,,, uint8 poolFees,) = IUniswapV3Pool(poolObject0.pool).slot0();
+    assertEq(poolFees, poolObject0.protocolFee);
   }
 
   function test_triggerFeeUpdate_withValidMerkleProof_differentPool() public {
-    uint8 protocolFee = 10;
     uint8 protocolFee2 = 5;
 
+    /// Save the protocol fee for poolObject1. Token0 and token1 have the same protocol fee.
+    poolObject1.protocolFee = protocolFee2 << 4 | protocolFee2;
+
     // Generate leaf nodes.
-    bytes32 leaf1 = keccak256(abi.encode(pool, protocolFee, protocolFee));
-    bytes32 leaf2 = keccak256(abi.encode(pool1, protocolFee2, protocolFee2));
+    bytes32 leaf1 = keccak256(abi.encode(poolObject0.pool));
+    bytes32 leaf2 = keccak256(abi.encode(poolObject1.pool));
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = leaf1;
@@ -190,113 +213,124 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
-    vm.prank(owner);
+    vm.startPrank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(poolObject1.fee, poolObject1.protocolFee);
+    vm.stopPrank();
 
     // Generate proof for pool1
     bytes32[] memory proof2 = merkle.getProof(leaves, 1);
 
-    feeController.triggerFeeUpdate(pool1, protocolFee2, protocolFee2, proof2);
+    feeController.triggerFeeUpdate(poolObject1.pool, proof2);
 
-    (,,,,, uint8 poolFees,) = IUniswapV3Pool(pool1).slot0();
-    assertEq(poolFees, protocolFee2 | protocolFee2 << 4);
+    (,,,,, uint8 protocolFees,) = IUniswapV3Pool(poolObject1.pool).slot0();
+    assertEq(protocolFees, poolObject1.protocolFee);
 
     // Assert that the fee for the other pool is not updated.
-    (,,,,, uint8 poolFees0,) = IUniswapV3Pool(pool).slot0();
-    assertEq(poolFees0, 0);
+    (,,,,, uint8 protocolFees0,) = IUniswapV3Pool(poolObject0.pool).slot0();
+    assertEq(protocolFees0, 0);
   }
 
   function test_triggerFeeUpdate_multiPool_success() public {
     address pool2 = factory.createPool(address(mockToken), address(mockToken1), uint24(500));
     IUniswapV3Pool(pool2).initialize(SQRT_PRICE_1_1);
 
-    address[] memory pools = new address[](3);
-    pools[0] = pool;
-    pools[1] = pool1;
-    pools[2] = pool2;
-
-    uint8[] memory fees = new uint8[](3);
-    fees[0] = 10;
-    fees[1] = 9;
-    fees[2] = 8;
+    poolObject0.protocolFee = 10 << 4 | 8;
+    poolObject1.protocolFee = 9 << 4 | 7;
+    PoolObject memory poolObject2 = PoolObject({pool: pool2, fee: 500, protocolFee: 8 << 4 | 5});
 
     bytes32[] memory leaves = new bytes32[](3);
-    for (uint256 i = 0; i < leaves.length; i++) {
-      leaves[i] = keccak256(abi.encode(pools[i], fees[i], fees[i]));
-    }
+
+    leaves[0] = keccak256(abi.encode(poolObject0.pool));
+    leaves[1] = keccak256(abi.encode(poolObject1.pool));
+    leaves[2] = keccak256(abi.encode(poolObject2.pool));
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
-    vm.prank(owner);
+    vm.startPrank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(poolObject0.fee, poolObject0.protocolFee);
+    feeController.setDefaultFeeByFeeTier(poolObject1.fee, poolObject1.protocolFee);
+    feeController.setDefaultFeeByFeeTier(poolObject2.fee, poolObject2.protocolFee);
+    vm.stopPrank();
 
     bytes32[] memory proof0 = merkle.getProof(leaves, 0);
 
     /// Trigger the fee update for pool0.
-    feeController.triggerFeeUpdate(pools[0], fees[0], fees[0], proof0);
+    feeController.triggerFeeUpdate(poolObject0.pool, proof0);
 
     /// Assert that the fee for pool0 is updated, and that the other pools are not updated.
-    assertEq(_getProtocolFees(pools[0]), fees[0] | fees[0] << 4);
-    assertEq(_getProtocolFees(pools[1]), 0);
-    assertEq(_getProtocolFees(pools[2]), 0);
+    assertEq(_getProtocolFees(poolObject0.pool), poolObject0.protocolFee);
+    assertEq(_getProtocolFees(poolObject1.pool), 0);
+    assertEq(_getProtocolFees(poolObject2.pool), 0);
 
     /// Trigger the fee updates for the rest of the pools.
-
     bytes32[] memory proof1 = merkle.getProof(leaves, 1);
     bytes32[] memory proof2 = merkle.getProof(leaves, 2);
 
-    feeController.triggerFeeUpdate(pools[1], fees[1], fees[1], proof1);
-    feeController.triggerFeeUpdate(pools[2], fees[2], fees[2], proof2);
+    feeController.triggerFeeUpdate(poolObject1.pool, proof1);
+    feeController.triggerFeeUpdate(poolObject2.pool, proof2);
 
     /// Assert that the fees for all the pools are updated.
-    assertEq(_getProtocolFees(pools[1]), fees[1] | fees[1] << 4);
-    assertEq(_getProtocolFees(pools[2]), fees[2] | fees[2] << 4);
+    assertEq(_getProtocolFees(poolObject1.pool), poolObject1.protocolFee);
+    assertEq(_getProtocolFees(poolObject2.pool), poolObject2.protocolFee);
   }
 
   function test_triggerFeeUpdate_9000Pool_success_gas() public {
     address[] memory pools = new address[](9000);
     bytes32[] memory leaves = new bytes32[](9000);
+
+    uint24 feeTier = 500;
+    uint8 protocolFee = 10 << 4 | 9;
     for (uint256 i = 0; i < 9000; i++) {
       MockERC20 token_i = new MockERC20("Token", "TKN", 18);
-      address pool_i = factory.createPool(address(token_i), address(mockToken1), uint24(500));
+      address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
       IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
       pools[i] = pool_i;
-      leaves[i] = keccak256(abi.encode(pool_i, 10, 10));
+      leaves[i] = keccak256(abi.encode(pool_i));
     }
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
-    vm.prank(owner);
+    vm.startPrank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(feeTier, protocolFee);
+    vm.stopPrank();
 
     bytes32[] memory proof0 = merkle.getProof(leaves, 0);
     bytes32[] memory proof4500 = merkle.getProof(leaves, 4500);
     bytes32[] memory proof8999 = merkle.getProof(leaves, 8999);
 
     /// Trigger the fee update for pool at index 0.
-    feeController.triggerFeeUpdate(pools[0], 10, 10, proof0);
+    feeController.triggerFeeUpdate(pools[0], proof0);
     vm.snapshotGasLastCall("triggerFeeUpdate_0");
 
     /// Trigger the fee update for pool at index 4500.
-    feeController.triggerFeeUpdate(pools[4500], 10, 10, proof4500);
+    feeController.triggerFeeUpdate(pools[4500], proof4500);
     vm.snapshotGasLastCall("triggerFeeUpdate_4500");
 
     /// Trigger the fee update for pool at index 8999.
-    feeController.triggerFeeUpdate(pools[8999], 10, 10, proof8999);
+    feeController.triggerFeeUpdate(pools[8999], proof8999);
     vm.snapshotGasLastCall("triggerFeeUpdate_8999");
+
+    assertEq(_getProtocolFees(pools[0]), protocolFee);
+    assertEq(_getProtocolFees(pools[4500]), protocolFee);
+    assertEq(_getProtocolFees(pools[8999]), protocolFee);
   }
 
   function test_batchTriggerFeeUpdate_9000Pool_success_gas() public {
     address[] memory pools = new address[](9000);
-    V3FeeController.PoolInfo[] memory poolInfos = new V3FeeController.PoolInfo[](9000);
     bytes32[] memory leaves = new bytes32[](9000);
+
+    uint24 feeTier = 3000;
+    uint8 protocolFee = 7 << 4 | 6;
+
     for (uint256 i = 0; i < 9000; i++) {
       MockERC20 token_i = new MockERC20("Token", "TKN", 18);
-      address pool_i = factory.createPool(address(token_i), address(mockToken1), uint24(500));
+      address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
       IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
       pools[i] = pool_i;
-      poolInfos[i] = V3FeeController.PoolInfo({pool: pool_i, feeProtocol0: 10, feeProtocol1: 10});
-      leaves[i] = keccak256(abi.encode(pool_i, 10, 10));
+      leaves[i] = keccak256(abi.encode(pool_i));
     }
 
     bool[] memory proofFlags = new bool[](leaves.length - 1);
@@ -306,21 +340,23 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     bytes32 root = MerkleProof.processMultiProof(new bytes32[](0), proofFlags, leaves);
 
-    vm.prank(owner);
+    vm.startPrank(feeSetter);
     feeController.setMerkleRoot(root);
+    feeController.setDefaultFeeByFeeTier(feeTier, protocolFee);
+    vm.stopPrank();
 
     /// Batch trigger all fee updates.
-    feeController.batchTriggerFeeUpdate(poolInfos, new bytes32[](0), proofFlags);
+    feeController.batchTriggerFeeUpdate(pools, new bytes32[](0), proofFlags);
     vm.snapshotGasLastCall("batchTriggerFeeUpdate_allLeaves");
 
-    assertEq(_getProtocolFees(pools[0]), 10 | 10 << 4);
+    assertEq(_getProtocolFees(pools[0]), protocolFee);
+    assertEq(_getProtocolFees(pools[8999]), protocolFee);
   }
 
-  function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(uint8 invalidFee) public {
-    vm.assume(0 < invalidFee);
-    vm.assume(invalidFee < 4 || invalidFee > 10);
+  function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(address invalidPool) public {
+    vm.assume(invalidPool != pool);
 
-    bytes32 leaf = keccak256(abi.encode(pool, invalidFee, invalidFee));
+    bytes32 leaf = keccak256(abi.encode(poolObject0.pool));
     bytes32 dummyLeaf = keccak256("dummy");
 
     bytes32[] memory leaves = new bytes32[](2);
@@ -329,13 +365,56 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
-    vm.prank(owner);
+    vm.prank(feeSetter);
     feeController.setMerkleRoot(merkleRoot);
 
     bytes32[] memory proof = merkle.getProof(leaves, 0);
 
     vm.expectRevert();
-    feeController.triggerFeeUpdate(pool, invalidFee, invalidFee, proof);
+    feeController.triggerFeeUpdate(invalidPool, proof);
+  }
+
+  function test_fuzz_setFeeSetter(address newFeeSetter) public {
+    vm.prank(owner);
+    feeController.setFeeSetter(newFeeSetter);
+    assertEq(feeController.feeSetter(), newFeeSetter);
+  }
+
+  function test_fuzz_revert_setFeeSetter(address caller, address newFeeSetter) public {
+    vm.assume(caller != feeController.owner());
+
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    feeController.setFeeSetter(newFeeSetter);
+  }
+
+  function test_fuzz_setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFee) public {
+    vm.startPrank(feeController.feeSetter());
+    if (factory.feeAmountTickSpacing(feeTier) == 0) {
+      vm.expectRevert(V3FeeController.InvalidFeeTier.selector);
+      feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
+    } else {
+      feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
+      assertEq(feeController.defaultFees(feeTier), defaultFee);
+    }
+
+    vm.stopPrank();
+  }
+
+  function test_fuzz_revert_setDefaultFeeByFeeTier(address caller, uint24 feeTier, uint8 defaultFee)
+    public
+  {
+    vm.assume(caller != feeController.feeSetter());
+
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
+  }
+
+  function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeTier() public {
+    vm.prank(feeSetter);
+    vm.expectRevert(V3FeeController.InvalidFeeTier.selector);
+    feeController.setDefaultFeeByFeeTier(11_000, 10);
   }
 
   function _mockSetProtocolFees(uint128 token0, uint128 token1) internal {
@@ -343,7 +422,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.store(pool, bytes32(slot), bytes32(toSet));
   }
 
-  function _getProtocolFees(address _pool) internal returns (uint8 poolFeesPacked) {
+  function _getProtocolFees(address _pool) internal view returns (uint8 poolFeesPacked) {
     (,,,,, uint8 poolFees,) = IUniswapV3Pool(_pool).slot0();
     return poolFees;
   }

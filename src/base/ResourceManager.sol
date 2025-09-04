@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+pragma solidity ^0.8.29;
+
+import {Owned} from "solmate/src/auth/Owned.sol";
+import {ERC20} from "solmate/src/utils/SafeTransferLib.sol";
+import {AssetSink} from "../AssetSink.sol";
+
+/// @title ResourceManager
+/// @notice A contract that holds immutable state for the resource token and the resource recipient
+/// address. It also maintains logic for managing the threshold of the resource token.
+abstract contract ResourceManager is Owned {
+  /// @notice The resource token that will be transferred
+  ERC20 public immutable RESOURCE;
+
+  /// @notice The recipient address that receives the resource tokens
+  address public immutable RESOURCE_RECIPIENT;
+
+  /// @notice The threshold amount of resource tokens required to trigger a release. Changeable by
+  /// the threshold setter.
+  uint256 public threshold;
+
+  /// @notice The address authorized to set the threshold. Defaulted to the owner.
+  address public thresholdSetter;
+
+  modifier onlyThresholdSetter() {
+    require(msg.sender == thresholdSetter, "UNAUTHORIZED");
+    _;
+  }
+
+  constructor(address _resource, address _owner, address _recipient) Owned(_owner) {
+    RESOURCE = ERC20(_resource);
+    RESOURCE_RECIPIENT = _recipient;
+    thresholdSetter = _owner;
+  }
+
+  function setThresholdSetter(address _thresholdSetter) external onlyOwner {
+    thresholdSetter = _thresholdSetter;
+  }
+
+  function setThreshold(uint256 _threshold) external onlyThresholdSetter {
+    threshold = _threshold;
+  }
+}
