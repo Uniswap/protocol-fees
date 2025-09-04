@@ -50,7 +50,7 @@ contract FirepitDestination is Nonce, Owned {
       emit FailedRelease(_nonce, claimer);
       return;
     }
-    try ASSET_SINK.releaseChecked(assets, claimer) {}
+    try ASSET_SINK.release(assets, claimer) {}
     catch {
       emit FailedRelease(_nonce, claimer);
       return;

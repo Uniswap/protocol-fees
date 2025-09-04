@@ -34,22 +34,10 @@ contract AssetSink is Owned {
   constructor(address _owner) Owned(_owner) {}
 
   /// @notice Releases all accumulated assets to the specified recipient
-  /// @param asset The asset to release
-  /// @param recipient The address to receive the assets
-  /// @dev Only callable by the releaser address
-  function release(Currency asset, address recipient) external onlyReleaser {
-    uint256 amount = asset.balanceOfSelf();
-    if (amount > 0) {
-      asset.transfer(recipient, amount);
-      emit FeesClaimed(asset, recipient, amount);
-    }
-  }
-
-  /// @notice Releases all accumulated assets to the specified recipient, using checked transfers
   /// @param assets an array of Currencies to release
   /// @param recipient The address to receive the assets
-  /// @dev Only callable by the releaser address. Reverts on a failed transfers
-  function releaseChecked(Currency[] calldata assets, address recipient) external onlyReleaser {
+  /// @dev Only callable by the releaser address. WILL REVERT on transfer failure(s)
+  function release(Currency[] calldata assets, address recipient) external onlyReleaser {
     Currency asset;
     uint256 amount;
     for (uint256 i; i < assets.length; i++) {

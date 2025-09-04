@@ -19,12 +19,16 @@ contract MockReleaser {
 
   /// @notice Release assets from the sink
   function release(Currency asset, address recipient) external {
-    assetSink.release(asset, recipient);
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = asset;
+    assetSink.release(assets, recipient);
   }
 
   /// @notice Release assets to caller
   function releaseToCaller(Currency asset) external {
-    assetSink.release(asset, msg.sender);
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = asset;
+    assetSink.release(assets, msg.sender);
   }
 }
 
