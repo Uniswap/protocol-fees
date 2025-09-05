@@ -87,9 +87,7 @@ contract V3FeeController is IV3FeeController, Owned {
     bytes32 node = keccak256(abi.encode(pool));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
 
-    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
-
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+    _setProtocolFee(pool);
   }
 
   /// @notice Set a new `feeSetter` address. Only callable by owner
@@ -97,5 +95,37 @@ contract V3FeeController is IV3FeeController, Owned {
   /// @param newFeeSetter The new fee setter address.
   function setFeeSetter(address newFeeSetter) external onlyOwner {
     feeSetter = newFeeSetter;
+  }
+
+  /// @notice Triggers the fee update for the given pools.
+  /// @param pools The pools to update the fee for.
+  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
+  /// from leaves of keccak256(abi.encode(pool)).
+  /// @param proofFlags The flags for the merkle proof.
+  function batchTriggerFeeUpdate(
+    address[] calldata pools,
+    bytes32[] calldata proof,
+    bool[] calldata proofFlags
+  ) external {
+    bytes32[] memory leaves = new bytes32[](pools.length);
+    address pool;
+    for (uint256 i; i < pools.length; i++) {
+      pool = pools[i];
+      leaves[i] = _hash(pool);
+      _setProtocolFee(pool);
+    }
+    if (!MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves)) revert InvalidProof();
+  }
+
+  function _setProtocolFee(address pool) internal {
+    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
+    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+  }
+
+  function _hash(address pool) internal pure returns (bytes32 poolHash) {
+    assembly ("memory-safe") {
+      mstore(0, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
+      poolHash := keccak256(0, 0x20)
+    }
   }
 }

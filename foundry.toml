@@ -4,6 +4,7 @@
   optimizer_runs = 10_000_000
   solc_version = "0.8.29"
   verbosity = 3
+  gas_limit = "9223372036854775807"
   no_match_test = "test_fuzz_gas_release_malicious"
 
 [rpc_endpoints]

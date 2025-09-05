@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
+import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {
   UniswapV3FactoryDeployer,
   IUniswapV3Factory
@@ -13,6 +14,8 @@ import {V3FeeController, IV3FeeController} from "../src/feeControllers/V3FeeCont
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 
 contract V3FeeControllerTest is PhoenixTestBase {
+  using MerkleProof for bytes32[];
+
   IUniswapV3Factory public factory;
 
   IV3FeeController public feeController;
@@ -264,7 +267,6 @@ contract V3FeeControllerTest is PhoenixTestBase {
     assertEq(_getProtocolFees(poolObject2.pool), 0);
 
     /// Trigger the fee updates for the rest of the pools.
-
     bytes32[] memory proof1 = merkle.getProof(leaves, 1);
     bytes32[] memory proof2 = merkle.getProof(leaves, 2);
 
@@ -274,6 +276,85 @@ contract V3FeeControllerTest is PhoenixTestBase {
     /// Assert that the fees for all the pools are updated.
     assertEq(_getProtocolFees(poolObject1.pool), poolObject1.protocolFee);
     assertEq(_getProtocolFees(poolObject2.pool), poolObject2.protocolFee);
+  }
+
+  function test_triggerFeeUpdate_9000Pool_success_gas() public {
+    address[] memory pools = new address[](9000);
+    bytes32[] memory leaves = new bytes32[](9000);
+
+    uint24 feeTier = 500;
+    uint8 protocolFee = 10 << 4 | 9;
+    for (uint256 i = 0; i < 9000; i++) {
+      MockERC20 token_i = new MockERC20("Token", "TKN", 18);
+      address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
+      IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
+      pools[i] = pool_i;
+      leaves[i] = keccak256(abi.encode(pool_i));
+    }
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
+
+    vm.startPrank(feeSetter);
+    feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(feeTier, protocolFee);
+    vm.stopPrank();
+
+    bytes32[] memory proof0 = merkle.getProof(leaves, 0);
+    bytes32[] memory proof4500 = merkle.getProof(leaves, 4500);
+    bytes32[] memory proof8999 = merkle.getProof(leaves, 8999);
+
+    /// Trigger the fee update for pool at index 0.
+    feeController.triggerFeeUpdate(pools[0], proof0);
+    vm.snapshotGasLastCall("triggerFeeUpdate_0");
+
+    /// Trigger the fee update for pool at index 4500.
+    feeController.triggerFeeUpdate(pools[4500], proof4500);
+    vm.snapshotGasLastCall("triggerFeeUpdate_4500");
+
+    /// Trigger the fee update for pool at index 8999.
+    feeController.triggerFeeUpdate(pools[8999], proof8999);
+    vm.snapshotGasLastCall("triggerFeeUpdate_8999");
+
+    assertEq(_getProtocolFees(pools[0]), protocolFee);
+    assertEq(_getProtocolFees(pools[4500]), protocolFee);
+    assertEq(_getProtocolFees(pools[8999]), protocolFee);
+    /// Not all pools' fees are updated.
+    assertEq(_getProtocolFees(pools[1]), 0);
+  }
+
+  function test_batchTriggerFeeUpdate_9000Pool_success_gas() public {
+    address[] memory pools = new address[](9000);
+    bytes32[] memory leaves = new bytes32[](9000);
+
+    uint24 feeTier = 3000;
+    uint8 protocolFee = 7 << 4 | 6;
+
+    for (uint256 i = 0; i < 9000; i++) {
+      MockERC20 token_i = new MockERC20("Token", "TKN", 18);
+      address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
+      IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
+      pools[i] = pool_i;
+      leaves[i] = keccak256(abi.encode(pool_i));
+    }
+
+    bool[] memory proofFlags = new bool[](leaves.length - 1);
+    for (uint256 i = 0; i < leaves.length - 1; i++) {
+      proofFlags[i] = true;
+    }
+
+    bytes32 root = MerkleProof.processMultiProof(new bytes32[](0), proofFlags, leaves);
+
+    vm.startPrank(feeSetter);
+    feeController.setMerkleRoot(root);
+    feeController.setDefaultFeeByFeeTier(feeTier, protocolFee);
+    vm.stopPrank();
+
+    /// Batch trigger all fee updates.
+    feeController.batchTriggerFeeUpdate(pools, new bytes32[](0), proofFlags);
+    vm.snapshotGasLastCall("batchTriggerFeeUpdate_allLeaves");
+
+    assertEq(_getProtocolFees(pools[0]), protocolFee);
+    assertEq(_getProtocolFees(pools[8999]), protocolFee);
   }
 
   function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(address invalidPool) public {
