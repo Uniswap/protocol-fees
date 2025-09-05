@@ -14,11 +14,11 @@ contract ExchangeReleaserTest is PhoenixTestBase {
     super.setUp();
     // owner is the msg.sender
     vm.startPrank(owner);
-    swapReleaser = new ExchangeReleaser(address(resource), address(assetSink), recipient);
+    swapReleaser =
+      new ExchangeReleaser(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink), recipient);
 
     assetSink.setReleaser(address(swapReleaser));
     swapReleaser.setThresholdSetter(owner);
-    swapReleaser.setThreshold(INITIAL_TOKEN_AMOUNT);
     vm.stopPrank();
   }
 

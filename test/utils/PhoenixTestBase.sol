@@ -68,11 +68,10 @@ contract PhoenixTestBase is Test {
 
     vm.startPrank(owner);
     assetSink = new AssetSink();
-    firepit = new Firepit(address(resource), address(assetSink));
+    firepit = new Firepit(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink));
     assetSink.setReleaser(address(firepit));
 
     firepit.setThresholdSetter(owner);
-    firepit.setThreshold(INITIAL_TOKEN_AMOUNT);
 
     firepitDestination = new FirepitDestination(owner, address(assetSink));
     // owner is set to the msg.sender
