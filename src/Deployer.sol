@@ -7,18 +7,18 @@ import {Firepit} from "./releasers/Firepit.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 contract Deployer {
+  AssetSink public immutable ASSET_SINK;
+  Firepit public immutable RELEASER;
+  V3FeeController public immutable FEE_CONTROLLER;
+
   address public constant RESOURCE = 0x1000000000000000000000000000000000000000;
   uint256 public constant THRESHOLD = 69_420;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
 
-  bytes32 SALT_ASSET_SINK = 0;
-  bytes32 SALT_RELEASER = 0;
-  bytes32 SALT_FEE_CONTROLLER = 0;
-
-  AssetSink public assetSink;
-  Firepit public releaser;
-  V3FeeController public feeController;
+  bytes32 constant SALT_ASSET_SINK = 0;
+  bytes32 constant SALT_RELEASER = 0;
+  bytes32 constant SALT_FEE_CONTROLLER = 0;
 
   //// ASSET SINK:
   /// 1. Deploy the AssetSink
@@ -37,27 +37,27 @@ contract Deployer {
   constructor() {
     address owner = V3_FACTORY.owner();
     /// 1. Deploy the AssetSink.
-    assetSink = new AssetSink{salt: SALT_ASSET_SINK}();
+    ASSET_SINK = new AssetSink{salt: SALT_ASSET_SINK}();
     /// 2. Deploy the Releaser.
-    releaser = new Firepit{salt: SALT_RELEASER}(RESOURCE, THRESHOLD, address(assetSink));
+    RELEASER = new Firepit{salt: SALT_RELEASER}(RESOURCE, THRESHOLD, address(ASSET_SINK));
     /// 3. Set the releaser on the asset sink.
-    assetSink.setReleaser(address(releaser));
+    ASSET_SINK.setReleaser(address(RELEASER));
     /// 4. Update the owner on the asset sink.
-    assetSink.transferOwnership(owner);
+    ASSET_SINK.transferOwnership(owner);
 
     /// 5. Update the thresholdSetter on the releaser to the owner.
-    releaser.setThresholdSetter(owner);
+    RELEASER.setThresholdSetter(owner);
     /// 6. Update the owner on the releaser.
-    releaser.transferOwnership(owner);
+    RELEASER.transferOwnership(owner);
 
     /// 7. Deploy the FeeController.
-    feeController =
-      new V3FeeController{salt: SALT_FEE_CONTROLLER}(address(V3_FACTORY), address(assetSink));
+    FEE_CONTROLLER =
+      new V3FeeController{salt: SALT_FEE_CONTROLLER}(address(V3_FACTORY), address(ASSET_SINK));
 
     /// 8. Update the feeSetter to the owner.
-    feeController.setFeeSetter(owner);
+    FEE_CONTROLLER.setFeeSetter(owner);
 
     /// 9. Update the owner on the fee controller.
-    feeController.transferOwnership(owner);
+    FEE_CONTROLLER.transferOwnership(owner);
   }
 }

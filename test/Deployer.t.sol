@@ -20,16 +20,22 @@ contract DeployerTest is Test {
   Firepit public releaser;
   V3FeeController public feeController;
 
+  address public owner;
+
   function setUp() public {
     factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
     IUniswapV3Factory _factory = UniswapV3FactoryDeployer.deploy();
     vm.etch(address(factory), address(_factory).code);
 
+    owner = makeAddr("owner");
+    vm.prank(factory.owner());
+    factory.setOwner(owner);
+
     deployer = new Deployer();
 
-    assetSink = deployer.assetSink();
-    releaser = deployer.releaser();
-    feeController = deployer.feeController();
+    assetSink = deployer.ASSET_SINK();
+    releaser = deployer.RELEASER();
+    feeController = deployer.FEE_CONTROLLER();
   }
 
   function test_deployer_assetSink_setUp() public view {
