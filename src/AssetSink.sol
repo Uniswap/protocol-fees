@@ -18,8 +18,14 @@ contract AssetSink is Owned {
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 
+  /// @notice Thrown when attempting to release too many assets at once
+  error TooManyAssets();
+
   /// @notice Address that can release assets from the sink
   address public releaser;
+
+  /// @notice Maximum number of different assets that can be released in a single call
+  uint256 public constant MAX_RELEASE_LENGTH = 20;
 
   /// @notice Ensures only the releaser can call the modified function
   modifier onlyReleaser() {
@@ -36,6 +42,7 @@ contract AssetSink is Owned {
   /// @param recipient The address to receive the assets
   /// @dev Only callable by the releaser address. WILL REVERT on transfer failure(s)
   function release(Currency[] calldata assets, address recipient) external onlyReleaser {
+    require(assets.length <= MAX_RELEASE_LENGTH, TooManyAssets());
     Currency asset;
     uint256 amount;
     for (uint256 i; i < assets.length; i++) {
