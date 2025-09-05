@@ -10,18 +10,17 @@ import {IResourceManager} from "../interfaces/IReleaser.sol";
 /// @notice A contract that holds immutable state for the resource token and the resource recipient
 /// address. It also maintains logic for managing the threshold of the resource token.
 abstract contract ResourceManager is IResourceManager, Owned {
-  /// @notice The resource token that will be transferred
-  ERC20 public immutable RESOURCE;
-
-  /// @notice The recipient address that receives the resource tokens
-  address public immutable RESOURCE_RECIPIENT;
-
-  /// @notice The threshold amount of resource tokens required to trigger a release. Changeable by
-  /// the threshold setter.
+  /// @inheritdoc IResourceManager
   uint256 public threshold;
 
-  /// @notice The address authorized to set the threshold. Defaulted to the owner.
+  /// @inheritdoc IResourceManager
   address public thresholdSetter;
+
+  /// @inheritdoc IResourceManager
+  ERC20 public immutable RESOURCE;
+
+  /// @inheritdoc IResourceManager
+  address public immutable RESOURCE_RECIPIENT;
 
   modifier onlyThresholdSetter() {
     require(msg.sender == thresholdSetter, "UNAUTHORIZED");
@@ -37,10 +36,12 @@ abstract contract ResourceManager is IResourceManager, Owned {
     threshold = _threshold;
   }
 
+  /// @inheritdoc IResourceManager
   function setThresholdSetter(address _thresholdSetter) external onlyOwner {
     thresholdSetter = _thresholdSetter;
   }
 
+  /// @inheritdoc IResourceManager
   function setThreshold(uint256 _threshold) external onlyThresholdSetter {
     threshold = _threshold;
   }

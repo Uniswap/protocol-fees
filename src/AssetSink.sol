@@ -11,7 +11,7 @@ import {IAssetSink} from "./interfaces/IAssetSink.sol";
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
 contract AssetSink is Owned, IAssetSink {
-  /// @notice Address that can release assets from the sink
+  /// @inheritdoc IAssetSink
   address public releaser;
 
   /// @notice Ensures only the releaser can call the modified function
@@ -21,13 +21,9 @@ contract AssetSink is Owned, IAssetSink {
   }
 
   /// @notice Creates a new AssetSink with the specified releaser
-
   constructor() Owned(msg.sender) {}
 
-  /// @notice Releases all accumulated assets to the specified recipient
-  /// @param assets an array of Currencies to release
-  /// @param recipient The address to receive the assets
-  /// @dev Only callable by the releaser address. WILL REVERT on transfer failure(s)
+  /// @inheritdoc IAssetSink
   function release(Currency[] calldata assets, address recipient) external onlyReleaser {
     Currency asset;
     uint256 amount;
@@ -41,6 +37,7 @@ contract AssetSink is Owned, IAssetSink {
     }
   }
 
+  /// @inheritdoc IAssetSink
   function setReleaser(address _releaser) external onlyOwner {
     releaser = _releaser;
   }

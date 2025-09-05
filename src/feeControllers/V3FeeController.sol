@@ -16,13 +16,18 @@ import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
 /// amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
 /// Note that this contract will be the set owner on the Uniswap V3 Factory.
 contract V3FeeController is IV3FeeController, Owned {
+  /// @inheritdoc IV3FeeController
   IUniswapV3Factory public immutable FACTORY;
-
+  /// @inheritdoc IV3FeeController
   address public immutable FEE_SINK;
 
+  /// @inheritdoc IV3FeeController
   bytes32 public merkleRoot;
+
+  /// @inheritdoc IV3FeeController
   address public feeSetter;
 
+  /// @inheritdoc IV3FeeController
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
   modifier onlyFeeSetter() {
@@ -36,15 +41,12 @@ contract V3FeeController is IV3FeeController, Owned {
     FEE_SINK = _feeSink;
   }
 
-  /// @notice Enables new fee tiers on the Uniswap V3 Factory.
-  /// @param fee The fee amount to enable.
-  /// @param tickSpacing The corresponding tick spacing to enable.
+  /// @inheritdoc IV3FeeController
   function enableFeeAmount(uint24 fee, int24 tickSpacing) external onlyOwner {
     FACTORY.enableFeeAmount(fee, tickSpacing);
   }
 
-  /// @notice Collects the protocol fees for the given pool.
-  /// @param collectParams The parameters for the collection. See CollectParams for more details.
+  /// @inheritdoc IV3FeeController
   function collect(CollectParams[] calldata collectParams)
     external
     returns (Collected[] memory amountsCollected)
@@ -62,27 +64,18 @@ contract V3FeeController is IV3FeeController, Owned {
     }
   }
 
-  /// @notice Sets the merkle root for the fee controller.
-  /// @dev only callable by owner
-  /// @param _merkleRoot The merkle root to set.
+  /// @inheritdoc IV3FeeController
   function setMerkleRoot(bytes32 _merkleRoot) external onlyFeeSetter {
     merkleRoot = _merkleRoot;
   }
 
-  /// @notice Designate a default fee value for a given fee tier. Only callable by the feeSetter
-  /// @dev performs NO validation if the default fee value is indeed valid
-  /// @param feeTier The fee tier to set the default fee for.
-  /// @param defaultFeeValue The default fee value to set. Expressed as the denominator on the
-  /// inclusive interval [4, 10]
+  /// @inheritdoc IV3FeeController
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
     if (FACTORY.feeAmountTickSpacing(feeTier) == 0) revert InvalidFeeTier();
     defaultFees[feeTier] = defaultFeeValue;
   }
 
-  /// @notice Triggers the fee update for the given pool.
-  /// @param pool The pool address to update the fee for.
-  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
-  /// from leaves of keccak256(abi.encode(pool)).
+  /// @inheritdoc IV3FeeController
   function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
     bytes32 node = keccak256(abi.encode(pool));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
@@ -90,18 +83,12 @@ contract V3FeeController is IV3FeeController, Owned {
     _setProtocolFee(pool);
   }
 
-  /// @notice Set a new `feeSetter` address. Only callable by owner
-  /// @dev Performs no validation checks
-  /// @param newFeeSetter The new fee setter address.
+  /// @inheritdoc IV3FeeController
   function setFeeSetter(address newFeeSetter) external onlyOwner {
     feeSetter = newFeeSetter;
   }
 
-  /// @notice Triggers the fee update for the given pools.
-  /// @param pools The pools to update the fee for.
-  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
-  /// from leaves of keccak256(abi.encode(pool)).
-  /// @param proofFlags The flags for the merkle proof.
+  /// @inheritdoc IV3FeeController
   function batchTriggerFeeUpdate(
     address[] calldata pools,
     bytes32[] calldata proof,

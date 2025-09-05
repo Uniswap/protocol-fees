@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {INonce} from "../interfaces/base/INonce.sol";
 
 abstract contract Nonce is INonce {
+  /// @inheritdoc INonce
   uint256 public nonce;
 
   modifier handleNonce(uint256 _nonce) {

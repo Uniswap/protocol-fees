@@ -18,7 +18,7 @@ import {IReleaser} from "../interfaces/IReleaser.sol";
 abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
-  /// @notice The AssetSink contract from which assets will be released
+  /// @inheritdoc IReleaser
   IAssetSink public immutable ASSET_SINK;
 
   /// @notice Creates a new ExchangeReleaser instance
@@ -31,12 +31,7 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
     ASSET_SINK = IAssetSink(payable(_assetSink));
   }
 
-  /// @notice Releases specified assets to the recipient in return for threshold resource tokens
-  /// @dev Transfers the threshold amount of resource tokens from msg.sender to RECIPIENT, then
-  /// releases all specified assets
-  /// @param _nonce A unique nonce to prevent replay attacks
-  /// @param assets An array of Currency tokens to be released from the AssetSink
-  /// @param recipient The address that will receive the released assets
+  /// @inheritdoc IReleaser
   function release(uint256 _nonce, Currency[] memory assets, address recipient) external virtual {
     _release(_nonce, assets, recipient);
   }
