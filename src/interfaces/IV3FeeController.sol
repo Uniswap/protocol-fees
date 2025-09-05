@@ -48,6 +48,11 @@ interface IV3FeeController {
   function setMerkleRoot(bytes32 _merkleRoot) external;
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
   function triggerFeeUpdate(address pool, bytes32[] calldata merkleProof) external;
+  function batchTriggerFeeUpdate(
+    address[] calldata pools,
+    bytes32[] calldata proof,
+    bool[] calldata proofFlags
+  ) external;
 
   function setFeeSetter(address newFeeSetter) external;
 }
