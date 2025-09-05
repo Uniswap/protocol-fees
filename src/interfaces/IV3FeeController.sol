@@ -35,24 +35,61 @@ interface IV3FeeController {
     uint128 amount1Collected;
   }
 
+  /// @notice Returns the address where collected fees are sent.
   function FEE_SINK() external view returns (address);
+
+  /// @notice Returns the Uniswap V3 Factory contract.
   function FACTORY() external view returns (IUniswapV3Factory);
+
+  /// @notice Returns the current merkle root used for fee update proofs.
   function merkleRoot() external view returns (bytes32);
+
+  /// @notice Returns the address authorized to set fees and merkle roots.
   function feeSetter() external view returns (address);
+
+  /// @notice Returns the default fee value for a given fee tier.
+  /// @param feeTier The fee tier to query.
+  /// @return defaultFeeValue The default fee value expressed as the denominator on the inclusive
+  /// interval [4, 10].
   function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValue);
+  /// @notice Enables a new fee tier on the Uniswap V3 Factory.
+  /// @param newFeeTier The fee amount to enable.
+  /// @param tickSpacing The corresponding tick spacing for the fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
+
+  /// @notice Collects protocol fees from the specified pools.
+  /// @param collectParams Array of collection parameters for each pool.
+  /// @return amountsCollected Array of collected amounts for each pool.
   function collect(CollectParams[] calldata collectParams)
     external
     returns (Collected[] memory amountsCollected);
 
+  /// @notice Sets the merkle root used for verifying fee update proofs.
+  /// @param _merkleRoot The new merkle root to set.
   function setMerkleRoot(bytes32 _merkleRoot) external;
+
+  /// @notice Sets the default fee value for a specific fee tier.
+  /// @param feeTier The fee tier to set the default fee for.
+  /// @param defaultFeeValue The default fee value to set, expressed as the denominator on the
+  /// inclusive interval [4, 10].
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
+
+  /// @notice Triggers a fee update for a single pool with merkle proof verification.
+  /// @param pool The pool address to update the fee for.
+  /// @param merkleProof The merkle proof corresponding to the set merkle root.
   function triggerFeeUpdate(address pool, bytes32[] calldata merkleProof) external;
+
+  /// @notice Triggers fee updates for multiple pools with batch merkle proof verification.
+  /// @param pools The pool addresses to update fees for.
+  /// @param proof The merkle proof corresponding to the set merkle root.
+  /// @param proofFlags The flags for the merkle proof verification.
   function batchTriggerFeeUpdate(
     address[] calldata pools,
     bytes32[] calldata proof,
     bool[] calldata proofFlags
   ) external;
 
+  /// @notice Sets a new fee setter address.
+  /// @param newFeeSetter The new address authorized to set fees and merkle roots.
   function setFeeSetter(address newFeeSetter) external;
 }
