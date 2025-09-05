@@ -49,14 +49,15 @@ contract V3FeeControllerTest is PhoenixTestBase {
     super.setUp();
 
     factory = UniswapV3FactoryDeployer.deploy();
+    /// Prank the old owner so we can just use our internal owner.
     vm.prank(factory.owner());
     factory.setOwner(owner);
 
-    feeController = new V3FeeController(address(factory), address(assetSink), factory.owner());
-
-    /// Transfer ownership to the fee controller.
-    vm.prank(factory.owner());
+    vm.startPrank(owner);
+    feeController = new V3FeeController(address(factory), address(assetSink));
+    feeController.setFeeSetter(owner);
     factory.setOwner(address(feeController));
+    vm.stopPrank();
 
     feeSetter = feeController.feeSetter();
 

@@ -58,10 +58,10 @@ contract V3FeeController is Owned {
     _;
   }
 
-  constructor(address _factory, address _feeSink, address _owner) Owned(_owner) {
+  /// @dev At construction, the fee setter defaults to 0 and its on the owner to set.
+  constructor(address _factory, address _feeSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     FEE_SINK = _feeSink;
-    feeSetter = _owner;
   }
 
   /// @notice Enables new fee tiers on the Uniswap V3 Factory.
