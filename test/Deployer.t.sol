@@ -7,18 +7,20 @@ import {
   IUniswapV3Factory
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {Deployer} from "../src/Deployer.sol";
-import {AssetSink} from "../src/AssetSink.sol";
+import {AssetSink, IAssetSink} from "../src/AssetSink.sol";
 import {Firepit} from "../src/releasers/Firepit.sol";
-import {V3FeeController} from "../src/feeControllers/V3FeeController.sol";
+import {IReleaser} from "../src/interfaces/IReleaser.sol";
+import {IOwned} from "../src/interfaces/base/IOwned.sol";
+import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
 
 contract DeployerTest is Test {
   Deployer public deployer;
 
   IUniswapV3Factory public factory;
 
-  AssetSink public assetSink;
-  Firepit public releaser;
-  V3FeeController public feeController;
+  IAssetSink public assetSink;
+  IReleaser public releaser;
+  IV3FeeController public feeController;
 
   address public owner;
 
@@ -39,21 +41,21 @@ contract DeployerTest is Test {
   }
 
   function test_deployer_assetSink_setUp() public view {
-    assertEq(assetSink.owner(), factory.owner());
+    assertEq(IOwned(address(assetSink)).owner(), factory.owner());
     assertEq(assetSink.releaser(), address(releaser));
   }
 
   function test_deployer_releaser_setUp() public view {
-    assertEq(releaser.owner(), factory.owner());
+    assertEq(IOwned(address(releaser)).owner(), factory.owner());
     assertEq(releaser.thresholdSetter(), factory.owner());
     assertEq(releaser.threshold(), 69_420);
     assertEq(address(releaser.ASSET_SINK()), address(assetSink));
-    assertEq(releaser.RESOURCE_RECIPIENT(), address(0));
+    assertEq(releaser.RESOURCE_RECIPIENT(), address(0xdead));
     assertEq(address(releaser.RESOURCE()), address(0x1000000000000000000000000000000000000000));
   }
 
   function test_deployer_feeController_setUp() public view {
-    assertEq(feeController.owner(), factory.owner());
+    assertEq(IOwned(address(feeController)).owner(), factory.owner());
     assertEq(feeController.feeSetter(), factory.owner());
     assertEq(address(feeController.FEE_SINK()), address(assetSink));
     assertEq(address(feeController.FACTORY()), address(factory));
