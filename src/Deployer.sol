@@ -31,7 +31,7 @@ contract Deployer {
   /// 5. Update the thresholdSetter on the releaser to the owner.
 
   /// FEE_CONTROLLER:
-  /// 7.Deploy the FeeController.
+  /// 7. Deploy the FeeController.
   /// 8. Update the feeSetter to the owner.
   /// 9. Update the owner on the fee controller.
   constructor() {
