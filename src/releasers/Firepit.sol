@@ -4,9 +4,9 @@ pragma solidity ^0.8.29;
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 /// @title Firepit
-/// @notice An ExchangeReleaser with recipient set to the burn address address(0)
+/// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead)
 contract Firepit is ExchangeReleaser {
   constructor(address _resource, uint256 _threshold, address _assetSink)
-    ExchangeReleaser(_resource, _threshold, _assetSink, address(0))
+    ExchangeReleaser(_resource, _threshold, _assetSink, address(0xdead))
   {}
 }

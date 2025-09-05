@@ -16,7 +16,7 @@ contract FirepitTest is PhoenixTestBase {
   function test_release_release_erc20() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
@@ -26,13 +26,13 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
   }
 
   function test_release_release_native() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
@@ -41,7 +41,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
   }
 
   function test_fuzz_revert_release_insufficient_balance(uint256 amount, uint256 seed) public {
@@ -83,7 +83,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(0xdead)), INITIAL_TOKEN_AMOUNT);
 
     // Attempt to frontrun with the same nonce
     vm.expectRevert(Nonce.InvalidNonce.selector);
@@ -124,7 +124,7 @@ contract FirepitTest is PhoenixTestBase {
 
     assertEq(resource.balanceOf(alice), newThreshold);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     uint256 currentNonce = firepit.nonce();
 
@@ -135,6 +135,6 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(firepit.nonce(), currentNonce + 1);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
   }
 }

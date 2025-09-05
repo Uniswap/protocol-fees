@@ -15,7 +15,7 @@ abstract contract FirepitSource is ResourceManager, Nonce {
 
   /// TODO: Move threshold to constructor. It should not default to 0.
   constructor(address _owner, address _resource)
-    ResourceManager(_resource, 69_420, _owner, address(0))
+    ResourceManager(_resource, 69_420, _owner, address(0xdead))
   {}
 
   function _sendReleaseMessage(
