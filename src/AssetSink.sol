@@ -3,7 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
-import {IOwned} from "./interfaces/base/IOwned.sol";
 import {IAssetSink} from "./interfaces/IAssetSink.sol";
 
 /// @title AssetSink

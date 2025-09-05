@@ -7,8 +7,7 @@ import {
   IUniswapV3Factory
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {Deployer} from "../src/Deployer.sol";
-import {AssetSink, IAssetSink} from "../src/AssetSink.sol";
-import {Firepit} from "../src/releasers/Firepit.sol";
+import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";

@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {ExchangeReleaserMock} from "./mocks/ExchangeReleaserMock.sol";
-import {Nonce, INonce} from "../src/base/Nonce.sol";
+import {INonce} from "../src/interfaces/base/INonce.sol";
 
 contract ExchangeReleaserTest is PhoenixTestBase {
   ExchangeReleaserMock public swapReleaser;

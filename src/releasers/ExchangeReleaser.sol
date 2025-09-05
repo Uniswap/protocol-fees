@@ -4,7 +4,6 @@ pragma solidity ^0.8.29;
 import {Currency} from "v4-core/types/Currency.sol";
 import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 import {ResourceManager} from "../base/ResourceManager.sol";
-import {AssetSink} from "../AssetSink.sol";
 import {Nonce} from "../base/Nonce.sol";
 import {IAssetSink} from "../interfaces/IAssetSink.sol";
 import {IReleaser} from "../interfaces/IReleaser.sol";

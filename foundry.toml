@@ -36,4 +36,4 @@
   wrap_comments = true
 
 [lint]
-exclude_lints = ["mixed-case-variable"]
+exclude_lints = ["mixed-case-variable", "mixed-case-function"]

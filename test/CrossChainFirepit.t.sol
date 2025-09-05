@@ -4,9 +4,7 @@ pragma solidity ^0.8.29;
 import {PhoenixTestBase, FirepitDestination} from "./utils/PhoenixTestBase.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {Firepit} from "../src/releasers/Firepit.sol";
-import {AssetSink} from "../src/AssetSink.sol";
-import {Nonce, INonce} from "../src/base/Nonce.sol";
+import {INonce} from "../src/interfaces/base/INonce.sol";
 
 contract CrossChainFirepitTest is PhoenixTestBase {
   uint32 public constant L2_GAS_LIMIT = 1_000_000;

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {Currency} from "v4-core/types/Currency.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {IAssetSink} from "./IAssetSink.sol";
 
 interface IV3FeeController {
   /// @notice Thrown when the amount collected is less than the amount expected.
