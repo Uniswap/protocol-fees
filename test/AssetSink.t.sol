@@ -36,11 +36,11 @@ contract AssetSinkTest is Test {
     mockToken = new MockERC20("MOCK", "MOCK", 18);
     mockRevertingReceiver = new MockRevertingReceiver();
 
-    assetSink = new AssetSink(owner);
+    vm.startPrank(owner);
+    assetSink = new AssetSink();
     mockReleaser = new MockReleaser(address(assetSink));
-
-    vm.prank(owner);
     assetSink.setReleaser(address(mockReleaser));
+    vm.stopPrank();
 
     // Mint tokens and send to AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
@@ -191,11 +191,11 @@ contract AssetSinkTest is Test {
     vm.assume(amount > 0 && amount <= 1000 ether);
 
     // Create new AssetSink with releaser
-    AssetSink fuzzSink = new AssetSink(address(owner));
+    vm.startPrank(owner);
+    AssetSink fuzzSink = new AssetSink();
     MockReleaser fuzzReleaser = new MockReleaser(address(fuzzSink));
-
-    vm.prank(owner);
     fuzzSink.setReleaser(address(fuzzReleaser));
+    vm.stopPrank();
 
     vm.deal(address(fuzzSink), amount);
     Currency nativeAsset = Currency.wrap(address(0));
