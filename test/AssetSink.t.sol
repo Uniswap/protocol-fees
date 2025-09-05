@@ -5,13 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {AssetSink} from "../src/AssetSink.sol";
+import {AssetSink, IAssetSink} from "../src/AssetSink.sol";
 import {MockReleaser, MockRevertingReceiver} from "./mocks/MockReleaser.sol";
 
 contract AssetSinkTest is Test {
   using CurrencyLibrary for Currency;
 
-  AssetSink public assetSink;
+  IAssetSink public assetSink;
   MockReleaser public mockReleaser;
   MockRevertingReceiver public mockRevertingReceiver;
   MockERC20 public mockToken;
@@ -82,7 +82,7 @@ contract AssetSinkTest is Test {
     Currency[] memory asset = new Currency[](1);
     asset[0] = Currency.wrap(address(mockToken));
     // Direct call to AssetSink should fail - only releaser can call
-    vm.expectRevert(AssetSink.Unauthorized.selector);
+    vm.expectRevert(IAssetSink.Unauthorized.selector);
     assetSink.release(asset, alice);
   }
 
@@ -132,7 +132,7 @@ contract AssetSinkTest is Test {
     Currency[] memory nativeAsset = new Currency[](1);
     nativeAsset[0] = Currency.wrap(address(0));
     // Direct call to AssetSink should fail - only releaser can call
-    vm.expectRevert(AssetSink.Unauthorized.selector);
+    vm.expectRevert(IAssetSink.Unauthorized.selector);
     assetSink.release(nativeAsset, alice);
   }
 
@@ -217,11 +217,11 @@ contract AssetSinkTest is Test {
     nativeAsset[0] = Currency.wrap(address(0));
 
     vm.prank(caller);
-    vm.expectRevert(AssetSink.Unauthorized.selector);
+    vm.expectRevert(IAssetSink.Unauthorized.selector);
     assetSink.release(erc20Asset, alice);
 
     vm.prank(caller);
-    vm.expectRevert(AssetSink.Unauthorized.selector);
+    vm.expectRevert(IAssetSink.Unauthorized.selector);
     assetSink.release(nativeAsset, alice);
   }
 }

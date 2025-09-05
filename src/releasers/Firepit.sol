@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {ExchangeReleaser} from "./ExchangeReleaser.sol";
+import {ExchangeReleaser, IReleaser} from "./ExchangeReleaser.sol";
 
 /// @title Firepit
 /// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead) and a limit
@@ -18,6 +18,7 @@ contract Firepit is ExchangeReleaser {
     ExchangeReleaser(_resource, _threshold, _assetSink, address(0xdead))
   {}
 
+  /// @inheritdoc IReleaser
   function release(uint256 _nonce, Currency[] memory assets, address recipient) external override {
     if (assets.length > MAX_RELEASE_LENGTH) revert TooManyAssets();
     _release(_nonce, assets, recipient);
