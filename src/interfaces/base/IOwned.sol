@@ -3,7 +3,12 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 
+/// @title Owned Interface
+/// @dev Interface for Solmate's Owned.sol contract
 interface IOwned {
+  /// @return owner of the contract
   function owner() external view returns (address);
+
+  /// @notice Transfers ownership of the contract to a new address
   function transferOwnership(address newOwner) external;
 }
