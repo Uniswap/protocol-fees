@@ -58,10 +58,10 @@ contract V3FeeController is Owned {
     _;
   }
 
-  constructor(address _factory, address _feeSink, address _owner) Owned(_owner) {
+  /// @dev At construction, the fee setter defaults to 0 and its on the owner to set.
+  constructor(address _factory, address _feeSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     FEE_SINK = _feeSink;
-    feeSetter = _owner;
   }
 
   /// @notice Enables new fee tiers on the Uniswap V3 Factory.
@@ -115,9 +115,7 @@ contract V3FeeController is Owned {
     bytes32 node = keccak256(abi.encode(pool));
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
 
-    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
-
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+    _setProtocolFee(pool);
   }
 
   /// @notice Set a new `feeSetter` address. Only callable by owner
@@ -125,5 +123,37 @@ contract V3FeeController is Owned {
   /// @param newFeeSetter The new fee setter address.
   function setFeeSetter(address newFeeSetter) external onlyOwner {
     feeSetter = newFeeSetter;
+  }
+
+  /// @notice Triggers the fee update for the given pools.
+  /// @param pools The pools to update the fee for.
+  /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
+  /// from leaves of keccak256(abi.encode(pool)).
+  /// @param proofFlags The flags for the merkle proof.
+  function batchTriggerFeeUpdate(
+    address[] calldata pools,
+    bytes32[] calldata proof,
+    bool[] calldata proofFlags
+  ) external {
+    bytes32[] memory leaves = new bytes32[](pools.length);
+    address pool;
+    for (uint256 i; i < pools.length; i++) {
+      pool = pools[i];
+      leaves[i] = _hash(pool);
+      _setProtocolFee(pool);
+    }
+    if (!MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves)) revert InvalidProof();
+  }
+
+  function _setProtocolFee(address pool) internal {
+    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
+    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+  }
+
+  function _hash(address pool) internal pure returns (bytes32 poolHash) {
+    assembly ("memory-safe") {
+      mstore(0, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
+      poolHash := keccak256(0, 0x20)
+    }
   }
 }

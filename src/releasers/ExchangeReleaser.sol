@@ -23,8 +23,8 @@ contract ExchangeReleaser is ResourceManager, Nonce {
   /// @param _resource The address of the resource token that must be transferred
   /// @param _assetSink The address of the AssetSink contract holding the assets
   /// @param _recipient The address that will receive the resource tokens
-  constructor(address _resource, address _assetSink, address _recipient)
-    ResourceManager(_resource, msg.sender, _recipient)
+  constructor(address _resource, uint256 _threshold, address _assetSink, address _recipient)
+    ResourceManager(_resource, _threshold, msg.sender, _recipient)
   {
     ASSET_SINK = AssetSink(payable(_assetSink));
   }
@@ -40,9 +40,6 @@ contract ExchangeReleaser is ResourceManager, Nonce {
     handleNonce(_nonce)
   {
     RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
-
-    for (uint256 i = 0; i < assets.length; i++) {
-      ASSET_SINK.release(assets[i], recipient);
-    }
+    ASSET_SINK.release(assets, recipient);
   }
 }

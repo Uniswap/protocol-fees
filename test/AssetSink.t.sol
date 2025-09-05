@@ -36,11 +36,11 @@ contract AssetSinkTest is Test {
     mockToken = new MockERC20("MOCK", "MOCK", 18);
     mockRevertingReceiver = new MockRevertingReceiver();
 
-    assetSink = new AssetSink(owner);
+    vm.startPrank(owner);
+    assetSink = new AssetSink();
     mockReleaser = new MockReleaser(address(assetSink));
-
-    vm.prank(owner);
     assetSink.setReleaser(address(mockReleaser));
+    vm.stopPrank();
 
     // Mint tokens and send to AssetSink
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
@@ -79,7 +79,8 @@ contract AssetSinkTest is Test {
   }
 
   function test_Release_ERC20_OnlyReleaser() public {
-    Currency asset = Currency.wrap(address(mockToken));
+    Currency[] memory asset = new Currency[](1);
+    asset[0] = Currency.wrap(address(mockToken));
     // Direct call to AssetSink should fail - only releaser can call
     vm.expectRevert(AssetSink.Unauthorized.selector);
     assetSink.release(asset, alice);
@@ -128,7 +129,8 @@ contract AssetSinkTest is Test {
   }
 
   function test_Release_Native_OnlyReleaser() public {
-    Currency nativeAsset = Currency.wrap(address(0));
+    Currency[] memory nativeAsset = new Currency[](1);
+    nativeAsset[0] = Currency.wrap(address(0));
     // Direct call to AssetSink should fail - only releaser can call
     vm.expectRevert(AssetSink.Unauthorized.selector);
     assetSink.release(nativeAsset, alice);
@@ -189,11 +191,11 @@ contract AssetSinkTest is Test {
     vm.assume(amount > 0 && amount <= 1000 ether);
 
     // Create new AssetSink with releaser
-    AssetSink fuzzSink = new AssetSink(address(owner));
+    vm.startPrank(owner);
+    AssetSink fuzzSink = new AssetSink();
     MockReleaser fuzzReleaser = new MockReleaser(address(fuzzSink));
-
-    vm.prank(owner);
     fuzzSink.setReleaser(address(fuzzReleaser));
+    vm.stopPrank();
 
     vm.deal(address(fuzzSink), amount);
     Currency nativeAsset = Currency.wrap(address(0));
@@ -208,8 +210,11 @@ contract AssetSinkTest is Test {
   function testFuzz_OnlyReleaser_DifferentCallers(address caller) public {
     vm.assume(caller != address(mockReleaser));
 
-    Currency erc20Asset = Currency.wrap(address(mockToken));
-    Currency nativeAsset = Currency.wrap(address(0));
+    Currency[] memory erc20Asset = new Currency[](1);
+    erc20Asset[0] = Currency.wrap(address(mockToken));
+
+    Currency[] memory nativeAsset = new Currency[](1);
+    nativeAsset[0] = Currency.wrap(address(0));
 
     vm.prank(caller);
     vm.expectRevert(AssetSink.Unauthorized.selector);

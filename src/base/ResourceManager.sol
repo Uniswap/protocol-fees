@@ -26,10 +26,13 @@ abstract contract ResourceManager is Owned {
     _;
   }
 
-  constructor(address _resource, address _owner, address _recipient) Owned(_owner) {
+  /// @dev At construction the thresholdSetter defaults to 0 and its on the owner to set.
+  constructor(address _resource, uint256 _threshold, address _owner, address _recipient)
+    Owned(_owner)
+  {
     RESOURCE = ERC20(_resource);
     RESOURCE_RECIPIENT = _recipient;
-    thresholdSetter = _owner;
+    threshold = _threshold;
   }
 
   function setThresholdSetter(address _thresholdSetter) external onlyOwner {

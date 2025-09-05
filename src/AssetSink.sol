@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
 
 /// @title AssetSink
@@ -9,8 +9,6 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
 contract AssetSink is Owned {
-  using CurrencyLibrary for Currency;
-
   /// @notice Emitted when asset fees are successfully claimed
   /// @param asset Address of the asset that was claimed
   /// @param recipient Address that received the assets
@@ -30,18 +28,23 @@ contract AssetSink is Owned {
   }
 
   /// @notice Creates a new AssetSink with the specified releaser
-  /// @param _owner The permissioned address over the AssetSink
-  constructor(address _owner) Owned(_owner) {}
+
+  constructor() Owned(msg.sender) {}
 
   /// @notice Releases all accumulated assets to the specified recipient
-  /// @param asset The asset to release
+  /// @param assets an array of Currencies to release
   /// @param recipient The address to receive the assets
-  /// @dev Only callable by the releaser address
-  function release(Currency asset, address recipient) external onlyReleaser {
-    uint256 amount = asset.balanceOfSelf();
-    if (amount > 0) {
-      asset.transfer(recipient, amount);
-      emit FeesClaimed(asset, recipient, amount);
+  /// @dev Only callable by the releaser address. WILL REVERT on transfer failure(s)
+  function release(Currency[] calldata assets, address recipient) external onlyReleaser {
+    Currency asset;
+    uint256 amount;
+    for (uint256 i; i < assets.length; i++) {
+      asset = assets[i];
+      amount = asset.balanceOfSelf();
+      if (amount > 0) {
+        asset.transfer(recipient, amount);
+        emit FeesClaimed(asset, recipient, amount);
+      }
     }
   }
 
