@@ -11,15 +11,6 @@ import {IAssetSink} from "./interfaces/IAssetSink.sol";
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
 contract AssetSink is Owned, IAssetSink {
-  /// @notice Emitted when asset fees are successfully claimed
-  /// @param asset Address of the asset that was claimed
-  /// @param recipient Address that received the assets
-  /// @param amount Amount of fees transferred to the recipient
-  event FeesClaimed(Currency indexed asset, address indexed recipient, uint256 amount);
-
-  /// @notice Thrown when an unauthorized address attempts to call a restricted function
-  error Unauthorized();
-
   /// @notice Address that can release assets from the sink
   address public releaser;
 
