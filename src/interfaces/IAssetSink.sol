@@ -15,8 +15,8 @@ interface IAssetSink {
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 
-  /// @return Address of the current IReleaser, which has exclusive access to the `release()`
-  /// function
+  /// @return Address of the current IReleaser
+  /// @dev The releaser has exclusive access to the `release()` function
   function releaser() external view returns (address);
 
   /// @notice Set the address of the IReleaser contract
