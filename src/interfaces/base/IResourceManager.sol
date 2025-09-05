@@ -9,4 +9,5 @@ interface IResourceManager {
   function threshold() external view returns (uint256);
   function thresholdSetter() external view returns (address);
   function setThresholdSetter(address newThresholdSetter) external;
+  function setThreshold(uint256 newThreshold) external;
 }

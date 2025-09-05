@@ -10,6 +10,7 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../../src/releasers/Firepit.sol";
 import {AssetSink, IAssetSink} from "../../src/AssetSink.sol";
+import {IReleaser} from "../../src/interfaces/IReleaser.sol";
 import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
 import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
 
@@ -27,7 +28,7 @@ contract PhoenixTestBase is Test {
   RevertBombToken revertBombToken;
 
   IAssetSink assetSink;
-  Firepit firepit;
+  IReleaser firepit;
   OPStackFirepitSource opStackFirepitSource;
   MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
   FirepitDestination firepitDestination;

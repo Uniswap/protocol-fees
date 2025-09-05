@@ -3,7 +3,8 @@ pragma solidity ^0.8.29;
 
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {Nonce} from "../src/base/Nonce.sol";
+import {Nonce, INonce} from "../src/base/Nonce.sol";
+import {IOwned} from "../src/interfaces/base/IOwned.sol";
 
 contract FirepitTest is PhoenixTestBase {
   function setUp() public override {
@@ -66,7 +67,7 @@ contract FirepitTest is PhoenixTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(firepit), type(uint256).max);
-    vm.expectRevert(Nonce.InvalidNonce.selector);
+    vm.expectRevert(INonce.InvalidNonce.selector);
     firepit.release(nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], alice);
   }
 
@@ -86,7 +87,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(resource.balanceOf(address(0)), INITIAL_TOKEN_AMOUNT);
 
     // Attempt to frontrun with the same nonce
-    vm.expectRevert(Nonce.InvalidNonce.selector);
+    vm.expectRevert(INonce.InvalidNonce.selector);
     firepit.release(nonce, releaseMockToken, alice);
   }
 
@@ -102,7 +103,7 @@ contract FirepitTest is PhoenixTestBase {
 
   function test_fuzz_setThresholdSetter(address caller, address newSetter) public {
     vm.startPrank(caller);
-    if (caller != firepit.owner()) vm.expectRevert("UNAUTHORIZED");
+    if (caller != IOwned(address(firepit)).owner()) vm.expectRevert("UNAUTHORIZED");
     firepit.setThresholdSetter(newSetter);
     vm.stopPrank();
   }

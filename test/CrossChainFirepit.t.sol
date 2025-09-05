@@ -7,7 +7,7 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {Firepit} from "../src/releasers/Firepit.sol";
 import {AssetSink} from "../src/AssetSink.sol";
-import {Nonce} from "../src/base/Nonce.sol";
+import {Nonce, INonce} from "../src/base/Nonce.sol";
 
 contract CrossChainFirepitTest is PhoenixTestBase {
   uint32 public constant L2_GAS_LIMIT = 1_000_000;
@@ -154,7 +154,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    vm.expectRevert(Nonce.InvalidNonce.selector);
+    vm.expectRevert(INonce.InvalidNonce.selector);
     opStackFirepitSource.release(
       _nonce, fuzzReleaseAny[seed % fuzzReleaseAny.length], bob, L2_GAS_LIMIT
     );
@@ -172,7 +172,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
     vm.startPrank(bob);
     resource.approve(address(opStackFirepitSource), INITIAL_TOKEN_AMOUNT);
-    vm.expectRevert(Nonce.InvalidNonce.selector);
+    vm.expectRevert(INonce.InvalidNonce.selector);
     opStackFirepitSource.release(_nonce, releaseMockBoth, bob, L2_GAS_LIMIT);
     vm.stopPrank();
   }
