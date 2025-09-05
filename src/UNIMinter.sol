@@ -11,13 +11,13 @@ import {IUNI} from "./interfaces/IUNI.sol";
 /// allocations
 /// @author Uniswap
 contract UNIMinter is Owned {
-  /// @notice Thrown when attempting to revoke shares before the delay period has elapsed
+  /// @notice Thrown when attempting to complete revocation before the delay period has elapsed
   error RevocationNotReady();
-  /// @notice Thrown when attempting to revoke shares that don't have a pending revocation
+  /// @notice Thrown when attempting to complete revocation for shares without a pending revocation
   error NotPendingRevocation();
   /// @notice Thrown when granting shares would exceed the maximum allowed
   error InsufficientShares();
-  /// @notice Thrown when atempting to mint with no configured shares
+  /// @notice Thrown when attempting to mint with no configured shares
   error NoShares();
 
   /// @notice Structure to hold recipient share information
@@ -37,6 +37,9 @@ contract UNIMinter is Owned {
 
   /// @notice The mint cap in percentage terms (2% annual inflation)
   uint16 private constant MINT_CAP_PERCENT = 2;
+
+  /// @notice The time between mints
+  uint48 private constant MINT_PERIOD = uint48(365 days);
 
   /// @notice The total number of shares representing 100% of mintable tokens
   /// @dev Unallocated shares result in reduced inflation
@@ -93,20 +96,40 @@ contract UNIMinter is Owned {
     share.pendingRevocationTime = uint48(block.timestamp) + REVOCATION_DELAY;
   }
 
-  /// @notice Completes the revocation of shares after the delay period
-  /// @dev Can be called by anyone after the revocation delay has passed. Removes the share
-  /// allocation entirely
-  /// @param _index The index in the shares array of the allocation to revoke
+  /// @notice Completes or updates share revocation based on timing relative to next mint
+  /// @dev Can be called by anyone to update a share based on its pending revocation timing:
+  ///   - If revocation completes before next mint: share is entirely removed
+  ///   - If revocation extends into next mint period: share amount is reduced proportionally
+  ///     to time remaining until revocation (e.g., 90 days into 365-day period = ~25% of shares)
+  /// @param _index The index in the shares array of the allocation to revoke or update
   function revokeShares(uint256 _index) external {
-    Share memory share = shares[_index];
+    Share storage share = shares[_index];
+    uint256 mintingAllowedAfter = UNI.mintingAllowedAfter();
     uint48 pendingRevocationTime = share.pendingRevocationTime;
     if (pendingRevocationTime == 0) revert NotPendingRevocation();
-    if (block.timestamp < pendingRevocationTime) revert RevocationNotReady();
 
-    totalShares -= share.amount;
+    // Revocation is ready before the next mint
+    // It is safe to just remove them now since they won't be around for the next mint anyways
+    if (pendingRevocationTime < mintingAllowedAfter) {
+      totalShares -= share.amount;
 
-    // Remove the share by swapping with the last and popping
-    shares[_index] = shares[shares.length - 1];
-    shares.pop();
+      // Remove the share by swapping with the last and popping
+      shares[_index] = shares[shares.length - 1];
+      shares.pop();
+    } else if (pendingRevocationTime - mintingAllowedAfter < MINT_PERIOD) {
+      // Revocation is ready after the next mint but before the one after that
+      // Update their shares such that they receive a partial mint proportional to the remaining
+      // time until revocation after the mint
+      // e.g. if the share expires halfway through the next mint period, they get half their share
+      // and subsequently can be fully revoked after the next mint
+      uint16 originalShareAmount = share.amount;
+      share.amount =
+        uint16((pendingRevocationTime - mintingAllowedAfter) * share.amount / MINT_PERIOD);
+      // subtract the newly removed shares
+      totalShares -= (originalShareAmount - share.amount);
+    } else {
+      // Revocation is not ready yet
+      revert RevocationNotReady();
+    }
   }
 }

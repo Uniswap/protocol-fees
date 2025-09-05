@@ -238,14 +238,17 @@ contract UNIMinterTest is Test {
     assertEq(pendingTime2, 0);
   }
 
-  function test_RevokeShares_AfterDelay() public {
+  function test_RevokeShares_StandardRemoval() public {
     vm.prank(owner);
     uniMinter.grantShares(alice, 5000);
 
+    // Initiate revocation early enough that it completes before next mint
+    vm.warp(100); // Start early in the period
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    // Ensure we're still before next mint when revocation completes
+    vm.warp(block.timestamp + REVOCATION_DELAY / 2);
 
     uniMinter.revokeShares(0);
 
@@ -286,17 +289,24 @@ contract UNIMinterTest is Test {
     uniMinter.revokeShares(0);
   }
 
-  function test_RevokeShares_RevertRevocationNotReady() public {
+  function test_RevokeShares_BeforeNextMint() public {
     vm.prank(owner);
     uniMinter.grantShares(alice, 5000);
 
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    vm.warp(block.timestamp + REVOCATION_DELAY - 1);
+    // Set time so revocation completes before next mint
+    // Next mint is at UNI.mintingAllowedAfter(), revocation at current + 180 days
+    // Ensure revocation time < mintingAllowedAfter
+    vm.warp(block.timestamp + REVOCATION_DELAY / 2);
 
-    vm.expectRevert(UNIMinter.RevocationNotReady.selector);
+    // Call revokeShares - should succeed and remove shares entirely
     uniMinter.revokeShares(0);
+
+    assertEq(uniMinter.totalShares(), 0);
+    vm.expectRevert();
+    uniMinter.shares(0);
   }
 
   function test_RevokeShares_CalledByAnyone() public {
@@ -582,5 +592,97 @@ contract UNIMinterTest is Test {
 
     assertEq(UNI.balanceOf(alice), expectedMintAmount * 5000 / MAX_SHARES);
     assertEq(UNI.balanceOf(bob), expectedMintAmount * 5000 / MAX_SHARES);
+  }
+
+  function test_RevokeShares_PartialMint_HalfwayThroughPeriod() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 6000);
+
+    // Initiate revocation that will complete halfway through next mint period
+    // Next mint at mintingAllowedAfter, revocation at mintingAllowedAfter + 182.5 days
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + 365 days / 2; // Halfway through next period
+
+    // Calculate when to initiate to achieve this timing
+    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    vm.warp(initiateTime);
+
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // Call revokeShares - should reduce shares to 50% (halfway through period)
+    uniMinter.revokeShares(0);
+
+    assertEq(uniMinter.totalShares(), 3000); // 50% of 6000
+    (address recipient, uint16 amount,) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 3000);
+  }
+
+  function test_RevokeShares_PartialMint_QuarterThroughPeriod() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 8000);
+
+    // Revocation completes 1/4 way through next mint period
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + 365 days / 4;
+    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    vm.warp(initiateTime);
+
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    uniMinter.revokeShares(0);
+
+    assertEq(uniMinter.totalShares(), 2000); // 25% of 8000
+    (address recipient, uint16 amount,) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 2000);
+  }
+
+  function test_RevokeShares_PartialMint_ThenFullRevoke() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 5000);
+
+    // Setup partial revocation
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + 365 days / 2;
+    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    vm.warp(initiateTime);
+
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // First call reduces shares
+    uniMinter.revokeShares(0);
+    assertEq(uniMinter.totalShares(), 2500);
+
+    // After the mint, the share can be fully removed
+    vm.warp(nextMintTime);
+    uniMinter.mint();
+
+    // Now revoke again - should fully remove
+    uniMinter.revokeShares(0);
+    assertEq(uniMinter.totalShares(), 0);
+    vm.expectRevert();
+    uniMinter.shares(0);
+  }
+
+  function test_RevokeShares_RevertIfRevocationTooFarInFuture() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 5000);
+
+    // Setup revocation that completes after the period following next mint
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + 365 days + 1; // Just after the period
+    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    vm.warp(initiateTime);
+
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // Should revert as revocation is not ready yet
+    vm.expectRevert(UNIMinter.RevocationNotReady.selector);
+    uniMinter.revokeShares(0);
   }
 }
