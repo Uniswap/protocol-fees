@@ -9,12 +9,13 @@ import {
   IUniswapV3Factory
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {Merkle} from "murky/src/Merkle.sol";
-import {V3FeeController} from "../src/feeControllers/V3FeeController.sol";
+import {V3FeeController, IV3FeeController} from "../src/feeControllers/V3FeeController.sol";
+import {IOwned} from "../src/interfaces/base/IOwned.sol";
 
 contract V3FeeControllerTest is PhoenixTestBase {
   IUniswapV3Factory public factory;
 
-  V3FeeController public feeController;
+  IV3FeeController public feeController;
 
   uint160 public constant SQRT_PRICE_1_1 = 79_228_162_514_264_337_593_543_950_336;
 
@@ -93,8 +94,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     _mockSetProtocolFees(amount0, amount1);
 
-    V3FeeController.CollectParams[] memory collectParams = new V3FeeController.CollectParams[](1);
-    collectParams[0] = V3FeeController.CollectParams({
+    IV3FeeController.CollectParams[] memory collectParams = new IV3FeeController.CollectParams[](1);
+    collectParams[0] = IV3FeeController.CollectParams({
       pool: pool,
       amount0Requested: amount0,
       amount1Requested: amount1
@@ -104,7 +105,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     uint256 balanceBefore1 = MockERC20(token1).balanceOf(address(assetSink));
 
     // Anyone can call collect.
-    V3FeeController.Collected[] memory collected = feeController.collect(collectParams);
+    IV3FeeController.Collected[] memory collected = feeController.collect(collectParams);
 
     // Note that 1 wei is left in the pool.
     assertEq(collected[0].amount0Collected, amount0 - 1);
@@ -162,7 +163,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.prank(feeSetter);
     feeController.setMerkleRoot(bytes32(uint256(40)));
 
-    vm.expectRevert(V3FeeController.InvalidProof.selector);
+    vm.expectRevert(IV3FeeController.InvalidProof.selector);
     feeController.triggerFeeUpdate(pool, new bytes32[](0));
   }
 
@@ -303,7 +304,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
   }
 
   function test_fuzz_revert_setFeeSetter(address caller, address newFeeSetter) public {
-    vm.assume(caller != feeController.owner());
+    vm.assume(caller != IOwned(address(feeController)).owner());
 
     vm.prank(caller);
     vm.expectRevert("UNAUTHORIZED");
@@ -313,7 +314,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
   function test_fuzz_setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFee) public {
     vm.startPrank(feeController.feeSetter());
     if (factory.feeAmountTickSpacing(feeTier) == 0) {
-      vm.expectRevert(V3FeeController.InvalidFeeTier.selector);
+      vm.expectRevert(IV3FeeController.InvalidFeeTier.selector);
       feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
     } else {
       feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
@@ -335,7 +336,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
   function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeTier() public {
     vm.prank(feeSetter);
-    vm.expectRevert(V3FeeController.InvalidFeeTier.selector);
+    vm.expectRevert(IV3FeeController.InvalidFeeTier.selector);
     feeController.setDefaultFeeByFeeTier(11_000, 10);
   }
 

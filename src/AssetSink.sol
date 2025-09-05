@@ -3,12 +3,14 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
+import {IOwned} from "./interfaces/base/IOwned.sol";
+import {IAssetSink} from "./interfaces/IAssetSink.sol";
 
 /// @title AssetSink
 /// @notice Sink for protocol fees
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
-contract AssetSink is Owned {
+contract AssetSink is Owned, IAssetSink {
   /// @notice Emitted when asset fees are successfully claimed
   /// @param asset Address of the asset that was claimed
   /// @param recipient Address that received the assets

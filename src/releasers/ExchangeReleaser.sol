@@ -6,6 +6,8 @@ import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 import {ResourceManager} from "../base/ResourceManager.sol";
 import {AssetSink} from "../AssetSink.sol";
 import {Nonce} from "../base/Nonce.sol";
+import {IAssetSink} from "../interfaces/IAssetSink.sol";
+import {IReleaser} from "../interfaces/IReleaser.sol";
 
 /// @title ExchangeReleaser
 /// @notice A contract that releases assets from an AssetSink in exchange for transferring a
@@ -13,11 +15,11 @@ import {Nonce} from "../base/Nonce.sol";
 /// amount of a resource token
 /// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
 /// protection
-contract ExchangeReleaser is ResourceManager, Nonce {
+contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
   /// @notice The AssetSink contract from which assets will be released
-  AssetSink public immutable ASSET_SINK;
+  IAssetSink public immutable ASSET_SINK;
 
   /// @notice Creates a new ExchangeReleaser instance
   /// @param _resource The address of the resource token that must be transferred
@@ -26,7 +28,7 @@ contract ExchangeReleaser is ResourceManager, Nonce {
   constructor(address _resource, uint256 _threshold, address _assetSink, address _recipient)
     ResourceManager(_resource, _threshold, msg.sender, _recipient)
   {
-    ASSET_SINK = AssetSink(payable(_assetSink));
+    ASSET_SINK = IAssetSink(payable(_assetSink));
   }
 
   /// @notice Releases specified assets to the recipient in return for threshold resource tokens

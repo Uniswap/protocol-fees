@@ -2,14 +2,17 @@
 pragma solidity ^0.8.29;
 
 import {V3FeeController} from "./feeControllers/V3FeeController.sol";
-import {AssetSink} from "./AssetSink.sol";
+import {AssetSink, IAssetSink} from "./AssetSink.sol";
 import {Firepit} from "./releasers/Firepit.sol";
+import {IReleaser} from "./interfaces/IReleaser.sol";
+import {IV3FeeController} from "./interfaces/IV3FeeController.sol";
+import {IOwned} from "./interfaces/base/IOwned.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 contract Deployer {
-  AssetSink public immutable ASSET_SINK;
-  Firepit public immutable RELEASER;
-  V3FeeController public immutable FEE_CONTROLLER;
+  IAssetSink public immutable ASSET_SINK;
+  IReleaser public immutable RELEASER;
+  IV3FeeController public immutable FEE_CONTROLLER;
 
   address public constant RESOURCE = 0x1000000000000000000000000000000000000000;
   uint256 public constant THRESHOLD = 69_420;
@@ -43,12 +46,12 @@ contract Deployer {
     /// 3. Set the releaser on the asset sink.
     ASSET_SINK.setReleaser(address(RELEASER));
     /// 4. Update the owner on the asset sink.
-    ASSET_SINK.transferOwnership(owner);
+    IOwned(address(ASSET_SINK)).transferOwnership(owner);
 
     /// 5. Update the thresholdSetter on the releaser to the owner.
     RELEASER.setThresholdSetter(owner);
     /// 6. Update the owner on the releaser.
-    RELEASER.transferOwnership(owner);
+    IOwned(address(RELEASER)).transferOwnership(owner);
 
     /// 7. Deploy the FeeController.
     FEE_CONTROLLER =
@@ -58,6 +61,6 @@ contract Deployer {
     FEE_CONTROLLER.setFeeSetter(owner);
 
     /// 9. Update the owner on the fee controller.
-    FEE_CONTROLLER.transferOwnership(owner);
+    IOwned(address(FEE_CONTROLLER)).transferOwnership(owner);
   }
 }

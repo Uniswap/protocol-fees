@@ -7,6 +7,7 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 import {IUniswapV3PoolOwnerActions} from
   "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
 
 /// @title V3FeeController
 /// @notice A contract that allows the setting and collecting of protocol fees per pool, and adding
@@ -14,16 +15,7 @@ import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/M
 /// @dev This contract is ownable. The owner can set the merkle root for proving protocol fee
 /// amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
 /// Note that this contract will be the set owner on the Uniswap V3 Factory.
-contract V3FeeController is Owned {
-  /// @notice Thrown when the amount collected is less than the amount expected.
-  error AmountCollectedTooLow(uint256 amountCollected, uint256 amountExpected);
-
-  /// @notice Thrown when the merkle proof is invalid.
-  error InvalidProof();
-
-  /// @notice Thrown when trying to set a default fee for a non-enabled fee tier.
-  error InvalidFeeTier();
-
+contract V3FeeController is IV3FeeController, Owned {
   IUniswapV3Factory public immutable FACTORY;
 
   address public immutable FEE_SINK;
@@ -32,26 +24,6 @@ contract V3FeeController is Owned {
   address public feeSetter;
 
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
-
-  /// @notice The input parameters for the collection.
-  struct CollectParams {
-    /// @param pool The pool to collect fees from.
-    address pool;
-    /// @param amount0Requested The amount of token0 to collect. If this is higher than the total
-    /// collectable amount, it will collect all but 1 wei of the total token0 allotment.
-    uint128 amount0Requested;
-    /// @param amount1Requested The amount of token1 to collect. If this is higher than the total
-    /// collectable amount, it will collect all but 1 wei of the total token1 allotment.
-    uint128 amount1Requested;
-  }
-
-  /// @notice The returned amounts of token0 and token1 that are collected.
-  struct Collected {
-    /// @param amount0Collected The amount of token0 that is collected.
-    uint128 amount0Collected;
-    /// @param amount1Collected The amount of token1 that is collected.
-    uint128 amount1Collected;
-  }
 
   modifier onlyFeeSetter() {
     require(msg.sender == feeSetter, "UNAUTHORIZED");
