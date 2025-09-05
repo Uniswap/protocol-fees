@@ -56,7 +56,7 @@ contract DeployerTest is Test {
   function test_deployer_feeController_setUp() public view {
     assertEq(IOwned(address(feeController)).owner(), factory.owner());
     assertEq(feeController.feeSetter(), factory.owner());
-    assertEq(address(feeController.FEE_SINK()), address(assetSink));
+    assertEq(address(feeController.ASSET_SINK()), address(assetSink));
     assertEq(address(feeController.FACTORY()), address(factory));
   }
 }

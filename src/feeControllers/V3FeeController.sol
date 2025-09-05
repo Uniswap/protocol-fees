@@ -19,7 +19,7 @@ contract V3FeeController is IV3FeeController, Owned {
   /// @inheritdoc IV3FeeController
   IUniswapV3Factory public immutable FACTORY;
   /// @inheritdoc IV3FeeController
-  address public immutable FEE_SINK;
+  address public immutable ASSET_SINK;
 
   /// @inheritdoc IV3FeeController
   bytes32 public merkleRoot;
@@ -30,15 +30,17 @@ contract V3FeeController is IV3FeeController, Owned {
   /// @inheritdoc IV3FeeController
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
+  /// @notice Ensures only the fee setter can call the setMerkleRoot and setDefaultFeeByFeeTier
+  /// functions
   modifier onlyFeeSetter() {
-    require(msg.sender == feeSetter, "UNAUTHORIZED");
+    if (msg.sender != feeSetter) revert Unauthorized();
     _;
   }
 
   /// @dev At construction, the fee setter defaults to 0 and its on the owner to set.
-  constructor(address _factory, address _feeSink) Owned(msg.sender) {
+  constructor(address _factory, address _assetSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
-    FEE_SINK = _feeSink;
+    ASSET_SINK = _assetSink;
   }
 
   /// @inheritdoc IV3FeeController
@@ -55,7 +57,7 @@ contract V3FeeController is IV3FeeController, Owned {
     for (uint256 i = 0; i < collectParams.length; i++) {
       CollectParams calldata params = collectParams[i];
       (uint256 amount0Collected, uint256 amount1Collected) = IUniswapV3PoolOwnerActions(params.pool)
-        .collectProtocol(FEE_SINK, params.amount0Requested, params.amount1Requested);
+        .collectProtocol(ASSET_SINK, params.amount0Requested, params.amount1Requested);
 
       amountsCollected[i] = Collected({
         amount0Collected: uint128(amount0Collected),

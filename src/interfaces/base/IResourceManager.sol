@@ -6,6 +6,9 @@ import {ERC20} from "solmate/src/utils/SafeTransferLib.sol";
 /// @title Resource Manager Interface
 /// @notice The interface for managing the resource token and its threshold value
 interface IResourceManager {
+  /// @notice Thrown when an unauthorized address attempts to call a restricted function
+  error Unauthorized();
+
   /// @notice The resource token required by parent IReleaser
   function RESOURCE() external view returns (ERC20);
 

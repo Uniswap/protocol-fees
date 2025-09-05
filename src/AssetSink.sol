@@ -13,7 +13,7 @@ contract AssetSink is Owned, IAssetSink {
   /// @inheritdoc IAssetSink
   address public releaser;
 
-  /// @notice Ensures only the releaser can call the modified function
+  /// @notice Ensures only the releaser can call the release function
   modifier onlyReleaser() {
     if (msg.sender != releaser) revert Unauthorized();
     _;

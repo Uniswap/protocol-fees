@@ -13,6 +13,9 @@ interface IV3FeeController {
   /// @notice Thrown when trying to set a default fee for a non-enabled fee tier.
   error InvalidFeeTier();
 
+  /// @notice Thrown when an unauthorized address attempts to call a restricted function
+  error Unauthorized();
+
   /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.
@@ -34,7 +37,7 @@ interface IV3FeeController {
   }
 
   /// @return The address where collected fees are sent.
-  function FEE_SINK() external view returns (address);
+  function ASSET_SINK() external view returns (address);
 
   /// @return The Uniswap V3 Factory contract.
   function FACTORY() external view returns (IUniswapV3Factory);
@@ -57,7 +60,7 @@ interface IV3FeeController {
   /// @param tickSpacing The corresponding tick spacing for the new fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
 
-  /// @notice Collects protocol fees from the specified pools to the designated `FEE_SINK`
+  /// @notice Collects protocol fees from the specified pools to the designated `ASSET_SINK`
   /// @param collectParams Array of collection parameters for each pool.
   /// @return amountsCollected Array of collected amounts for each pool.
   function collect(CollectParams[] calldata collectParams)

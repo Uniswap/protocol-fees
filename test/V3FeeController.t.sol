@@ -83,7 +83,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
   }
 
   function test_assetSink_isSet() public view {
-    assertEq(feeController.FEE_SINK(), address(assetSink));
+    assertEq(feeController.ASSET_SINK(), address(assetSink));
   }
 
   function test_collect_full_success() public {
@@ -136,14 +136,14 @@ contract V3FeeControllerTest is PhoenixTestBase {
   }
 
   function test_setMerkleRoot_revertsWithInvalidCaller() public {
-    vm.expectRevert(abi.encode("UNAUTHORIZED"));
+    vm.expectRevert(IV3FeeController.Unauthorized.selector);
     feeController.setMerkleRoot(bytes32(0));
   }
 
   function test_setMerkleRoot_revertsWithInvalidCaller_fuzz(address caller) public {
     vm.assume(caller != owner);
     vm.startPrank(caller);
-    vm.expectRevert(abi.encode("UNAUTHORIZED"));
+    vm.expectRevert(IV3FeeController.Unauthorized.selector);
     feeController.setMerkleRoot(bytes32(uint256(40)));
   }
 
@@ -411,7 +411,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.assume(caller != feeController.feeSetter());
 
     vm.prank(caller);
-    vm.expectRevert("UNAUTHORIZED");
+    vm.expectRevert(IV3FeeController.Unauthorized.selector);
     feeController.setDefaultFeeByFeeTier(feeTier, defaultFee);
   }
 

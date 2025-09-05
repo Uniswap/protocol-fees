@@ -6,6 +6,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {INonce} from "../src/interfaces/base/INonce.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
+import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 import {Firepit} from "../src/releasers/Firepit.sol";
 
 contract FirepitTest is PhoenixTestBase {
@@ -113,7 +114,9 @@ contract FirepitTest is PhoenixTestBase {
 
   function test_fuzz_revert_setThreshold(address caller, uint256 newThreshold) public {
     vm.startPrank(caller);
-    if (caller != firepit.thresholdSetter()) vm.expectRevert("UNAUTHORIZED");
+    if (caller != firepit.thresholdSetter()) {
+      vm.expectRevert(IResourceManager.Unauthorized.selector);
+    }
     firepit.setThreshold(newThreshold);
     vm.stopPrank();
   }
