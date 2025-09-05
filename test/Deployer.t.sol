@@ -50,7 +50,7 @@ contract DeployerTest is Test {
     assertEq(releaser.thresholdSetter(), factory.owner());
     assertEq(releaser.threshold(), 69_420);
     assertEq(address(releaser.ASSET_SINK()), address(assetSink));
-    assertEq(releaser.RESOURCE_RECIPIENT(), address(0));
+    assertEq(releaser.RESOURCE_RECIPIENT(), address(0xdead));
     assertEq(address(releaser.RESOURCE()), address(0x1000000000000000000000000000000000000000));
   }
 

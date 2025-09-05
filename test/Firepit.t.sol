@@ -2,9 +2,11 @@
 pragma solidity ^0.8.29;
 
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {Nonce, INonce} from "../src/base/Nonce.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
+import {Firepit} from "../src/releasers/Firepit.sol";
 
 contract FirepitTest is PhoenixTestBase {
   function setUp() public override {
@@ -17,7 +19,7 @@ contract FirepitTest is PhoenixTestBase {
   function test_release_release_erc20() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
@@ -27,13 +29,13 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
   }
 
   function test_release_release_native() public {
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     vm.startPrank(alice);
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
@@ -42,7 +44,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
   }
 
   function test_fuzz_revert_release_insufficient_balance(uint256 amount, uint256 seed) public {
@@ -84,7 +86,7 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(mockToken.balanceOf(address(assetSink)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(0xdead)), INITIAL_TOKEN_AMOUNT);
 
     // Attempt to frontrun with the same nonce
     vm.expectRevert(INonce.InvalidNonce.selector);
@@ -125,7 +127,7 @@ contract FirepitTest is PhoenixTestBase {
 
     assertEq(resource.balanceOf(alice), newThreshold);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), 0);
+    assertEq(resource.balanceOf(address(0xdead)), 0);
 
     uint256 currentNonce = firepit.nonce();
 
@@ -136,6 +138,18 @@ contract FirepitTest is PhoenixTestBase {
     assertEq(firepit.nonce(), currentNonce + 1);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
-    assertEq(resource.balanceOf(address(0)), firepit.threshold());
+    assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
+  }
+
+  function test_revert_release_tooManyAssets() public {
+    Currency[] memory assets = new Currency[](21);
+    for (uint256 i = 0; i < 21; i++) {
+      assets[i] = Currency.wrap(address(mockToken));
+    }
+
+    uint256 nonce = firepit.nonce();
+
+    vm.expectRevert(Firepit.TooManyAssets.selector);
+    firepit.release(nonce, assets, alice);
   }
 }

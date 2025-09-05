@@ -3,19 +3,20 @@ pragma solidity ^0.8.29;
 
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {ExchangeReleaser} from "../src/releasers/ExchangeReleaser.sol";
+import {ExchangeReleaserMock} from "./mocks/ExchangeReleaserMock.sol";
 import {Nonce, INonce} from "../src/base/Nonce.sol";
 
 contract ExchangeReleaserTest is PhoenixTestBase {
-  ExchangeReleaser public swapReleaser;
+  ExchangeReleaserMock public swapReleaser;
   address public recipient = makeAddr("RECIPIENT");
 
   function setUp() public override {
     super.setUp();
     // owner is the msg.sender
     vm.startPrank(owner);
-    swapReleaser =
-      new ExchangeReleaser(address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink), recipient);
+    swapReleaser = new ExchangeReleaserMock(
+      address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink), recipient
+    );
 
     assetSink.setReleaser(address(swapReleaser));
     swapReleaser.setThresholdSetter(owner);
