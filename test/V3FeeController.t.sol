@@ -316,6 +316,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
     assertEq(_getProtocolFees(pools[0]), protocolFee);
     assertEq(_getProtocolFees(pools[4500]), protocolFee);
     assertEq(_getProtocolFees(pools[8999]), protocolFee);
+    /// Not all pools' fees are updated.
+    assertEq(_getProtocolFees(pools[1]), 0);
   }
 
   function test_batchTriggerFeeUpdate_9000Pool_success_gas() public {

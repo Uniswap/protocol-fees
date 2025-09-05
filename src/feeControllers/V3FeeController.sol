@@ -128,7 +128,7 @@ contract V3FeeController is Owned {
   /// @notice Triggers the fee update for the given pools.
   /// @param pools The pools to update the fee for.
   /// @param proof The merkle proof corresponding to the set merkle root. Merkle root is generated
-  /// from leaves of keccak256(abi.encode(pool, feeProtocol0, feeProtocol1)).
+  /// from leaves of keccak256(abi.encode(pool)).
   /// @param proofFlags The flags for the merkle proof.
   function batchTriggerFeeUpdate(
     address[] calldata pools,
@@ -136,8 +136,9 @@ contract V3FeeController is Owned {
     bool[] calldata proofFlags
   ) external {
     bytes32[] memory leaves = new bytes32[](pools.length);
-    for (uint256 i = 0; i < pools.length; i++) {
-      address pool = pools[i];
+    address pool;
+    for (uint256 i; i < pools.length; i++) {
+      pool = pools[i];
       leaves[i] = _hash(pool);
       _setProtocolFee(pool);
     }
