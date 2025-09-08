@@ -23,17 +23,15 @@ contract UNIMinter is Owned {
   /// @notice Structure to hold recipient share information
   /// @param recipient The address that will receive minted UNI tokens
   /// @param amount The number of shares allocated to this recipient (out of MAX_SHARES)
+  /// @param revocationDelayDays The number of days notice required for a revocation of this share
   /// @param pendingRevocationTime The timestamp when revocation can be completed, or 0 if not
   /// pending
   struct Share {
     address recipient;
     uint16 amount;
+    uint16 revocationDelayDays;
     uint48 pendingRevocationTime;
   }
-
-  /// @notice The delay period for revoking shares (180 days)
-  /// @dev Provides recipients advance notice before their allocation is revoked
-  uint48 private constant REVOCATION_DELAY = 180 days;
 
   /// @notice The mint cap in percentage terms (2% annual inflation)
   uint16 private constant MINT_CAP_PERCENT = 2;
@@ -82,9 +80,20 @@ contract UNIMinter is Owned {
   /// @dev Only callable by owner (UNI DAO). Reverts if total shares would exceed MAX_SHARES
   /// @param _recipient The address that will receive the minted UNI tokens
   /// @param _amount The number of shares to allocate (out of MAX_SHARES total)
-  function grantShares(address _recipient, uint16 _amount) external onlyOwner {
+  /// @param _revocationDelayDays The number of days notice required for a revocation of this share
+  function grantShares(address _recipient, uint16 _amount, uint16 _revocationDelayDays)
+    external
+    onlyOwner
+  {
     if (totalShares + _amount > MAX_SHARES) revert InsufficientShares();
-    shares.push(Share({recipient: _recipient, amount: _amount, pendingRevocationTime: 0}));
+    shares.push(
+      Share({
+        recipient: _recipient,
+        amount: _amount,
+        revocationDelayDays: _revocationDelayDays,
+        pendingRevocationTime: 0
+      })
+    );
     totalShares += _amount;
   }
 
@@ -93,7 +102,8 @@ contract UNIMinter is Owned {
   /// @param _index The index in the shares array of the allocation to revoke
   function initiateRevokeShares(uint256 _index) external onlyOwner {
     Share storage share = shares[_index];
-    share.pendingRevocationTime = uint48(block.timestamp) + REVOCATION_DELAY;
+    share.pendingRevocationTime =
+      uint48(block.timestamp + uint256(share.revocationDelayDays) * 1 days);
   }
 
   /// @notice Completes or updates share revocation based on timing relative to next mint

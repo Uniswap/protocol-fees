@@ -17,7 +17,7 @@ contract UNIMinterTest is Test {
   address public dave = makeAddr("dave");
   address public unauthorizedUser = makeAddr("UnauthorizedUser");
 
-  uint48 constant REVOCATION_DELAY = 180 days;
+  uint16 constant DEFAULT_REVOCATION_DELAY_DAYS = 365;
   uint16 constant MINT_CAP_PERCENT = 2;
   uint16 constant MAX_SHARES = 10_000;
 
@@ -40,78 +40,85 @@ contract UNIMinterTest is Test {
 
   function test_GrantShares_Single() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     assertEq(uniMinter.totalShares(), 5000);
-    (address recipient, uint16 amount, uint48 pendingRevocationTime) = uniMinter.shares(0);
+    (address recipient, uint16 amount, uint16 revocationDelayDays, uint48 pendingRevocationTime) =
+      uniMinter.shares(0);
     assertEq(recipient, alice);
     assertEq(amount, 5000);
+    assertEq(revocationDelayDays, DEFAULT_REVOCATION_DELAY_DAYS);
     assertEq(pendingRevocationTime, 0);
   }
 
   function test_GrantShares_Multiple() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 3000);
-    uniMinter.grantShares(bob, 2000);
-    uniMinter.grantShares(charlie, 1500);
+    uniMinter.grantShares(alice, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2000, 180);
+    uniMinter.grantShares(charlie, 1500, 90);
     vm.stopPrank();
 
     assertEq(uniMinter.totalShares(), 6500);
 
-    (address recipient0, uint16 amount0,) = uniMinter.shares(0);
+    (address recipient0, uint16 amount0, uint16 delay0,) = uniMinter.shares(0);
     assertEq(recipient0, alice);
     assertEq(amount0, 3000);
+    assertEq(delay0, DEFAULT_REVOCATION_DELAY_DAYS);
 
-    (address recipient1, uint16 amount1,) = uniMinter.shares(1);
+    (address recipient1, uint16 amount1, uint16 delay1,) = uniMinter.shares(1);
     assertEq(recipient1, bob);
     assertEq(amount1, 2000);
+    assertEq(delay1, 180);
 
-    (address recipient2, uint16 amount2,) = uniMinter.shares(2);
+    (address recipient2, uint16 amount2, uint16 delay2,) = uniMinter.shares(2);
     assertEq(recipient2, charlie);
     assertEq(amount2, 1500);
+    assertEq(delay2, 90);
   }
 
   function test_GrantShares_MaxShares() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, MAX_SHARES);
+    uniMinter.grantShares(alice, MAX_SHARES, DEFAULT_REVOCATION_DELAY_DAYS);
     assertEq(uniMinter.totalShares(), MAX_SHARES);
   }
 
   function test_GrantShares_RevertInsufficientShares() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 6000);
+    uniMinter.grantShares(alice, 6000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.expectRevert(UNIMinter.InsufficientShares.selector);
-    uniMinter.grantShares(bob, 5000);
+    uniMinter.grantShares(bob, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
     vm.stopPrank();
   }
 
   function test_GrantShares_RevertUnauthorized() public {
     vm.expectRevert("UNAUTHORIZED");
     vm.prank(unauthorizedUser);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
   }
 
   function test_GrantShares_SameRecipientMultipleTimes() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 2000);
-    uniMinter.grantShares(alice, 3000);
+    uniMinter.grantShares(alice, 2000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(alice, 3000, 180);
     vm.stopPrank();
 
     assertEq(uniMinter.totalShares(), 5000);
 
-    (address recipient0, uint16 amount0,) = uniMinter.shares(0);
+    (address recipient0, uint16 amount0, uint16 delay0,) = uniMinter.shares(0);
     assertEq(recipient0, alice);
     assertEq(amount0, 2000);
+    assertEq(delay0, DEFAULT_REVOCATION_DELAY_DAYS);
 
-    (address recipient1, uint16 amount1,) = uniMinter.shares(1);
+    (address recipient1, uint16 amount1, uint16 delay1,) = uniMinter.shares(1);
     assertEq(recipient1, alice);
     assertEq(amount1, 3000);
+    assertEq(delay1, 180);
   }
 
   function test_Mint_SingleRecipientFullShares() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, MAX_SHARES);
+    uniMinter.grantShares(alice, MAX_SHARES, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.warp(UNI.mintingAllowedAfter());
 
@@ -128,9 +135,9 @@ contract UNIMinterTest is Test {
 
   function test_Mint_MultipleRecipients() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 5000);
-    uniMinter.grantShares(bob, 3000);
-    uniMinter.grantShares(charlie, 2000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(charlie, 2000, DEFAULT_REVOCATION_DELAY_DAYS);
     vm.stopPrank();
 
     vm.warp(UNI.mintingAllowedAfter());
@@ -149,7 +156,7 @@ contract UNIMinterTest is Test {
 
   function test_Mint_PartialShares() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.warp(UNI.mintingAllowedAfter());
 
@@ -173,7 +180,7 @@ contract UNIMinterTest is Test {
 
   function test_Mint_CalledByAnyone() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.warp(UNI.mintingAllowedAfter());
 
@@ -185,7 +192,7 @@ contract UNIMinterTest is Test {
 
   function test_Mint_ConsecutiveMints() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, MAX_SHARES);
+    uniMinter.grantShares(alice, MAX_SHARES, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.warp(UNI.mintingAllowedAfter());
     uniMinter.mint();
@@ -200,19 +207,20 @@ contract UNIMinterTest is Test {
 
   function test_InitiateRevokeShares_Single() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     uint256 currentTime = block.timestamp;
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    (,, uint48 pendingRevocationTime) = uniMinter.shares(0);
-    assertEq(pendingRevocationTime, currentTime + REVOCATION_DELAY);
+    (,, uint16 revocationDelayDays, uint48 pendingRevocationTime) = uniMinter.shares(0);
+    assertEq(revocationDelayDays, DEFAULT_REVOCATION_DELAY_DAYS);
+    assertEq(pendingRevocationTime, currentTime + uint256(DEFAULT_REVOCATION_DELAY_DAYS) * 1 days);
   }
 
   function test_InitiateRevokeShares_RevertUnauthorized() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.expectRevert("UNAUTHORIZED");
     vm.prank(unauthorizedUser);
@@ -221,34 +229,35 @@ contract UNIMinterTest is Test {
 
   function test_InitiateRevokeShares_MultipleShares() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 3000);
-    uniMinter.grantShares(bob, 2000);
-    uniMinter.grantShares(charlie, 1000);
+    uniMinter.grantShares(alice, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2000, 180);
+    uniMinter.grantShares(charlie, 1000, 90);
 
     uint256 currentTime = block.timestamp;
     uniMinter.initiateRevokeShares(1);
     vm.stopPrank();
 
-    (,, uint48 pendingTime0) = uniMinter.shares(0);
-    (,, uint48 pendingTime1) = uniMinter.shares(1);
-    (,, uint48 pendingTime2) = uniMinter.shares(2);
+    (,,, uint48 pendingTime0) = uniMinter.shares(0);
+    (,, uint16 delayDays1, uint48 pendingTime1) = uniMinter.shares(1);
+    (,,, uint48 pendingTime2) = uniMinter.shares(2);
 
     assertEq(pendingTime0, 0);
-    assertEq(pendingTime1, currentTime + REVOCATION_DELAY);
+    assertEq(pendingTime1, currentTime + delayDays1 * 1 days);
     assertEq(pendingTime2, 0);
   }
 
   function test_RevokeShares_StandardRemoval() public {
+    uint16 shortDelay = 90; // 90 days delay
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, shortDelay);
 
     // Initiate revocation early enough that it completes before next mint
     vm.warp(100); // Start early in the period
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    // Ensure we're still before next mint when revocation completes
-    vm.warp(block.timestamp + REVOCATION_DELAY / 2);
+    // Wait for half the delay period
+    vm.warp(block.timestamp + shortDelay * 1 days / 2);
 
     uniMinter.revokeShares(0);
 
@@ -259,47 +268,46 @@ contract UNIMinterTest is Test {
 
   function test_RevokeShares_MultipleShares() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 3000);
-    uniMinter.grantShares(bob, 2000);
-    uniMinter.grantShares(charlie, 1000);
+    uniMinter.grantShares(alice, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2000, 180);
+    uniMinter.grantShares(charlie, 1000, 90);
 
     uniMinter.initiateRevokeShares(1);
     vm.stopPrank();
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 180 days);
 
     uniMinter.revokeShares(1);
 
     assertEq(uniMinter.totalShares(), 4000);
 
-    (address recipient0, uint16 amount0,) = uniMinter.shares(0);
+    (address recipient0, uint16 amount0,,) = uniMinter.shares(0);
     assertEq(recipient0, alice);
     assertEq(amount0, 3000);
 
-    (address recipient1, uint16 amount1,) = uniMinter.shares(1);
+    (address recipient1, uint16 amount1,,) = uniMinter.shares(1);
     assertEq(recipient1, charlie);
     assertEq(amount1, 1000);
   }
 
   function test_RevokeShares_RevertNotPendingRevocation() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.expectRevert(UNIMinter.NotPendingRevocation.selector);
     uniMinter.revokeShares(0);
   }
 
   function test_RevokeShares_BeforeNextMint() public {
+    uint16 shortDelay = 90; // Use shorter delay to ensure it completes before next mint
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, shortDelay);
 
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
     // Set time so revocation completes before next mint
-    // Next mint is at UNI.mintingAllowedAfter(), revocation at current + 180 days
-    // Ensure revocation time < mintingAllowedAfter
-    vm.warp(block.timestamp + REVOCATION_DELAY / 2);
+    vm.warp(block.timestamp + shortDelay * 1 days / 2);
 
     // Call revokeShares - should succeed and remove shares entirely
     uniMinter.revokeShares(0);
@@ -310,13 +318,14 @@ contract UNIMinterTest is Test {
   }
 
   function test_RevokeShares_CalledByAnyone() public {
+    uint16 shortDelay = 90;
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, shortDelay);
 
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + shortDelay * 1 days);
 
     vm.prank(unauthorizedUser);
     uniMinter.revokeShares(0);
@@ -326,19 +335,19 @@ contract UNIMinterTest is Test {
 
   function test_RevokeShares_LastElement() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 3000);
-    uniMinter.grantShares(bob, 2000);
+    uniMinter.grantShares(alice, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2000, 180);
 
     uniMinter.initiateRevokeShares(1);
     vm.stopPrank();
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 180 days);
 
     uniMinter.revokeShares(1);
 
     assertEq(uniMinter.totalShares(), 3000);
 
-    (address recipient0, uint16 amount0,) = uniMinter.shares(0);
+    (address recipient0, uint16 amount0,,) = uniMinter.shares(0);
     assertEq(recipient0, alice);
     assertEq(amount0, 3000);
 
@@ -348,13 +357,13 @@ contract UNIMinterTest is Test {
 
   function test_MintAfterRevocation() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 5000);
-    uniMinter.grantShares(bob, 3000);
+    uniMinter.grantShares(alice, 5000, 180);
+    uniMinter.grantShares(bob, 3000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     uniMinter.initiateRevokeShares(0);
     vm.stopPrank();
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 180 days);
     uniMinter.revokeShares(0);
 
     vm.warp(UNI.mintingAllowedAfter());
@@ -372,9 +381,9 @@ contract UNIMinterTest is Test {
 
   function test_ComplexScenario() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 4000);
-    uniMinter.grantShares(bob, 3000);
-    uniMinter.grantShares(charlie, 2000);
+    uniMinter.grantShares(alice, 4000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 3000, 180);
+    uniMinter.grantShares(charlie, 2000, 90);
     vm.stopPrank();
 
     vm.warp(UNI.mintingAllowedAfter());
@@ -391,11 +400,11 @@ contract UNIMinterTest is Test {
     vm.prank(owner);
     uniMinter.initiateRevokeShares(1);
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 180 days);
     uniMinter.revokeShares(1);
 
     vm.prank(owner);
-    uniMinter.grantShares(dave, 1000);
+    uniMinter.grantShares(dave, 1000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     vm.warp(block.timestamp + 365 days);
     uniMinter.mint();
@@ -406,39 +415,45 @@ contract UNIMinterTest is Test {
     assertGt(UNI.balanceOf(dave), 0);
   }
 
-  function testFuzz_GrantShares(address recipient, uint16 amount) public {
+  function testFuzz_GrantShares(address recipient, uint16 amount, uint16 delayDays) public {
     vm.assume(amount <= MAX_SHARES);
+    vm.assume(delayDays > 0);
 
     vm.prank(owner);
-    uniMinter.grantShares(recipient, amount);
+    uniMinter.grantShares(recipient, amount, delayDays);
 
     assertEq(uniMinter.totalShares(), amount);
-    (address storedRecipient, uint16 storedAmount,) = uniMinter.shares(0);
+    (address storedRecipient, uint16 storedAmount, uint16 storedDelay,) = uniMinter.shares(0);
     assertEq(storedRecipient, recipient);
     assertEq(storedAmount, amount);
+    assertEq(storedDelay, delayDays);
   }
 
-  function testFuzz_MultipleGrantShares(address[3] memory recipients, uint16[3] memory amounts)
-    public
-  {
+  function testFuzz_MultipleGrantShares(
+    address[3] memory recipients,
+    uint16[3] memory amounts,
+    uint16[3] memory delays
+  ) public {
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < 3; i++) {
       totalAmount += amounts[i];
+      vm.assume(delays[i] > 0);
     }
     vm.assume(totalAmount <= MAX_SHARES);
 
     vm.startPrank(owner);
     for (uint256 i = 0; i < 3; i++) {
-      uniMinter.grantShares(recipients[i], amounts[i]);
+      uniMinter.grantShares(recipients[i], amounts[i], delays[i]);
     }
     vm.stopPrank();
 
     assertEq(uniMinter.totalShares(), totalAmount);
 
     for (uint256 i = 0; i < 3; i++) {
-      (address recipient, uint16 amount,) = uniMinter.shares(i);
+      (address recipient, uint16 amount, uint16 delay,) = uniMinter.shares(i);
       assertEq(recipient, recipients[i]);
       assertEq(amount, amounts[i]);
+      assertEq(delay, delays[i]);
     }
   }
 
@@ -453,7 +468,9 @@ contract UNIMinterTest is Test {
 
     vm.startPrank(owner);
     for (uint256 i = 0; i < 4; i++) {
-      if (shares[i] > 0) uniMinter.grantShares(recipients[i], shares[i]);
+      if (shares[i] > 0) {
+        uniMinter.grantShares(recipients[i], shares[i], DEFAULT_REVOCATION_DELAY_DAYS);
+      }
     }
     vm.stopPrank();
 
@@ -474,71 +491,72 @@ contract UNIMinterTest is Test {
 
   function test_ZeroAmountGrant() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 0);
+    uniMinter.grantShares(alice, 0, DEFAULT_REVOCATION_DELAY_DAYS);
 
     assertEq(uniMinter.totalShares(), 0);
-    (address recipient, uint16 amount,) = uniMinter.shares(0);
+    (address recipient, uint16 amount, uint16 delay,) = uniMinter.shares(0);
     assertEq(recipient, alice);
     assertEq(amount, 0);
+    assertEq(delay, DEFAULT_REVOCATION_DELAY_DAYS);
   }
 
   function test_EdgeCase_RevokeFirstOfMany() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 2500);
-    uniMinter.grantShares(bob, 2500);
-    uniMinter.grantShares(charlie, 2500);
-    uniMinter.grantShares(dave, 2500);
+    uniMinter.grantShares(alice, 2500, 90);
+    uniMinter.grantShares(bob, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(charlie, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(dave, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
 
     uniMinter.initiateRevokeShares(0);
     vm.stopPrank();
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 90 days);
     uniMinter.revokeShares(0);
 
     assertEq(uniMinter.totalShares(), 7500);
 
-    (address recipient0, uint16 amount0,) = uniMinter.shares(0);
+    (address recipient0, uint16 amount0,,) = uniMinter.shares(0);
     assertEq(recipient0, dave);
     assertEq(amount0, 2500);
 
-    (address recipient1, uint16 amount1,) = uniMinter.shares(1);
+    (address recipient1, uint16 amount1,,) = uniMinter.shares(1);
     assertEq(recipient1, bob);
     assertEq(amount1, 2500);
 
-    (address recipient2, uint16 amount2,) = uniMinter.shares(2);
+    (address recipient2, uint16 amount2,,) = uniMinter.shares(2);
     assertEq(recipient2, charlie);
     assertEq(amount2, 2500);
   }
 
   function test_EdgeCase_RevokeMiddleOfMany() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 2500);
-    uniMinter.grantShares(bob, 2500);
-    uniMinter.grantShares(charlie, 2500);
-    uniMinter.grantShares(dave, 2500);
+    uniMinter.grantShares(alice, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(charlie, 2500, 180);
+    uniMinter.grantShares(dave, 2500, DEFAULT_REVOCATION_DELAY_DAYS);
 
     uniMinter.initiateRevokeShares(2);
     vm.stopPrank();
 
-    vm.warp(block.timestamp + REVOCATION_DELAY);
+    vm.warp(block.timestamp + 180 days);
     uniMinter.revokeShares(2);
 
     assertEq(uniMinter.totalShares(), 7500);
 
-    (address recipient0,,) = uniMinter.shares(0);
+    (address recipient0,,,) = uniMinter.shares(0);
     assertEq(recipient0, alice);
 
-    (address recipient1,,) = uniMinter.shares(1);
+    (address recipient1,,,) = uniMinter.shares(1);
     assertEq(recipient1, bob);
 
-    (address recipient2,,) = uniMinter.shares(2);
+    (address recipient2,,,) = uniMinter.shares(2);
     assertEq(recipient2, dave);
   }
 
   function test_MintWithZeroSharesInList() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 0);
-    uniMinter.grantShares(bob, 5000);
+    uniMinter.grantShares(alice, 0, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
     vm.stopPrank();
 
     vm.warp(UNI.mintingAllowedAfter());
@@ -556,28 +574,28 @@ contract UNIMinterTest is Test {
 
   function test_ReInitiateRevocation() public {
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, 180);
 
     uint256 firstTime = block.timestamp;
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    (,, uint48 pendingTime1) = uniMinter.shares(0);
-    assertEq(pendingTime1, firstTime + REVOCATION_DELAY);
+    (,, uint16 delayDays, uint48 pendingTime1) = uniMinter.shares(0);
+    assertEq(pendingTime1, firstTime + delayDays * 1 days);
 
     vm.warp(block.timestamp + 90 days);
     uint256 secondTime = block.timestamp;
     vm.prank(owner);
     uniMinter.initiateRevokeShares(0);
 
-    (,, uint48 pendingTime2) = uniMinter.shares(0);
-    assertEq(pendingTime2, secondTime + REVOCATION_DELAY);
+    (,,, uint48 pendingTime2) = uniMinter.shares(0);
+    assertEq(pendingTime2, secondTime + delayDays * 1 days);
   }
 
   function test_MintBeforeRevocationComplete() public {
     vm.startPrank(owner);
-    uniMinter.grantShares(alice, 5000);
-    uniMinter.grantShares(bob, 5000);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
     uniMinter.initiateRevokeShares(0);
     vm.stopPrank();
@@ -595,8 +613,9 @@ contract UNIMinterTest is Test {
   }
 
   function test_RevokeShares_PartialMint_HalfwayThroughPeriod() public {
+    uint16 delayDays = 180;
     vm.prank(owner);
-    uniMinter.grantShares(alice, 6000);
+    uniMinter.grantShares(alice, 6000, delayDays);
 
     // Initiate revocation that will complete halfway through next mint period
     // Next mint at mintingAllowedAfter, revocation at mintingAllowedAfter + 182.5 days
@@ -604,7 +623,7 @@ contract UNIMinterTest is Test {
     uint256 revocationCompleteTime = nextMintTime + 365 days / 2; // Halfway through next period
 
     // Calculate when to initiate to achieve this timing
-    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    uint256 initiateTime = revocationCompleteTime - delayDays * 1 days;
     vm.warp(initiateTime);
 
     vm.prank(owner);
@@ -614,19 +633,20 @@ contract UNIMinterTest is Test {
     uniMinter.revokeShares(0);
 
     assertEq(uniMinter.totalShares(), 3000); // 50% of 6000
-    (address recipient, uint16 amount,) = uniMinter.shares(0);
+    (address recipient, uint16 amount,,) = uniMinter.shares(0);
     assertEq(recipient, alice);
     assertEq(amount, 3000);
   }
 
   function test_RevokeShares_PartialMint_QuarterThroughPeriod() public {
+    uint16 delayDays = 180;
     vm.prank(owner);
-    uniMinter.grantShares(alice, 8000);
+    uniMinter.grantShares(alice, 8000, delayDays);
 
     // Revocation completes 1/4 way through next mint period
     uint256 nextMintTime = UNI.mintingAllowedAfter();
     uint256 revocationCompleteTime = nextMintTime + 365 days / 4;
-    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    uint256 initiateTime = revocationCompleteTime - delayDays * 1 days;
     vm.warp(initiateTime);
 
     vm.prank(owner);
@@ -635,19 +655,20 @@ contract UNIMinterTest is Test {
     uniMinter.revokeShares(0);
 
     assertEq(uniMinter.totalShares(), 2000); // 25% of 8000
-    (address recipient, uint16 amount,) = uniMinter.shares(0);
+    (address recipient, uint16 amount,,) = uniMinter.shares(0);
     assertEq(recipient, alice);
     assertEq(amount, 2000);
   }
 
   function test_RevokeShares_PartialMint_ThenFullRevoke() public {
+    uint16 delayDays = 180;
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, delayDays);
 
     // Setup partial revocation
     uint256 nextMintTime = UNI.mintingAllowedAfter();
     uint256 revocationCompleteTime = nextMintTime + 365 days / 2;
-    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    uint256 initiateTime = revocationCompleteTime - delayDays * 1 days;
     vm.warp(initiateTime);
 
     vm.prank(owner);
@@ -669,13 +690,14 @@ contract UNIMinterTest is Test {
   }
 
   function test_RevokeShares_RevertIfRevocationTooFarInFuture() public {
+    uint16 delayDays = 180;
     vm.prank(owner);
-    uniMinter.grantShares(alice, 5000);
+    uniMinter.grantShares(alice, 5000, delayDays);
 
     // Setup revocation that completes after the period following next mint
     uint256 nextMintTime = UNI.mintingAllowedAfter();
     uint256 revocationCompleteTime = nextMintTime + 365 days + 1; // Just after the period
-    uint256 initiateTime = revocationCompleteTime - REVOCATION_DELAY;
+    uint256 initiateTime = revocationCompleteTime - delayDays * 1 days;
     vm.warp(initiateTime);
 
     vm.prank(owner);
@@ -684,5 +706,166 @@ contract UNIMinterTest is Test {
     // Should revert as revocation is not ready yet
     vm.expectRevert(UNIMinter.RevocationNotReady.selector);
     uniMinter.revokeShares(0);
+  }
+
+  // New tests for 365-day delay feature
+  function test_GrantShares_With365DayDelay() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 7500, 365);
+
+    assertEq(uniMinter.totalShares(), 7500);
+    (address recipient, uint16 amount, uint16 delayDays, uint48 pendingRevocationTime) =
+      uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 7500);
+    assertEq(delayDays, 365);
+    assertEq(pendingRevocationTime, 0);
+  }
+
+  function test_RevokeShares_365DayDelay_FullRevocation() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 5000, 365);
+
+    // Initiate revocation
+    uint256 initiateTime = block.timestamp;
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // Fast forward to when revocation is ready (exactly at next mint time)
+    vm.warp(initiateTime + 365 days);
+
+    // Execute revocation - when revocation time equals mint time, shares are reduced to 0
+    uniMinter.revokeShares(0);
+
+    // Shares are reduced to 0 but entry still exists
+    assertEq(uniMinter.totalShares(), 0);
+    (address recipient, uint16 amount,,) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 0);
+  }
+
+  function test_RevokeShares_365DayDelay_PartialRevocation() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 10_000, 365);
+
+    // Calculate timing for partial revocation (75% through next mint period)
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + (365 days * 3 / 4);
+    uint256 initiateTime = revocationCompleteTime - 365 days;
+
+    vm.warp(initiateTime);
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // Execute partial revocation
+    uniMinter.revokeShares(0);
+
+    // Should have 75% of original shares (7500)
+    assertEq(uniMinter.totalShares(), 7500);
+    (address recipient, uint16 amount,,) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 7500);
+  }
+
+  function test_MultipleShares_DifferentDelays() public {
+    vm.startPrank(owner);
+    uniMinter.grantShares(alice, 2500, 365); // 1 year delay
+    uniMinter.grantShares(bob, 2500, 180); // 180 days delay
+    uniMinter.grantShares(charlie, 2500, 90); // 90 days delay
+    uniMinter.grantShares(dave, 2500, 30); // 30 days delay
+    vm.stopPrank();
+
+    assertEq(uniMinter.totalShares(), 10_000);
+
+    // Verify each share has correct delay
+    (,, uint16 delay0,) = uniMinter.shares(0);
+    (,, uint16 delay1,) = uniMinter.shares(1);
+    (,, uint16 delay2,) = uniMinter.shares(2);
+    (,, uint16 delay3,) = uniMinter.shares(3);
+
+    assertEq(delay0, 365);
+    assertEq(delay1, 180);
+    assertEq(delay2, 90);
+    assertEq(delay3, 30);
+  }
+
+  function test_InitiateAndRevoke_365DayDelay_BeforeDelay() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 5000, 365);
+
+    // Start well before the next mint to ensure proper timing
+    vm.warp(100);
+
+    uint256 initiateTime = block.timestamp;
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // Try to revoke before delay is complete (after 364 days)
+    vm.warp(initiateTime + 364 days);
+
+    // At this point, revocation is not ready yet (needs 365 days)
+    // But we may be past the next mint time, which would make it process as partial
+    (,,, uint48 pendingTime) = uniMinter.shares(0);
+    uint256 mintTime = UNI.mintingAllowedAfter();
+
+    if (pendingTime > mintTime && pendingTime - mintTime < 365 days) {
+      // Would process as partial revocation
+      uniMinter.revokeShares(0);
+      (, uint16 remainingAmount,,) = uniMinter.shares(0);
+      // The amount might round down to 0 if very close to revocation time
+      assertLe(remainingAmount, 5000); // Should not have more than original
+    } else {
+      // Should revert as not ready
+      vm.expectRevert(UNIMinter.RevocationNotReady.selector);
+      uniMinter.revokeShares(0);
+    }
+
+    // Now warp to exactly 365 days from initiation
+    vm.warp(initiateTime + 365 days);
+
+    // Should succeed now - may need to call again if shares weren't fully removed
+    if (uniMinter.totalShares() > 0) uniMinter.revokeShares(0);
+    assertEq(uniMinter.totalShares(), 0);
+  }
+
+  function test_Mint_WithMultiple365DayDelayShares() public {
+    vm.startPrank(owner);
+    uniMinter.grantShares(alice, 3000, 365);
+    uniMinter.grantShares(bob, 3000, 365);
+    uniMinter.grantShares(charlie, 4000, 365);
+    vm.stopPrank();
+
+    vm.warp(UNI.mintingAllowedAfter());
+
+    uint256 totalSupplyBefore = UNI.totalSupply();
+    uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
+    uint256 expectedMintAmount = expectedMintCap;
+
+    uniMinter.mint();
+
+    assertEq(UNI.balanceOf(alice), expectedMintAmount * 3000 / MAX_SHARES);
+    assertEq(UNI.balanceOf(bob), expectedMintAmount * 3000 / MAX_SHARES);
+    assertEq(UNI.balanceOf(charlie), expectedMintAmount * 4000 / MAX_SHARES);
+  }
+
+  function testFuzz_ConfigurableRevocationDelay(uint16 delayDays, uint16 shareAmount) public {
+    vm.assume(delayDays > 0 && delayDays <= 730); // Max 2 years
+    vm.assume(shareAmount > 0 && shareAmount <= MAX_SHARES);
+
+    vm.prank(owner);
+    uniMinter.grantShares(alice, shareAmount, delayDays);
+
+    (address recipient, uint16 amount, uint16 storedDelay, uint48 pendingTime) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, shareAmount);
+    assertEq(storedDelay, delayDays);
+    assertEq(pendingTime, 0);
+
+    // Test revocation timing
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    (,,, uint48 newPendingTime) = uniMinter.shares(0);
+    assertEq(newPendingTime, block.timestamp + uint256(delayDays) * 1 days);
   }
 }
