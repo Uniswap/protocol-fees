@@ -177,8 +177,9 @@ contract V3FeeControllerTest is PhoenixTestBase {
     poolObject0.protocolFee = fee1 << 4 | fee0;
 
     // Generate leaf nodes.
-    bytes32 targetLeaf = keccak256(abi.encode(poolObject0.pool));
-    bytes32 dummyLeaf = keccak256(abi.encode("dummy"));
+    address dummy = address(0x1);
+    bytes32 targetLeaf = _hashLeaf(poolObject0.pool);
+    bytes32 dummyLeaf = _hashLeaf(dummy);
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = targetLeaf;
@@ -206,8 +207,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
     poolObject1.protocolFee = protocolFee2 << 4 | protocolFee2;
 
     // Generate leaf nodes.
-    bytes32 leaf1 = keccak256(abi.encode(poolObject0.pool));
-    bytes32 leaf2 = keccak256(abi.encode(poolObject1.pool));
+    bytes32 leaf1 = _hashLeaf(poolObject0.pool);
+    bytes32 leaf2 = _hashLeaf(poolObject1.pool);
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = leaf1;
@@ -243,9 +244,9 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     bytes32[] memory leaves = new bytes32[](3);
 
-    leaves[0] = keccak256(abi.encode(poolObject0.pool));
-    leaves[1] = keccak256(abi.encode(poolObject1.pool));
-    leaves[2] = keccak256(abi.encode(poolObject2.pool));
+    leaves[0] = _hashLeaf(poolObject0.pool);
+    leaves[1] = _hashLeaf(poolObject1.pool);
+    leaves[2] = _hashLeaf(poolObject2.pool);
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
@@ -289,7 +290,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
       address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
       IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
       pools[i] = pool_i;
-      leaves[i] = keccak256(abi.encode(pool_i));
+      leaves[i] = _hashLeaf(pool_i);
     }
 
     bytes32 merkleRoot = merkle.getRoot(leaves);
@@ -334,7 +335,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
       address pool_i = factory.createPool(address(token_i), address(mockToken1), feeTier);
       IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
       pools[i] = pool_i;
-      leaves[i] = keccak256(abi.encode(pool_i));
+      leaves[i] = _hashLeaf(pool_i);
     }
 
     bool[] memory proofFlags = new bool[](leaves.length - 1);
@@ -360,8 +361,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
   function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(address invalidPool) public {
     vm.assume(invalidPool != pool);
 
-    bytes32 leaf = keccak256(abi.encode(poolObject0.pool));
-    bytes32 dummyLeaf = keccak256("dummy");
+    bytes32 leaf = _hashLeaf(poolObject0.pool);
+    bytes32 dummyLeaf = _hashLeaf(address(0x1));
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = leaf;
@@ -429,5 +430,9 @@ contract V3FeeControllerTest is PhoenixTestBase {
   function _getProtocolFees(address _pool) internal view returns (uint8 poolFeesPacked) {
     (,,,,, uint8 poolFees,) = IUniswapV3Pool(_pool).slot0();
     return poolFees;
+  }
+
+  function _hashLeaf(address _pool) internal pure returns (bytes32) {
+    return keccak256(abi.encodePacked(keccak256(abi.encode(_pool))));
   }
 }
