@@ -33,7 +33,7 @@ contract V3FeeController is IV3FeeController, Owned {
   /// @notice Ensures only the fee setter can call the setMerkleRoot and setDefaultFeeByFeeTier
   /// functions
   modifier onlyFeeSetter() {
-    if (msg.sender != feeSetter) revert Unauthorized();
+    require(msg.sender == feeSetter, Unauthorized());
     _;
   }
 
@@ -73,14 +73,14 @@ contract V3FeeController is IV3FeeController, Owned {
 
   /// @inheritdoc IV3FeeController
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
-    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) revert InvalidFeeTier();
+    require(FACTORY.feeAmountTickSpacing(feeTier) != 0, InvalidFeeTier());
     defaultFees[feeTier] = defaultFeeValue;
   }
 
   /// @inheritdoc IV3FeeController
   function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
     bytes32 node = keccak256(abi.encode(pool));
-    if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
+    require(MerkleProof.verify(proof, merkleRoot, node), InvalidProof());
 
     _setProtocolFee(pool);
   }
@@ -103,7 +103,7 @@ contract V3FeeController is IV3FeeController, Owned {
       leaves[i] = _hash(pool);
       _setProtocolFee(pool);
     }
-    if (!MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves)) revert InvalidProof();
+    require(MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves), InvalidProof());
   }
 
   function _setProtocolFee(address pool) internal {
