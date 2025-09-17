@@ -36,6 +36,16 @@ interface IV3FeeController {
     uint128 amount1Collected;
   }
 
+  /// @notice The pair of tokens to trigger fees for. Each node in the merkle tree is the sorted
+  /// pair. If one pair in the merkle tree is (USDC, USDT), all pools consisting of those tokens
+  /// will be allowed to have a fee enabled.
+  struct Pair {
+    /// @param token0 The first token of the pair.
+    address token0;
+    /// @param token1 The second token of the pair.
+    address token1;
+  }
+
   /// @return The address where collected fees are sent.
   function ASSET_SINK() external view returns (address);
 
@@ -55,7 +65,7 @@ interface IV3FeeController {
   function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValue);
 
   /// @notice Enables a new fee tier on the Uniswap V3 Factory.
-  /// @dev Only callable by `owner`
+  /// @dev Only callable by `owner`. Also updates the `feeTiers` array.
   /// @param newFeeTier The fee tier to enable.
   /// @param tickSpacing The corresponding tick spacing for the new fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
@@ -83,12 +93,23 @@ interface IV3FeeController {
   /// @param merkleProof The merkle proof corresponding to the set merkle root.
   function triggerFeeUpdate(address pool, bytes32[] calldata merkleProof) external;
 
-  /// @notice Triggers fee updates for multiple pools with batch merkle proof verification.
-  /// @param pools The pool addresses to update fees for.
+  /// @notice Triggers a fee update for one pair of tokens with merkle proof verification. There may
+  /// be multiple pools initialized from the given pair.
+  /// @param token0 The first token of the pair.
+  /// @param token1 The second token of the pair.
+  /// @param proof The merkle proof corresponding to the set merkle root.
+  /// @dev Assumes that token0 < token1.
+  function triggerFeeUpdate(address token0, address token1, bytes32[] calldata proof) external;
+
+  /// @notice Triggers fee updates for multiple pairs of tokens with batch merkle proof
+  /// verification.
+  /// @param pairs The pair of two tokens. There may be multiple pools initialized from the same
+  /// pair.
   /// @param proof The merkle proof corresponding to the set merkle root.
   /// @param proofFlags The flags for the merkle proof verification.
+  /// @dev Assumes that token0 < token1 in the token pair.
   function batchTriggerFeeUpdate(
-    address[] calldata pools,
+    Pair[] calldata pairs,
     bytes32[] calldata proof,
     bool[] calldata proofFlags
   ) external;

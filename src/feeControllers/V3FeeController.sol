@@ -30,6 +30,12 @@ contract V3FeeController is IV3FeeController, Owned {
   /// @inheritdoc IV3FeeController
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
+  /// @return The fee tiers that are enabled on the factory. Iterable so that the protocol fee for
+  /// pools of the same pair can be activated with the same merkle proof.
+  /// @dev Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
+  /// enabled.
+  uint24[] public feeTiers;
+
   /// @notice Ensures only the fee setter can call the setMerkleRoot and setDefaultFeeByFeeTier
   /// functions
   modifier onlyFeeSetter() {
@@ -41,11 +47,18 @@ contract V3FeeController is IV3FeeController, Owned {
   constructor(address _factory, address _assetSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     ASSET_SINK = _assetSink;
+
+    feeTiers.push(100);
+    feeTiers.push(500);
+    feeTiers.push(3000);
+    feeTiers.push(10_000);
   }
 
   /// @inheritdoc IV3FeeController
   function enableFeeAmount(uint24 fee, int24 tickSpacing) external onlyOwner {
     FACTORY.enableFeeAmount(fee, tickSpacing);
+
+    feeTiers.push(fee);
   }
 
   /// @inheritdoc IV3FeeController
@@ -78,44 +91,61 @@ contract V3FeeController is IV3FeeController, Owned {
   }
 
   /// @inheritdoc IV3FeeController
-  function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
-    bytes32 node = _doubleHash(pool);
-    if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
-
-    _setProtocolFee(pool);
-  }
-
-  /// @inheritdoc IV3FeeController
   function setFeeSetter(address newFeeSetter) external onlyOwner {
     feeSetter = newFeeSetter;
   }
 
   /// @inheritdoc IV3FeeController
+  function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
+    bytes32 node = _doubleHash(IUniswapV3Pool(pool).token0(), IUniswapV3Pool(pool).token1());
+    if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
+
+    _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
+  }
+
+  /// @inheritdoc IV3FeeController
+  function triggerFeeUpdate(address token0, address token1, bytes32[] calldata proof) external {
+    bytes32 node = _doubleHash(token0, token1);
+    if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
+
+    _setProtocolFeesForPair(token0, token1);
+  }
+
+  /// @inheritdoc IV3FeeController
   function batchTriggerFeeUpdate(
-    address[] calldata pools,
+    Pair[] calldata pairs,
     bytes32[] calldata proof,
     bool[] calldata proofFlags
   ) external {
-    bytes32[] memory leaves = new bytes32[](pools.length);
-    address pool;
-    for (uint256 i; i < pools.length; i++) {
-      pool = pools[i];
-      leaves[i] = _doubleHash(pool);
-      _setProtocolFee(pool);
+    bytes32[] memory leaves = new bytes32[](pairs.length);
+    Pair memory pair;
+    for (uint256 i; i < pairs.length; i++) {
+      pair = pairs[i];
+      leaves[i] = _doubleHash(pair.token0, pair.token1);
+      _setProtocolFeesForPair(pair.token0, pair.token1);
     }
     if (!MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves)) revert InvalidProof();
   }
 
-  function _setProtocolFee(address pool) internal {
-    uint8 feeValue = defaultFees[IUniswapV3Pool(pool).fee()];
+  function _setProtocolFeesForPair(address token0, address token1) internal {
+    for (uint256 i = 0; i < feeTiers.length; i++) {
+      uint24 feeTier = feeTiers[i];
+      address pool = FACTORY.getPool(token0, token1, feeTier);
+      if (pool != address(0)) _setProtocolFee(pool, feeTier);
+    }
+  }
+
+  function _setProtocolFee(address pool, uint24 feeTier) internal {
+    uint8 feeValue = defaultFees[feeTier];
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }
 
-  function _doubleHash(address pool) internal pure returns (bytes32 poolHash) {
-    // keccak256(abi.encode(keccak256(abi.encode(pool))));
+  function _doubleHash(address token0, address token1) internal pure returns (bytes32 poolHash) {
+    // keccak256(abi.encode(keccak256(abi.encode(token0, token1))));
     assembly ("memory-safe") {
-      mstore(0x00, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
-      mstore(0x00, keccak256(0x00, 0x20))
+      mstore(0x00, and(token0, 0xffffffffffffffffffffffffffffffffffffffff))
+      mstore(0x20, and(token1, 0xffffffffffffffffffffffffffffffffffffffff))
+      mstore(0x00, keccak256(0x00, 0x40))
       poolHash := keccak256(0x00, 0x20)
     }
   }

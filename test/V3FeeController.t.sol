@@ -177,9 +177,9 @@ contract V3FeeControllerTest is PhoenixTestBase {
     poolObject0.protocolFee = fee1 << 4 | fee0;
 
     // Generate leaf nodes.
-    address dummy = address(0x1);
+    address dummyPool = poolObject1.pool;
     bytes32 targetLeaf = _hashLeaf(poolObject0.pool);
-    bytes32 dummyLeaf = _hashLeaf(dummy);
+    bytes32 dummyLeaf = _hashLeaf(dummyPool);
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = targetLeaf;
@@ -327,6 +327,8 @@ contract V3FeeControllerTest is PhoenixTestBase {
     address[] memory pools = new address[](9000);
     bytes32[] memory leaves = new bytes32[](9000);
 
+    IV3FeeController.Pair[] memory pairs = new IV3FeeController.Pair[](9000);
+
     uint24 feeTier = 3000;
     uint8 protocolFee = 7 << 4 | 6;
 
@@ -336,6 +338,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
       IUniswapV3Pool(pool_i).initialize(SQRT_PRICE_1_1);
       pools[i] = pool_i;
       leaves[i] = _hashLeaf(pool_i);
+      pairs[i] = _toPair(address(token_i), address(mockToken1));
     }
 
     bool[] memory proofFlags = new bool[](leaves.length - 1);
@@ -351,18 +354,41 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.stopPrank();
 
     /// Batch trigger all fee updates.
-    feeController.batchTriggerFeeUpdate(pools, new bytes32[](0), proofFlags);
+    feeController.batchTriggerFeeUpdate(pairs, new bytes32[](0), proofFlags);
     vm.snapshotGasLastCall("batchTriggerFeeUpdate_allLeaves");
 
     assertEq(_getProtocolFees(pools[0]), protocolFee);
     assertEq(_getProtocolFees(pools[8999]), protocolFee);
   }
 
-  function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(address invalidPool) public {
-    vm.assume(invalidPool != pool);
+  function test_fuzz_triggerFeeUpdate_revertsInvalidProtocolFee(
+    address invalidToken0,
+    address invalidToken1
+  ) public {
+    /// Valid tokens in the merkle tree:
+    address token0_0 = IUniswapV3Pool(poolObject0.pool).token0();
+    address token1_0 = IUniswapV3Pool(poolObject0.pool).token1();
+    address token0_1 = IUniswapV3Pool(poolObject1.pool).token0();
+    address token1_1 = IUniswapV3Pool(poolObject1.pool).token1();
 
+    // Make sure we can create a pool from the two tokens. These are V3 Factory constraints.
+    vm.assume(invalidToken0 != address(0));
+    vm.assume(invalidToken1 != address(0));
+    vm.assume(invalidToken0 != invalidToken1);
+
+    /// Make sure that the invalid tokens are not in the merkle tree pairs.
+    vm.assume(invalidToken0 != token0_0);
+    vm.assume(invalidToken1 != token1_0);
+    vm.assume(invalidToken0 != token0_1);
+    vm.assume(invalidToken1 != token1_1);
+
+    // Create a new pool from those tokens.
+    address invalidPool = factory.createPool(invalidToken0, invalidToken1, 3000);
+    IUniswapV3Pool(invalidPool).initialize(SQRT_PRICE_1_1);
+
+    /// The leaf node is generated from the valid pool's pair.
     bytes32 leaf = _hashLeaf(poolObject0.pool);
-    bytes32 dummyLeaf = _hashLeaf(address(0x1));
+    bytes32 dummyLeaf = _hashLeaf(poolObject1.pool);
 
     bytes32[] memory leaves = new bytes32[](2);
     leaves[0] = leaf;
@@ -432,7 +458,20 @@ contract V3FeeControllerTest is PhoenixTestBase {
     return poolFees;
   }
 
-  function _hashLeaf(address _pool) internal pure returns (bytes32) {
-    return keccak256(abi.encode(keccak256(abi.encode(_pool))));
+  function _hashLeaf(address _pool) internal view returns (bytes32) {
+    return keccak256(
+      abi.encode(
+        keccak256(abi.encode(IUniswapV3Pool(_pool).token0(), IUniswapV3Pool(_pool).token1()))
+      )
+    );
+  }
+
+  function _toPair(address tokenA, address tokenB)
+    internal
+    pure
+    returns (IV3FeeController.Pair memory)
+  {
+    if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
+    return IV3FeeController.Pair({token0: tokenA, token1: tokenB});
   }
 }
