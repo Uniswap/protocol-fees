@@ -36,7 +36,8 @@ contract Deployer {
   /// FEE_CONTROLLER:
   /// 7. Deploy the FeeController.
   /// 8. Update the feeSetter to the owner.
-  /// 9. Update the owner on the fee controller.
+  /// 9. Store fee tiers.
+  /// 10. Update the owner on the fee controller.
   constructor() {
     address owner = V3_FACTORY.owner();
     /// 1. Deploy the AssetSink.
@@ -60,7 +61,13 @@ contract Deployer {
     /// 8. Update the feeSetter to the owner.
     FEE_CONTROLLER.setFeeSetter(owner);
 
-    /// 9. Update the owner on the fee controller.
+    /// 9. Store fee tiers.
+    FEE_CONTROLLER.storeFeeTier(100);
+    FEE_CONTROLLER.storeFeeTier(500);
+    FEE_CONTROLLER.storeFeeTier(3000);
+    FEE_CONTROLLER.storeFeeTier(10_000);
+
+    /// 10. Update the owner on the fee controller.
     IOwned(address(FEE_CONTROLLER)).transferOwnership(owner);
   }
 }

@@ -8,6 +8,7 @@ import {IUniswapV3PoolOwnerActions} from
   "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
+import {ArrayLib} from "../libraries/ArrayLib.sol";
 
 /// @title V3FeeController
 /// @notice A contract that allows the setting and collecting of protocol fees per pool, and adding
@@ -16,6 +17,8 @@ import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
 /// amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
 /// Note that this contract will be the set owner on the Uniswap V3 Factory.
 contract V3FeeController is IV3FeeController, Owned {
+  using ArrayLib for uint24[];
+
   /// @inheritdoc IV3FeeController
   IUniswapV3Factory public immutable FACTORY;
   /// @inheritdoc IV3FeeController
@@ -47,11 +50,13 @@ contract V3FeeController is IV3FeeController, Owned {
   constructor(address _factory, address _assetSink) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
     ASSET_SINK = _assetSink;
+  }
 
-    feeTiers.push(100);
-    feeTiers.push(500);
-    feeTiers.push(3000);
-    feeTiers.push(10_000);
+  /// @inheritdoc IV3FeeController
+  function storeFeeTier(uint24 feeTier) external {
+    require(_feeTierExists(feeTier), InvalidFeeTier());
+    require(!feeTiers.includes(feeTier), TierAlreadyStored());
+    feeTiers.push(feeTier);
   }
 
   /// @inheritdoc IV3FeeController
@@ -86,7 +91,7 @@ contract V3FeeController is IV3FeeController, Owned {
 
   /// @inheritdoc IV3FeeController
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
-    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) revert InvalidFeeTier();
+    require(_feeTierExists(feeTier), InvalidFeeTier());
     defaultFees[feeTier] = defaultFeeValue;
   }
 
@@ -148,5 +153,10 @@ contract V3FeeController is IV3FeeController, Owned {
       mstore(0x00, keccak256(0x00, 0x40))
       poolHash := keccak256(0x00, 0x20)
     }
+  }
+
+  function _feeTierExists(uint24 feeTier) internal view returns (bool) {
+    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) return false;
+    return true;
   }
 }

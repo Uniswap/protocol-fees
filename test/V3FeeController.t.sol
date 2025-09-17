@@ -60,6 +60,11 @@ contract V3FeeControllerTest is PhoenixTestBase {
     factory.setOwner(address(feeController));
     vm.stopPrank();
 
+    /// Store fee tiers.
+    feeController.storeFeeTier(500);
+    feeController.storeFeeTier(3000);
+    feeController.storeFeeTier(10_000);
+
     feeSetter = feeController.feeSetter();
 
     // Create pool.

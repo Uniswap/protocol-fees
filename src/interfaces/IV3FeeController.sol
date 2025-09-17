@@ -16,6 +16,9 @@ interface IV3FeeController {
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 
+  /// @notice Thrown when trying to store a fee tier that is already stored.
+  error TierAlreadyStored();
+
   /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.
@@ -57,6 +60,11 @@ interface IV3FeeController {
 
   /// @return The authorized address to set fees-by-fee-tier AND the merkle root
   function feeSetter() external view returns (address);
+
+  /// @notice Stores a fee tier.
+  /// @param feeTier The fee tier to store.
+  /// @dev Must be a fee tier that exists on the Uniswap V3 Factory.
+  function storeFeeTier(uint24 feeTier) external;
 
   /// @notice Returns the default fee value for a given fee tier.
   /// @param feeTier The fee tier to query.
