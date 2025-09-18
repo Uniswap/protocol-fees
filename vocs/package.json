@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "generate": "bash forge-doc.sh",
     "dev": "vocs dev",
     "build": "vocs build",
     "preview": "vocs preview"
