@@ -5,45 +5,33 @@ import {IUNI} from "./interfaces/IUNI.sol";
 import {SafeCast} from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {VestingLib} from "./libraries/VestingLib.sol";
+import {IUniVesting} from "./interfaces/IUniVesting.sol";
 
-contract UniVesting is Owned {
+contract UniVesting is IUniVesting, Owned {
   using VestingLib for *;
 
-  /// Thrown when the minting timestamp has not been updated, but a vesting window is being started.
-  error MintingWindowClosed();
-
-  /// Thrown if trying to intiate a vesting window with no balance.
-  error NothingToVest();
-
-  /// Thrown if the vesting window is not complete.
-  error ActiveVestingWindow();
-
-  /// The UNI token contract.
+  /// @inheritdoc IUniVesting
   IUNI public immutable UNI;
 
-  /// The duration of each period, ie. 30 days.
+  /// @inheritdoc IUniVesting
   uint256 public immutable periodDuration;
 
-  /// The total vesting period, ie. 365 days.
+  /// @inheritdoc IUniVesting
   uint256 public immutable totalVestingPeriod;
 
-  /// The total number of periods in the vesting window, ie 12.
+  /// @inheritdoc IUniVesting
   uint256 public immutable totalPeriods;
 
-  /// The checkpoint of the minting allowed after timestamp set on the UNI token contract. Stored to
-  /// keep track of minting windows.
-  /// Vesting should not be allowed to start if the minting window has not changed.
+  /// @inheritdoc IUniVesting
   uint256 public mintingAllowedAfterCheckpoint;
 
-  /// The amount of tokens that are being vested in this window.
+  /// @inheritdoc IUniVesting
   uint256 public amountVesting;
 
-  /// The start time of the vesting window.
+  /// @inheritdoc IUniVesting
   uint256 public startTime;
 
-  /// If positive, it's the amount of tokens that have been claimed in this vesting window. It will
-  /// be negative if there are tokens leftover from previous vesting windows, and a NEW vesting
-  /// window has begun.
+  /// @inheritdoc IUniVesting
   int256 public claimed;
 
   constructor(address _uni, uint256 _periodDuration) Owned(msg.sender) {
@@ -54,7 +42,8 @@ contract UniVesting is Owned {
     mintingAllowedAfterCheckpoint = UNI.mintingAllowedAfter();
   }
 
-  function start() public {
+  /// @inheritdoc IUniVesting
+  function start() external {
     require(UNI.mintingAllowedAfter() > mintingAllowedAfterCheckpoint, MintingWindowClosed());
     require(totalVested() == amountVesting, ActiveVestingWindow());
 
@@ -72,22 +61,19 @@ contract UniVesting is Owned {
     mintingAllowedAfterCheckpoint = UNI.mintingAllowedAfter();
   }
 
-  /// TODO: This should be callable with a recipient and only callable by the owner.
-  /// Claim any already vested tokens, updating the claimed amount. It's possible that this sets the
-  /// claimed amount to zero, if the only claimable tokens are leftover from a previous vest.
+  /// @inheritdoc IUniVesting
   function claim(address recipient) public onlyOwner {
     uint256 _claimable = claimable();
     claimed = claimed.add(_claimable);
     UNI.transfer(recipient, _claimable);
   }
 
-  /// The total amount of tokens that are claimable. This COULD return a value greater than
-  /// amountVesting if multiple vesting windows have been started and have leftover tokens.
+  /// @inheritdoc IUniVesting
   function claimable() public view returns (uint256) {
     return totalVested().sub(claimed);
   }
 
-  /// The totalVested amount in this vesting window. Bounded by 0 and amountVesting.
+  /// @inheritdoc IUniVesting
   function totalVested() public view returns (uint256) {
     if (block.timestamp < startTime) return 0;
     if (block.timestamp >= startTime + totalVestingPeriod) return amountVesting;
