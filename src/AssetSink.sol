@@ -9,6 +9,7 @@ import {IAssetSink} from "./interfaces/IAssetSink.sol";
 /// @notice Sink for protocol fees
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by authorized releaser contracts.
+/// @custom:security-contact security@uniswap.org
 contract AssetSink is Owned, IAssetSink {
   /// @inheritdoc IAssetSink
   address public releaser;

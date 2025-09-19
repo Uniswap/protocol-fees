@@ -7,6 +7,7 @@ import {ExchangeReleaser, IReleaser} from "./ExchangeReleaser.sol";
 /// @title Firepit
 /// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead) and a limit
 /// on the number of currencies that can be released at any time.
+/// @custom:security-contact security@uniswap.org
 contract Firepit is ExchangeReleaser {
   /// @notice Thrown when attempting to release too many assets at once
   error TooManyAssets();

@@ -15,6 +15,7 @@ import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
 /// @dev This contract is ownable. The owner can set the merkle root for proving protocol fee
 /// amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
 /// Note that this contract will be the set owner on the Uniswap V3 Factory.
+/// @custom:security-contact security@uniswap.org
 contract V3FeeController is IV3FeeController, Owned {
   /// @inheritdoc IV3FeeController
   IUniswapV3Factory public immutable FACTORY;

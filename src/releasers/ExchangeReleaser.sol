@@ -14,6 +14,7 @@ import {IReleaser} from "../interfaces/IReleaser.sol";
 /// amount of a resource token
 /// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
 /// protection
+/// @custom:security-contact security@uniswap.org
 abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
