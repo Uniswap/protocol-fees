@@ -14,6 +14,9 @@ contract VestingTest is Test {
 
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
 
+  address public owner = makeAddr("owner");
+  address public recipient = makeAddr("recipient");
+
   function setUp() public {
     vestingToken = new MockERC20("VestingToken", "VTK", 18);
 
@@ -30,11 +33,20 @@ contract VestingTest is Test {
     );
 
     vesting = new UniVesting(address(vestingToken), 30 days);
+    vesting.transferOwnership(owner);
   }
 
   function test_start_reverts_whenMintingWindowNotChanged() public {
     vm.expectRevert(UniVesting.MintingWindowClosed.selector);
     vesting.start();
+  }
+
+  function test_claim_reverts_when_not_owner() public {
+    _mockMintAt(block.timestamp, INITIAL_TOKEN_AMOUNT);
+    vesting.start();
+
+    vm.expectRevert("UNAUTHORIZED");
+    vesting.claim(owner);
   }
 
   function test_start() public {
@@ -60,7 +72,8 @@ contract VestingTest is Test {
     assertEq(vesting.claimable(), 0);
 
     /// Even after an attempt to claim no state is changed.
-    vesting.claim();
+    vm.prank(owner);
+    vesting.claim(owner);
     assertEq(vesting.totalVested(), 0);
     assertEq(vesting.claimed(), 0);
     assertEq(vesting.claimable(), 0);
@@ -78,7 +91,8 @@ contract VestingTest is Test {
     assertEq(vesting.claimed(), 0);
     assertEq(vesting.claimable(), expectedTotalVested);
 
-    vesting.claim();
+    vm.prank(owner);
+    vesting.claim(owner);
     assertEq(vesting.totalVested(), expectedTotalVested);
     assertEq(vesting.claimed(), SafeCast.toInt256(expectedTotalVested));
     assertEq(vesting.claimable(), 0);
@@ -137,12 +151,30 @@ contract VestingTest is Test {
     /// This is the leftover amount from the previous vest.
 
     /// Calling claim should only take the leftover tokens from the previous vest.
-    vesting.claim();
+    vm.prank(owner);
+    vesting.claim(owner);
     assertEq(vesting.claimable(), 0);
     /// The claimed amount is 0 because the claim call only took tokens from the previous vest.
     assertEq(vesting.claimed(), 0);
     assertEq(vesting.amountVesting(), INITIAL_TOKEN_AMOUNT * 2);
     assertEq(vesting.totalVested(), 0);
+  }
+
+  function test_claim_toRecipient() public {
+    _mockMintAt(block.timestamp, INITIAL_TOKEN_AMOUNT);
+    vesting.start();
+
+    /// Half the vest.
+    vm.warp(block.timestamp + 182.5 days);
+
+    assertEq(vesting.claimed(), 0);
+
+    assertEq(vestingToken.balanceOf(recipient), 0);
+    vm.prank(owner);
+    vesting.claim(recipient);
+    assertEq(vesting.claimable(), 0);
+    assertEq(vesting.claimed(), SafeCast.toInt256(INITIAL_TOKEN_AMOUNT / 2));
+    assertEq(vestingToken.balanceOf(recipient), INITIAL_TOKEN_AMOUNT / 2);
   }
 
   function _mockMintAt(uint256 timestamp, uint256 mintAmount) public {

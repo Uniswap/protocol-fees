@@ -3,10 +3,10 @@ pragma solidity ^0.8.29;
 
 import {IUNI} from "./interfaces/IUNI.sol";
 import {SafeCast} from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
+import {Owned} from "solmate/src/auth/Owned.sol";
 import {VestingLib} from "./libraries/VestingLib.sol";
 
-/// TODO: Add Ownable.
-contract UniVesting {
+contract UniVesting is Owned {
   using VestingLib for *;
 
   /// Thrown when the minting timestamp has not been updated, but a vesting window is being started.
@@ -46,7 +46,7 @@ contract UniVesting {
   /// window has begun.
   int256 public claimed;
 
-  constructor(address _uni, uint256 _periodDuration) {
+  constructor(address _uni, uint256 _periodDuration) Owned(msg.sender) {
     UNI = IUNI(_uni);
     periodDuration = _periodDuration;
     totalVestingPeriod = UNI.minimumTimeBetweenMints();
@@ -75,10 +75,10 @@ contract UniVesting {
   /// TODO: This should be callable with a recipient and only callable by the owner.
   /// Claim any already vested tokens, updating the claimed amount. It's possible that this sets the
   /// claimed amount to zero, if the only claimable tokens are leftover from a previous vest.
-  function claim() public {
+  function claim(address recipient) public onlyOwner {
     uint256 _claimable = claimable();
     claimed = claimed.add(_claimable);
-    UNI.transfer(msg.sender, _claimable);
+    UNI.transfer(recipient, _claimable);
   }
 
   /// The total amount of tokens that are claimable. This COULD return a value greater than
