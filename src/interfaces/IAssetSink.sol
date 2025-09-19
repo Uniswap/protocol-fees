@@ -6,12 +6,6 @@ import {Currency} from "v4-core/types/Currency.sol";
 /// @title Asset Sink Interface
 /// @notice The interface for releasing assets from the contract
 interface IAssetSink {
-  /// @notice Emitted when asset fees are successfully claimed
-  /// @param asset Address of the asset that was claimed
-  /// @param recipient Address that received the assets
-  /// @param amount Amount of fees transferred to the recipient
-  event FeesClaimed(Currency indexed asset, address indexed recipient, uint256 amount);
-
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 

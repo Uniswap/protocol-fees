@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.29;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -79,7 +79,7 @@ contract V3FeeController is IV3FeeController, Owned {
 
   /// @inheritdoc IV3FeeController
   function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
-    bytes32 node = keccak256(abi.encode(pool));
+    bytes32 node = _doubleHash(pool);
     require(MerkleProof.verify(proof, merkleRoot, node), InvalidProof());
 
     _setProtocolFee(pool);
@@ -100,7 +100,7 @@ contract V3FeeController is IV3FeeController, Owned {
     address pool;
     for (uint256 i; i < pools.length; i++) {
       pool = pools[i];
-      leaves[i] = _hash(pool);
+      leaves[i] = _doubleHash(pool);
       _setProtocolFee(pool);
     }
     require(MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves), InvalidProof());
@@ -111,10 +111,12 @@ contract V3FeeController is IV3FeeController, Owned {
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }
 
-  function _hash(address pool) internal pure returns (bytes32 poolHash) {
+  function _doubleHash(address pool) internal pure returns (bytes32 poolHash) {
+    // keccak256(abi.encode(keccak256(abi.encode(pool))));
     assembly ("memory-safe") {
-      mstore(0, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
-      poolHash := keccak256(0, 0x20)
+      mstore(0x00, and(pool, 0xffffffffffffffffffffffffffffffffffffffff))
+      mstore(0x00, keccak256(0x00, 0x20))
+      poolHash := keccak256(0x00, 0x20)
     }
   }
 }
