@@ -23,7 +23,13 @@ contract VestingTest is Test {
       abi.encode(block.timestamp - 1)
     );
 
-    vesting = new UniVesting(address(vestingToken), 30 days, 365 days);
+    vm.mockCall(
+      address(vestingToken),
+      abi.encodeWithSelector(IUNI.minimumTimeBetweenMints.selector),
+      abi.encode(365 days)
+    );
+
+    vesting = new UniVesting(address(vestingToken), 30 days);
   }
 
   function test_start_reverts_whenMintingWindowNotChanged() public {

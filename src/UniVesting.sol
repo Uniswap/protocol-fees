@@ -46,11 +46,11 @@ contract UniVesting {
   /// window has begun.
   int256 public claimed;
 
-  constructor(address _uni, uint256 _periodDuration, uint256 _totalVestingPeriod) {
+  constructor(address _uni, uint256 _periodDuration) {
     UNI = IUNI(_uni);
     periodDuration = _periodDuration;
-    totalVestingPeriod = _totalVestingPeriod;
-    totalPeriods = _totalVestingPeriod / _periodDuration;
+    totalVestingPeriod = UNI.minimumTimeBetweenMints();
+    totalPeriods = totalVestingPeriod / _periodDuration;
     mintingAllowedAfterCheckpoint = UNI.mintingAllowedAfter();
   }
 

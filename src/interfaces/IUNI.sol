@@ -8,4 +8,5 @@ interface IUNI is IERC20 {
   function mintingAllowedAfter() external view returns (uint256);
   function mint(address dst, uint256 rawAmount) external;
   function setMinter(address minter) external;
+  function minimumTimeBetweenMints() external view returns (uint32);
 }
