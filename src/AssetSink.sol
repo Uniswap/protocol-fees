@@ -29,10 +29,7 @@ contract AssetSink is Owned, IAssetSink {
     for (uint256 i; i < assets.length; i++) {
       asset = assets[i];
       amount = asset.balanceOfSelf();
-      if (amount > 0) {
-        asset.transfer(recipient, amount);
-        emit FeesClaimed(asset, recipient, amount);
-      }
+      if (amount > 0) asset.transfer(recipient, amount);
     }
   }
 
