@@ -1,5 +1,5 @@
 # IReleaser
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/d3a3001da4e227f1f508a23b1d3a5a569ef65604/src/interfaces/IReleaser.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/interfaces/IReleaser.sol)
 
 **Inherits:**
 [IResourceManager](/technical-reference/interface.IResourceManager), [INonce](/technical-reference/interface.INonce)
@@ -32,7 +32,7 @@ function release(uint256 _nonce, Currency[] memory assets, address recipient) ex
 |Name|Type|Description|
 |----|----|-----------|
 |`_nonce`|`uint256`|The nonce for the release, must equal to the contract nonce otherwise revert|
-|`assets`|`Currency[]`|The list of assets to release, which may have length limits|
+|`assets`|`Currency[]`|The list of assets (addresses) to release, which may have length limits Native tokens (Ether) are represented as the zero address|
 |`recipient`|`address`|The address to receive the released assets, paid out by Asset Sink|
 
 
