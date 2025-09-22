@@ -1,8 +1,8 @@
 # FirepitSource
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/crosschain/FirepitSource.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/crosschain/FirepitSource.sol)
 
 **Inherits:**
-[ResourceManager](/technical-reference/abstract.ResourceManager), [Nonce](/technical-reference/abstract.Nonce)
+[ResourceManager](/technical-reference/ResourceManager), [Nonce](/technical-reference/Nonce)
 
 
 ## State Variables

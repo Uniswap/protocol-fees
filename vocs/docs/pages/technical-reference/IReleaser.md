@@ -1,8 +1,8 @@
 # IReleaser
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/interfaces/IReleaser.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/interfaces/IReleaser.sol)
 
 **Inherits:**
-[IResourceManager](/technical-reference/interface.IResourceManager), [INonce](/technical-reference/interface.INonce)
+[IResourceManager](/technical-reference/IResourceManager), [INonce](/technical-reference/INonce)
 
 
 ## Functions

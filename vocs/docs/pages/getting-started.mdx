@@ -23,7 +23,7 @@ For a contract-interaction guide, see [Flash Borrow](/guides/flash-borrow)
 ::::steps
 ## Acquire a sufficient amount of UNI
 The `Firepit` contract requires integrators to hold a minimum amount of UNI to call `release()`.
-Participants can view the `threshold` by calling [`Firepit.threshold()`](/technical-reference/interface.IResourceManager#threshold)
+Participants can view the `threshold` by calling [`Firepit.threshold()`](/technical-reference/IResourceManager#threshold)
 
 :::code-group
 ```bash [cast]
@@ -84,7 +84,7 @@ uint256 nonce = IFirepit(address(0x1)).nonce();
 
 ## Call `Firepit.release()`
 
-Once the value of the assets exceeds the value of the UNI tokens, integrators should call [`Firepit.release()`](/technical-reference/interface.IReleaser#release)
+Once the value of the assets exceeds the value of the UNI tokens, integrators should call [`Firepit.release()`](/technical-reference/IReleaser#release)
 
 :::code-group
 ```bash [cast]

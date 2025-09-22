@@ -1,8 +1,8 @@
 # ExchangeReleaser
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/releasers/ExchangeReleaser.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/releasers/ExchangeReleaser.sol)
 
 **Inherits:**
-[IReleaser](/technical-reference/interface.IReleaser), [ResourceManager](/technical-reference/abstract.ResourceManager), [Nonce](/technical-reference/abstract.Nonce)
+[IReleaser](/technical-reference/IReleaser), [ResourceManager](/technical-reference/ResourceManager), [Nonce](/technical-reference/Nonce)
 
 A contract that releases assets from an AssetSink in exchange for transferring a
 threshold
@@ -10,6 +10,9 @@ amount of a resource token
 
 *Inherits from ResourceManager for resource transferring functionality and Nonce for replay
 protection*
+
+**Note:**
+security-contact: security@uniswap.org
 
 
 ## State Variables

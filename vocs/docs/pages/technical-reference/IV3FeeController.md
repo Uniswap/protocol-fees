@@ -1,5 +1,5 @@
 # IV3FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/interfaces/IV3FeeController.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/interfaces/IV3FeeController.sol)
 
 
 ## Functions
@@ -73,7 +73,7 @@ function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValu
 
 |Name|Type|Description|
 |----|----|-----------|
-|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee << 4 | token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### enableFeeAmount
@@ -147,7 +147,7 @@ function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`feeTier`|`uint24`|The fee tier, expressed in pips, to set the default fee for.|
-|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee << 4 | token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### triggerFeeUpdate

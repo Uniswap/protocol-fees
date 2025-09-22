@@ -1,13 +1,16 @@
 # AssetSink
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/5ad4b18e2825646f5b8057eb618759de00281b9a/src/AssetSink.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/AssetSink.sol)
 
 **Inherits:**
-Owned, [IAssetSink](/technical-reference/interface.IAssetSink)
+Owned, [IAssetSink](/technical-reference/IAssetSink)
 
 Sink for protocol fees
 
 *Fees accumulate passively in this contract from external sources.
 Stored fees can be released by authorized releaser contracts.*
+
+**Note:**
+security-contact: security@uniswap.org
 
 
 ## State Variables
