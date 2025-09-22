@@ -1,8 +1,8 @@
 # ResourceManager
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/8538dfe0c6b5788456432221d4719ef9bd91225a/src/base/ResourceManager.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/base/ResourceManager.sol)
 
 **Inherits:**
-[IResourceManager](/technical-reference/interface.IResourceManager), Owned
+[IResourceManager](/technical-reference/IResourceManager), Owned
 
 A contract that holds immutable state for the resource token and the resource recipient
 address. It also maintains logic for managing the threshold of the resource token.

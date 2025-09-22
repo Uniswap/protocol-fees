@@ -1,5 +1,5 @@
 # IV3FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/8538dfe0c6b5788456432221d4719ef9bd91225a/src/interfaces/IV3FeeController.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/interfaces/IV3FeeController.sol)
 
 
 ## Functions
@@ -13,7 +13,7 @@ function ASSET_SINK() external view returns (address);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_null_`|`address`|The address where collected fees are sent.|
+|`<none>`|`address`|The address where collected fees are sent.|
 
 
 ### FACTORY
@@ -26,7 +26,7 @@ function FACTORY() external view returns (IUniswapV3Factory);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_null_`|`IUniswapV3Factory`|The Uniswap V3 Factory contract.|
+|`<none>`|`IUniswapV3Factory`|The Uniswap V3 Factory contract.|
 
 
 ### merkleRoot
@@ -39,7 +39,7 @@ function merkleRoot() external view returns (bytes32);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_null_`|`bytes32`|The current merkle root used to designate which pools have a fee enabled|
+|`<none>`|`bytes32`|The current merkle root used to designate which pools have a fee enabled|
 
 
 ### feeSetter
@@ -52,7 +52,7 @@ function feeSetter() external view returns (address);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_null_`|`address`|The authorized address to set fees-by-fee-tier AND the merkle root|
+|`<none>`|`address`|The authorized address to set fees-by-fee-tier AND the merkle root|
 
 
 ### defaultFees
@@ -73,7 +73,7 @@ function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValu
 
 |Name|Type|Description|
 |----|----|-----------|
-|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 | token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### enableFeeAmount
@@ -147,7 +147,7 @@ function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`feeTier`|`uint24`|The fee tier, expressed in pips, to set the default fee for.|
-|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 | token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### triggerFeeUpdate

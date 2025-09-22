@@ -1,8 +1,8 @@
 # AssetSink
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/8538dfe0c6b5788456432221d4719ef9bd91225a/src/AssetSink.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/AssetSink.sol)
 
 **Inherits:**
-Owned, [IAssetSink](/technical-reference/interface.IAssetSink)
+Owned, [IAssetSink](/technical-reference/IAssetSink)
 
 Sink for protocol fees
 

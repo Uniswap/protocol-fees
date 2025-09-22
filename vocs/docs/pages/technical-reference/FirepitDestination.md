@@ -1,8 +1,8 @@
 # FirepitDestination
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/8538dfe0c6b5788456432221d4719ef9bd91225a/src/crosschain/FirepitDestination.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/crosschain/FirepitDestination.sol)
 
 **Inherits:**
-[Nonce](/technical-reference/abstract.Nonce), Owned
+[Nonce](/technical-reference/Nonce), Owned
 
 a contract for receiving crosschain messages. Validates messages and releases assets
 from the AssetSink
