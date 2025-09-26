@@ -42,9 +42,9 @@ contract V4FeeController is Owned {
       uint256 _amountExpected = amountExpected[i];
 
       amountCollected = POOL_MANAGER.collectProtocolFees(feeSink, currency[i], _amountRequested);
-      if (amountCollected < _amountExpected) {
-        revert AmountCollectedTooLow(amountCollected, _amountExpected);
-      }
+      require(
+        amountCollected >= _amountExpected, AmountCollectedTooLow(amountCollected, _amountExpected)
+      );
     }
   }
 
@@ -66,7 +66,7 @@ contract V4FeeController is Owned {
     bytes32[] calldata proof
   ) external {
     bytes32 node = keccak256(abi.encode(_poolKey, newProtocolFee));
-    if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
+    require(MerkleProof.verify(proof, merkleRoot, node), InvalidProof());
 
     POOL_MANAGER.setProtocolFee(_poolKey, newProtocolFee);
   }

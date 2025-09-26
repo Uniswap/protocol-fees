@@ -7,6 +7,7 @@ import {ExchangeReleaser, IReleaser} from "./ExchangeReleaser.sol";
 /// @title Firepit
 /// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead) and a limit
 /// on the number of currencies that can be released at any time.
+/// @custom:security-contact security@uniswap.org
 contract Firepit is ExchangeReleaser {
   /// @notice Thrown when attempting to release too many assets at once
   error TooManyAssets();
@@ -20,7 +21,7 @@ contract Firepit is ExchangeReleaser {
 
   /// @inheritdoc IReleaser
   function release(uint256 _nonce, Currency[] calldata assets, address recipient) external override {
-    if (assets.length > MAX_RELEASE_LENGTH) revert TooManyAssets();
+    require(assets.length <= MAX_RELEASE_LENGTH, TooManyAssets());
     _release(_nonce, assets, recipient);
   }
 }

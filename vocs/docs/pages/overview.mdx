@@ -1,0 +1,22 @@
+# Phoenix Mechanism 
+
+At its core, the *Phoenix Mechanism* is a modular system for accruing value from a variety
+of revenue sources - including Uniswap Protocol fees. Three primary components make up the
+system:
+
+1. **_Fee Source_**: onchain activity that generates revenue in arbitrary tokens of arbitrary amounts
+2. **_Asset Sink_**: a contract that accepts revenue from multiple *Fee Sources*
+3. **_Releaser_**: a contract that defines the economic requirements for releasing funds from the *Asset Sink*
+
+---
+
+In the first iteration of the Phoenix Mechanism, *N* assets are "releasable" from the *Asset Sink* when a `threshold`
+amount of [UNI token](https://etherscan.io/token/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984) is "burned" by `msg.sender`
+
+As an economic example:
+
+* Assume 100 UNI is the `threshold` amount
+* When the top *N* assets in the *Asset Sink* are worth 100.1 UNI, **anyone** can use the `Firepit.release()` contract to:
+    1. Burn 100 UNI
+    2. Withdraw the top *N* assets, *valued* at 100.1 UNI
+
