@@ -23,7 +23,7 @@ abstract contract ResourceManager is IResourceManager, Owned {
 
   /// @notice Ensures only the threshold setter can call the setThreshold function
   modifier onlyThresholdSetter() {
-    if (msg.sender != thresholdSetter) revert Unauthorized();
+    require(msg.sender == thresholdSetter, Unauthorized());
     _;
   }
 

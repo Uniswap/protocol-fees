@@ -16,7 +16,7 @@ contract AssetSink is Owned, IAssetSink {
 
   /// @notice Ensures only the releaser can call the release function
   modifier onlyReleaser() {
-    if (msg.sender != releaser) revert Unauthorized();
+    require(msg.sender == releaser, Unauthorized());
     _;
   }
 
