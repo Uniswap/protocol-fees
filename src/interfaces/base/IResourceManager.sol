@@ -27,5 +27,9 @@ interface IResourceManager {
 
   /// @notice Set the minimum threshold of `RESOURCE` tokens required to perform a release
   /// @dev only callable by `thresholdSetter`
+  /// the `thresholdSetter` should take explicit care when updating the threshold
+  /// * lowering the threshold may create instantaneous value leakage
+  /// * front-running a release with an increased threshold may cause economic loss
+  /// to the releaser/searcher
   function setThreshold(uint256 newThreshold) external;
 }
