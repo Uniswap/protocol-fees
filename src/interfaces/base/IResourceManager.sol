@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {ERC20} from "solmate/src/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
 /// @title Resource Manager Interface
 /// @notice The interface for managing the resource token and its threshold value
@@ -27,5 +27,9 @@ interface IResourceManager {
 
   /// @notice Set the minimum threshold of `RESOURCE` tokens required to perform a release
   /// @dev only callable by `thresholdSetter`
+  /// the `thresholdSetter` should take explicit care when updating the threshold
+  /// * lowering the threshold may create instantaneous value leakage
+  /// * front-running a release with an increased threshold may cause economic loss
+  /// to the releaser/searcher
   function setThreshold(uint256 newThreshold) external;
 }

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {Nonce} from "../base/Nonce.sol";
 import {ResourceManager} from "../base/ResourceManager.sol";
 
@@ -19,14 +20,14 @@ abstract contract FirepitSource is ResourceManager, Nonce {
   function _sendReleaseMessage(
     uint256 bridgeId,
     uint256 destinationNonce,
-    Currency[] memory assets,
+    Currency[] calldata assets,
     address claimer,
     bytes memory addtlData
   ) internal virtual;
 
   /// @notice Torches the RESOURCE by sending it to the burn address and sends a cross-domain
   /// message to release the assets
-  function release(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
+  function release(uint256 _nonce, Currency[] calldata assets, address claimer, uint32 l2GasLimit)
     external
     handleNonce(_nonce)
   {

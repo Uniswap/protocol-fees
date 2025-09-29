@@ -41,7 +41,7 @@ contract FirepitDestination is Nonce, Owned {
 
   /// @notice Calls Asset Sink to release assets to a destination
   /// @dev only callable by the messenger via the authorized L1 source contract
-  function claimTo(uint256 _nonce, Currency[] memory assets, address claimer)
+  function claimTo(uint256 _nonce, Currency[] calldata assets, address claimer)
     external
     onlyAllowed
     handleNonce(_nonce)

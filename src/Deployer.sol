@@ -2,7 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {V3FeeController} from "./feeControllers/V3FeeController.sol";
-import {AssetSink, IAssetSink} from "./AssetSink.sol";
+import {IAssetSink} from "./interfaces/IAssetSink.sol";
+import {AssetSink} from "./AssetSink.sol";
 import {Firepit} from "./releasers/Firepit.sol";
 import {IReleaser} from "./interfaces/IReleaser.sol";
 import {IV3FeeController} from "./interfaces/IV3FeeController.sol";

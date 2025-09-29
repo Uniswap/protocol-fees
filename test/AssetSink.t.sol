@@ -24,8 +24,6 @@ contract AssetSinkTest is Test {
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
   uint256 public constant INITIAL_NATIVE_AMOUNT = 10 ether;
 
-  event FeesClaimed(Currency indexed asset, address indexed recipient, uint256 amount);
-
   function setUp() public {
     alice = makeAddr("alice");
     bob = makeAddr("bob");
@@ -56,9 +54,6 @@ contract AssetSinkTest is Test {
   function test_Release_ERC20_Success() public {
     Currency asset = Currency.wrap(address(mockToken));
     uint256 initialBalance = asset.balanceOf(address(assetSink));
-
-    vm.expectEmit(true, true, false, true);
-    emit FeesClaimed(asset, alice, initialBalance);
 
     // Use releaser contract to release assets
     mockReleaser.release(asset, alice);
@@ -107,9 +102,6 @@ contract AssetSinkTest is Test {
     Currency nativeAsset = Currency.wrap(address(0));
     uint256 initialBalance = nativeAsset.balanceOf(address(assetSink));
     uint256 aliceInitialBalance = alice.balance;
-
-    vm.expectEmit(true, true, false, true);
-    emit FeesClaimed(nativeAsset, alice, initialBalance);
 
     mockReleaser.release(nativeAsset, alice);
 

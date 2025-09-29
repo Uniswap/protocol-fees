@@ -20,7 +20,7 @@ contract OPStackFirepitSource is FirepitSource {
   function _sendReleaseMessage(
     uint256, // bridgeId
     uint256 destinationNonce,
-    Currency[] memory assets,
+    Currency[] calldata assets,
     address claimer,
     bytes memory addtlData
   ) internal override {

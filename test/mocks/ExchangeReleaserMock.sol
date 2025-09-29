@@ -9,7 +9,7 @@ contract ExchangeReleaserMock is ExchangeReleaser {
     ExchangeReleaser(_resource, _threshold, _assetSink, _recipient)
   {}
 
-  function release(uint256 _nonce, Currency[] memory assets, address recipient) external override {
+  function release(uint256 _nonce, Currency[] calldata assets, address recipient) external override {
     _release(_nonce, assets, recipient);
   }
 }

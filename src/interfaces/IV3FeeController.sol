@@ -4,9 +4,6 @@ pragma solidity ^0.8.29;
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 interface IV3FeeController {
-  /// @notice Thrown when the amount collected is less than the amount expected.
-  error AmountCollectedTooLow(uint256 amountCollected, uint256 amountExpected);
-
   /// @notice Thrown when the merkle proof is invalid.
   error InvalidProof();
 
@@ -59,6 +56,11 @@ interface IV3FeeController {
   /// @param newFeeTier The fee tier to enable.
   /// @param tickSpacing The corresponding tick spacing for the new fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
+
+  /// @notice Sets the owner of the Uniswap V3 Factory.
+  /// @dev Only callable by `owner`
+  /// @param newOwner The new owner of the Uniswap V3 Factory.
+  function setFactoryOwner(address newOwner) external;
 
   /// @notice Collects protocol fees from the specified pools to the designated `ASSET_SINK`
   /// @param collectParams Array of collection parameters for each pool.
