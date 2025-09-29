@@ -177,6 +177,34 @@ contract VestingTest is Test {
     assertEq(vestingToken.balanceOf(recipient), INITIAL_TOKEN_AMOUNT / 2);
   }
 
+  function test_claim_fullFirstVest_halfSecondVest() public {
+    _mockMintAt(block.timestamp, INITIAL_TOKEN_AMOUNT);
+    vesting.start();
+
+    uint256 newTime = block.timestamp + 365 days;
+    vm.warp(newTime);
+
+    _mockMintAt(newTime, INITIAL_TOKEN_AMOUNT * 4);
+    vesting.start();
+
+    vm.warp(newTime + 182.5 days);
+    /// totalVested: only returns vest in THIS vesting window = INITIAL_TOKEN_AMOUNT * 2
+    assertEq(vesting.totalVested(), INITIAL_TOKEN_AMOUNT * 2);
+    /// claimable: 1st vest + half of 2nd vest = INITIAL_TOKEN_AMOUNT * 3
+    assertEq(vesting.claimable(), INITIAL_TOKEN_AMOUNT * 3);
+    /// claimed is actually the leftover amount from the previous vest
+    assertEq(vesting.claimed(), -SafeCast.toInt256(INITIAL_TOKEN_AMOUNT));
+
+    assertEq(vestingToken.balanceOf(recipient), 0);
+    vm.prank(owner);
+    vesting.claim(recipient);
+    assertEq(vesting.claimable(), 0);
+    /// Claimed is now equal to the amount vested in this window.
+    assertEq(vesting.claimed(), SafeCast.toInt256(INITIAL_TOKEN_AMOUNT * 2));
+    /// But the amount received includes the first vest.
+    assertEq(vestingToken.balanceOf(recipient), INITIAL_TOKEN_AMOUNT * 3);
+  }
+
   function _mockMintAt(uint256 timestamp, uint256 mintAmount) public {
     /// Update the mintingAllowedAfter timestamp.
     vm.mockCall(
