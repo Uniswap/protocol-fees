@@ -4,9 +4,6 @@ pragma solidity ^0.8.29;
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 interface IV3FeeController {
-  /// @notice Thrown when the amount collected is less than the amount expected.
-  error AmountCollectedTooLow(uint256 amountCollected, uint256 amountExpected);
-
   /// @notice Thrown when the merkle proof is invalid.
   error InvalidProof();
 

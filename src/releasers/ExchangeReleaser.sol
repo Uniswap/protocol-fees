@@ -2,7 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {SafeTransferLib, ERC20} from "solmate/src/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ResourceManager} from "../base/ResourceManager.sol";
 import {Nonce} from "../base/Nonce.sol";
 import {IAssetSink} from "../interfaces/IAssetSink.sol";
@@ -14,6 +15,7 @@ import {IReleaser} from "../interfaces/IReleaser.sol";
 /// amount of a resource token
 /// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
 /// protection
+/// @custom:security-contact security@uniswap.org
 abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 

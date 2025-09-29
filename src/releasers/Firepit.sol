@@ -2,11 +2,13 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {ExchangeReleaser, IReleaser} from "./ExchangeReleaser.sol";
+import {IReleaser} from "../interfaces/IReleaser.sol";
+import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 /// @title Firepit
 /// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead) and a limit
 /// on the number of currencies that can be released at any time.
+/// @custom:security-contact security@uniswap.org
 contract Firepit is ExchangeReleaser {
   /// @notice Thrown when attempting to release too many assets at once
   error TooManyAssets();
@@ -20,7 +22,7 @@ contract Firepit is ExchangeReleaser {
 
   /// @inheritdoc IReleaser
   function release(uint256 _nonce, Currency[] memory assets, address recipient) external override {
-    if (assets.length > MAX_RELEASE_LENGTH) revert TooManyAssets();
+    require(assets.length <= MAX_RELEASE_LENGTH, TooManyAssets());
     _release(_nonce, assets, recipient);
   }
 }
