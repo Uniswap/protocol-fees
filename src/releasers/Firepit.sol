@@ -2,7 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {ExchangeReleaser, IReleaser} from "./ExchangeReleaser.sol";
+import {IReleaser} from "../interfaces/IReleaser.sol";
+import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 /// @title Firepit
 /// @notice An ExchangeReleaser with recipient set to the burn address address(0xdead) and a limit
