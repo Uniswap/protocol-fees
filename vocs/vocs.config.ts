@@ -42,7 +42,7 @@ export default defineConfig({
           .map((file) => {
             const key = path.basename(file, ".md");
             return {
-              text: key.split(".")[1],
+              text: key,
               link: `/technical-reference/${key}`,
             };
           }),
