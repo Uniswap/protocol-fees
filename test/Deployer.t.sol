@@ -12,6 +12,8 @@ import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
 
+import {console} from "forge-std/console.sol";
+
 contract DeployerTest is Test {
   Deployer public deployer;
 
@@ -31,6 +33,14 @@ contract DeployerTest is Test {
     owner = makeAddr("owner");
     vm.prank(factory.owner());
     factory.setOwner(owner);
+
+    /// Set the fee tiers on the factory.
+    vm.startPrank(owner);
+    factory.enableFeeAmount(100, 1);
+    factory.enableFeeAmount(500, 10);
+    factory.enableFeeAmount(3000, 60);
+    factory.enableFeeAmount(10_000, 200);
+    vm.stopPrank();
 
     deployer = new Deployer();
 
