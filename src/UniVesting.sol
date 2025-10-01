@@ -7,6 +7,11 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 import {VestingLib} from "./libraries/VestingLib.sol";
 import {IUniVesting} from "./interfaces/IUniVesting.sol";
 
+/// @title UniVesting
+/// @notice A contract for vesting UNI tokens over configurable time periods
+/// @dev This contract allows for the vesting of UNI tokens with periodic claiming
+/// functionality. It integrates with the UNI token's minting schedule to coordinate
+/// vesting windows with minting cycles.
 contract UniVesting is IUniVesting, Owned {
   using VestingLib for *;
 
@@ -34,6 +39,9 @@ contract UniVesting is IUniVesting, Owned {
   /// @inheritdoc IUniVesting
   int256 public claimed;
 
+  /// @notice Constructs a new UniVesting contract
+  /// @param _uni The address of the UNI token contract
+  /// @param _periodDuration The duration of each vesting period in seconds (e.g., 30 days)
   constructor(address _uni, uint256 _periodDuration) Owned(msg.sender) {
     UNI = IUNI(_uni);
     periodDuration = _periodDuration;
