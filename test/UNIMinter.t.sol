@@ -166,7 +166,7 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 5000 / MAX_SHARES;
-    uint256 expectedAliceAmount = expectedTotalMint * 5000 / MAX_SHARES;
+    uint256 expectedAliceAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
@@ -185,8 +185,8 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 7000 / MAX_SHARES;
-    uint256 expectedAliceAmount = expectedTotalMint * 5000 / MAX_SHARES;
-    uint256 expectedBobAmount = expectedTotalMint * 2000 / MAX_SHARES;
+    uint256 expectedAliceAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
+    uint256 expectedBobAmount = expectedTotalMint * 2000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
@@ -396,7 +396,7 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 3000 / MAX_SHARES;
-    uint256 expectedBobAmount = expectedTotalMint * 3000 / MAX_SHARES;
+    uint256 expectedBobAmount = expectedTotalMint * 3000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
@@ -508,7 +508,7 @@ contract UNIMinterTest is Test {
 
     for (uint256 i = 0; i < 4; i++) {
       if (shares[i] > 0) {
-        uint256 expectedBalance = expectedMintAmount * shares[i] / MAX_SHARES;
+        uint256 expectedBalance = expectedMintAmount * shares[i] / uniMinter.totalShares();
         assertEq(UNI.balanceOf(recipients[i]), expectedBalance);
       }
     }
@@ -589,7 +589,7 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 5000 / MAX_SHARES;
-    uint256 expectedBobAmount = expectedTotalMint * 5000 / MAX_SHARES;
+    uint256 expectedBobAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
