@@ -11,8 +11,9 @@ import {IUNI} from "./interfaces/IUNI.sol";
 /// allocations
 /// @author Uniswap
 contract UNIMinter is Owned {
-  /// @notice Thrown when attempting to complete revocation before the delay period has elapsed
-  error RevocationNotReady();
+  /// @notice Thrown when attempting to complete revocation before the delay period has elapsed, or
+  /// when attempting to re-revoke a share that has already been adjusted.
+  error InvalidRevocation();
   /// @notice Thrown when attempting to complete revocation for shares without a pending revocation
   error NotPendingRevocation();
   /// @notice Thrown when granting shares would exceed the maximum allowed
@@ -26,11 +27,14 @@ contract UNIMinter is Owned {
   /// @param revocationDelayDays The number of days notice required for a revocation of this share
   /// @param pendingRevocationTime The timestamp when revocation can be completed, or 0 if not
   /// pending
+  /// @param adjustedForRevocation Whether the share amounts have already been adjusted
+  /// for revocation
   struct Share {
     address recipient;
     uint16 amount;
     uint16 revocationDelayDays;
     uint48 pendingRevocationTime;
+    bool adjustedForRevocation;
   }
 
   /// @notice The mint cap in percentage terms (2% annual inflation)
@@ -94,7 +98,8 @@ contract UNIMinter is Owned {
         recipient: _recipient,
         amount: _amount,
         revocationDelayDays: _revocationDelayDays,
-        pendingRevocationTime: 0
+        pendingRevocationTime: 0,
+        adjustedForRevocation: false
       })
     );
     totalShares += _amount;
@@ -130,7 +135,9 @@ contract UNIMinter is Owned {
       // Remove the share by swapping with the last and popping
       shares[_index] = shares[shares.length - 1];
       shares.pop();
-    } else if (pendingRevocationTime - mintingAllowedAfter < MINT_PERIOD) {
+    } else if (
+      !share.adjustedForRevocation && pendingRevocationTime - mintingAllowedAfter < MINT_PERIOD
+    ) {
       // Revocation is ready after the next mint but before the one after that
       // Update their shares such that they receive a partial mint proportional to the remaining
       // time until revocation after the mint
@@ -141,9 +148,10 @@ contract UNIMinter is Owned {
         uint16((pendingRevocationTime - mintingAllowedAfter) * share.amount / MINT_PERIOD);
       // subtract the newly removed shares
       totalShares -= (originalShareAmount - share.amount);
+      share.adjustedForRevocation = true;
     } else {
       // Revocation is not ready yet
-      revert RevocationNotReady();
+      revert InvalidRevocation();
     }
   }
 
