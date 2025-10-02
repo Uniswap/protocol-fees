@@ -71,7 +71,7 @@ contract UniVesting is IUniVesting, Owned {
   }
 
   /// @inheritdoc IUniVesting
-  function claim(address recipient) public onlyOwner {
+  function claim(address recipient) external onlyOwner {
     uint256 _claimable = claimable();
     claimed = claimed.add(_claimable);
     UNI.transfer(recipient, _claimable);
