@@ -130,6 +130,7 @@ contract UNIMinterTest is Test {
 
     uniMinter.mint();
 
+    assertEq(UNI.balanceOf(address(uniMinter)), 0);
     assertEq(UNI.balanceOf(alice), expectedMintAmount);
     assertEq(UNI.totalSupply(), UNI.initialTotalSupply() + expectedMintAmount);
   }
@@ -149,6 +150,7 @@ contract UNIMinterTest is Test {
 
     uniMinter.mint();
 
+    assertEq(UNI.balanceOf(address(uniMinter)), 0);
     assertEq(UNI.balanceOf(alice), expectedMintAmount * 5000 / MAX_SHARES);
     assertEq(UNI.balanceOf(bob), expectedMintAmount * 3000 / MAX_SHARES);
     assertEq(UNI.balanceOf(charlie), expectedMintAmount * 2000 / MAX_SHARES);
@@ -164,11 +166,33 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 5000 / MAX_SHARES;
-    uint256 expectedAliceAmount = expectedTotalMint * 5000 / MAX_SHARES;
+    uint256 expectedAliceAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
+    assertEq(UNI.balanceOf(address(uniMinter)), 0);
     assertEq(UNI.balanceOf(alice), expectedAliceAmount);
+    assertEq(UNI.totalSupply(), totalSupplyBefore + expectedTotalMint);
+  }
+
+  function test_Mint_PartialShares_MultipleRecipients() public {
+    vm.startPrank(owner);
+    uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
+    uniMinter.grantShares(bob, 2000, DEFAULT_REVOCATION_DELAY_DAYS);
+
+    vm.warp(UNI.mintingAllowedAfter());
+
+    uint256 totalSupplyBefore = UNI.totalSupply();
+    uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
+    uint256 expectedTotalMint = expectedMintCap * 7000 / MAX_SHARES;
+    uint256 expectedAliceAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
+    uint256 expectedBobAmount = expectedTotalMint * 2000 / uniMinter.totalShares();
+
+    uniMinter.mint();
+
+    assertEq(UNI.balanceOf(address(uniMinter)), 0);
+    assertEq(UNI.balanceOf(alice), expectedAliceAmount);
+    assertEq(UNI.balanceOf(bob), expectedBobAmount);
     assertEq(UNI.totalSupply(), totalSupplyBefore + expectedTotalMint);
   }
 
@@ -372,7 +396,7 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 3000 / MAX_SHARES;
-    uint256 expectedBobAmount = expectedTotalMint * 3000 / MAX_SHARES;
+    uint256 expectedBobAmount = expectedTotalMint * 3000 / uniMinter.totalShares();
 
     uniMinter.mint();
 
@@ -484,7 +508,7 @@ contract UNIMinterTest is Test {
 
     for (uint256 i = 0; i < 4; i++) {
       if (shares[i] > 0) {
-        uint256 expectedBalance = expectedMintAmount * shares[i] / MAX_SHARES;
+        uint256 expectedBalance = expectedMintAmount * shares[i] / uniMinter.totalShares();
         assertEq(UNI.balanceOf(recipients[i]), expectedBalance);
       }
     }
@@ -565,7 +589,7 @@ contract UNIMinterTest is Test {
     uint256 totalSupplyBefore = UNI.totalSupply();
     uint256 expectedMintCap = totalSupplyBefore * MINT_CAP_PERCENT / 100;
     uint256 expectedTotalMint = expectedMintCap * 5000 / MAX_SHARES;
-    uint256 expectedBobAmount = expectedTotalMint * 5000 / MAX_SHARES;
+    uint256 expectedBobAmount = expectedTotalMint * 5000 / uniMinter.totalShares();
 
     uniMinter.mint();
 

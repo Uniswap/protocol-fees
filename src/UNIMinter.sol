@@ -74,7 +74,7 @@ contract UNIMinter is Owned {
     uint256 recipientAmount;
     for (uint256 i; i < shares.length; i++) {
       share = shares[i];
-      recipientAmount = mintAmount * share.amount / MAX_SHARES;
+      recipientAmount = mintAmount * share.amount / totalShares;
       if (recipientAmount > 0) UNI.transfer(share.recipient, recipientAmount);
     }
   }
