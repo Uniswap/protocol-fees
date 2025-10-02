@@ -10,6 +10,7 @@ import {IUNI} from "./interfaces/IUNI.sol";
 /// @dev This contract holds the minter role and allows annual minting with configurable share
 /// allocations
 /// @author Uniswap
+/// @custom:security-contact security@uniswap.org
 contract UNIMinter is Owned {
   /// @notice Thrown when attempting to complete revocation before the delay period has elapsed
   error RevocationNotReady();

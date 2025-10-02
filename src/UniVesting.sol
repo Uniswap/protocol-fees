@@ -12,6 +12,7 @@ import {IUniVesting} from "./interfaces/IUniVesting.sol";
 /// @dev This contract allows for the vesting of UNI tokens with periodic claiming
 /// functionality. It integrates with the UNI token's minting schedule to coordinate
 /// vesting windows with minting cycles.
+/// @custom:security-contact security@uniswap.org
 contract UniVesting is IUniVesting, Owned {
   using VestingLib for *;
 
