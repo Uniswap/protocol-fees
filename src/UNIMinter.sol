@@ -65,7 +65,7 @@ contract UNIMinter is Owned {
   /// @dev The underlying UNI token contract reverts if called with > 2% of total supply
   //    or if < 365 days since the last
   function mint() external {
-    if (totalShares == 0) revert NoShares();
+    require(totalShares != 0, NoShares());
     uint256 mintCap = UNI.totalSupply() * MINT_CAP_PERCENT / 100;
     uint256 mintAmount = mintCap * totalShares / MAX_SHARES;
     UNI.mint(address(this), mintAmount);
@@ -89,7 +89,7 @@ contract UNIMinter is Owned {
     external
     onlyOwner
   {
-    if (totalShares + _amount > MAX_SHARES) revert InsufficientShares();
+    require(totalShares + _amount <= MAX_SHARES, InsufficientShares());
     shares.push(
       Share({
         recipient: _recipient,
@@ -121,7 +121,7 @@ contract UNIMinter is Owned {
     Share storage share = shares[_index];
     uint256 mintingAllowedAfter = UNI.mintingAllowedAfter();
     uint48 pendingRevocationTime = share.pendingRevocationTime;
-    if (pendingRevocationTime == 0) revert NotPendingRevocation();
+    require(pendingRevocationTime != 0, NotPendingRevocation());
 
     // Revocation is ready before the next mint
     // It is safe to just remove them now since they won't be around for the next mint anyways
