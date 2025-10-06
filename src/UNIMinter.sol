@@ -111,6 +111,7 @@ contract UNIMinter is Owned {
   /// @param _index The index in the shares array of the allocation to revoke
   function initiateRevokeShares(uint256 _index) external onlyOwner {
     Share storage share = shares[_index];
+    require(share.adjustedForRevocation == false, InvalidRevocation());
     share.pendingRevocationTime =
       uint48(block.timestamp + uint256(share.revocationDelayDays) * 1 days);
   }

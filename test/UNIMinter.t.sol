@@ -1145,4 +1145,31 @@ contract UNIMinterTest is Test {
     assertEq(amount, 2500);
     assertEq(adjusted, true);
   }
+
+  /// @dev initiateRevokeShares CANNOT to called twice if its already been adjusted
+  function test_revokeShares_PreventDoubleInitiateRevokeShares() public {
+    vm.prank(owner);
+    uniMinter.grantShares(alice, 5000, 180);
+
+    // Setup partial revocation
+    uint256 nextMintTime = UNI.mintingAllowedAfter();
+    uint256 revocationCompleteTime = nextMintTime + 365 days / 2; // Halfway through next period
+    uint256 initiateTime = revocationCompleteTime - 180 days;
+    vm.warp(initiateTime);
+
+    vm.prank(owner);
+    uniMinter.initiateRevokeShares(0);
+
+    // First call reduces shares and sets adjustedForRevocation = true
+    uniMinter.revokeShares(0);
+    assertEq(uniMinter.totalShares(), 2500); // 50% of 5000
+    (address recipient, uint16 amount,,, bool adjusted) = uniMinter.shares(0);
+    assertEq(recipient, alice);
+    assertEq(amount, 2500);
+    assertEq(adjusted, true);
+
+    // Cannot re-initiate revocation on something already adjusted
+    vm.expectRevert(UNIMinter.InvalidRevocation.selector);
+    uniMinter.initiateRevokeShares(0);
+  }
 }
