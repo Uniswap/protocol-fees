@@ -18,6 +18,10 @@ export default defineConfig({
       link: '/system-permissions',
     },
     {
+      text: 'Token Mint',
+      link: '/token-mint',
+    },
+    {
       text: "Guides",
       collapsed: false,
       items: [
