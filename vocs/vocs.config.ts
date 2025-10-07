@@ -14,6 +14,10 @@ export default defineConfig({
       link: '/implementation-process',
     },
     {
+      text: 'Token Mint',
+      link: '/token-mint',
+    },
+    {
       text: "Guides",
       collapsed: false,
       items: [
