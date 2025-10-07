@@ -40,6 +40,9 @@ contract UNIVesting is IUNIVesting, Owned {
   /// @inheritdoc IUNIVesting
   int256 public claimed;
 
+  /// @inheritdoc IUNIVesting
+  uint256 public constant MINIMUM_UNI_TO_VEST = 1000e18;
+
   /// @notice Constructs a new UNIVesting contract
   /// @param _uni The address of the UNI token contract
   /// @param _periodDuration The duration of each vesting period in seconds (e.g., 30 days)
@@ -60,7 +63,7 @@ contract UNIVesting is IUNIVesting, Owned {
     uint256 balance = UNI.balanceOf(address(this));
     uint256 leftover = amountVesting.sub(claimed);
     amountVesting = balance - leftover;
-    require(amountVesting > 0, NothingToVest());
+    require(amountVesting >= MINIMUM_UNI_TO_VEST, NothingToVest());
 
     /// Allow the leftover tokens to be claimed.
     claimed = -SafeCast.toInt256(leftover);

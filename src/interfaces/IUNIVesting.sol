@@ -10,7 +10,7 @@ interface IUNIVesting {
   /// started.
   error MintingWindowClosed();
 
-  /// @notice Thrown if trying to intiate a vesting window with no balance.
+  /// @notice Thrown if trying to intiate a vesting window with an insufficient balance.
   error NothingToVest();
 
   /// @notice Thrown if the vesting window is not complete.
@@ -43,6 +43,11 @@ interface IUNIVesting {
   /// It will be negative if there are tokens leftover from previous vesting windows, and a NEW
   /// vesting window has begun.
   function claimed() external view returns (int256);
+
+  /// @notice The minimum amount of UNI required to be held by the contract to start a vesting
+  /// window
+  /// @dev This is to prevent DOS'ing and bricking the vesting contract with tiny amounts of UNI
+  function MINIMUM_UNI_TO_VEST() external view returns (uint256);
 
   /// @notice Starts the vesting window.
   /// @dev The vesting window can only be started if the minting window has updated on the UNI token
