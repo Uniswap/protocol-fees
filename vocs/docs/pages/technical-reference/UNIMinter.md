@@ -1,5 +1,5 @@
 # UNIMinter
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/UNIMinter.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/UNIMinter.sol)
 
 **Inherits:**
 Owned
@@ -12,6 +12,9 @@ distribution to multiple recipients
 
 *This contract holds the minter role and allows annual minting with configurable share
 allocations*
+
+**Note:**
+security-contact: security@uniswap.org
 
 
 ## State Variables
@@ -184,12 +187,13 @@ function setMinter(address _minter) external onlyOwner;
 
 
 ## Errors
-### RevocationNotReady
-Thrown when attempting to complete revocation before the delay period has elapsed
+### InvalidRevocation
+Thrown when attempting to complete revocation before the delay period has elapsed, or
+when attempting to re-revoke a share that has already been adjusted.
 
 
 ```solidity
-error RevocationNotReady();
+error InvalidRevocation();
 ```
 
 ### NotPendingRevocation
@@ -227,6 +231,7 @@ struct Share {
   uint16 amount;
   uint16 revocationDelayDays;
   uint48 pendingRevocationTime;
+  bool adjustedForRevocation;
 }
 ```
 
@@ -238,4 +243,5 @@ struct Share {
 |`amount`|`uint16`|The number of shares allocated to this recipient (out of MAX_SHARES)|
 |`revocationDelayDays`|`uint16`|The number of days notice required for a revocation of this share|
 |`pendingRevocationTime`|`uint48`|The timestamp when revocation can be completed, or 0 if not pending|
+|`adjustedForRevocation`|`bool`|Whether the share amounts have already been adjusted for revocation|
 

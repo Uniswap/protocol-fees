@@ -1,5 +1,5 @@
 # ResourceManager
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/base/ResourceManager.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/base/ResourceManager.sol)
 
 **Inherits:**
 [IResourceManager](/technical-reference/IResourceManager), Owned
@@ -80,7 +80,11 @@ function setThresholdSetter(address _thresholdSetter) external onlyOwner;
 
 Set the minimum threshold of `RESOURCE` tokens required to perform a release
 
-*only callable by `thresholdSetter`*
+*only callable by `thresholdSetter`
+the `thresholdSetter` should take explicit care when updating the threshold
+* lowering the threshold may create instantaneous value leakage
+* front-running a release with an increased threshold may cause economic loss
+to the releaser/searcher*
 
 
 ```solidity

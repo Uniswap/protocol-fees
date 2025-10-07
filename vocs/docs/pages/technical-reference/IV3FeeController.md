@@ -1,5 +1,5 @@
 # IV3FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/interfaces/IV3FeeController.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/interfaces/IV3FeeController.sol)
 
 
 ## Functions
@@ -55,6 +55,36 @@ function feeSetter() external view returns (address);
 |`<none>`|`address`|The authorized address to set fees-by-fee-tier AND the merkle root|
 
 
+### feeTiers
+
+
+```solidity
+function feeTiers(uint256 i) external view returns (uint24);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint24`|The fee tiers enabled on the factory|
+
+
+### storeFeeTier
+
+Stores a fee tier.
+
+*Must be a fee tier that exists on the Uniswap V3 Factory.*
+
+
+```solidity
+function storeFeeTier(uint24 feeTier) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`feeTier`|`uint24`|The fee tier to store.|
+
+
 ### defaultFees
 
 Returns the default fee value for a given fee tier.
@@ -80,7 +110,7 @@ function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValu
 
 Enables a new fee tier on the Uniswap V3 Factory.
 
-*Only callable by `owner`*
+*Only callable by `owner`. Also updates the `feeTiers` array.*
 
 
 ```solidity
@@ -92,6 +122,23 @@ function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
 |----|----|-----------|
 |`newFeeTier`|`uint24`|The fee tier to enable.|
 |`tickSpacing`|`int24`|The corresponding tick spacing for the new fee tier.|
+
+
+### setFactoryOwner
+
+Sets the owner of the Uniswap V3 Factory.
+
+*Only callable by `owner`*
+
+
+```solidity
+function setFactoryOwner(address newOwner) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`newOwner`|`address`|The new owner of the Uniswap V3 Factory.|
 
 
 ### collect
@@ -166,14 +213,37 @@ function triggerFeeUpdate(address pool, bytes32[] calldata merkleProof) external
 |`merkleProof`|`bytes32[]`|The merkle proof corresponding to the set merkle root.|
 
 
+### triggerFeeUpdate
+
+Triggers a fee update for one pair of tokens with merkle proof verification. There may
+be multiple pools initialized from the given pair.
+
+*Assumes that token0 < token1.*
+
+
+```solidity
+function triggerFeeUpdate(address token0, address token1, bytes32[] calldata proof) external;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`token0`|`address`|The first token of the pair.|
+|`token1`|`address`|The second token of the pair.|
+|`proof`|`bytes32[]`|The merkle proof corresponding to the set merkle root.|
+
+
 ### batchTriggerFeeUpdate
 
-Triggers fee updates for multiple pools with batch merkle proof verification.
+Triggers fee updates for multiple pairs of tokens with batch merkle proof
+verification.
+
+*Assumes that token0 < token1 in the token pair.*
 
 
 ```solidity
 function batchTriggerFeeUpdate(
-  address[] calldata pools,
+  Pair[] calldata pairs,
   bytes32[] calldata proof,
   bool[] calldata proofFlags
 ) external;
@@ -182,7 +252,7 @@ function batchTriggerFeeUpdate(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`pools`|`address[]`|The pool addresses to update fees for.|
+|`pairs`|`Pair[]`|The pair of two tokens. There may be multiple pools initialized from the same pair.|
 |`proof`|`bytes32[]`|The merkle proof corresponding to the set merkle root.|
 |`proofFlags`|`bool[]`|The flags for the merkle proof verification.|
 
@@ -203,14 +273,6 @@ function setFeeSetter(address newFeeSetter) external;
 
 
 ## Errors
-### AmountCollectedTooLow
-Thrown when the amount collected is less than the amount expected.
-
-
-```solidity
-error AmountCollectedTooLow(uint256 amountCollected, uint256 amountExpected);
-```
-
 ### InvalidProof
 Thrown when the merkle proof is invalid.
 
@@ -235,6 +297,14 @@ Thrown when an unauthorized address attempts to call a restricted function
 error Unauthorized();
 ```
 
+### TierAlreadyStored
+Thrown when trying to store a fee tier that is already stored.
+
+
+```solidity
+error TierAlreadyStored();
+```
+
 ## Structs
 ### CollectParams
 The input parameters for the collection.
@@ -256,6 +326,19 @@ The returned amounts of token0 and token1 that are collected.
 struct Collected {
   uint128 amount0Collected;
   uint128 amount1Collected;
+}
+```
+
+### Pair
+The pair of tokens to trigger fees for. Each node in the merkle tree is the sorted
+pair. If one pair in the merkle tree is (USDC, USDT), all pools consisting of those tokens
+will be allowed to have a fee enabled.
+
+
+```solidity
+struct Pair {
+  address token0;
+  address token1;
 }
 ```
 

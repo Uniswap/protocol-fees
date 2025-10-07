@@ -1,5 +1,5 @@
 # ExchangeReleaser
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/releasers/ExchangeReleaser.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/releasers/ExchangeReleaser.sol)
 
 **Inherits:**
 [IReleaser](/technical-reference/IReleaser), [ResourceManager](/technical-reference/ResourceManager), [Nonce](/technical-reference/Nonce)
@@ -49,7 +49,7 @@ Releases assets to a specified recipient if the resource threshold is met
 
 
 ```solidity
-function release(uint256 _nonce, Currency[] memory assets, address recipient) external virtual;
+function release(uint256 _nonce, Currency[] calldata assets, address recipient) external virtual;
 ```
 **Parameters**
 
@@ -67,7 +67,7 @@ release of assets on the AssetSink.
 
 
 ```solidity
-function _release(uint256 _nonce, Currency[] memory assets, address recipient)
+function _release(uint256 _nonce, Currency[] calldata assets, address recipient)
   internal
   handleNonce(_nonce);
 ```

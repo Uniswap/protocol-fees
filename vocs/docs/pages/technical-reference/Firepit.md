@@ -1,5 +1,5 @@
 # Firepit
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/releasers/Firepit.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/releasers/Firepit.sol)
 
 **Inherits:**
 [ExchangeReleaser](/technical-reference/ExchangeReleaser)
@@ -36,7 +36,7 @@ Releases assets to a specified recipient if the resource threshold is met
 
 
 ```solidity
-function release(uint256 _nonce, Currency[] memory assets, address recipient) external override;
+function release(uint256 _nonce, Currency[] calldata assets, address recipient) external override;
 ```
 **Parameters**
 

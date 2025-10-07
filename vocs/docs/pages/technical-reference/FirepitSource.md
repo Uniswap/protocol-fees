@@ -1,5 +1,5 @@
 # FirepitSource
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/crosschain/FirepitSource.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/crosschain/FirepitSource.sol)
 
 **Inherits:**
 [ResourceManager](/technical-reference/ResourceManager), [Nonce](/technical-reference/Nonce)
@@ -31,7 +31,7 @@ constructor(address _owner, address _resource)
 function _sendReleaseMessage(
   uint256 bridgeId,
   uint256 destinationNonce,
-  Currency[] memory assets,
+  Currency[] calldata assets,
   address claimer,
   bytes memory addtlData
 ) internal virtual;
@@ -44,7 +44,7 @@ message to release the assets
 
 
 ```solidity
-function release(uint256 _nonce, Currency[] memory assets, address claimer, uint32 l2GasLimit)
+function release(uint256 _nonce, Currency[] calldata assets, address claimer, uint32 l2GasLimit)
   external
   handleNonce(_nonce);
 ```

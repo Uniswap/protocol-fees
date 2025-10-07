@@ -1,5 +1,5 @@
 # Deployer
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/Deployer.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/Deployer.sol)
 
 
 ## State Variables
@@ -80,7 +80,8 @@ RELEASER:
 FEE_CONTROLLER:
 7. Deploy the FeeController.
 8. Update the feeSetter to the owner.
-9. Update the owner on the fee controller.
+9. Store fee tiers.
+10. Update the owner on the fee controller.
 
 
 ```solidity

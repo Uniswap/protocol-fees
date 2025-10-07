@@ -1,5 +1,5 @@
 # OPStackFirepitSource
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/crosschain/OPStackFirepitSource.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/crosschain/OPStackFirepitSource.sol)
 
 **Inherits:**
 [FirepitSource](/technical-reference/FirepitSource)
@@ -36,7 +36,7 @@ constructor(address _resource, address _messenger, address _l2Target)
 function _sendReleaseMessage(
   uint256,
   uint256 destinationNonce,
-  Currency[] memory assets,
+  Currency[] calldata assets,
   address claimer,
   bytes memory addtlData
 ) internal override;

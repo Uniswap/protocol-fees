@@ -1,5 +1,5 @@
 # V4FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/feeControllers/V4FeeController.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/feeControllers/V4FeeController.sol)
 
 **Inherits:**
 Owned
@@ -44,9 +44,9 @@ Collects the protocol fees for the given currencies to the fee sink.
 
 ```solidity
 function collect(
-  Currency[] memory currency,
-  uint256[] memory amountRequested,
-  uint256[] memory amountExpected
+  Currency[] calldata currency,
+  uint256[] calldata amountRequested,
+  uint256[] calldata amountExpected
 ) external;
 ```
 **Parameters**
@@ -81,8 +81,11 @@ Triggers the fee update for the given pool key.
 
 
 ```solidity
-function triggerFeeUpdate(PoolKey calldata _poolKey, uint24 newProtocolFee, bytes32[] memory proof)
-  external;
+function triggerFeeUpdate(
+  PoolKey calldata _poolKey,
+  uint24 newProtocolFee,
+  bytes32[] calldata proof
+) external;
 ```
 **Parameters**
 
