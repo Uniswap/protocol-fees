@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 
 import {UNIMinter} from "../src/UNIMinter.sol";
+import {IUNIMinter} from "../src/interfaces/IUNIMinter.sol";
 import {MockUNIToken} from "./mocks/MockUNIToken.sol";
 import {IUNI} from "../src/interfaces/IUNI.sol";
 
@@ -96,7 +97,7 @@ contract UNIMinterTest is Test {
     vm.startPrank(owner);
     uniMinter.grantShares(alice, 6000, DEFAULT_REVOCATION_DELAY_DAYS);
 
-    vm.expectRevert(UNIMinter.InsufficientShares.selector);
+    vm.expectRevert(IUNIMinter.InsufficientShares.selector);
     uniMinter.grantShares(bob, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
     vm.stopPrank();
   }
@@ -210,7 +211,7 @@ contract UNIMinterTest is Test {
   function test_Mint_RevertNoShares() public {
     vm.warp(UNI.mintingAllowedAfter());
 
-    vm.expectRevert(UNIMinter.NoShares.selector);
+    vm.expectRevert(IUNIMinter.NoShares.selector);
     uniMinter.mint();
   }
 
@@ -337,7 +338,7 @@ contract UNIMinterTest is Test {
     vm.prank(owner);
     uniMinter.grantShares(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
 
-    vm.expectRevert(UNIMinter.NotPendingRevocation.selector);
+    vm.expectRevert(IUNIMinter.NotPendingRevocation.selector);
     uniMinter.revokeShares(0);
   }
 
@@ -754,7 +755,7 @@ contract UNIMinterTest is Test {
     uniMinter.initiateRevokeShares(0);
 
     // Should revert as revocation is not ready yet
-    vm.expectRevert(UNIMinter.InvalidRevocation.selector);
+    vm.expectRevert(IUNIMinter.InvalidRevocation.selector);
     uniMinter.revokeShares(0);
   }
 
@@ -868,7 +869,7 @@ contract UNIMinterTest is Test {
       assertLe(remainingAmount, 5000); // Should not have more than original
     } else {
       // Should revert as not ready
-      vm.expectRevert(UNIMinter.InvalidRevocation.selector);
+      vm.expectRevert(IUNIMinter.InvalidRevocation.selector);
       uniMinter.revokeShares(0);
     }
 
@@ -1135,7 +1136,7 @@ contract UNIMinterTest is Test {
     assertEq(adjusted, true);
 
     // Second call should revert because it's already been revoked
-    vm.expectRevert(UNIMinter.InvalidRevocation.selector);
+    vm.expectRevert(IUNIMinter.InvalidRevocation.selector);
     uniMinter.revokeShares(0);
 
     // Verify shares unchanged after failed second call
@@ -1169,7 +1170,7 @@ contract UNIMinterTest is Test {
     assertEq(adjusted, true);
 
     // Cannot re-initiate revocation on something already adjusted
-    vm.expectRevert(UNIMinter.InvalidRevocation.selector);
+    vm.expectRevert(IUNIMinter.InvalidRevocation.selector);
     uniMinter.initiateRevokeShares(0);
   }
 }
