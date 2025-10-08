@@ -5,8 +5,10 @@ import {V3FeeController} from "./feeControllers/V3FeeController.sol";
 import {IAssetSink} from "./interfaces/IAssetSink.sol";
 import {AssetSink} from "./AssetSink.sol";
 import {Firepit} from "./releasers/Firepit.sol";
+import {UNIMinter} from "./UNIMinter.sol";
 import {IReleaser} from "./interfaces/IReleaser.sol";
 import {IV3FeeController} from "./interfaces/IV3FeeController.sol";
+import {IUNIMinter} from "./interfaces/IUNIMinter.sol";
 import {IOwned} from "./interfaces/base/IOwned.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
@@ -14,6 +16,7 @@ contract Deployer {
   IAssetSink public immutable ASSET_SINK;
   IReleaser public immutable RELEASER;
   IV3FeeController public immutable FEE_CONTROLLER;
+  IUNIMinter public immutable UNI_MINTER;
 
   address public constant RESOURCE = 0x1000000000000000000000000000000000000000;
   uint256 public constant THRESHOLD = 69_420;
@@ -39,6 +42,10 @@ contract Deployer {
   /// 8. Update the feeSetter to the owner.
   /// 9. Store fee tiers.
   /// 10. Update the owner on the fee controller.
+
+  /// UNIMinter
+  /// 11. Deploy the UNIMinter
+  ///   - To enable the UNIMinter, the owner must call `setMinter` on the UNI contract
   constructor() {
     address owner = V3_FACTORY.owner();
     /// 1. Deploy the AssetSink.
@@ -70,5 +77,8 @@ contract Deployer {
 
     /// 10. Update the owner on the fee controller.
     IOwned(address(FEE_CONTROLLER)).transferOwnership(owner);
+
+    /// 11. Deploy the UNIMinter
+    UNI_MINTER = new UNIMinter(owner);
   }
 }
