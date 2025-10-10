@@ -11,6 +11,7 @@ import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
+import {IUNIMinter} from "../src/interfaces/IUNIMinter.sol";
 
 import {console} from "forge-std/console.sol";
 
@@ -68,5 +69,11 @@ contract DeployerTest is Test {
     assertEq(feeController.feeSetter(), factory.owner());
     assertEq(address(feeController.ASSET_SINK()), address(assetSink));
     assertEq(address(feeController.FACTORY()), address(factory));
+  }
+
+  function test_deployer_uniMinter_setUp() public view {
+    IUNIMinter uniMinter = deployer.UNI_MINTER();
+    assertEq(IOwned(address(uniMinter)).owner(), factory.owner());
+    assertEq(address(uniMinter.UNI()), 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
   }
 }

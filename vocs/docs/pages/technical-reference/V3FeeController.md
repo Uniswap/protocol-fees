@@ -1,5 +1,5 @@
 # V3FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/feeControllers/V3FeeController.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/feeControllers/V3FeeController.sol)
 
 **Inherits:**
 [IV3FeeController](/technical-reference/IV3FeeController), Owned
@@ -53,6 +53,16 @@ mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 ```
 
 
+### feeTiers
+*Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
+enabled.*
+
+
+```solidity
+uint24[] public feeTiers;
+```
+
+
 ## Functions
 ### onlyFeeSetter
 
@@ -73,11 +83,28 @@ modifier onlyFeeSetter();
 constructor(address _factory, address _assetSink) Owned(msg.sender);
 ```
 
+### storeFeeTier
+
+Stores a fee tier.
+
+*Must be a fee tier that exists on the Uniswap V3 Factory.*
+
+
+```solidity
+function storeFeeTier(uint24 feeTier) public;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`feeTier`|`uint24`|The fee tier to store.|
+
+
 ### enableFeeAmount
 
 Enables a new fee tier on the Uniswap V3 Factory.
 
-*Only callable by `owner`*
+*Only callable by `owner`. Also updates the `feeTiers` array.*
 
 
 ```solidity
@@ -90,6 +117,13 @@ function enableFeeAmount(uint24 fee, int24 tickSpacing) external onlyOwner;
 |`fee`|`uint24`||
 |`tickSpacing`|`int24`|The corresponding tick spacing for the new fee tier.|
 
+
+### setFactoryOwner
+
+
+```solidity
+function setFactoryOwner(address newOwner) external onlyOwner;
+```
 
 ### collect
 
@@ -147,6 +181,21 @@ function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external 
 |`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
+### setFeeSetter
+
+Sets a new fee setter address.
+
+
+```solidity
+function setFeeSetter(address newFeeSetter) external onlyOwner;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`newFeeSetter`|`address`|The new address authorized to set fees and merkle roots.|
+
+
 ### triggerFeeUpdate
 
 Triggers a fee update for a single pool with merkle proof verification.
@@ -163,29 +212,34 @@ function triggerFeeUpdate(address pool, bytes32[] calldata proof) external;
 |`proof`|`bytes32[]`||
 
 
-### setFeeSetter
+### triggerFeeUpdate
 
-Sets a new fee setter address.
+Triggers a fee update for a single pool with merkle proof verification.
 
 
 ```solidity
-function setFeeSetter(address newFeeSetter) external onlyOwner;
+function triggerFeeUpdate(address token0, address token1, bytes32[] calldata proof) external;
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`newFeeSetter`|`address`|The new address authorized to set fees and merkle roots.|
+|`token0`|`address`||
+|`token1`|`address`||
+|`proof`|`bytes32[]`||
 
 
 ### batchTriggerFeeUpdate
 
-Triggers fee updates for multiple pools with batch merkle proof verification.
+Triggers fee updates for multiple pairs of tokens with batch merkle proof
+verification.
+
+*Assumes that token0 < token1 in the token pair.*
 
 
 ```solidity
 function batchTriggerFeeUpdate(
-  address[] calldata pools,
+  Pair[] calldata pairs,
   bytes32[] calldata proof,
   bool[] calldata proofFlags
 ) external;
@@ -194,22 +248,36 @@ function batchTriggerFeeUpdate(
 
 |Name|Type|Description|
 |----|----|-----------|
-|`pools`|`address[]`|The pool addresses to update fees for.|
+|`pairs`|`Pair[]`|The pair of two tokens. There may be multiple pools initialized from the same pair.|
 |`proof`|`bytes32[]`|The merkle proof corresponding to the set merkle root.|
 |`proofFlags`|`bool[]`|The flags for the merkle proof verification.|
 
+
+### _setProtocolFeesForPair
+
+
+```solidity
+function _setProtocolFeesForPair(address token0, address token1) internal;
+```
 
 ### _setProtocolFee
 
 
 ```solidity
-function _setProtocolFee(address pool) internal;
+function _setProtocolFee(address pool, uint24 feeTier) internal;
 ```
 
 ### _doubleHash
 
 
 ```solidity
-function _doubleHash(address pool) internal pure returns (bytes32 poolHash);
+function _doubleHash(address token0, address token1) internal pure returns (bytes32 poolHash);
+```
+
+### _feeTierExists
+
+
+```solidity
+function _feeTierExists(uint24 feeTier) internal view returns (bool);
 ```
 

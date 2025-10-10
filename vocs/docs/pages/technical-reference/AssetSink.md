@@ -1,5 +1,5 @@
 # AssetSink
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/0a207f54810ba606b9e24257932782cb232b83b8/src/AssetSink.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/c991c8625e12bb19b2a7f4f51eca9f542351e095/src/AssetSink.sol)
 
 **Inherits:**
 Owned, [IAssetSink](/technical-reference/IAssetSink)
@@ -7,7 +7,7 @@ Owned, [IAssetSink](/technical-reference/IAssetSink)
 Sink for protocol fees
 
 *Fees accumulate passively in this contract from external sources.
-Stored fees can be released by authorized releaser contracts.*
+Stored fees can be released by an authorized releaser contract.*
 
 **Note:**
 security-contact: security@uniswap.org
@@ -35,7 +35,9 @@ modifier onlyReleaser();
 
 ### constructor
 
-Creates a new AssetSink with the specified releaser
+*creates an asset sink where the deployer is the initial owner
+during deployment, the deployer SHOULD set the releaser address and
+transfer ownership*
 
 
 ```solidity
