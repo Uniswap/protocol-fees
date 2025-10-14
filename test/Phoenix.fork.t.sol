@@ -14,8 +14,12 @@ import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
 import {Merkle} from "murky/src/Merkle.sol";
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 
 contract PhoenixForkTest is Test {
+  using FixedPointMathLib for uint256;
+
   Deployer public deployer;
   IUniswapV3Factory public factory;
   IAssetSink public assetSink;
@@ -24,8 +28,8 @@ contract PhoenixForkTest is Test {
 
   address public owner;
   Merkle merkle;
-  address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+  address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   address pool0; // 1 bip pool
   address pool1; // 5 bip pool
   address pool2; // 30 bip pool
@@ -94,29 +98,80 @@ contract PhoenixForkTest is Test {
     test_enableFeeV3();
 
     // swap on the 5 bip pool
-    deal(USDC, address(this), 1000e6);
+    deal(USDC, address(this), 3000e6);
     _exactInSwapV3(pool1, true, 1000e6);
+    deal(WETH, address(this), 3e18);
+    _exactInSwapV3(pool1, false, 1e18);
+
+    (uint128 token0Pool1, uint128 token1Pool1) = IUniswapV3Pool(pool1).protocolFees();
+    assertApproxEqRel(token0Pool1, uint256(1000e6).mulWadDown(0.0005e18) / 8, 0.0001e18);
+    assertApproxEqRel(token1Pool1, uint256(1e18).mulWadDown(0.0005e18) / 8, 0.0001e18);
 
     // swap on 30 bip pool
-    // swap on 1% pool
+    _exactInSwapV3(pool2, true, 1000e6);
+    _exactInSwapV3(pool2, false, 1e18);
+    (uint128 token0Pool2, uint128 token1Pool2) = IUniswapV3Pool(pool2).protocolFees();
+    assertApproxEqRel(token0Pool2, uint256(1000e6).mulWadDown(0.003e18) / 6, 0.0001e18);
+    assertApproxEqRel(token1Pool2, uint256(1e18).mulWadDown(0.003e18) / 6, 0.0001e18);
 
-    IV3FeeController.CollectParams[] memory params = new IV3FeeController.CollectParams[](1);
+    // swap on 1% pool
+    _exactInSwapV3(pool3, true, 1000e6);
+    _exactInSwapV3(pool3, false, 1e18);
+    (uint128 token0Pool3, uint128 token1Pool3) = IUniswapV3Pool(pool3).protocolFees();
+    assertApproxEqRel(token0Pool3, uint256(1000e6).mulWadDown(0.01e18) / 4, 0.0001e18);
+    assertApproxEqRel(token1Pool3, uint256(1e18).mulWadDown(0.01e18) / 4, 0.0001e18);
+
+    IV3FeeController.CollectParams[] memory params = new IV3FeeController.CollectParams[](3);
     params[0] = IV3FeeController.CollectParams({
-      pool: 0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8,
-      amount0Requested: 0,
-      amount1Requested: 0
+      pool: pool1,
+      amount0Requested: type(uint128).max,
+      amount1Requested: type(uint128).max
     });
+    params[1] = IV3FeeController.CollectParams({
+      pool: pool2,
+      amount0Requested: type(uint128).max,
+      amount1Requested: type(uint128).max
+    });
+    params[2] = IV3FeeController.CollectParams({
+      pool: pool3,
+      amount0Requested: type(uint128).max,
+      amount1Requested: type(uint128).max
+    });
+
+    // asset sink has no tokens
+    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
     feeController.collect(params);
+    
+    // asset sink has collected all fees
+    // subtract 3 wei because the v3 pool always leaves 1 wei behind
+    assertEq(IERC20(USDC).balanceOf(address(assetSink)), token0Pool1 + token0Pool2 + token0Pool3 - 3 wei);
+    assertEq(IERC20(WETH).balanceOf(address(assetSink)), token1Pool1 + token1Pool2 + token1Pool3 - 3 wei);
   }
 
-  function test_releaseV3(address caller) public {
+  function test_releaseV3(address caller, address recipient) public {
     test_collectFeeV3();
 
     deal(deployer.RESOURCE(), address(caller), releaser.threshold());
     assertEq(IERC20(deployer.RESOURCE()).balanceOf(address(caller)), releaser.threshold());
 
-    vm.prank(caller);
+    uint256 _nonce = releaser.nonce();
+    Currency[] memory currencies = new Currency[](2);
+    currencies[0] = Currency.wrap(USDC);
+    currencies[1] = Currency.wrap(WETH);
+    
+    uint256 balance0Before = IERC20(USDC).balanceOf(recipient);
+    uint256 balance1Before = IERC20(WETH).balanceOf(recipient);
+    
+    vm.startPrank(caller);
     IERC20(deployer.RESOURCE()).approve(address(releaser), releaser.threshold());
+    releaser.release(_nonce, currencies, recipient);
+    vm.stopPrank();
+
+    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
+    assertEq(IERC20(USDC).balanceOf(recipient) - balance0Before, 0);
+    assertEq(IERC20(WETH).balanceOf(recipient) - balance1Before, 0);
   }
 
   function test_releaseV2V3() public {
