@@ -16,12 +16,18 @@ import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
 import {Merkle} from "murky/src/Merkle.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {Currency} from "v4-core/types/Currency.sol";
+import {IUniswapV2Factory} from "./interfaces/IUniswapV2Factory.sol";
+import {IUniswapV2Pair} from "./interfaces/IUniswapV2Pair.sol";
+import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
 
 contract PhoenixForkTest is Test {
   using FixedPointMathLib for uint256;
 
   Deployer public deployer;
   IUniswapV3Factory public factory;
+  IUniswapV2Factory public v2Factory;
+  IUniswapV2Router02 public v2Router;
+
   IAssetSink public assetSink;
   IReleaser public releaser;
   IV3FeeController public feeController;
@@ -30,14 +36,21 @@ contract PhoenixForkTest is Test {
   Merkle merkle;
   address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+  // v3 pools
   address pool0; // 1 bip pool
   address pool1; // 5 bip pool
   address pool2; // 30 bip pool
   address pool3; // 1% pool
 
+  // v2 pair: WETH / USDC
+  IUniswapV2Pair pair;
+
   function setUp() public {
     vm.createSelectFork("mainnet");
     factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+    v2Factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+    v2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     owner = factory.owner();
 
     deployer = new Deployer();
@@ -55,6 +68,11 @@ contract PhoenixForkTest is Test {
     pool1 = factory.getPool(WETH, USDC, 500); // 5 bip pool
     pool2 = factory.getPool(WETH, USDC, 3000); // 30 bip pool
     pool3 = factory.getPool(WETH, USDC, 10_000); // 1% pool
+
+    pair = IUniswapV2Pair(v2Factory.getPair(WETH, USDC));
+
+    IERC20(USDC).approve(address(v2Router), type(uint256).max);
+    IERC20(WETH).approve(address(v2Router), type(uint256).max);
   }
 
   function test_enableFeeV3() public {
@@ -92,7 +110,39 @@ contract PhoenixForkTest is Test {
     assertEq(protocolFee, 4 << 4 | 4);
   }
 
-  function test_enableFeeV2() public {}
+  function test_enableFeeV2() public {
+    // TODO: deployer should fix / replace the time delayer
+    // assertEq(v2Factory.feeToSetter(), owner);
+    vm.prank(v2Factory.feeToSetter());
+    v2Factory.setFeeTo(address(assetSink));
+    assertEq(v2Factory.feeTo(), address(assetSink));
+  }
+
+  function test_createV2Fees() public {
+    test_enableFeeV2();
+
+    // add liquidity
+    deal(USDC, address(this), 1_000_000e6);
+    deal(WETH, address(this), 1000e18);
+    (,, uint256 liquidity) =
+      v2Router.addLiquidity(USDC, WETH, 1_000_000e6, 100e18, 0, 0, address(this), block.timestamp);
+    assertEq(pair.balanceOf(address(this)), liquidity);
+
+    deal(USDC, address(this), 1000e6);
+    _exactInSwapV2(pair, true, 1000e6);
+
+    deal(WETH, address(this), 10e18);
+    _exactInSwapV2(pair, false, 10e18);
+
+    // collect fees by withdrawing liquidity
+    pair.approve(address(v2Router), liquidity);
+    v2Router.removeLiquidity(
+      USDC, WETH, pair.balanceOf(address(this)), 0, 0, address(this), block.timestamp
+    );
+
+    // some liquidity is sent to the asset sink
+    assertGt(pair.balanceOf(address(assetSink)), 0);
+  }
 
   function test_collectFeeV3() public {
     test_enableFeeV3();
@@ -179,17 +229,49 @@ contract PhoenixForkTest is Test {
     releaser.release(_nonce, currencies, recipient);
     vm.stopPrank();
 
+    // amounts transferred from the asset sink to the recipient
     assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
     assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
     assertEq(IERC20(USDC).balanceOf(recipient) - balance0Before, balance0AssetSinkBefore);
     assertEq(IERC20(WETH).balanceOf(recipient) - balance1Before, balance1AssetSinkBefore);
   }
 
-  function test_releaseV2V3() public {
-    test_enableFeeV2();
+  function test_releaseV2V3(address caller, address recipient) public {
+    vm.assume(caller != address(0));
+    vm.assume(recipient != address(0));
+    test_createV2Fees();
+    test_collectFeeV3();
+
+    uint256 pairBalanceBefore = pair.balanceOf(address(assetSink));
+
+    // give the caller some UNI to burn
+    deal(deployer.RESOURCE(), address(caller), releaser.threshold());
+    assertEq(IERC20(deployer.RESOURCE()).balanceOf(address(caller)), releaser.threshold());
+
+    // release the assets
+    uint256 _nonce = releaser.nonce();
+    Currency[] memory currencies = new Currency[](3);
+    currencies[0] = Currency.wrap(USDC);
+    currencies[1] = Currency.wrap(WETH);
+    currencies[2] = Currency.wrap(address(pair));
+
+    vm.startPrank(caller);
+    IERC20(deployer.RESOURCE()).approve(address(releaser), releaser.threshold());
+    releaser.release(_nonce, currencies, recipient);
+    vm.stopPrank();
+
+    // amounts transferred from the asset sink to the recipient
+    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
+    assertEq(pair.balanceOf(address(assetSink)), 0);
+    assertEq(pair.balanceOf(recipient), pairBalanceBefore);
   }
 
   // --- Helpers ---
+
+  function _hashLeaf(address token0, address token1) internal pure returns (bytes32) {
+    return keccak256(abi.encode(keccak256(abi.encode(token0, token1))));
+  }
 
   function _exactInSwapV3(address pool, bool zeroForOne, uint256 amountIn) internal {
     IUniswapV3Pool(pool).swap(
@@ -203,10 +285,6 @@ contract PhoenixForkTest is Test {
         : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
       abi.encode(address(this)) // encode the payer
     );
-  }
-
-  function _hashLeaf(address token0, address token1) internal pure returns (bytes32) {
-    return keccak256(abi.encode(keccak256(abi.encode(token0, token1))));
   }
 
   function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data)
@@ -224,5 +302,12 @@ contract PhoenixForkTest is Test {
       token.approve(address(this), uint256(amount1Delta));
       token.transferFrom(user, msg.sender, uint256(amount1Delta));
     }
+  }
+
+  function _exactInSwapV2(IUniswapV2Pair _pair, bool zeroForOne, uint256 amountIn) internal {
+    address[] memory path = new address[](2);
+    path[0] = zeroForOne ? _pair.token0() : _pair.token1();
+    path[1] = zeroForOne ? _pair.token1() : _pair.token0();
+    v2Router.swapExactTokensForTokens(amountIn, 0, path, address(this), block.timestamp);
   }
 }
