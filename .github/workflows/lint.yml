@@ -37,5 +37,3 @@ jobs:
 
       - name: Lint
         run: forge fmt --check
-        env:
-          FOUNDRY_PROFILE: pr
