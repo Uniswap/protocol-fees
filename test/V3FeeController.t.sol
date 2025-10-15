@@ -113,9 +113,7 @@ contract V3FeeControllerTest is PhoenixTestBase {
 
     IV3FeeController.CollectParams[] memory collectParams = new IV3FeeController.CollectParams[](1);
     collectParams[0] = IV3FeeController.CollectParams({
-      pool: pool,
-      amount0Requested: amount0,
-      amount1Requested: amount1
+      pool: pool, amount0Requested: amount0, amount1Requested: amount1
     });
 
     uint256 balanceBefore = MockERC20(token0).balanceOf(address(assetSink));
@@ -498,9 +496,11 @@ contract V3FeeControllerTest is PhoenixTestBase {
     vm.stopPrank();
   }
 
-  function test_fuzz_revert_setDefaultFeeByFeeTier(address caller, uint24 feeTier, uint8 defaultFee)
-    public
-  {
+  function test_fuzz_revert_setDefaultFeeByFeeTier(
+    address caller,
+    uint24 feeTier,
+    uint8 defaultFee
+  ) public {
     vm.assume(caller != feeController.feeSetter());
 
     vm.prank(caller);

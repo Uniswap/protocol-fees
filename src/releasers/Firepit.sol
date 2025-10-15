@@ -21,7 +21,10 @@ contract Firepit is ExchangeReleaser {
   {}
 
   /// @inheritdoc IReleaser
-  function release(uint256 _nonce, Currency[] calldata assets, address recipient) external override {
+  function release(uint256 _nonce, Currency[] calldata assets, address recipient)
+    external
+    override
+  {
     require(assets.length <= MAX_RELEASE_LENGTH, TooManyAssets());
     _release(_nonce, assets, recipient);
   }

@@ -4,8 +4,9 @@ pragma solidity ^0.8.29;
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {IUniswapV3PoolOwnerActions} from
-  "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
+import {
+  IUniswapV3PoolOwnerActions
+} from "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
 import {ArrayLib} from "../libraries/ArrayLib.sol";
@@ -83,8 +84,7 @@ contract V3FeeController is IV3FeeController, Owned {
         .collectProtocol(ASSET_SINK, params.amount0Requested, params.amount1Requested);
 
       amountsCollected[i] = Collected({
-        amount0Collected: uint128(amount0Collected),
-        amount1Collected: uint128(amount1Collected)
+        amount0Collected: uint128(amount0Collected), amount1Collected: uint128(amount1Collected)
       });
     }
   }

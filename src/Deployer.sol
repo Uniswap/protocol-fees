@@ -18,7 +18,7 @@ contract Deployer {
   IV3FeeController public immutable FEE_CONTROLLER;
   IUNIMinter public immutable UNI_MINTER;
 
-  address public constant RESOURCE = 0x1000000000000000000000000000000000000000;
+  address public constant RESOURCE = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
   uint256 public constant THRESHOLD = 69_420;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
