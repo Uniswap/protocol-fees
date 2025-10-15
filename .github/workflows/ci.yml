@@ -51,3 +51,4 @@ jobs:
         env:
           FOUNDRY_PROFILE: pr
           FORGE_SNAPSHOT_CHECK: true
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
