@@ -60,7 +60,7 @@ contract DeployerTest is Test {
     assertEq(releaser.threshold(), 69_420);
     assertEq(address(releaser.ASSET_SINK()), address(assetSink));
     assertEq(releaser.RESOURCE_RECIPIENT(), address(0xdead));
-    assertEq(address(releaser.RESOURCE()), address(0x1000000000000000000000000000000000000000));
+    assertEq(address(releaser.RESOURCE()), address(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984));
   }
 
   function test_deployer_feeController_setUp() public view {
