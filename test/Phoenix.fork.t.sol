@@ -264,6 +264,25 @@ contract PhoenixForkTest is Test {
     assertEq(pair.balanceOf(recipient), pairBalanceBefore);
   }
 
+  /// @dev ensure v3 factory owner is recoverable
+  function test_undo_v3(address newOwner) public {
+    test_releaseV2V3(address(this), address(this));
+
+    vm.prank(owner);
+    feeController.setFactoryOwner(newOwner);
+
+    assertEq(IOwned(address(factory)).owner(), newOwner);
+  }
+
+  /// @dev ensures v2 factory feeTo is recoverable
+  function test_undo_v2(address newFeeTo) public {
+    test_releaseV2V3(address(this), address(this));
+
+    vm.prank(owner);
+    v2Factory.setFeeTo(newFeeTo);
+    assertEq(v2Factory.feeTo(), newFeeTo);
+  }
+
   // --- Helpers ---
 
   function _hashLeaf(address token0, address token1) internal pure returns (bytes32) {
