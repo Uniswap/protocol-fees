@@ -1,0 +1,74 @@
+{
+  "name": "@uniswap/merkle-generator",
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.17.1",
+  "description": "CLI tool for generating Merkle trees and proofs for Uniswap V3 fee controller",
+  "author": "Uniswap Labs",
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/antfu",
+  "homepage": "https://github.com/antfu/pkg-placeholder#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antfu/pkg-placeholder.git"
+  },
+  "bugs": "https://github.com/antfu/pkg-placeholder/issues",
+  "keywords": [],
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/cli.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/cli.js",
+  "module": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "bin": {
+    "merkle-generator": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "prepublishOnly": "nr build",
+    "release": "bumpp",
+    "start": "tsx src/cli.ts",
+    "cli": "node dist/cli.js",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepare": "simple-git-hooks"
+  },
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "catalog:",
+    "commander": "catalog:",
+    "csv-parse": "catalog:",
+    "ethers": "catalog:"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "catalog:cli",
+    "@antfu/ni": "catalog:cli",
+    "@antfu/utils": "catalog:inlined",
+    "@types/node": "catalog:types",
+    "bumpp": "catalog:cli",
+    "eslint": "catalog:cli",
+    "lint-staged": "catalog:cli",
+    "simple-git-hooks": "catalog:cli",
+    "tinyexec": "catalog:testing",
+    "tsdown": "catalog:cli",
+    "tsx": "catalog:cli",
+    "typescript": "catalog:cli",
+    "vite": "catalog:cli",
+    "vitest": "catalog:testing",
+    "vitest-package-exports": "catalog:testing",
+    "yaml": "catalog:testing"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}
