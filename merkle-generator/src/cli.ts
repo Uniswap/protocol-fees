@@ -16,8 +16,8 @@ program
 program
   .command('generate')
   .description('Generate a Merkle tree from a CSV file containing token pairs')
-  .argument('<input-file>', 'Path to CSV file containing token pairs (one pair per row)')
-  .option('-o, --output <file>', 'Output file for the Merkle tree', 'merkle-tree.json')
+  .argument('[input-file]', 'Path to CSV file containing token pairs (one pair per row)', './data/token-pairs.csv')
+  .option('-o, --output <file>', 'Output file for the Merkle tree', './data/merkle-tree.json')
   .action(async (inputFile, options) => {
     try {
       console.log('Generating Merkle tree from:', inputFile);
@@ -62,7 +62,7 @@ program
 program
   .command('prove')
   .description('Generate a Merkle multi-proof for token pairs')
-  .argument('<tree-file>', 'Path to the Merkle tree JSON file')
+  .argument('[tree-file]', 'Path to the Merkle tree JSON file', './data/merkle-tree.json')
   .argument('<pairs-input>', 'Token pair(s): either "token0,token1" or path to CSV file with multiple pairs')
   .option('-o, --output <file>', 'Output file for the multi-proof')
   .action(async (treeFile, pairsInput, options) => {
@@ -185,7 +185,7 @@ program
 program
   .command('verify')
   .description('Verify a Merkle multi-proof')
-  .argument('<tree-file>', 'Path to the Merkle tree JSON file')
+  .argument('[tree-file]', 'Path to the Merkle tree JSON file', './data/merkle-tree.json')
   .argument('<proof-file>', 'Path to the multi-proof JSON file')
   .action(async (treeFile, proofFile) => {
     try {
@@ -240,7 +240,7 @@ program
 program
   .command('list')
   .description('List all token pairs in a Merkle tree')
-  .argument('<tree-file>', 'Path to the Merkle tree JSON file')
+  .argument('[tree-file]', 'Path to the Merkle tree JSON file', './data/merkle-tree.json')
   .option('--format <format>', 'Output format: table, csv, json', 'table')
   .action(async (treeFile, options) => {
     try {
@@ -285,7 +285,7 @@ program
 program
   .command('render')
   .description('Display a visual representation of the Merkle tree structure')
-  .argument('<tree-file>', 'Path to the Merkle tree JSON file')
+  .argument('[tree-file]', 'Path to the Merkle tree JSON file', './data/merkle-tree.json')
   .action(async (treeFile) => {
     try {
       // Load tree
