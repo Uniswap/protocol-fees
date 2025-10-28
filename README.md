@@ -1,13 +1,13 @@
 # Uniswap Fee Collection
 
 *A unified system for collecting and converting fees from arbitrary revenue sources on arbitrary chains.*
+
 ## Table of Contents
 - [Overview](#overview)
 - [Goals](#goals)
 - [Architecture](#architecture)
 - [Economic Incentives](#economic-incentives)
 - [Fault Tolerance](#fault-tolerance)
-- [Implementation Status](#implementation-status)
 - [Deployment Architecture](#deployment-architecture)
 - [Development](#development)
     - [Prerequisites](#prerequisites)
@@ -33,7 +33,6 @@ Uniswap Fee Collection is a maximally fault-tolerant system designed to collect 
 
 - **Universal Support**: Collect fees from arbitrary revenue sources across arbitrary chains
 - **Maximum Fault Tolerance**: Recover from chain downtime, bridge failures, and other infrastructure issues
-- **Immutable Governance**: Configuration controlled by immutable smart contracts on Unichain
 - **Economic Efficiency**: Competitive mechanisms ensure optimal fee collection and conversion
 
 ## Architecture
@@ -50,7 +49,6 @@ Fee Sources → Asset Sink → Releaser → Fee Conversion
 
 **Key Properties:**
 
-- **Immutable**: No admin functions, cannot be upgraded
 - **Universal Collector**: Receives fees from all sources on the chain
 - **Single Admin**: Only the `releaser` can withdraw assets
 - **Atomic Operations**: Full balance transfers only
@@ -85,15 +83,14 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 **Uniswap V3**
 
-- V3FeeManager contract owns factory privileges
+- V3FeeController contract owns factory privileges
 - Permissionless protocol fee collection
-- Configurable fee rates per pool
+- Configurable fee rates per fee tier
 
-**Uniswap V4**
+**Uniswap V4 (TBD)**
 
-- V4FeeSource as ProtocolFeeController
-- Hooks-based fee collection
-- Next-generation fee management
+- V4FeeController as ProtocolFeeController
+- Not included as part of the initial fee enablement
 
 ### 3. Releasers
 
@@ -109,12 +106,14 @@ Searcher → Pay UNI → Releaser → Release Assets → Burn UNI
 
 **Mechanism:**
 
-1. Searcher pays fixed UNI amount to Releaser
-2. Releaser releases Asset Sink contents to searcher
+1. Searcher pays a fixed UNI amount to Releaser
+2. Releaser releases Asset Sink contents to searcher's specified recipient
 3. UNI tokens are burned, reducing total supply
 4. Searcher profits from asset value exceeding UNI burn cost
 
-#### Cross-Chain UNI Burn
+#### (In-Progress) Cross-Chain UNI Burn
+
+> Note: Cross-chain value accrual is not ready at this time, below we outline our expectations
 
 For chains without native UNI:
 
@@ -138,44 +137,25 @@ The system relies on economic competition to ensure efficient operation:
 - **Gas Optimization**: Bundled operations reduce transaction costs
 - **MEV Resistance**: Fixed burn amounts prevent extraction
 
-## Fault Tolerance
+## Fault Tolerance (In-Progress)
 
 Uniswap is designed to handle infrastructure failures gracefully:
 
 - **Bridge Failures**: Each chain operates independently
 - **Chain Downtime**: Fees accumulate until chain recovery
-- **Governance Issues**: Immutable contracts prevent admin capture
 - **Oracle Failures**: Economic incentives work without price feeds
-
-## Implementation Status
-
-This repository contains the initial implementation focusing on Uniswap V3 fee collection:
-
-- **ERC20FeeCollector**: Prototype releaser with payout race mechanism
-- **V3FeeManager**: Uniswap V3 fee source implementation
-- **Comprehensive Tests**: 77 tests with fuzz testing coverage
 
 ## Deployment Architecture
 
 ```
-Unichain (Config Chain)
-├── Protocol Configuration
-└── Cross-chain Governance
-
 Ethereum Mainnet
 ├── Asset Sink
-├── UNI Burn Releaser
+├── UNI Burn Releaser (Firepit.sol)
 ├── V2 Fee Source (feeTo)
-├── V3 Fee Source (V3FeeManager)
-└── V4 Fee Source (V4FeeManager)
-
-L2 Chains (Arbitrum, Optimism, Base, etc.)
-├── Asset Sink
-├── Cross-chain Releaser
-├── V2 Fee Source (feeTo)
-├── V3 Fee Source (V3FeeManager)
-└── V4 Fee Source (V4FeeManager)
+├── V3 Fee Source (V3FeeController.sol)
 ```
+
+> Crosschain system coming at a later date
 
 ## Development
 
@@ -188,8 +168,8 @@ L2 Chains (Arbitrum, Optimism, Base, etc.)
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd fee-collection
+git clone https://github.com/Uniswap/protocol-fees
+cd protocol-fees
 
 # Install dependencies
 forge install
@@ -215,37 +195,61 @@ forge coverage
 
 ```
 src/
-├── AssetSink.sol             # Immutable fee collection contract
-├── releasers/
-│   ├── UNIBurnReleaser.sol   # Mainnet UNI burn mechanism
-│   └── XChainReleaser.sol    # Cross-chain release mechanism
-├── sources/
-│   ├── V2FeeSource.sol       # Uniswap V2 fee integration
-│   ├── V3FeeSource.sol       # Uniswap V3 fee management
-│   └── V4FeeSource.sol       # Uniswap V4 fee hooks
-└── interfaces/               # Contract interfaces
+├── AssetSink.sol             // General purpose contract for receiving fees
+├── Deployer.sol              // A deployer contract to instantiate the initial contracts
+├── UNIMinter.sol             // UNI-token minting contract to facilitate multiple recipients
+├── UNIVesting.sol            // A vesting contract to divide minted tokens into 12 claims
+├── base
+│   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
+│   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
+├── crosschain/               // Work-in-progress crosschain logic
+├── feeControllers
+│   ├── V3FeeController.sol   // Logic for Uniswap v3 fee-setting and collection
+│   └── V4FeeController.sol   // Work-in-progress logic for Uniswap v4 fee-setting and collection
+├── interfaces/               // interfaces
+├── libraries
+│   ├── ArrayLib.sol          // Utility library
+│   └── VestingLib.sol        // Utility library for vesting logic
+└── releasers
+    ├── ExchangeReleaser.sol  // Utility contract to exchange a RESOURCE for Asset Sink assets
+    └── Firepit.sol           // Burns UNI (resource) in exchange for Asset Sink assets
 
-test/
-├── integration/              # Cross-chain integration tests
-├── unit/                     # Individual contract tests
-└── fuzz/                     # Property-based testing
+test
+├── AssetSink.t.sol
+├── CrossChainFirepit.t.sol
+├── Deployer.t.sol            // Test Deployer configures the system properly
+├── ExchangeReleaser.t.sol
+├── Firepit.t.sol
+├── Phoenix.fork.t.sol        // Fork tests against Ethereum Mainnet, using Deployer.sol
+├── UNIMinter.t.sol
+├── V3FeeController.t.sol
+├── V4FeeController.t.sol
+├── Vesting.t.sol
+├── VestingLib.t.sol
+├── interfaces/               // interfaces for integrations
+├── mocks/                    // mocks and examples
+└── utils
+    └── PhoenixTestBase.sol   // Test base that configures the system
 ```
 
 ## Governance Proposal
 
 For additional commentary and information please see Uniswap Governance Proposal [#92](https://www.tally.xyz/gov/uniswap/proposal/91)
 
-With the system already deployed, Uniswap Governance can elect into the system by:
+With the system already deployed, Uniswap Governance can elect into the system by executing the following calls:
 
-
+| Contract         | Address                                                                                                               | Calldata                                                                     | function                               | function signature | parameters                                                                                                            |
+|------------------|-----------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|----------------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------------------|
+| UniswapV3Factory | [0x1F98431c8aD98523631AE4a59f267346ea31F984](https://etherscan.io/address/0x1f98431c8ad98523631ae4a59f267346ea31f984) | `0x13af40350000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setOwner(address _owner)`             | `0x13af4035`       | [0xASSETSINK](https://etherscan.io/address/0xASSETSINK)                                                               |
+| FeeToSetter      | [0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360](https://etherscan.io/address/0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360) | `0xa2e74af60000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeToSetter(address feeToSetter_)` | `0xa2e74af6`       | [0x1a9C8182C09F50C8318d769245beA52c32BE35BC](https://etherscan.io/address/0x1a9c8182c09f50c8318d769245bea52c32be35bc) |
+| UniswapV2Factory | [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f](https://etherscan.io/address/0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f) | `0xf46901ed0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeTo(address _feeTo)`             | `0xf46901ed`       | [0xASSETSINK](https://etherscan.io/address/0xASSETSINK)                                                               |
+| UNI              | [0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984](https://etherscan.io/address/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984) | `0xfca3b5aa0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setMinter(address _minter)`           | `0xfca3b5aa`       | [0xUNIMINTER](https://etherscan.io/address/0xUNIMINTER)                                                               |
 
 ## Security
 
-- **Immutable Core**: Asset Sinks cannot be upgraded or compromised
 - **Economic Security**: Competitive incentives prevent manipulation
-- **Comprehensive Testing**: Extensive test coverage including edge cases
-- **Formal Verification**: Critical paths formally verified
-- **Multi-chain Audits**: Security reviews across all deployment chains
+- **Comprehensive Testing**: 156 tests with fuzz testing, fork testing, and extensive edge cases
+- **Audits**: Two rounds of audits from OpenZeppelin, with reports in [audits/](./audits/)
 
 ## Future Development
 
@@ -255,6 +259,7 @@ Advanced mechanism design for optimizing fee collection efficiency through aucti
 
 ### Additional Protocol Support
 
+- Uniswap v4
 - UniswapX fee integration
 - Interface fee collection
 - Third-party protocol adapters
