@@ -36,12 +36,19 @@ contract PhoenixForkTest is Test {
   Merkle merkle;
   address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
   // v3 pools
-  address pool0; // 1 bip pool
-  address pool1; // 5 bip pool
-  address pool2; // 30 bip pool
-  address pool3; // 1% pool
+  address pool0; // USDC-WETH 1 bip pool
+  address pool1; // USDC-WETH 5 bip pool
+  address pool2; // USDC-WETH 30 bip pool
+  address pool3; // USDC-WETH 1% pool
+
+  // DAI-WETH pools
+  address daiPool0; // DAI-WETH 1 bip pool
+  address daiPool1; // DAI-WETH 5 bip pool
+  address daiPool2; // DAI-WETH 30 bip pool
+  address daiPool3; // DAI-WETH 1% pool
 
   // v2 pair: WETH / USDC
   IUniswapV2Pair pair;
@@ -68,10 +75,17 @@ contract PhoenixForkTest is Test {
     vm.prank(owner);
     IFeeToSetter(0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360).setFeeToSetter(owner);
 
+    // USDC-WETH pools
     pool0 = factory.getPool(WETH, USDC, 100); // 1 bip pool
     pool1 = factory.getPool(WETH, USDC, 500); // 5 bip pool
     pool2 = factory.getPool(WETH, USDC, 3000); // 30 bip pool
     pool3 = factory.getPool(WETH, USDC, 10_000); // 1% pool
+
+    // DAI-WETH pools
+    daiPool0 = factory.getPool(DAI, WETH, 100); // 1 bip pool
+    daiPool1 = factory.getPool(DAI, WETH, 500); // 5 bip pool
+    daiPool2 = factory.getPool(DAI, WETH, 3000); // 30 bip pool
+    daiPool3 = factory.getPool(DAI, WETH, 10_000); // 1% pool
 
     pair = IUniswapV2Pair(v2Factory.getPair(WETH, USDC));
 
@@ -111,6 +125,82 @@ contract PhoenixForkTest is Test {
     (,,,,, protocolFee,) = IUniswapV3Pool(pool2).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool3).slot0();
+    assertEq(protocolFee, 4 << 4 | 4);
+  }
+
+  function test_enableFeeV3MultiProof() public {
+    assertEq(feeController.feeSetter(), owner);
+    vm.startPrank(owner);
+    feeController.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
+    feeController.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
+    feeController.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
+    feeController.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
+    vm.stopPrank();
+
+    // Using the real merkle root from the generated merkle tree
+    bytes32 merkleRoot = hex"472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a";
+
+    vm.prank(owner);
+    feeController.setMerkleRoot(merkleRoot);
+
+    // Setting up the pairs for USDC-WETH and DAI-WETH
+    IV3FeeController.Pair[] memory pairs = new IV3FeeController.Pair[](2);
+    pairs[0] = IV3FeeController.Pair({token0: USDC, token1: WETH});
+    pairs[1] = IV3FeeController.Pair({token0: DAI, token1: WETH});
+
+    // Multi-proof elements from the generated proof
+    bytes32[] memory proof = new bytes32[](22);
+    proof[0] = hex"64701c9d6df20883102b4515d64953bf39ee59f3069bbb679d1507d8ed141094";
+    proof[1] = hex"72a5540451eb138c2bc018fd4d9387a60ffcc2b1c0c4c3e8c9e91e08d5f8be7d";
+    proof[2] = hex"fd512ec06bd9091616776ead998717afbf49848da3561a29eb98132f51f16c02";
+    proof[3] = hex"c926f4e2351b77ac142ac3e6f99615a392f5567a8131a9d2fd453e0381f28c82";
+    proof[4] = hex"b659678321fbda31383bb84dab1a4b7c8faf6376791174be2b4028382c4ebcdb";
+    proof[5] = hex"9a3b72c48b425ab0b90e7467861e4a8e2501d84daf9843e5215fd52aeb865033";
+    proof[6] = hex"567e458484cfbf530f1b850de67620bb77799744c6f117722e6705613dba33ee";
+    proof[7] = hex"33b421911c7e7b7d1ac6bca41f27f8b73a0f84ef4cdf2e6641b1b077dde02bd9";
+    proof[8] = hex"f1e9daeeb8915523344fd1a071728cc9c1bb0a2d3210a8b262dca51e7fb1df19";
+    proof[9] = hex"a0606657ebdedb82d34ab154a8e767adcc85312f156b8c26c2d4e02b13cbf8aa";
+    proof[10] = hex"d896a7b6c18f8eb93c7a901d80f3dfaaf56a94703b2c27dde812ec30b0239f86";
+    proof[11] = hex"f5da515ff4992343eeb291e6cec5b479700abfc8db75f322619663705de7e741";
+    proof[12] = hex"d8e6f2c82c08686663f81a2ca29fdd83b0e87c6ee1ff9697b0faf5e66457a859";
+    proof[13] = hex"6e6a6a1efdd1e46acac3de1541092734ad99cfc4d201a7bf261257ba31b41d36";
+    proof[14] = hex"389d2c23e948ab29dd7acb4639b93a60c0c5f9311f5e575d11bd2f537d74f6a9";
+    proof[15] = hex"0e36ea79652a7f8f0e6ae4b5266f9371c4dddd9a1b2b1da932e0fd3ad7b77525";
+    proof[16] = hex"c5fdb36b161fa88ea56410fd2572e42d3abc374c146cb0b6062a1537eb650050";
+    proof[17] = hex"a8348a965a2731a7b14b7afc590bb7fb52c554a6a855328139af0722edb30b75";
+    proof[18] = hex"65f4d6dae6ce0f1f01d6e459669bfa3238890e789f0c24998fb0f4ce9388b0ef";
+    proof[19] = hex"f352d10274c3efa4dc4d6f01742bf42c89acf4c1950c6dd64461020c41533a84";
+    proof[20] = hex"b8b5ae9987862c9aebf408e92fa62df4ef4bd96025b51ff741b950388ebc35fc";
+    proof[21] = hex"01fc49a9d2811238276d7e63fbc392d9d748c9a460dcfa617d341a7c39f79fd8";
+
+    // Proof flags from the generated proof
+    bool[] memory proofFlags = new bool[](23);
+    // All false except index 20
+    for (uint256 i = 0; i < 23; i++) {
+      proofFlags[i] = (i == 20);
+    }
+
+    // Enable fees on the pools
+    feeController.batchTriggerFeeUpdate(pairs, proof, proofFlags);
+
+    // Verify fees were set correctly for USDC-WETH pools
+    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool0).slot0();
+    assertEq(protocolFee, 10 << 4 | 10);
+    (,,,,, protocolFee,) = IUniswapV3Pool(pool1).slot0();
+    assertEq(protocolFee, 8 << 4 | 8);
+    (,,,,, protocolFee,) = IUniswapV3Pool(pool2).slot0();
+    assertEq(protocolFee, 6 << 4 | 6);
+    (,,,,, protocolFee,) = IUniswapV3Pool(pool3).slot0();
+    assertEq(protocolFee, 4 << 4 | 4);
+
+    // Verify fees were set correctly for DAI-WETH pools
+    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool0).slot0();
+    assertEq(protocolFee, 10 << 4 | 10);
+    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool1).slot0();
+    assertEq(protocolFee, 8 << 4 | 8);
+    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool2).slot0();
+    assertEq(protocolFee, 6 << 4 | 6);
+    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool3).slot0();
     assertEq(protocolFee, 4 << 4 | 4);
   }
 
