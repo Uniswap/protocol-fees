@@ -27,6 +27,10 @@ contract UNIMinterTest is Test {
 
   function setUp() public {
     uniMinter = new UNIMinter(owner);
+
+    // warp to allowable minting time
+    vm.warp(uniMinter.START_TIME());
+
     deployCodeTo("MockUNIToken", address(uniMinter.UNI()));
     UNI = MockUNIToken(address(uniMinter.UNI()));
     UNI.setMinter(address(uniMinter));
@@ -206,6 +210,19 @@ contract UNIMinterTest is Test {
     assertEq(UNI.balanceOf(alice), expectedAliceAmount);
     assertEq(UNI.balanceOf(bob), expectedBobAmount);
     assertEq(UNI.totalSupply(), totalSupplyBefore + expectedTotalMint);
+  }
+
+  function test_Mint_RevertBeforeStart(uint256 timestamp) public {
+    vm.prank(owner);
+    uniMinter.grantSplit(alice, 5000, DEFAULT_REVOCATION_DELAY_DAYS);
+
+    assertEq(uniMinter.START_TIME(), 1_767_225_600); // Jan 1, 2026 00:00:00 UTC
+
+    timestamp = bound(timestamp, 0, uniMinter.START_TIME() - 1);
+
+    vm.warp(timestamp);
+    vm.expectRevert(IUNIMinter.MintingNotStarted.selector);
+    uniMinter.mint();
   }
 
   function test_Mint_RevertNoUnits() public {
@@ -846,9 +863,9 @@ contract UNIMinterTest is Test {
     uniMinter.grantSplit(alice, 5000, 365);
 
     // Start well before the next mint to ensure proper timing
-    vm.warp(100);
+    skip(100);
 
-    uint256 initiateTime = block.timestamp;
+    uint256 initiateTime = vm.getBlockTimestamp();
     vm.prank(owner);
     uniMinter.initiateRevokeSplit(0);
 

@@ -22,6 +22,10 @@ contract UNIMinter is IUNIMinter, Owned {
   /// @dev Unallocated units result in reduced inflation
   uint16 private constant MAX_UNITS = 10_000;
 
+  /// @notice The start time for minting
+  /// @dev equivalent to January 1, 2026 00:00:00 UTC
+  uint256 public constant START_TIME = 1_767_225_600;
+
   /// @inheritdoc IUNIMinter
   IUNI public constant UNI = IUNI(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
 
@@ -37,6 +41,7 @@ contract UNIMinter is IUNIMinter, Owned {
 
   /// @inheritdoc IUNIMinter
   function mint() external {
+    require(block.timestamp >= START_TIME, MintingNotStarted());
     require(totalUnits != 0, NoUnits());
     uint256 mintCap = UNI.totalSupply() * MINT_CAP_PERCENT / 100;
     uint256 mintAmount = mintCap * totalUnits / MAX_UNITS;
