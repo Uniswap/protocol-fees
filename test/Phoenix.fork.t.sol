@@ -96,19 +96,25 @@ contract PhoenixForkTest is Test {
   function test_enableFeeV3() public {
     assertEq(feeController.feeSetter(), owner);
 
-    // Generate merkle root from leaves
-    bytes32 targetLeaf = _hashLeaf(USDC, WETH);
-    bytes32 dummyLeaf = _hashLeaf(address(0), address(1));
-    bytes32[] memory leaves = new bytes32[](2);
-    leaves[0] = targetLeaf;
-    leaves[1] = dummyLeaf;
-    bytes32 merkleRoot = merkle.getRoot(leaves);
-
-    vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    // using the default root in `Deployer.sol`
+    // merkle proof from `merkle-generator prove data/merkle-tree.json
+    // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48`
+    bytes32[] memory proof = new bytes32[](13);
+    proof[0] = hex"64701c9d6df20883102b4515d64953bf39ee59f3069bbb679d1507d8ed141094";
+    proof[1] = hex"fd512ec06bd9091616776ead998717afbf49848da3561a29eb98132f51f16c02";
+    proof[2] = hex"b659678321fbda31383bb84dab1a4b7c8faf6376791174be2b4028382c4ebcdb";
+    proof[3] = hex"567e458484cfbf530f1b850de67620bb77799744c6f117722e6705613dba33ee";
+    proof[4] = hex"f1e9daeeb8915523344fd1a071728cc9c1bb0a2d3210a8b262dca51e7fb1df19";
+    proof[5] = hex"d896a7b6c18f8eb93c7a901d80f3dfaaf56a94703b2c27dde812ec30b0239f86";
+    proof[6] = hex"d8e6f2c82c08686663f81a2ca29fdd83b0e87c6ee1ff9697b0faf5e66457a859";
+    proof[7] = hex"389d2c23e948ab29dd7acb4639b93a60c0c5f9311f5e575d11bd2f537d74f6a9";
+    proof[8] = hex"c5fdb36b161fa88ea56410fd2572e42d3abc374c146cb0b6062a1537eb650050";
+    proof[9] = hex"65f4d6dae6ce0f1f01d6e459669bfa3238890e789f0c24998fb0f4ce9388b0ef";
+    proof[10] = hex"9f9b7ec31eda410934456f214fa1e25795174defc9e5bcc47db08bdc172b5ecc";
+    proof[11] = hex"b8b5ae9987862c9aebf408e92fa62df4ef4bd96025b51ff741b950388ebc35fc";
+    proof[12] = hex"01fc49a9d2811238276d7e63fbc392d9d748c9a460dcfa617d341a7c39f79fd8";
 
     // Enable fees on the 4 pools
-    bytes32[] memory proof = merkle.getProof(leaves, 0);
     feeController.triggerFeeUpdate(USDC, WETH, proof);
 
     // fees were set correctly, from the Deployer.sol
@@ -130,12 +136,6 @@ contract PhoenixForkTest is Test {
     feeController.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
     feeController.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
     vm.stopPrank();
-
-    // Using the real merkle root from the generated merkle tree
-    bytes32 merkleRoot = hex"472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a";
-
-    vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
 
     // Setting up the pairs for USDC-WETH and DAI-WETH
     IV3FeeController.Pair[] memory pairs = new IV3FeeController.Pair[](2);

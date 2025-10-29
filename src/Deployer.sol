@@ -22,7 +22,10 @@ contract Deployer {
   uint256 public constant THRESHOLD = 10_000e18;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
-  bytes32 constant INITIAL_MERKLE_ROOT = bytes32(uint256(0xbeefbabe));
+
+  // Using the real merkle root from the generated merkle tree in ./merkle-generator
+  bytes32 constant INITIAL_MERKLE_ROOT =
+    bytes32(0x472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a);
 
   uint8 constant DEFAULT_FEE_100 = 4 << 4 | 4; // default fee for 0.01% tier
   uint8 constant DEFAULT_FEE_500 = 6 << 4 | 6; // default fee for 0.05% tier
