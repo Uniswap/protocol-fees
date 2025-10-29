@@ -221,7 +221,7 @@ contract UNIMinterTest is Test {
     timestamp = bound(timestamp, 0, uniMinter.START_TIME() - 1);
 
     vm.warp(timestamp);
-    vm.expectRevert();
+    vm.expectRevert(IUNIMinter.MintingNotStarted.selector);
     uniMinter.mint();
   }
 

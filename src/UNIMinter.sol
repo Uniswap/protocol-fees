@@ -41,7 +41,7 @@ contract UNIMinter is IUNIMinter, Owned {
 
   /// @inheritdoc IUNIMinter
   function mint() external {
-    require(block.timestamp >= START_TIME);
+    require(block.timestamp >= START_TIME, MintingNotStarted());
     require(totalUnits != 0, NoUnits());
     uint256 mintCap = UNI.totalSupply() * MINT_CAP_PERCENT / 100;
     uint256 mintAmount = mintCap * totalUnits / MAX_UNITS;
