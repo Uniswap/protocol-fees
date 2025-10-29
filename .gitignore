@@ -17,3 +17,4 @@ lcov.info
 .vscode
 .idea
 .spec-workflow/
+.pnpm-store/
