@@ -13,8 +13,6 @@ import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
 import {IUNIMinter} from "../src/interfaces/IUNIMinter.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract DeployerTest is Test {
   Deployer public deployer;
 
@@ -58,7 +56,7 @@ contract DeployerTest is Test {
   function test_deployer_releaser_setUp() public view {
     assertEq(IOwned(address(releaser)).owner(), factory.owner());
     assertEq(releaser.thresholdSetter(), factory.owner());
-    assertEq(releaser.threshold(), 69_420);
+    assertEq(releaser.threshold(), 10_000e18);
     assertEq(address(releaser.ASSET_SINK()), address(assetSink));
     assertEq(releaser.RESOURCE_RECIPIENT(), address(0xdead));
     assertEq(address(releaser.RESOURCE()), address(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984));
@@ -69,6 +67,16 @@ contract DeployerTest is Test {
     assertEq(feeController.feeSetter(), factory.owner());
     assertEq(address(feeController.ASSET_SINK()), address(assetSink));
     assertEq(address(feeController.FACTORY()), address(factory));
+
+    // initial fee values are set
+    assertEq(
+      feeController.merkleRoot(),
+      bytes32(0x472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a)
+    );
+    assertEq(feeController.defaultFees(100), 4 << 4 | 4);
+    assertEq(feeController.defaultFees(500), 6 << 4 | 6);
+    assertEq(feeController.defaultFees(3000), 8 << 4 | 8);
+    assertEq(feeController.defaultFees(10_000), 10 << 4 | 10);
   }
 
   function test_deployer_uniMinter_setUp() public view {
