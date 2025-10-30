@@ -13,6 +13,8 @@ interface IUNIMinter {
   error InsufficientUnits();
   /// @notice Thrown when attempting to mint with no units configured to splits
   error NoUnits();
+  /// @notice Thrown when minting before January 1, 2026 00:00 UTC
+  error MintingNotStarted();
 
   /// @notice Structure to hold recipient split information
   /// @param recipient The address that will receive minted UNI tokens
