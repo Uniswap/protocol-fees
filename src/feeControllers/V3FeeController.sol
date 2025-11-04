@@ -149,6 +149,10 @@ contract V3FeeController is IV3FeeController, Owned {
   }
 
   function _setProtocolFee(address pool, uint24 feeTier) internal {
+    // Check if pool is initialized by verifying sqrtPriceX96 is non-zero
+    (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
+    if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
+
     uint8 feeValue = defaultFees[feeTier];
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }

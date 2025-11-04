@@ -514,6 +514,42 @@ contract V3FeeControllerTest is PhoenixTestBase {
     feeController.setDefaultFeeByFeeTier(11_000, 10);
   }
 
+  function test_triggerFeeUpdate_skipsUninitializedPool() public {
+    // Create a new pool but don't initialize it
+    MockERC20 token2 = new MockERC20("Token2", "TKN2", 18);
+    address uninitializedPool = factory.createPool(address(token2), address(mockToken1), 3000);
+    // Note: We don't call IUniswapV3Pool(uninitializedPool).initialize()
+
+    uint8 protocolFee = 10 << 4 | 8;
+
+    // Create merkle tree with both initialized and uninitialized pools
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = _hashLeaf(poolObject0.pool);
+    leaves[1] = _hashLeaf(uninitializedPool);
+
+    bytes32 merkleRoot = merkle.getRoot(leaves);
+
+    vm.startPrank(feeSetter);
+    feeController.setMerkleRoot(merkleRoot);
+    feeController.setDefaultFeeByFeeTier(3000, protocolFee);
+    vm.stopPrank();
+
+    // Get proof for the uninitialized pool
+    bytes32[] memory proof = merkle.getProof(leaves, 1);
+
+    // This should not revert - the function should silently skip the uninitialized pool
+    feeController.triggerFeeUpdate(uninitializedPool, proof);
+
+    // Verify that the protocol fee was NOT set (pool fee should be 0)
+    (,,,,, uint8 poolFees,) = IUniswapV3Pool(uninitializedPool).slot0();
+    assertEq(poolFees, 0);
+
+    // Verify that initialized pools still work correctly
+    bytes32[] memory proof0 = merkle.getProof(leaves, 0);
+    feeController.triggerFeeUpdate(poolObject0.pool, proof0);
+    assertEq(_getProtocolFees(poolObject0.pool), protocolFee);
+  }
+
   function _mockSetProtocolFees(uint128 token0, uint128 token1) internal {
     uint256 toSet = uint256(token1) << 128 | uint256(token0);
     vm.store(pool, bytes32(slot), bytes32(toSet));
