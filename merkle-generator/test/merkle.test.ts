@@ -159,7 +159,7 @@ describe('merkle tree operations', () => {
   });
 
   describe('double hashing', () => {
-    it('should apply double hashing as per V3FeeController spec', () => {
+    it('should apply double hashing as per V3FeeAdapter spec', () => {
       const tree = StandardMerkleTree.of(testPairs, ['address', 'address']);
 
       // The leaf hash should be keccak256(keccak256(abi.encode(token0, token1)))

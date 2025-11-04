@@ -37,7 +37,7 @@ Fee Controllers are adapter contracts that channel fees from various sources int
 
 #### Key Properties
 
-- **Source-Specific**: Each controller handles specific fee collection mechanisms
+- **Source-Specific**: Each adapter handles specific fee collection mechanisms
 - **Permissionless Collection**: Anyone can trigger fee collection
 - **Configurable**: Fee rates and parameters can be set as needed
 
@@ -65,23 +65,23 @@ Permissions and controls are specific to individual Releaser implementations. Re
 
 Our first deployment will focus on Ethereum mainnet with Uniswap v3 fee collection and UNI token burning:
 
-### V3FeeController
+### V3FeeAdapter
 
-The V3FeeController is a Fee Controller contract. It should be configured to be the owner of the Uniswap V3 Factory. As owner, it can:
+The V3FeeAdapter is a Fee Controller contract. It should be configured to be the owner of the Uniswap V3 Factory. As owner, it can:
 
 - enable new fee tiers
 - set the owner of the factory
 - adjust fees on v3 pools
 - enable the collection of any fees from pools where they accrue
 
-V3FeeController enables efficient batch updates of fee levels across many pools using Merkle roots.
+V3FeeAdapter enables efficient batch updates of fee levels across many pools using Merkle roots.
 
 #### Governance
 
 - **Privileged roles (owned by Governance on deployment)**:
-  - `owner`: Can appoint new `feeSetter`, enable new fee tiers, appoint new `V3FeeController`
+  - `owner`: Can appoint new `feeSetter`, enable new fee tiers, appoint new `V3FeeAdapter`
   - `feeSetter`: Can define pool-level protocol fees, can update Merkle roots for fee configuration
-- **Why This Matters**: Flexible fee management allows governance to optimize protocol revenue and respond to market conditions without redeploying contracts. Importantly, V3FeeController does not change Uniswap v3 pools' fee mechanism or parameters, it just adds flexibility in how those parameters can be adjusted.
+- **Why This Matters**: Flexible fee management allows governance to optimize protocol revenue and respond to market conditions without redeploying contracts. Importantly, V3FeeAdapter does not change Uniswap v3 pools' fee mechanism or parameters, it just adds flexibility in how those parameters can be adjusted.
 - **Immutable Components**: The  `collect()` function logic,  `ASSET_SINK` and `FACTORY` addresses, and Merkle tree verification cannot be changed.
 
 ### Firepit Releaser

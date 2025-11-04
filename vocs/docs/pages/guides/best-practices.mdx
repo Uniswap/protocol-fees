@@ -49,18 +49,18 @@ In the Phoenix system, Uniswap v3 fees *must be collected* to the `AssetSink` be
 :::tip
 We recommend that integrators check and collect Uniswap v3 fees before calling `Firepit.release()`, to ensure the maximum assets are released.
 
-[IV3FeeController.collect()](/technical-reference/IV3FeeController#collect)
+[IV3FeeAdapter.collect()](/technical-reference/IV3FeeAdapter#collect)
 
 ```solidity
-IV3FeeController v3FeeController;
+IV3FeeAdapter v3FeeAdapter;
 
 function collectAndRelease(
-    IV3FeeController.CollectParams memory collectParams,
+    IV3FeeAdapter.CollectParams memory collectParams,
     uint256 _nonce,
     Currency[] memory assets,
     address recipient
 ) external {
-    v3FeeController.collect(collectParams);
+    v3FeeAdapter.collect(collectParams);
     firepit.release(_nonce, assets, recipient);
 }
 ```

@@ -1,5 +1,5 @@
-# V4FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/feeControllers/V4FeeController.sol)
+# V4FeeAdapter
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/feeAdapters/V4FeeAdapter.sol)
 
 **Inherits:**
 Owned
@@ -60,7 +60,7 @@ function collect(
 
 ### setMerkleRoot
 
-Sets the merkle root for the fee controller.
+Sets the merkle root for the fee adapter.
 
 *only callable by owner*
 

@@ -9,7 +9,7 @@ const program = new Command();
 
 program
   .name('merkle-generator')
-  .description('CLI tool for generating Merkle trees and proofs for Uniswap V3 fee controller')
+  .description('CLI tool for generating Merkle trees and proofs for Uniswap V3 fee adapter')
   .version('0.0.0');
 
 // Generate command

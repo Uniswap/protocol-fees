@@ -12,7 +12,7 @@ import {Deployer} from "../src/Deployer.sol";
 import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
-import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
+import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
 import {Merkle} from "murky/src/Merkle.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {Currency} from "v4-core/types/Currency.sol";
@@ -30,7 +30,7 @@ contract PhoenixForkTest is Test {
 
   IAssetSink public assetSink;
   IReleaser public releaser;
-  IV3FeeController public feeController;
+  IV3FeeAdapter public feeAdapter;
 
   address public owner;
   Merkle merkle;
@@ -63,13 +63,13 @@ contract PhoenixForkTest is Test {
     deployer = new Deployer();
     assetSink = deployer.ASSET_SINK();
     releaser = deployer.RELEASER();
-    feeController = deployer.FEE_CONTROLLER();
+    feeAdapter = deployer.FEE_ADAPTER();
 
     merkle = new Merkle();
 
-    // set the fee controller on the v3 factory
+    // set the fee adapter on the v3 factory
     vm.prank(owner);
-    factory.setOwner(address(feeController));
+    factory.setOwner(address(feeAdapter));
 
     // assumes governance timelock takes back control of the feeSetter
     vm.prank(owner);
@@ -94,12 +94,12 @@ contract PhoenixForkTest is Test {
   }
 
   function test_enableFeeV3() public {
-    assertEq(feeController.feeSetter(), owner);
+    assertEq(feeAdapter.feeSetter(), owner);
     vm.startPrank(owner);
-    feeController.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
-    feeController.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
-    feeController.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
-    feeController.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
+    feeAdapter.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
+    feeAdapter.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
+    feeAdapter.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
+    feeAdapter.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
     vm.stopPrank();
 
     // Generate merkle root from leaves
@@ -111,11 +111,11 @@ contract PhoenixForkTest is Test {
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     // Enable fees on the 4 pools
     bytes32[] memory proof = merkle.getProof(leaves, 0);
-    feeController.triggerFeeUpdate(USDC, WETH, proof);
+    feeAdapter.triggerFeeUpdate(USDC, WETH, proof);
 
     // fees were set correctly
     (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool0).slot0();
@@ -129,24 +129,24 @@ contract PhoenixForkTest is Test {
   }
 
   function test_enableFeeV3MultiProof() public {
-    assertEq(feeController.feeSetter(), owner);
+    assertEq(feeAdapter.feeSetter(), owner);
     vm.startPrank(owner);
-    feeController.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
-    feeController.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
-    feeController.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
-    feeController.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
+    feeAdapter.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
+    feeAdapter.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
+    feeAdapter.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
+    feeAdapter.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
     vm.stopPrank();
 
     // Using the real merkle root from the generated merkle tree
     bytes32 merkleRoot = hex"472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a";
 
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     // Setting up the pairs for USDC-WETH and DAI-WETH
-    IV3FeeController.Pair[] memory pairs = new IV3FeeController.Pair[](2);
-    pairs[0] = IV3FeeController.Pair({token0: USDC, token1: WETH});
-    pairs[1] = IV3FeeController.Pair({token0: DAI, token1: WETH});
+    IV3FeeAdapter.Pair[] memory pairs = new IV3FeeAdapter.Pair[](2);
+    pairs[0] = IV3FeeAdapter.Pair({token0: USDC, token1: WETH});
+    pairs[1] = IV3FeeAdapter.Pair({token0: DAI, token1: WETH});
 
     // Multi-proof elements from the generated proof
     bytes32[] memory proof = new bytes32[](22);
@@ -181,7 +181,7 @@ contract PhoenixForkTest is Test {
     }
 
     // Enable fees on the pools
-    feeController.batchTriggerFeeUpdate(pairs, proof, proofFlags);
+    feeAdapter.batchTriggerFeeUpdate(pairs, proof, proofFlags);
 
     // Verify fees were set correctly for USDC-WETH pools
     (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool0).slot0();
@@ -264,21 +264,21 @@ contract PhoenixForkTest is Test {
     assertApproxEqRel(token0Pool3, uint256(1000e6).mulWadDown(0.01e18) / 4, 0.0001e18);
     assertApproxEqRel(token1Pool3, uint256(1e18).mulWadDown(0.01e18) / 4, 0.0001e18);
 
-    IV3FeeController.CollectParams[] memory params = new IV3FeeController.CollectParams[](3);
-    params[0] = IV3FeeController.CollectParams({
+    IV3FeeAdapter.CollectParams[] memory params = new IV3FeeAdapter.CollectParams[](3);
+    params[0] = IV3FeeAdapter.CollectParams({
       pool: pool1, amount0Requested: type(uint128).max, amount1Requested: type(uint128).max
     });
-    params[1] = IV3FeeController.CollectParams({
+    params[1] = IV3FeeAdapter.CollectParams({
       pool: pool2, amount0Requested: type(uint128).max, amount1Requested: type(uint128).max
     });
-    params[2] = IV3FeeController.CollectParams({
+    params[2] = IV3FeeAdapter.CollectParams({
       pool: pool3, amount0Requested: type(uint128).max, amount1Requested: type(uint128).max
     });
 
     // asset sink has no tokens
     assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
     assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
-    feeController.collect(params);
+    feeAdapter.collect(params);
 
     // asset sink has collected all fees
     // subtract 3 wei because the v3 pool always leaves 1 wei behind
@@ -359,7 +359,7 @@ contract PhoenixForkTest is Test {
     test_releaseV2V3(address(this), address(this));
 
     vm.prank(owner);
-    feeController.setFactoryOwner(newOwner);
+    feeAdapter.setFactoryOwner(newOwner);
 
     assertEq(IOwned(address(factory)).owner(), newOwner);
   }

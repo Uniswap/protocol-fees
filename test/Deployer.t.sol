@@ -10,7 +10,7 @@ import {Deployer} from "../src/Deployer.sol";
 import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
-import {IV3FeeController} from "../src/interfaces/IV3FeeController.sol";
+import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
 import {IUNIMinter} from "../src/interfaces/IUNIMinter.sol";
 
 import {console} from "forge-std/console.sol";
@@ -22,7 +22,7 @@ contract DeployerTest is Test {
 
   IAssetSink public assetSink;
   IReleaser public releaser;
-  IV3FeeController public feeController;
+  IV3FeeAdapter public feeAdapter;
 
   address public owner;
 
@@ -47,7 +47,7 @@ contract DeployerTest is Test {
 
     assetSink = deployer.ASSET_SINK();
     releaser = deployer.RELEASER();
-    feeController = deployer.FEE_CONTROLLER();
+    feeAdapter = deployer.FEE_ADAPTER();
   }
 
   function test_deployer_assetSink_setUp() public view {
@@ -64,11 +64,11 @@ contract DeployerTest is Test {
     assertEq(address(releaser.RESOURCE()), address(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984));
   }
 
-  function test_deployer_feeController_setUp() public view {
-    assertEq(IOwned(address(feeController)).owner(), factory.owner());
-    assertEq(feeController.feeSetter(), factory.owner());
-    assertEq(address(feeController.ASSET_SINK()), address(assetSink));
-    assertEq(address(feeController.FACTORY()), address(factory));
+  function test_deployer_feeAdapter_setUp() public view {
+    assertEq(IOwned(address(feeAdapter)).owner(), factory.owner());
+    assertEq(feeAdapter.feeSetter(), factory.owner());
+    assertEq(address(feeAdapter.ASSET_SINK()), address(assetSink));
+    assertEq(address(feeAdapter.FACTORY()), address(factory));
   }
 
   function test_deployer_uniMinter_setUp() public view {

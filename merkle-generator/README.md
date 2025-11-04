@@ -1,6 +1,6 @@
 # Merkle Generator CLI
 
-A command-line tool for generating Merkle trees and proofs for the Uniswap V3 Fee Controller. This tool uses the OpenZeppelin Merkle tree library which automatically applies double-hashing to leaves to prevent second preimage attacks, matching the exact format required by the V3FeeController smart contract.
+A command-line tool for generating Merkle trees and proofs for the Uniswap V3 Fee Controller. This tool uses the OpenZeppelin Merkle tree library which automatically applies double-hashing to leaves to prevent second preimage attacks, matching the exact format required by the V3FeeAdapter smart contract.
 
 ## Installation
 
@@ -83,7 +83,7 @@ merkle-generator prove tree.json \
 ```
 
 The command outputs:
-- The merkle root to set in V3FeeController
+- The merkle root to set in V3FeeAdapter
 - The leaf hash (double-hashed)
 - The merkle proof array
 - Instructions for using the proof on-chain
@@ -181,15 +181,15 @@ The tool uses OpenZeppelin's `StandardMerkleTree` which automatically applies do
 bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(token0, token1))));
 ```
 
-This matches exactly what the V3FeeController expects when verifying proofs.
+This matches exactly what the V3FeeAdapter expects when verifying proofs.
 
 ### Token Ordering
 
 Tokens are automatically sorted according to Uniswap convention (lower address first) to ensure consistency with on-chain pool addresses. You don't need to worry about the order when inputting pairs.
 
-### Integration with V3FeeController
+### Integration with V3FeeAdapter
 
-To use the generated proofs with the V3FeeController:
+To use the generated proofs with the V3FeeAdapter:
 
 1. **Set the Merkle Root**: The fee setter must call `setMerkleRoot(bytes32 _merkleRoot)` with the generated root
 
