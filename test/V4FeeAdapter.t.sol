@@ -6,14 +6,14 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {Merkle} from "murky/src/Merkle.sol";
 
-import {V4FeeController} from "src/feeControllers/V4FeeController.sol";
+import {V4FeeAdapter} from "src/feeAdapters/V4FeeAdapter.sol";
 import {MockPoolManager} from "./mocks/MockPoolManager.sol";
 import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
 import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
 
-contract TestV4FeeController is PhoenixTestBase {
+contract TestV4FeeAdapter is PhoenixTestBase {
   MockPoolManager poolManager;
-  V4FeeController feeController;
+  V4FeeAdapter feeAdapter;
 
   Currency mockNative;
   Currency mockCurrency;
@@ -27,10 +27,10 @@ contract TestV4FeeController is PhoenixTestBase {
 
     poolManager = new MockPoolManager(owner);
 
-    feeController = new V4FeeController(address(poolManager), address(assetSink), owner);
+    feeAdapter = new V4FeeAdapter(address(poolManager), address(assetSink), owner);
 
     vm.prank(owner);
-    poolManager.setProtocolFeeController(address(feeController));
+    poolManager.setProtocolFeeController(address(feeAdapter));
 
     // Create mock tokens.
     mockCurrency = Currency.wrap(address(mockToken));
@@ -57,12 +57,12 @@ contract TestV4FeeController is PhoenixTestBase {
     merkle = new Merkle();
   }
 
-  function test_feeController_isSet() public view {
-    assertEq(address(poolManager.protocolFeeController()), address(feeController));
+  function test_feeAdapter_isSet() public view {
+    assertEq(address(poolManager.protocolFeeController()), address(feeAdapter));
   }
 
   function test_assetSink_isSet() public view {
-    assertEq(feeController.feeSink(), address(assetSink));
+    assertEq(feeAdapter.feeSink(), address(assetSink));
   }
 
   function test_collect_full_success() public {
@@ -76,7 +76,7 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = INITIAL_TOKEN_AMOUNT;
 
     // Anyone can call collect.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
     assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT * 2);
@@ -94,7 +94,7 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = 1e18;
 
     // Anyone can call collect.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
     assertEq(mockCurrency.balanceOf(address(assetSink)), INITIAL_TOKEN_AMOUNT + 1e18);
@@ -112,14 +112,12 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = INITIAL_TOKEN_AMOUNT;
 
     // someone else collects.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     vm.expectRevert(
-      abi.encodeWithSelector(
-        V4FeeController.AmountCollectedTooLow.selector, 0, INITIAL_TOKEN_AMOUNT
-      )
+      abi.encodeWithSelector(V4FeeAdapter.AmountCollectedTooLow.selector, 0, INITIAL_TOKEN_AMOUNT)
     );
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
   }
 
   function test_collect_full_success_native() public {
@@ -133,7 +131,7 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = INITIAL_NATIVE_AMOUNT;
 
     // Anyone can call collect.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
     assertEq(mockNative.balanceOf(address(assetSink)), INITIAL_NATIVE_AMOUNT * 2);
@@ -151,7 +149,7 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = 1e18;
 
     // Anyone can call collect.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
     assertEq(mockNative.balanceOf(address(assetSink)), INITIAL_NATIVE_AMOUNT + 1e18);
@@ -169,49 +167,47 @@ contract TestV4FeeController is PhoenixTestBase {
     amountExpected[0] = INITIAL_NATIVE_AMOUNT;
 
     // someone else collects.
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
 
     vm.expectRevert(
-      abi.encodeWithSelector(
-        V4FeeController.AmountCollectedTooLow.selector, 0, INITIAL_NATIVE_AMOUNT
-      )
+      abi.encodeWithSelector(V4FeeAdapter.AmountCollectedTooLow.selector, 0, INITIAL_NATIVE_AMOUNT)
     );
-    feeController.collect(currency, amountRequested, amountExpected);
+    feeAdapter.collect(currency, amountRequested, amountExpected);
   }
 
   function test_setMerkleRoot_revertsWithInvalidCaller() public {
     vm.expectRevert(abi.encode("UNAUTHORIZED"));
-    feeController.setMerkleRoot(bytes32(0));
+    feeAdapter.setMerkleRoot(bytes32(0));
   }
 
   function test_setMerkleRoot_revertsWithInvalidCaller_fuzz(address caller) public {
     vm.assume(caller != owner);
     vm.startPrank(caller);
     vm.expectRevert(abi.encode("UNAUTHORIZED"));
-    feeController.setMerkleRoot(bytes32(uint256(40)));
+    feeAdapter.setMerkleRoot(bytes32(uint256(40)));
   }
 
   function test_setMerkleRoot_success() public {
-    assertEq(feeController.merkleRoot(), bytes32(uint256(0)));
+    assertEq(feeAdapter.merkleRoot(), bytes32(uint256(0)));
     vm.prank(owner);
-    feeController.setMerkleRoot(bytes32(uint256(40)));
+    feeAdapter.setMerkleRoot(bytes32(uint256(40)));
 
-    assertEq(feeController.merkleRoot(), bytes32(uint256(40)));
+    assertEq(feeAdapter.merkleRoot(), bytes32(uint256(40)));
   }
 
   function test_setMerkleRoot_success_fuzz(bytes32 merkleRoot) public {
-    assertEq(feeController.merkleRoot(), bytes32(uint256(0)));
+    assertEq(feeAdapter.merkleRoot(), bytes32(uint256(0)));
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
-    assertEq(feeController.merkleRoot(), merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
+    assertEq(feeAdapter.merkleRoot(), merkleRoot);
   }
 
   function test_setMerkleRoot_revertsWithInvalidProof() public {
     vm.prank(owner);
-    feeController.setMerkleRoot(bytes32(uint256(40)));
+    feeAdapter.setMerkleRoot(bytes32(uint256(40)));
 
-    vm.expectRevert(V4FeeController.InvalidProof.selector);
-    feeController.triggerFeeUpdate(poolKey, 100, new bytes32[](0));
+    vm.expectRevert(V4FeeAdapter.InvalidProof.selector);
+    feeAdapter.triggerFeeUpdate(poolKey, 100, new bytes32[](0));
   }
 
   function test_triggerFeeUpdate_withValidMerkleProof() public {
@@ -229,11 +225,11 @@ contract TestV4FeeController is PhoenixTestBase {
 
     // Set the merkle root
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     bytes32[] memory proof = merkle.getProof(leaves, 0);
 
-    feeController.triggerFeeUpdate(poolKey, targetFee, proof);
+    feeAdapter.triggerFeeUpdate(poolKey, targetFee, proof);
 
     assertEq(poolManager.getProtocolFee(poolKey.toId()), targetFee);
   }
@@ -263,12 +259,12 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     // Generate proof for pool2
     bytes32[] memory proof2 = merkle.getProof(leaves, 1);
 
-    feeController.triggerFeeUpdate(pool2, protocolFee2, proof2);
+    feeAdapter.triggerFeeUpdate(pool2, protocolFee2, proof2);
 
     assertEq(poolManager.getProtocolFee(pool2.toId()), protocolFee2);
     // Assert that the fee for the other pool is not updated.
@@ -319,12 +315,12 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32 merkleRoot = merkle.getRoot(leaves);
 
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     bytes32[] memory proof0 = merkle.getProof(leaves, 0);
 
     /// Trigger the fee update for pool0.
-    feeController.triggerFeeUpdate(poolKeys[0], fees[0], proof0);
+    feeAdapter.triggerFeeUpdate(poolKeys[0], fees[0], proof0);
 
     /// Assert that the fee for pool0 is updated, and that the other pools are not updated.
     assertEq(poolManager.getProtocolFee(poolKeys[0].toId()), fees[0]);
@@ -338,9 +334,9 @@ contract TestV4FeeController is PhoenixTestBase {
     bytes32[] memory proof2 = merkle.getProof(leaves, 2);
     bytes32[] memory proof3 = merkle.getProof(leaves, 3);
 
-    feeController.triggerFeeUpdate(poolKeys[1], fees[1], proof1);
-    feeController.triggerFeeUpdate(poolKeys[2], fees[2], proof2);
-    feeController.triggerFeeUpdate(poolKeys[3], fees[3], proof3);
+    feeAdapter.triggerFeeUpdate(poolKeys[1], fees[1], proof1);
+    feeAdapter.triggerFeeUpdate(poolKeys[2], fees[2], proof2);
+    feeAdapter.triggerFeeUpdate(poolKeys[3], fees[3], proof3);
 
     /// Assert that the fees for all the pools are updated.
     assertEq(poolManager.getProtocolFee(poolKeys[1].toId()), fees[1]);
@@ -360,9 +356,9 @@ contract TestV4FeeController is PhoenixTestBase {
     proof[0] = dummyLeaf;
 
     vm.prank(owner);
-    feeController.setMerkleRoot(merkleRoot);
+    feeAdapter.setMerkleRoot(merkleRoot);
 
     vm.expectRevert(abi.encodeWithSelector(IProtocolFees.ProtocolFeeTooLarge.selector, invalidFee));
-    feeController.triggerFeeUpdate(poolKey, invalidFee, proof);
+    feeAdapter.triggerFeeUpdate(poolKey, invalidFee, proof);
   }
 }

@@ -83,13 +83,13 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 **Uniswap V3**
 
-- V3FeeController contract owns factory privileges
+- V3FeeAdapter contract owns factory privileges
 - Permissionless protocol fee collection
 - Configurable fee rates per fee tier
 
 **Uniswap V4 (TBD)**
 
-- V4FeeController as ProtocolFeeController
+- V4FeeAdapter as ProtocolFeeAdapter
 - Not included as part of the initial fee enablement
 
 ### 3. Releasers
@@ -152,7 +152,7 @@ Ethereum Mainnet
 ├── Asset Sink
 ├── UNI Burn Releaser (Firepit.sol)
 ├── V2 Fee Source (feeTo)
-├── V3 Fee Source (V3FeeController.sol)
+├── V3 Fee Source (V3FeeAdapter.sol)
 ```
 
 > Crosschain system coming at a later date
@@ -203,9 +203,9 @@ src/
 │   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
 │   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
 ├── crosschain/               // Work-in-progress crosschain logic
-├── feeControllers
-│   ├── V3FeeController.sol   // Logic for Uniswap v3 fee-setting and collection
-│   └── V4FeeController.sol   // Work-in-progress logic for Uniswap v4 fee-setting and collection
+├── feeAdapters
+│   ├── V3FeeAdapter.sol   // Logic for Uniswap v3 fee-setting and collection
+│   └── V4FeeAdapter.sol   // Work-in-progress logic for Uniswap v4 fee-setting and collection
 ├── interfaces/               // interfaces
 ├── libraries
 │   ├── ArrayLib.sol          // Utility library
@@ -222,8 +222,8 @@ test
 ├── Firepit.t.sol
 ├── Phoenix.fork.t.sol        // Fork tests against Ethereum Mainnet, using Deployer.sol
 ├── UNIMinter.t.sol
-├── V3FeeController.t.sol
-├── V4FeeController.t.sol
+├── V3FeeAdapter.t.sol
+├── V4FeeAdapter.t.sol
 ├── Vesting.t.sol
 ├── VestingLib.t.sol
 ├── interfaces/               // interfaces for integrations

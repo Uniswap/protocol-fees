@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
-interface IV3FeeController {
+interface IV3FeeAdapter {
   /// @notice Thrown when the merkle proof is invalid.
   error InvalidProof();
 

@@ -7,9 +7,9 @@ import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/M
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @title V4FeeController
+/// @title V4FeeAdapter
 /// @notice Triggers the collection of protocol fees to a predefined fee sink.
-contract V4FeeController is Owned {
+contract V4FeeAdapter is Owned {
   /// @notice Thrown when the amount collected is less than the amount expected.
   error AmountCollectedTooLow(uint256 amountCollected, uint256 amountExpected);
 
@@ -48,7 +48,7 @@ contract V4FeeController is Owned {
     }
   }
 
-  /// @notice Sets the merkle root for the fee controller.
+  /// @notice Sets the merkle root for the fee adapter.
   /// @dev only callable by owner
   /// @param _merkleRoot The merkle root to set.
   function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {

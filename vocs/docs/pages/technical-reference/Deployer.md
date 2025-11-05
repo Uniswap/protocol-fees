@@ -17,10 +17,10 @@ IReleaser public immutable RELEASER;
 ```
 
 
-### FEE_CONTROLLER
+### FEE_ADAPTER
 
 ```solidity
-IV3FeeController public immutable FEE_CONTROLLER;
+IV3FeeAdapter public immutable FEE_ADAPTER;
 ```
 
 
@@ -67,10 +67,10 @@ bytes32 constant SALT_RELEASER = 0;
 ```
 
 
-### SALT_FEE_CONTROLLER
+### SALT_FEE_ADAPTER
 
 ```solidity
-bytes32 constant SALT_FEE_CONTROLLER = 0;
+bytes32 constant SALT_FEE_ADAPTER = 0;
 ```
 
 
@@ -84,11 +84,11 @@ RELEASER:
 2. Deploy the Releaser.
 5. Update the thresholdSetter on the releaser to the owner.
 6. Update the owner on the releaser.
-FEE_CONTROLLER:
-7. Deploy the FeeController.
+FEE_ADAPTER:
+7. Deploy the FeeAdapter.
 8. Update the feeSetter to the owner.
 9. Store fee tiers.
-10. Update the owner on the fee controller.
+10. Update the owner on the fee adapter.
 UNIMinter
 11. Deploy the UNIMinter
 - To enable the UNIMinter, the owner must call `setMinter` on the UNI contract

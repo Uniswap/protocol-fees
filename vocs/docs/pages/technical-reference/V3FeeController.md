@@ -1,8 +1,8 @@
-# V3FeeController
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/feeControllers/V3FeeController.sol)
+# V3FeeAdapter
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/feeAdapters/V3FeeAdapter.sol)
 
 **Inherits:**
-[IV3FeeController](/technical-reference/IV3FeeController), Owned
+[IV3FeeAdapter](/technical-reference/IV3FeeAdapter), Owned
 
 A contract that allows the setting and collecting of protocol fees per pool, and adding
 new fee tiers to the Uniswap V3 Factory.

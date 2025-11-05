@@ -8,31 +8,31 @@ import {
   IUniswapV3PoolOwnerActions
 } from "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
-import {IV3FeeController} from "../interfaces/IV3FeeController.sol";
+import {IV3FeeAdapter} from "../interfaces/IV3FeeAdapter.sol";
 import {ArrayLib} from "../libraries/ArrayLib.sol";
 
-/// @title V3FeeController
+/// @title V3FeeAdapter
 /// @notice A contract that allows the setting and collecting of protocol fees per pool, and adding
 /// new fee tiers to the Uniswap V3 Factory.
 /// @dev This contract is ownable. The owner can set the merkle root for proving protocol fee
 /// amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
 /// Note that this contract will be the set owner on the Uniswap V3 Factory.
 /// @custom:security-contact security@uniswap.org
-contract V3FeeController is IV3FeeController, Owned {
+contract V3FeeAdapter is IV3FeeAdapter, Owned {
   using ArrayLib for uint24[];
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   IUniswapV3Factory public immutable FACTORY;
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   address public immutable ASSET_SINK;
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   bytes32 public merkleRoot;
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   address public feeSetter;
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
   /// @return The fee tiers that are enabled on the factory. Iterable so that the protocol fee for
@@ -54,14 +54,14 @@ contract V3FeeController is IV3FeeController, Owned {
     ASSET_SINK = _assetSink;
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function storeFeeTier(uint24 feeTier) public {
     require(_feeTierExists(feeTier), InvalidFeeTier());
     require(!feeTiers.includes(feeTier), TierAlreadyStored());
     feeTiers.push(feeTier);
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function enableFeeAmount(uint24 fee, int24 tickSpacing) external onlyOwner {
     FACTORY.enableFeeAmount(fee, tickSpacing);
 
@@ -72,7 +72,7 @@ contract V3FeeController is IV3FeeController, Owned {
     FACTORY.setOwner(newOwner);
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function collect(CollectParams[] calldata collectParams)
     external
     returns (Collected[] memory amountsCollected)
@@ -89,23 +89,23 @@ contract V3FeeController is IV3FeeController, Owned {
     }
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function setMerkleRoot(bytes32 _merkleRoot) external onlyFeeSetter {
     merkleRoot = _merkleRoot;
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
     require(_feeTierExists(feeTier), InvalidFeeTier());
     defaultFees[feeTier] = defaultFeeValue;
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function setFeeSetter(address newFeeSetter) external onlyOwner {
     feeSetter = newFeeSetter;
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function triggerFeeUpdate(address pool, bytes32[] calldata proof) external {
     bytes32 node = _doubleHash(IUniswapV3Pool(pool).token0(), IUniswapV3Pool(pool).token1());
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
@@ -113,7 +113,7 @@ contract V3FeeController is IV3FeeController, Owned {
     _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function triggerFeeUpdate(address token0, address token1, bytes32[] calldata proof) external {
     bytes32 node = _doubleHash(token0, token1);
     if (!MerkleProof.verify(proof, merkleRoot, node)) revert InvalidProof();
@@ -121,7 +121,7 @@ contract V3FeeController is IV3FeeController, Owned {
     _setProtocolFeesForPair(token0, token1);
   }
 
-  /// @inheritdoc IV3FeeController
+  /// @inheritdoc IV3FeeAdapter
   function batchTriggerFeeUpdate(
     Pair[] calldata pairs,
     bytes32[] calldata proof,

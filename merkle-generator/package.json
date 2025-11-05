@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "packageManager": "pnpm@10.17.1",
-  "description": "CLI tool for generating Merkle trees and proofs for Uniswap V3 fee controller",
+  "description": "CLI tool for generating Merkle trees and proofs for Uniswap V3 fee adapter",
   "author": "Uniswap Labs",
   "license": "MIT",
   "funding": "https://github.com/sponsors/antfu",
