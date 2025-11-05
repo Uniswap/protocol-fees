@@ -11,11 +11,11 @@ import {Nonce} from "../base/Nonce.sol";
 import {IAssetSink} from "../interfaces/IAssetSink.sol";
 import {IReleaser} from "../interfaces/IReleaser.sol";
 
-/// @title UnichainFirepit
+/// @title OptimismBridgedResourceFirepit
 /// @notice A releaser that withdraws a bridged resource to the burn address on L1 via OP standard
 /// bridge
 /// @custom:security-contact security@uniswap.org
-abstract contract UnichainFirepit is IReleaser, ResourceManager, Nonce {
+abstract contract OptimismBridgedResourceFirepit is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
   /// @inheritdoc IReleaser
@@ -47,7 +47,7 @@ abstract contract UnichainFirepit is IReleaser, ResourceManager, Nonce {
     RESOURCE.safeTransferFrom(msg.sender, address(this), threshold);
     // Withdraw the resource back to L1 burn address
     IL2StandardBridge(Predeploys.L2_STANDARD_BRIDGE)
-      .withdrawTo(RESOURCE, RESOURCE_RECIPIENT, threshold, WITHDRAWAL_MIN_GAS, bytes(""));
+      .withdrawTo(address(RESOURCE), RESOURCE_RECIPIENT, threshold, WITHDRAWAL_MIN_GAS, bytes(""));
     ASSET_SINK.release(assets, recipient);
   }
 }
