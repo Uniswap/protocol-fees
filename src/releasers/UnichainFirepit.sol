@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
+import {Predeploys} from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
+import {IL2StandardBridge} from "../interfaces/external/IL2StandardBridge.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
@@ -9,26 +11,24 @@ import {Nonce} from "../base/Nonce.sol";
 import {IAssetSink} from "../interfaces/IAssetSink.sol";
 import {IReleaser} from "../interfaces/IReleaser.sol";
 
-/// @title ExchangeReleaser
-/// @notice A contract that releases assets from an AssetSink in exchange for transferring a
-/// threshold
-/// amount of a resource token
-/// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
-/// protection
+/// @title UnichainFirepit
+/// @notice A releaser that withdraws a bridged resource to the burn address on L1 via OP standard
+/// bridge
 /// @custom:security-contact security@uniswap.org
 abstract contract UnichainFirepit is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
   /// @inheritdoc IReleaser
   IAssetSink public immutable ASSET_SINK;
+  uint32 internal constant WITHDRAWAL_MIN_GAS = 35_000;
 
   /// @notice Creates a new ExchangeReleaser instance
   /// @param _resource The address of the resource token that must be transferred
   /// @param _assetSink The address of the AssetSink contract holding the assets
-  /// @param _recipient The address that will receive the resource tokens
-  constructor(address _resource, uint256 _threshold, address _assetSink, address _recipient)
-    ResourceManager(_resource, _threshold, msg.sender, _recipient)
+  constructor(address _resource, uint256 _threshold, address _assetSink)
+    ResourceManager(_resource, _threshold, msg.sender, address(0xdead))
   {
+    // assert resource is an OptimismMintableERC20
     ASSET_SINK = IAssetSink(payable(_assetSink));
   }
 
@@ -37,14 +37,17 @@ abstract contract UnichainFirepit is IReleaser, ResourceManager, Nonce {
     _release(_nonce, assets, recipient);
   }
 
-  /// @notice Internal function to handle the nonce check, transfer the RESOURCE, and call the
-  /// release of assets on the AssetSink.
+  /// @notice Internal function to handle the nonce check, withdraw the RESOURCE, then
+  /// handle the release of assets on the AssetSink.
   function _release(uint256 _nonce, Currency[] calldata assets, address recipient)
     internal
     handleNonce(_nonce)
   {
-    // TODO: transfer to standard bridge and initiate withdraw
-    RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
+    // Transfer resource from caller into this contract
+    RESOURCE.safeTransferFrom(msg.sender, address(this), threshold);
+    // Withdraw the resource back to L1 burn address
+    IL2StandardBridge(Predeploys.L2_STANDARD_BRIDGE)
+      .withdrawTo(RESOURCE, RESOURCE_RECIPIENT, threshold, WITHDRAWAL_MIN_GAS, bytes(""));
     ASSET_SINK.release(assets, recipient);
   }
 }
