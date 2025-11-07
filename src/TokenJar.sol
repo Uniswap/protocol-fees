@@ -6,7 +6,7 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 import {ITokenJar} from "./interfaces/ITokenJar.sol";
 
 /// @title TokenJar
-/// @notice Sink for protocol fees
+/// @notice A singular destination for protocol fees
 /// @dev Fees accumulate passively in this contract from external sources.
 ///      Stored fees can be released by an authorized releaser contract.
 /// @custom:security-contact security@uniswap.org
@@ -20,7 +20,7 @@ contract TokenJar is Owned, ITokenJar {
     _;
   }
 
-  /// @dev creates an asset sink where the deployer is the initial owner
+  /// @dev creates an token jar where the deployer is the initial owner
   /// during deployment, the deployer SHOULD set the releaser address and
   /// transfer ownership
   constructor() Owned(msg.sender) {}

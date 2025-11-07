@@ -39,12 +39,12 @@ Uniswap Fee Collection is a maximally fault-tolerant system designed to collect 
 
 The Uniswap system consists of three core layers that work together across all supported chains:
 
-### 1. Asset Sink
+### 1. Token Jar
 
-Each chain deploys a local **Asset Sink** - an immutable smart contract that serves as the collection point for all fees on that chain.
+Each chain deploys a local **Token Jar** - an immutable smart contract that serves as the collection point for all fees on that chain.
 
 ```
-Fee Sources → Asset Sink → Releaser → Fee Conversion
+Fee Sources → Token Jar → Releaser → Fee Conversion
 ```
 
 **Key Properties:**
@@ -53,17 +53,17 @@ Fee Sources → Asset Sink → Releaser → Fee Conversion
 - **Single Admin**: Only the `releaser` can withdraw assets
 - **Atomic Operations**: Full balance transfers only
 
-The Asset Sink defines one role: the `releaser`, which can atomically transfer the full balance of specified assets to a recipient address.
+The Token Jar defines one role: the `releaser`, which can atomically transfer the full balance of specified assets to a recipient address.
 
 ### 2. Fee Sources
 
-Fee Sources are adapter contracts that channel fees from various protocols into the local Asset Sink. They handle the diversity of fee collection mechanisms across different protocols.
+Fee Sources are adapter contracts that channel fees from various protocols into the local Token Jar. They handle the diversity of fee collection mechanisms across different protocols.
 
 #### Push vs Pull Models
 
 **Push Sources** (e.g., Uniswap V2):
 
-- Fees automatically flow to Asset Sink
+- Fees automatically flow to Token Jar
 - Direct integration with protocol fee recipients
 - Minimal ongoing maintenance
 
@@ -71,13 +71,13 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 - Require explicit collection calls
 - Adapter contracts enable permissionless collection
-- Anyone can trigger fee collection to Asset Sink
+- Anyone can trigger fee collection to Token Jar
 
 #### Supported Protocols
 
 **Uniswap V2**
 
-- LP tokens minted directly to Asset Sink
+- LP tokens minted directly to Token Jar
 - 1/6 of swap fees collected as protocol revenue
 - Zero additional infrastructure required
 
@@ -94,7 +94,7 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 ### 3. Releasers
 
-Releasers are smart contracts that serve as the `releaser` for Asset Sinks. They implement the business logic for converting collected fees into protocol value.
+Releasers are smart contracts that serve as the `releaser` for Token Jars. They implement the business logic for converting collected fees into protocol value.
 
 #### UNI Burn (Mainnet)
 
@@ -107,7 +107,7 @@ Searcher → Pay UNI → Releaser → Release Assets → Burn UNI
 **Mechanism:**
 
 1. Searcher pays a fixed UNI amount to Releaser
-2. Releaser releases Asset Sink contents to searcher's specified recipient
+2. Releaser releases Token Jar contents to searcher's specified recipient
 3. UNI tokens are burned, reducing total supply
 4. Searcher profits from asset value exceeding UNI burn cost
 
@@ -149,7 +149,7 @@ Uniswap is designed to handle infrastructure failures gracefully:
 
 ```
 Ethereum Mainnet
-├── Asset Sink
+├── Token Jar
 ├── UNI Burn Releaser (Firepit.sol)
 ├── V2 Fee Source (feeTo)
 ├── V3 Fee Source (V3FeeAdapter.sol)
@@ -195,7 +195,7 @@ forge coverage
 
 ```
 src/
-├── AssetSink.sol             // General purpose contract for receiving fees
+├── TokenJar.sol             // General purpose contract for receiving fees
 ├── Deployer.sol              // A deployer contract to instantiate the initial contracts
 ├── UNIMinter.sol             // UNI-token minting contract to facilitate multiple recipients
 ├── UNIVesting.sol            // A vesting contract to divide minted tokens into 12 claims
@@ -211,11 +211,11 @@ src/
 │   ├── ArrayLib.sol          // Utility library
 │   └── VestingLib.sol        // Utility library for vesting logic
 └── releasers
-    ├── ExchangeReleaser.sol  // Utility contract to exchange a RESOURCE for Asset Sink assets
-    └── Firepit.sol           // Burns UNI (resource) in exchange for Asset Sink assets
+    ├── ExchangeReleaser.sol  // Utility contract to exchange a RESOURCE for Token Jar assets
+    └── Firepit.sol           // Burns UNI (resource) in exchange for Token Jar assets
 
 test
-├── AssetSink.t.sol
+├── TokenJar.t.sol
 ├── CrossChainFirepit.t.sol
 ├── Deployer.t.sol            // Test Deployer configures the system properly
 ├── ExchangeReleaser.t.sol
@@ -240,9 +240,9 @@ With the system already deployed, Uniswap Governance can elect into the system b
 
 | Contract         | Address                                                                                                               | Calldata                                                                     | function                               | function signature | parameters                                                                                                            |
 |------------------|-----------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|----------------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------------------|
-| UniswapV3Factory | [0x1F98431c8aD98523631AE4a59f267346ea31F984](https://etherscan.io/address/0x1f98431c8ad98523631ae4a59f267346ea31f984) | `0x13af40350000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setOwner(address _owner)`             | `0x13af4035`       | [0xASSETSINK](https://etherscan.io/address/0xASSETSINK)                                                               |
+| UniswapV3Factory | [0x1F98431c8aD98523631AE4a59f267346ea31F984](https://etherscan.io/address/0x1f98431c8ad98523631ae4a59f267346ea31f984) | `0x13af40350000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setOwner(address _owner)`             | `0x13af4035`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                               |
 | FeeToSetter      | [0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360](https://etherscan.io/address/0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360) | `0xa2e74af60000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeToSetter(address feeToSetter_)` | `0xa2e74af6`       | [0x1a9C8182C09F50C8318d769245beA52c32BE35BC](https://etherscan.io/address/0x1a9c8182c09f50c8318d769245bea52c32be35bc) |
-| UniswapV2Factory | [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f](https://etherscan.io/address/0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f) | `0xf46901ed0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeTo(address _feeTo)`             | `0xf46901ed`       | [0xASSETSINK](https://etherscan.io/address/0xASSETSINK)                                                               |
+| UniswapV2Factory | [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f](https://etherscan.io/address/0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f) | `0xf46901ed0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeTo(address _feeTo)`             | `0xf46901ed`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                               |
 | UNI              | [0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984](https://etherscan.io/address/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984) | `0xfca3b5aa0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setMinter(address _minter)`           | `0xfca3b5aa`       | [0xUNIMINTER](https://etherscan.io/address/0xUNIMINTER)                                                               |
 
 ## Security

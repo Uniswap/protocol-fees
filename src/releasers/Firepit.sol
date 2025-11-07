@@ -16,8 +16,8 @@ contract Firepit is ExchangeReleaser {
   /// @notice Maximum number of different assets that can be released in a single call
   uint256 public constant MAX_RELEASE_LENGTH = 20;
 
-  constructor(address _resource, uint256 _threshold, address _assetSink)
-    ExchangeReleaser(_resource, _threshold, _assetSink, address(0xdead))
+  constructor(address _resource, uint256 _threshold, address _tokenJar)
+    ExchangeReleaser(_resource, _threshold, _tokenJar, address(0xdead))
   {}
 
   /// @inheritdoc IReleaser

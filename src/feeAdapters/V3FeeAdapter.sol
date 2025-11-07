@@ -24,7 +24,7 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   /// @inheritdoc IV3FeeAdapter
   IUniswapV3Factory public immutable FACTORY;
   /// @inheritdoc IV3FeeAdapter
-  address public immutable ASSET_SINK;
+  address public immutable TOKEN_JAR;
 
   /// @inheritdoc IV3FeeAdapter
   bytes32 public merkleRoot;
@@ -49,9 +49,9 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   }
 
   /// @dev At construction, the fee setter defaults to 0 and its on the owner to set.
-  constructor(address _factory, address _assetSink) Owned(msg.sender) {
+  constructor(address _factory, address _tokenJar) Owned(msg.sender) {
     FACTORY = IUniswapV3Factory(_factory);
-    ASSET_SINK = _assetSink;
+    TOKEN_JAR = _tokenJar;
   }
 
   /// @inheritdoc IV3FeeAdapter
@@ -81,7 +81,7 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     for (uint256 i = 0; i < collectParams.length; i++) {
       CollectParams calldata params = collectParams[i];
       (uint256 amount0Collected, uint256 amount1Collected) = IUniswapV3PoolOwnerActions(params.pool)
-        .collectProtocol(ASSET_SINK, params.amount0Requested, params.amount1Requested);
+        .collectProtocol(TOKEN_JAR, params.amount0Requested, params.amount1Requested);
 
       amountsCollected[i] = Collected({
         amount0Collected: uint128(amount0Collected), amount1Collected: uint128(amount1Collected)

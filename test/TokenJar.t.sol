@@ -11,7 +11,7 @@ import {MockReleaser, MockRevertingReceiver} from "./mocks/MockReleaser.sol";
 contract TokenJarTest is Test {
   using CurrencyLibrary for Currency;
 
-  ITokenJar public assetSink;
+  ITokenJar public tokenJar;
   MockReleaser public mockReleaser;
   MockRevertingReceiver public mockRevertingReceiver;
   MockERC20 public mockToken;
@@ -35,16 +35,16 @@ contract TokenJarTest is Test {
     mockRevertingReceiver = new MockRevertingReceiver();
 
     vm.startPrank(owner);
-    assetSink = new TokenJar();
-    mockReleaser = new MockReleaser(address(assetSink));
-    assetSink.setReleaser(address(mockReleaser));
+    tokenJar = new TokenJar();
+    mockReleaser = new MockReleaser(address(tokenJar));
+    tokenJar.setReleaser(address(mockReleaser));
     vm.stopPrank();
 
     // Mint tokens and send to TokenJar
-    mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
+    mockToken.mint(address(tokenJar), INITIAL_TOKEN_AMOUNT);
 
     // Send native tokens to TokenJar
-    vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
+    vm.deal(address(tokenJar), INITIAL_NATIVE_AMOUNT);
 
     // Give test addresses some ETH
     vm.deal(alice, 100 ether);
@@ -53,13 +53,13 @@ contract TokenJarTest is Test {
 
   function test_Release_ERC20_Success() public {
     Currency asset = Currency.wrap(address(mockToken));
-    uint256 initialBalance = asset.balanceOf(address(assetSink));
+    uint256 initialBalance = asset.balanceOf(address(tokenJar));
 
     // Use releaser contract to release assets
     mockReleaser.release(asset, alice);
 
     assertEq(mockToken.balanceOf(alice), initialBalance);
-    assertEq(asset.balanceOf(address(assetSink)), 0);
+    assertEq(asset.balanceOf(address(tokenJar)), 0);
   }
 
   function test_Release_ERC20_ZeroBalance() public {
@@ -78,7 +78,7 @@ contract TokenJarTest is Test {
     asset[0] = Currency.wrap(address(mockToken));
     // Direct call to TokenJar should fail - only releaser can call
     vm.expectRevert(ITokenJar.Unauthorized.selector);
-    assetSink.release(asset, alice);
+    tokenJar.release(asset, alice);
   }
 
   function test_Release_ERC20_ToZeroAddress() public {
@@ -100,13 +100,13 @@ contract TokenJarTest is Test {
 
   function test_Release_Native_Success() public {
     Currency nativeAsset = Currency.wrap(address(0));
-    uint256 initialBalance = nativeAsset.balanceOf(address(assetSink));
+    uint256 initialBalance = nativeAsset.balanceOf(address(tokenJar));
     uint256 aliceInitialBalance = alice.balance;
 
     mockReleaser.release(nativeAsset, alice);
 
     assertEq(alice.balance, aliceInitialBalance + initialBalance);
-    assertEq(nativeAsset.balanceOf(address(assetSink)), 0);
+    assertEq(nativeAsset.balanceOf(address(tokenJar)), 0);
   }
 
   function test_Release_Native_ZeroBalance() public {
@@ -117,7 +117,7 @@ contract TokenJarTest is Test {
     // Should not emit event or revert
     mockReleaser.release(nativeAsset, alice);
 
-    assertEq(nativeAsset.balanceOf(address(assetSink)), 0);
+    assertEq(nativeAsset.balanceOf(address(tokenJar)), 0);
   }
 
   function test_Release_Native_OnlyReleaser() public {
@@ -125,7 +125,7 @@ contract TokenJarTest is Test {
     nativeAsset[0] = Currency.wrap(address(0));
     // Direct call to TokenJar should fail - only releaser can call
     vm.expectRevert(ITokenJar.Unauthorized.selector);
-    assetSink.release(nativeAsset, alice);
+    tokenJar.release(nativeAsset, alice);
   }
 
   function test_Release_Native_TransferFails() public {
@@ -136,29 +136,29 @@ contract TokenJarTest is Test {
 
   function test_Release_ToCaller() public {
     Currency asset = Currency.wrap(address(mockToken));
-    uint256 initialBalance = asset.balanceOf(address(assetSink));
+    uint256 initialBalance = asset.balanceOf(address(tokenJar));
 
     // Use releaseToCaller function - recipient is msg.sender
     vm.prank(alice);
     mockReleaser.releaseToCaller(asset);
 
     assertEq(mockToken.balanceOf(alice), initialBalance);
-    assertEq(asset.balanceOf(address(assetSink)), 0);
+    assertEq(asset.balanceOf(address(tokenJar)), 0);
   }
 
   function test_setReleaser() public {
-    MockReleaser newReleaser = new MockReleaser(payable(address(assetSink)));
+    MockReleaser newReleaser = new MockReleaser(payable(address(tokenJar)));
     vm.prank(owner);
-    assetSink.setReleaser(address(newReleaser));
-    assertEq(assetSink.releaser(), address(newReleaser));
+    tokenJar.setReleaser(address(newReleaser));
+    assertEq(tokenJar.releaser(), address(newReleaser));
   }
 
   function test_setReleaser_Unauthorized() public {
-    MockReleaser newReleaser = new MockReleaser(payable(address(assetSink)));
+    MockReleaser newReleaser = new MockReleaser(payable(address(tokenJar)));
     vm.expectRevert("UNAUTHORIZED");
-    assetSink.setReleaser(address(newReleaser));
+    tokenJar.setReleaser(address(newReleaser));
 
-    assertEq(assetSink.releaser(), address(mockReleaser));
+    assertEq(tokenJar.releaser(), address(mockReleaser));
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -170,13 +170,13 @@ contract TokenJarTest is Test {
 
     // Create new token and mint specific amount
     MockERC20 fuzzToken = new MockERC20("FuzzToken", "FUZZ", 18);
-    fuzzToken.mint(address(assetSink), amount);
+    fuzzToken.mint(address(tokenJar), amount);
     Currency asset = Currency.wrap(address(fuzzToken));
 
     mockReleaser.release(asset, alice);
 
     assertEq(fuzzToken.balanceOf(alice), amount);
-    assertEq(asset.balanceOf(address(assetSink)), 0);
+    assertEq(asset.balanceOf(address(tokenJar)), 0);
   }
 
   function testFuzz_Release_Native_DifferentAmounts(uint256 amount) public {
@@ -184,19 +184,19 @@ contract TokenJarTest is Test {
 
     // Create new TokenJar with releaser
     vm.startPrank(owner);
-    TokenJar fuzzSink = new TokenJar();
-    MockReleaser fuzzReleaser = new MockReleaser(address(fuzzSink));
-    fuzzSink.setReleaser(address(fuzzReleaser));
+    TokenJar fuzzTokenJar = new TokenJar();
+    MockReleaser fuzzReleaser = new MockReleaser(address(fuzzTokenJar));
+    fuzzTokenJar.setReleaser(address(fuzzReleaser));
     vm.stopPrank();
 
-    vm.deal(address(fuzzSink), amount);
+    vm.deal(address(fuzzTokenJar), amount);
     Currency nativeAsset = Currency.wrap(address(0));
 
     uint256 aliceInitialBalance = alice.balance;
     fuzzReleaser.release(nativeAsset, alice);
 
     assertEq(alice.balance, aliceInitialBalance + amount);
-    assertEq(address(fuzzSink).balance, 0);
+    assertEq(address(fuzzTokenJar).balance, 0);
   }
 
   function testFuzz_OnlyReleaser_DifferentCallers(address caller) public {
@@ -210,10 +210,10 @@ contract TokenJarTest is Test {
 
     vm.prank(caller);
     vm.expectRevert(ITokenJar.Unauthorized.selector);
-    assetSink.release(erc20Asset, alice);
+    tokenJar.release(erc20Asset, alice);
 
     vm.prank(caller);
     vm.expectRevert(ITokenJar.Unauthorized.selector);
-    assetSink.release(nativeAsset, alice);
+    tokenJar.release(nativeAsset, alice);
   }
 }

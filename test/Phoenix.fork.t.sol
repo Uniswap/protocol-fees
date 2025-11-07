@@ -28,7 +28,7 @@ contract PhoenixForkTest is Test {
   IUniswapV2Factory public v2Factory;
   IUniswapV2Router02 public v2Router;
 
-  ITokenJar public assetSink;
+  ITokenJar public tokenJar;
   IReleaser public releaser;
   IV3FeeAdapter public feeAdapter;
 
@@ -61,7 +61,7 @@ contract PhoenixForkTest is Test {
     owner = factory.owner();
 
     deployer = new Deployer();
-    assetSink = deployer.ASSET_SINK();
+    tokenJar = deployer.TOKEN_JAR();
     releaser = deployer.RELEASER();
     feeAdapter = deployer.FEE_ADAPTER();
 
@@ -207,8 +207,8 @@ contract PhoenixForkTest is Test {
   function test_enableFeeV2() public {
     assertEq(v2Factory.feeToSetter(), owner);
     vm.prank(owner);
-    v2Factory.setFeeTo(address(assetSink));
-    assertEq(v2Factory.feeTo(), address(assetSink));
+    v2Factory.setFeeTo(address(tokenJar));
+    assertEq(v2Factory.feeTo(), address(tokenJar));
   }
 
   function test_createV2Fees() public {
@@ -233,8 +233,8 @@ contract PhoenixForkTest is Test {
       USDC, WETH, pair.balanceOf(address(this)), 0, 0, address(this), block.timestamp
     );
 
-    // some liquidity is sent to the asset sink
-    assertGt(pair.balanceOf(address(assetSink)), 0);
+    // some liquidity is sent to the token jar
+    assertGt(pair.balanceOf(address(tokenJar)), 0);
   }
 
   function test_collectFeeV3() public {
@@ -275,24 +275,24 @@ contract PhoenixForkTest is Test {
       pool: pool3, amount0Requested: type(uint128).max, amount1Requested: type(uint128).max
     });
 
-    // asset sink has no tokens
-    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
-    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
+    // token jar has no tokens
+    assertEq(IERC20(USDC).balanceOf(address(tokenJar)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(tokenJar)), 0);
     feeAdapter.collect(params);
 
-    // asset sink has collected all fees
+    // token jar has collected all fees
     // subtract 3 wei because the v3 pool always leaves 1 wei behind
     assertEq(
-      IERC20(USDC).balanceOf(address(assetSink)), token0Pool1 + token0Pool2 + token0Pool3 - 3 wei
+      IERC20(USDC).balanceOf(address(tokenJar)), token0Pool1 + token0Pool2 + token0Pool3 - 3 wei
     );
     assertEq(
-      IERC20(WETH).balanceOf(address(assetSink)), token1Pool1 + token1Pool2 + token1Pool3 - 3 wei
+      IERC20(WETH).balanceOf(address(tokenJar)), token1Pool1 + token1Pool2 + token1Pool3 - 3 wei
     );
   }
 
   function test_releaseV3(address caller, address recipient) public {
     vm.assume(caller != address(0));
-    vm.assume(recipient != address(0) && recipient != address(assetSink));
+    vm.assume(recipient != address(0) && recipient != address(tokenJar));
     test_collectFeeV3();
 
     // give the caller some UNI to burn
@@ -302,8 +302,8 @@ contract PhoenixForkTest is Test {
     uint256 balance0Before = IERC20(USDC).balanceOf(recipient);
     uint256 balance1Before = IERC20(WETH).balanceOf(recipient);
 
-    uint256 balance0TokenJarBefore = IERC20(USDC).balanceOf(address(assetSink));
-    uint256 balance1TokenJarBefore = IERC20(WETH).balanceOf(address(assetSink));
+    uint256 balance0TokenJarBefore = IERC20(USDC).balanceOf(address(tokenJar));
+    uint256 balance1TokenJarBefore = IERC20(WETH).balanceOf(address(tokenJar));
 
     // release the assets
     uint256 _nonce = releaser.nonce();
@@ -316,9 +316,9 @@ contract PhoenixForkTest is Test {
     releaser.release(_nonce, currencies, recipient);
     vm.stopPrank();
 
-    // amounts transferred from the asset sink to the recipient
-    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
-    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
+    // amounts transferred from the token jar to the recipient
+    assertEq(IERC20(USDC).balanceOf(address(tokenJar)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(tokenJar)), 0);
     assertEq(IERC20(USDC).balanceOf(recipient) - balance0Before, balance0TokenJarBefore);
     assertEq(IERC20(WETH).balanceOf(recipient) - balance1Before, balance1TokenJarBefore);
   }
@@ -329,7 +329,7 @@ contract PhoenixForkTest is Test {
     test_createV2Fees();
     test_collectFeeV3();
 
-    uint256 pairBalanceBefore = pair.balanceOf(address(assetSink));
+    uint256 pairBalanceBefore = pair.balanceOf(address(tokenJar));
 
     // give the caller some UNI to burn
     deal(deployer.RESOURCE(), address(caller), releaser.threshold());
@@ -347,10 +347,10 @@ contract PhoenixForkTest is Test {
     releaser.release(_nonce, currencies, recipient);
     vm.stopPrank();
 
-    // amounts transferred from the asset sink to the recipient
-    assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
-    assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
-    assertEq(pair.balanceOf(address(assetSink)), 0);
+    // amounts transferred from the token jar to the recipient
+    assertEq(IERC20(USDC).balanceOf(address(tokenJar)), 0);
+    assertEq(IERC20(WETH).balanceOf(address(tokenJar)), 0);
+    assertEq(pair.balanceOf(address(tokenJar)), 0);
     assertEq(pair.balanceOf(recipient), pairBalanceBefore);
   }
 

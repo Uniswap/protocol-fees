@@ -47,7 +47,7 @@ interface IV3FeeAdapter {
   }
 
   /// @return The address where collected fees are sent.
-  function ASSET_SINK() external view returns (address);
+  function TOKEN_JAR() external view returns (address);
 
   /// @return The Uniswap V3 Factory contract.
   function FACTORY() external view returns (IUniswapV3Factory);
@@ -83,7 +83,7 @@ interface IV3FeeAdapter {
   /// @param newOwner The new owner of the Uniswap V3 Factory.
   function setFactoryOwner(address newOwner) external;
 
-  /// @notice Collects protocol fees from the specified pools to the designated `ASSET_SINK`
+  /// @notice Collects protocol fees from the specified pools to the designated `TOKEN_JAR`
   /// @param collectParams Array of collection parameters for each pool.
   /// @return amountsCollected Array of collected amounts for each pool.
   function collect(CollectParams[] calldata collectParams)

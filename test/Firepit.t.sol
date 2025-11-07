@@ -14,7 +14,7 @@ contract FirepitTest is PhoenixTestBase {
     super.setUp();
 
     vm.prank(owner);
-    assetSink.setReleaser(address(firepit));
+    tokenJar.setReleaser(address(firepit));
   }
 
   function test_release_release_erc20() public {
@@ -27,7 +27,7 @@ contract FirepitTest is PhoenixTestBase {
     firepit.release(firepit.nonce(), releaseMockToken, alice);
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
     assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
@@ -42,7 +42,7 @@ contract FirepitTest is PhoenixTestBase {
     resource.approve(address(firepit), INITIAL_TOKEN_AMOUNT);
     firepit.release(firepit.nonce(), releaseMockNative, alice);
 
-    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
     assertEq(resource.balanceOf(address(0xdead)), firepit.threshold());
@@ -85,7 +85,7 @@ contract FirepitTest is PhoenixTestBase {
     // First release call
     firepit.release(nonce, releaseMockToken, alice);
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(firepit)), 0);
     assertEq(resource.balanceOf(address(0xdead)), INITIAL_TOKEN_AMOUNT);

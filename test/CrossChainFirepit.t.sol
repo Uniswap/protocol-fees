@@ -13,7 +13,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     super.setUp();
 
     vm.prank(owner);
-    assetSink.setReleaser(address(firepitDestination));
+    tokenJar.setReleaser(address(firepitDestination));
   }
 
   function test_release_release_erc20() public {
@@ -29,7 +29,7 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     vm.stopPrank();
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
     assertEq(resource.balanceOf(address(0xdead)), opStackFirepitSource.threshold());
@@ -78,9 +78,9 @@ contract CrossChainFirepitTest is PhoenixTestBase {
 
   function test_release_release_native() public {
     uint256 bobNativeBefore = CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob);
-    uint256 assetSinkNativeBefore = CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink));
+    uint256 tokenJarNativeBefore = CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(tokenJar));
 
-    assertGt(assetSinkNativeBefore, 0);
+    assertGt(tokenJarNativeBefore, 0);
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(resource.balanceOf(address(opStackFirepitSource)), 0);
     assertEq(resource.balanceOf(address(0xdead)), 0);
@@ -96,8 +96,8 @@ contract CrossChainFirepitTest is PhoenixTestBase {
     assertEq(resource.balanceOf(address(0xdead)), opStackFirepitSource.threshold());
 
     // bob received native asset
-    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob), bobNativeBefore + assetSinkNativeBefore);
-    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(bob), bobNativeBefore + tokenJarNativeBefore);
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(tokenJar)), 0);
   }
 
   function test_release_release_OOGToken() public {

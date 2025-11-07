@@ -15,10 +15,10 @@ contract ExchangeReleaserTest is PhoenixTestBase {
     // owner is the msg.sender
     vm.startPrank(owner);
     swapReleaser = new ExchangeReleaserMock(
-      address(resource), INITIAL_TOKEN_AMOUNT, address(assetSink), recipient
+      address(resource), INITIAL_TOKEN_AMOUNT, address(tokenJar), recipient
     );
 
-    assetSink.setReleaser(address(swapReleaser));
+    tokenJar.setReleaser(address(swapReleaser));
     swapReleaser.setThresholdSetter(owner);
     vm.stopPrank();
   }
@@ -33,7 +33,7 @@ contract ExchangeReleaserTest is PhoenixTestBase {
     swapReleaser.release(swapReleaser.nonce(), releaseMockToken, alice);
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(swapReleaser)), 0);
     assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
@@ -48,7 +48,7 @@ contract ExchangeReleaserTest is PhoenixTestBase {
     resource.approve(address(swapReleaser), INITIAL_TOKEN_AMOUNT);
     swapReleaser.release(swapReleaser.nonce(), releaseMockNative, alice);
 
-    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(assetSink)), 0);
+    assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(swapReleaser)), 0);
     assertEq(resource.balanceOf(recipient), swapReleaser.threshold());
@@ -90,7 +90,7 @@ contract ExchangeReleaserTest is PhoenixTestBase {
     // First release call
     swapReleaser.release(nonce, releaseMockToken, alice);
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(mockToken.balanceOf(address(assetSink)), 0);
+    assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(resource.balanceOf(alice), 0);
     assertEq(resource.balanceOf(address(swapReleaser)), 0);
     assertEq(resource.balanceOf(recipient), INITIAL_TOKEN_AMOUNT);

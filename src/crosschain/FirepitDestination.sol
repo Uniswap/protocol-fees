@@ -21,13 +21,13 @@ contract FirepitDestination is Nonce, Owned {
   /// @dev updatable by owner
   mapping(address callers => bool allowed) public allowableCallers;
 
-  TokenJar public immutable ASSET_SINK;
+  TokenJar public immutable TOKEN_JAR;
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
 
   event FailedRelease(uint256 indexed _nonce, address indexed _claimer);
 
-  constructor(address _owner, address _assetSink) Owned(_owner) {
-    ASSET_SINK = TokenJar(payable(_assetSink));
+  constructor(address _owner, address _tokenJar) Owned(_owner) {
+    TOKEN_JAR = TokenJar(payable(_tokenJar));
   }
 
   modifier onlyAllowed() {
@@ -39,7 +39,7 @@ contract FirepitDestination is Nonce, Owned {
     _;
   }
 
-  /// @notice Calls Asset Sink to release assets to a destination
+  /// @notice Calls Token Jar to release assets to a destination
   /// @dev only callable by the messenger via the authorized L1 source contract
   function claimTo(uint256 _nonce, Currency[] calldata assets, address claimer)
     external
@@ -50,7 +50,7 @@ contract FirepitDestination is Nonce, Owned {
       emit FailedRelease(_nonce, claimer);
       return;
     }
-    try ASSET_SINK.release(assets, claimer) {}
+    try TOKEN_JAR.release(assets, claimer) {}
     catch {
       emit FailedRelease(_nonce, claimer);
       return;

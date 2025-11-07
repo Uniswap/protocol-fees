@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 
-/// @title Asset Sink Interface
+/// @title Token Jar Interface
 /// @notice The interface for releasing assets from the contract
 interface ITokenJar {
   /// @notice Thrown when an unauthorized address attempts to call a restricted function

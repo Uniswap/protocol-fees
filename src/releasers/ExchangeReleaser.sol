@@ -20,16 +20,16 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
   /// @inheritdoc IReleaser
-  ITokenJar public immutable ASSET_SINK;
+  ITokenJar public immutable TOKEN_JAR;
 
   /// @notice Creates a new ExchangeReleaser instance
   /// @param _resource The address of the resource token that must be transferred
-  /// @param _assetSink The address of the TokenJar contract holding the assets
+  /// @param _tokenJar The address of the TokenJar contract holding the assets
   /// @param _recipient The address that will receive the resource tokens
-  constructor(address _resource, uint256 _threshold, address _assetSink, address _recipient)
+  constructor(address _resource, uint256 _threshold, address _tokenJar, address _recipient)
     ResourceManager(_resource, _threshold, msg.sender, _recipient)
   {
-    ASSET_SINK = ITokenJar(payable(_assetSink));
+    TOKEN_JAR = ITokenJar(payable(_tokenJar));
   }
 
   /// @inheritdoc IReleaser
@@ -44,6 +44,6 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
     handleNonce(_nonce)
   {
     RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
-    ASSET_SINK.release(assets, recipient);
+    TOKEN_JAR.release(assets, recipient);
   }
 }

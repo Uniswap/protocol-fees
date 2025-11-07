@@ -55,7 +55,7 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     factory.setOwner(owner);
 
     vm.startPrank(owner);
-    feeAdapter = new V3FeeAdapter(address(factory), address(assetSink));
+    feeAdapter = new V3FeeAdapter(address(factory), address(tokenJar));
     feeAdapter.setFeeSetter(owner);
     factory.setOwner(address(feeAdapter));
     vm.stopPrank();
@@ -87,8 +87,8 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     assertEq(address(factory.owner()), address(feeAdapter));
   }
 
-  function test_assetSink_isSet() public view {
-    assertEq(feeAdapter.ASSET_SINK(), address(assetSink));
+  function test_tokenJar_isSet() public view {
+    assertEq(feeAdapter.TOKEN_JAR(), address(tokenJar));
   }
 
   function test_enableFeeAmount() public {
@@ -116,8 +116,8 @@ contract V3FeeAdapterTest is PhoenixTestBase {
       pool: pool, amount0Requested: amount0, amount1Requested: amount1
     });
 
-    uint256 balanceBefore = MockERC20(token0).balanceOf(address(assetSink));
-    uint256 balanceBefore1 = MockERC20(token1).balanceOf(address(assetSink));
+    uint256 balanceBefore = MockERC20(token0).balanceOf(address(tokenJar));
+    uint256 balanceBefore1 = MockERC20(token1).balanceOf(address(tokenJar));
 
     // Anyone can call collect.
     IV3FeeAdapter.Collected[] memory collected = feeAdapter.collect(collectParams);
@@ -126,9 +126,9 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     assertEq(collected[0].amount0Collected, amount0 - 1);
     assertEq(collected[0].amount1Collected, amount1 - 1);
 
-    // Phoenix Test Base pre-funds asset sink, and poolManager sends more funds to it
-    assertEq(MockERC20(token0).balanceOf(address(assetSink)), balanceBefore + amount0 - 1);
-    assertEq(MockERC20(token1).balanceOf(address(assetSink)), balanceBefore1 + amount1 - 1);
+    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    assertEq(MockERC20(token0).balanceOf(address(tokenJar)), balanceBefore + amount0 - 1);
+    assertEq(MockERC20(token1).balanceOf(address(tokenJar)), balanceBefore1 + amount1 - 1);
   }
 
   /// Test spoofed storage setting in UniswapV3Pool.
@@ -496,9 +496,11 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     vm.stopPrank();
   }
 
-  function test_fuzz_revert_setDefaultFeeByFeeTier(address caller, uint24 feeTier, uint8 defaultFee)
-    public
-  {
+  function test_fuzz_revert_setDefaultFeeByFeeTier(
+    address caller,
+    uint24 feeTier,
+    uint8 defaultFee
+  ) public {
     vm.assume(caller != feeAdapter.feeSetter());
 
     vm.prank(caller);

@@ -7,28 +7,28 @@ import {TokenJar} from "../../src/TokenJar.sol";
 /// @title MockReleaser
 /// @notice Mock contract for testing TokenJar functionality
 contract MockReleaser {
-  TokenJar public assetSink;
+  TokenJar public tokenJar;
 
-  constructor(address _assetSink) {
-    assetSink = TokenJar(payable(_assetSink));
+  constructor(address _tokenJar) {
+    tokenJar = TokenJar(payable(_tokenJar));
   }
 
-  function setTokenJar(TokenJar _assetSink) external {
-    assetSink = _assetSink;
+  function setTokenJar(TokenJar _tokenJar) external {
+    tokenJar = _tokenJar;
   }
 
-  /// @notice Release assets from the sink
+  /// @notice Release assets from the token jar
   function release(Currency asset, address recipient) external {
     Currency[] memory assets = new Currency[](1);
     assets[0] = asset;
-    assetSink.release(assets, recipient);
+    tokenJar.release(assets, recipient);
   }
 
   /// @notice Release assets to caller
   function releaseToCaller(Currency asset) external {
     Currency[] memory assets = new Currency[](1);
     assets[0] = asset;
-    assetSink.release(assets, msg.sender);
+    tokenJar.release(assets, msg.sender);
   }
 }
 
