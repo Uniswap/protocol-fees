@@ -5,13 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
-import {AssetSink, IAssetSink} from "../src/AssetSink.sol";
+import {TokenJar, ITokenJar} from "../src/TokenJar.sol";
 import {MockReleaser, MockRevertingReceiver} from "./mocks/MockReleaser.sol";
 
-contract AssetSinkTest is Test {
+contract TokenJarTest is Test {
   using CurrencyLibrary for Currency;
 
-  IAssetSink public assetSink;
+  ITokenJar public assetSink;
   MockReleaser public mockReleaser;
   MockRevertingReceiver public mockRevertingReceiver;
   MockERC20 public mockToken;
@@ -35,15 +35,15 @@ contract AssetSinkTest is Test {
     mockRevertingReceiver = new MockRevertingReceiver();
 
     vm.startPrank(owner);
-    assetSink = new AssetSink();
+    assetSink = new TokenJar();
     mockReleaser = new MockReleaser(address(assetSink));
     assetSink.setReleaser(address(mockReleaser));
     vm.stopPrank();
 
-    // Mint tokens and send to AssetSink
+    // Mint tokens and send to TokenJar
     mockToken.mint(address(assetSink), INITIAL_TOKEN_AMOUNT);
 
-    // Send native tokens to AssetSink
+    // Send native tokens to TokenJar
     vm.deal(address(assetSink), INITIAL_NATIVE_AMOUNT);
 
     // Give test addresses some ETH
@@ -76,8 +76,8 @@ contract AssetSinkTest is Test {
   function test_Release_ERC20_OnlyReleaser() public {
     Currency[] memory asset = new Currency[](1);
     asset[0] = Currency.wrap(address(mockToken));
-    // Direct call to AssetSink should fail - only releaser can call
-    vm.expectRevert(IAssetSink.Unauthorized.selector);
+    // Direct call to TokenJar should fail - only releaser can call
+    vm.expectRevert(ITokenJar.Unauthorized.selector);
     assetSink.release(asset, alice);
   }
 
@@ -111,7 +111,7 @@ contract AssetSinkTest is Test {
 
   function test_Release_Native_ZeroBalance() public {
     Currency nativeAsset = Currency.wrap(address(0));
-    // Drain the AssetSink first
+    // Drain the TokenJar first
     mockReleaser.release(nativeAsset, alice);
 
     // Should not emit event or revert
@@ -123,8 +123,8 @@ contract AssetSinkTest is Test {
   function test_Release_Native_OnlyReleaser() public {
     Currency[] memory nativeAsset = new Currency[](1);
     nativeAsset[0] = Currency.wrap(address(0));
-    // Direct call to AssetSink should fail - only releaser can call
-    vm.expectRevert(IAssetSink.Unauthorized.selector);
+    // Direct call to TokenJar should fail - only releaser can call
+    vm.expectRevert(ITokenJar.Unauthorized.selector);
     assetSink.release(nativeAsset, alice);
   }
 
@@ -182,9 +182,9 @@ contract AssetSinkTest is Test {
   function testFuzz_Release_Native_DifferentAmounts(uint256 amount) public {
     vm.assume(amount > 0 && amount <= 1000 ether);
 
-    // Create new AssetSink with releaser
+    // Create new TokenJar with releaser
     vm.startPrank(owner);
-    AssetSink fuzzSink = new AssetSink();
+    TokenJar fuzzSink = new TokenJar();
     MockReleaser fuzzReleaser = new MockReleaser(address(fuzzSink));
     fuzzSink.setReleaser(address(fuzzReleaser));
     vm.stopPrank();
@@ -209,11 +209,11 @@ contract AssetSinkTest is Test {
     nativeAsset[0] = Currency.wrap(address(0));
 
     vm.prank(caller);
-    vm.expectRevert(IAssetSink.Unauthorized.selector);
+    vm.expectRevert(ITokenJar.Unauthorized.selector);
     assetSink.release(erc20Asset, alice);
 
     vm.prank(caller);
-    vm.expectRevert(IAssetSink.Unauthorized.selector);
+    vm.expectRevert(ITokenJar.Unauthorized.selector);
     assetSink.release(nativeAsset, alice);
   }
 }

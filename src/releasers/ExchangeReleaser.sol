@@ -6,11 +6,11 @@ import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ResourceManager} from "../base/ResourceManager.sol";
 import {Nonce} from "../base/Nonce.sol";
-import {IAssetSink} from "../interfaces/IAssetSink.sol";
+import {ITokenJar} from "../interfaces/ITokenJar.sol";
 import {IReleaser} from "../interfaces/IReleaser.sol";
 
 /// @title ExchangeReleaser
-/// @notice A contract that releases assets from an AssetSink in exchange for transferring a
+/// @notice A contract that releases assets from an TokenJar in exchange for transferring a
 /// threshold
 /// amount of a resource token
 /// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
@@ -20,16 +20,16 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
   /// @inheritdoc IReleaser
-  IAssetSink public immutable ASSET_SINK;
+  ITokenJar public immutable ASSET_SINK;
 
   /// @notice Creates a new ExchangeReleaser instance
   /// @param _resource The address of the resource token that must be transferred
-  /// @param _assetSink The address of the AssetSink contract holding the assets
+  /// @param _assetSink The address of the TokenJar contract holding the assets
   /// @param _recipient The address that will receive the resource tokens
   constructor(address _resource, uint256 _threshold, address _assetSink, address _recipient)
     ResourceManager(_resource, _threshold, msg.sender, _recipient)
   {
-    ASSET_SINK = IAssetSink(payable(_assetSink));
+    ASSET_SINK = ITokenJar(payable(_assetSink));
   }
 
   /// @inheritdoc IReleaser
@@ -38,7 +38,7 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   }
 
   /// @notice Internal function to handle the nonce check, transfer the RESOURCE, and call the
-  /// release of assets on the AssetSink.
+  /// release of assets on the TokenJar.
   function _release(uint256 _nonce, Currency[] calldata assets, address recipient)
     internal
     handleNonce(_nonce)

@@ -4,13 +4,13 @@ pragma solidity ^0.8.29;
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IL1CrossDomainMessenger} from "../interfaces/IL1CrossDomainMessenger.sol";
-import {AssetSink} from "../AssetSink.sol";
+import {TokenJar} from "../TokenJar.sol";
 import {Nonce} from "../base/Nonce.sol";
 
 error UnauthorizedCall();
 
 /// @notice a contract for receiving crosschain messages. Validates messages and releases assets
-/// from the AssetSink
+/// from the TokenJar
 contract FirepitDestination is Nonce, Owned {
   /// @notice the source contract that is allowed to originate messages to this contract i.e.
   /// FirepitSource
@@ -21,13 +21,13 @@ contract FirepitDestination is Nonce, Owned {
   /// @dev updatable by owner
   mapping(address callers => bool allowed) public allowableCallers;
 
-  AssetSink public immutable ASSET_SINK;
+  TokenJar public immutable ASSET_SINK;
   uint256 public constant MINIMUM_RELEASE_GAS = 100_000;
 
   event FailedRelease(uint256 indexed _nonce, address indexed _claimer);
 
   constructor(address _owner, address _assetSink) Owned(_owner) {
-    ASSET_SINK = AssetSink(payable(_assetSink));
+    ASSET_SINK = TokenJar(payable(_assetSink));
   }
 
   modifier onlyAllowed() {

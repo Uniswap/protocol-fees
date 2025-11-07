@@ -2,13 +2,13 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {IAssetSink} from "./IAssetSink.sol";
+import {ITokenJar} from "./ITokenJar.sol";
 import {IResourceManager} from "./base/IResourceManager.sol";
 import {INonce} from "./base/INonce.sol";
 
 interface IReleaser is IResourceManager, INonce {
   /// @return Address of the Asset Sink contract that will release the assets
-  function ASSET_SINK() external view returns (IAssetSink);
+  function ASSET_SINK() external view returns (ITokenJar);
 
   /// @notice Releases assets to a specified recipient if the resource threshold is met
   /// @param _nonce The nonce for the release, must equal to the contract nonce otherwise revert

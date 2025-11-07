@@ -5,7 +5,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 
 /// @title Asset Sink Interface
 /// @notice The interface for releasing assets from the contract
-interface IAssetSink {
+interface ITokenJar {
   /// @notice Thrown when an unauthorized address attempts to call a restricted function
   error Unauthorized();
 

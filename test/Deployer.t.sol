@@ -7,7 +7,7 @@ import {
   IUniswapV3Factory
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {Deployer} from "../src/Deployer.sol";
-import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
+import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
@@ -20,7 +20,7 @@ contract DeployerTest is Test {
 
   IUniswapV3Factory public factory;
 
-  IAssetSink public assetSink;
+  ITokenJar public assetSink;
   IReleaser public releaser;
   IV3FeeAdapter public feeAdapter;
 

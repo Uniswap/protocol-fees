@@ -2,18 +2,18 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
-import {AssetSink} from "../../src/AssetSink.sol";
+import {TokenJar} from "../../src/TokenJar.sol";
 
 /// @title MockReleaser
-/// @notice Mock contract for testing AssetSink functionality
+/// @notice Mock contract for testing TokenJar functionality
 contract MockReleaser {
-  AssetSink public assetSink;
+  TokenJar public assetSink;
 
   constructor(address _assetSink) {
-    assetSink = AssetSink(payable(_assetSink));
+    assetSink = TokenJar(payable(_assetSink));
   }
 
-  function setAssetSink(AssetSink _assetSink) external {
+  function setTokenJar(TokenJar _assetSink) external {
     assetSink = _assetSink;
   }
 

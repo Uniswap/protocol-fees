@@ -2,8 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {V3FeeAdapter} from "./feeAdapters/V3FeeAdapter.sol";
-import {IAssetSink} from "./interfaces/IAssetSink.sol";
-import {AssetSink} from "./AssetSink.sol";
+import {ITokenJar} from "./interfaces/ITokenJar.sol";
+import {TokenJar} from "./TokenJar.sol";
 import {Firepit} from "./releasers/Firepit.sol";
 import {UNIMinter} from "./UNIMinter.sol";
 import {IReleaser} from "./interfaces/IReleaser.sol";
@@ -13,7 +13,7 @@ import {IOwned} from "./interfaces/base/IOwned.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 contract Deployer {
-  IAssetSink public immutable ASSET_SINK;
+  ITokenJar public immutable ASSET_SINK;
   IReleaser public immutable RELEASER;
   IV3FeeAdapter public immutable FEE_ADAPTER;
   IUNIMinter public immutable UNI_MINTER;
@@ -28,7 +28,7 @@ contract Deployer {
   bytes32 constant SALT_FEE_ADAPTER = 0;
 
   //// ASSET SINK:
-  /// 1. Deploy the AssetSink
+  /// 1. Deploy the TokenJar
   /// 3. Set the releaser on the asset sink.
   /// 4. Update the owner on the asset sink.
 
@@ -48,8 +48,8 @@ contract Deployer {
   ///   - To enable the UNIMinter, the owner must call `setMinter` on the UNI contract
   constructor() {
     address owner = V3_FACTORY.owner();
-    /// 1. Deploy the AssetSink.
-    ASSET_SINK = new AssetSink{salt: SALT_ASSET_SINK}();
+    /// 1. Deploy the TokenJar.
+    ASSET_SINK = new TokenJar{salt: SALT_ASSET_SINK}();
     /// 2. Deploy the Releaser.
     RELEASER = new Firepit{salt: SALT_RELEASER}(RESOURCE, THRESHOLD, address(ASSET_SINK));
     /// 3. Set the releaser on the asset sink.

@@ -9,7 +9,7 @@ import {
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {Deployer} from "../src/Deployer.sol";
-import {IAssetSink} from "../src/interfaces/IAssetSink.sol";
+import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
@@ -28,7 +28,7 @@ contract PhoenixForkTest is Test {
   IUniswapV2Factory public v2Factory;
   IUniswapV2Router02 public v2Router;
 
-  IAssetSink public assetSink;
+  ITokenJar public assetSink;
   IReleaser public releaser;
   IV3FeeAdapter public feeAdapter;
 
@@ -302,8 +302,8 @@ contract PhoenixForkTest is Test {
     uint256 balance0Before = IERC20(USDC).balanceOf(recipient);
     uint256 balance1Before = IERC20(WETH).balanceOf(recipient);
 
-    uint256 balance0AssetSinkBefore = IERC20(USDC).balanceOf(address(assetSink));
-    uint256 balance1AssetSinkBefore = IERC20(WETH).balanceOf(address(assetSink));
+    uint256 balance0TokenJarBefore = IERC20(USDC).balanceOf(address(assetSink));
+    uint256 balance1TokenJarBefore = IERC20(WETH).balanceOf(address(assetSink));
 
     // release the assets
     uint256 _nonce = releaser.nonce();
@@ -319,8 +319,8 @@ contract PhoenixForkTest is Test {
     // amounts transferred from the asset sink to the recipient
     assertEq(IERC20(USDC).balanceOf(address(assetSink)), 0);
     assertEq(IERC20(WETH).balanceOf(address(assetSink)), 0);
-    assertEq(IERC20(USDC).balanceOf(recipient) - balance0Before, balance0AssetSinkBefore);
-    assertEq(IERC20(WETH).balanceOf(recipient) - balance1Before, balance1AssetSinkBefore);
+    assertEq(IERC20(USDC).balanceOf(recipient) - balance0Before, balance0TokenJarBefore);
+    assertEq(IERC20(WETH).balanceOf(recipient) - balance1Before, balance1TokenJarBefore);
   }
 
   function test_releaseV2V3(address caller, address recipient) public {
