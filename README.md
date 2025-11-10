@@ -249,7 +249,7 @@ With the system already deployed, Uniswap Governance can elect into the system b
 
 - **Economic Security**: Competitive incentives prevent manipulation
 - **Comprehensive Testing**: 156 tests with fuzz testing, fork testing, and extensive edge cases
-- **Audits**: Two rounds of audits from OpenZeppelin, with reports in [audits/](./audits/)
+- **Audits**: Two rounds of audits from OpenZeppelin, with reports in [audit/](./audit/)
 
 ## Future Development
 
