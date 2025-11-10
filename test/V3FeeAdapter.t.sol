@@ -496,11 +496,9 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     vm.stopPrank();
   }
 
-  function test_fuzz_revert_setDefaultFeeByFeeTier(
-    address caller,
-    uint24 feeTier,
-    uint8 defaultFee
-  ) public {
+  function test_fuzz_revert_setDefaultFeeByFeeTier(address caller, uint24 feeTier, uint8 defaultFee)
+    public
+  {
     vm.assume(caller != feeAdapter.feeSetter());
 
     vm.prank(caller);
