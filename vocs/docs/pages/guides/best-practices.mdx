@@ -44,7 +44,7 @@ In the safe pattern, the caller is responsible for reading the `Firepit.nonce()`
 
 For further reading, please see [Read Asset Balance](/guides/read-asset-balance)
 
-In the ProtocolFees system, Uniswap v3 fees *must be collected* to the `AssetSink` before they are eligible for release.
+In the ProtocolFees system, Uniswap v3 fees *must be collected* to the `TokenJar` before they are eligible for release.
 
 :::tip
 We recommend that integrators check and collect Uniswap v3 fees before calling `Firepit.release()`, to ensure the maximum assets are released.
@@ -87,7 +87,7 @@ Because the ProtocolFees system can release native tokens (Ether), recipients of
 
 For further reading, please see [Read Asset Balance](/guides/read-asset-balance#uniswap-v2-pool-protocol-fees)
 
-Uniswap v2 Protocol Fees are automatically pushed to the `AssetSink` contract, but are represented as ERC-20 LP tokens. These ERC-20 LP tokens represent a combination of `token0` and `token1`
+Uniswap v2 Protocol Fees are automatically pushed to the `TokenJar` contract, but are represented as ERC-20 LP tokens. These ERC-20 LP tokens represent a combination of `token0` and `token1`
 
 To compute the underlying amount of `token0` and `token1` represented by the LP tokens, integrators can use the following formula:
 

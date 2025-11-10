@@ -13,9 +13,9 @@ ProtocolFees enables the permissionless collection and flexible conversion of an
 
 The ProtocolFees system consists of three core layers that work together on any chain where they are deployed:
 
-### Asset Sink
+### Token Jar
 
-The **Asset Sink** is an immutable smart contract that serves as the collection point for all fees. There is one Asset Sink deployed per chain.
+The **Token Jar** is an immutable smart contract that serves as the collection point for all fees. There is one Token Jar deployed per chain.
 
 #### Key Properties
 
@@ -27,13 +27,13 @@ The **Asset Sink** is an immutable smart contract that serves as the collection 
 #### Governance
 
 - **Privileged roles:**
-  - `owner`: Can appoint a new `Releaser` contract which defines the economic criteria for accessing the assets held by the Asset Sink
+  - `owner`: Can appoint a new `Releaser` contract which defines the economic criteria for accessing the assets held by the Token Jar
 - **Why This Matters**: If a better Releaser is developed, Governance can switch to it
 - **Immutable Components**: The `release()` function logic that transfers full balances to recipients cannot be changed
 
 ### Fee Controllers
 
-Fee Controllers are adapter contracts that channel fees from various sources into the Asset Sink. A Fee Controller contract is deployed for each fee source that requires one in order to configure fee collection mechanisms across different protocol versions and sources.
+Fee Controllers are adapter contracts that channel fees from various sources into the Token Jar. A Fee Controller contract is deployed for each fee source that requires one in order to configure fee collection mechanisms across different protocol versions and sources.
 
 #### Key Properties
 
@@ -49,7 +49,7 @@ Permissions and controls are specific to individual Fee Controller implementatio
 
 ### Releasers
 
-Releasers are smart contracts that serve in the `releaser` role for Asset Sinks. They implement the business logic for converting collected fees into protocol value.
+Releasers are smart contracts that serve in the `releaser` role for Token Jars. They implement the business logic for converting collected fees into protocol value.
 
 #### Key Properties
 
@@ -82,7 +82,7 @@ V3FeeAdapter enables efficient batch updates of fee levels across many pools usi
   - `owner`: Can appoint new `feeSetter`, enable new fee tiers, appoint new `V3FeeAdapter`
   - `feeSetter`: Can define pool-level protocol fees, can update Merkle roots for fee configuration
 - **Why This Matters**: Flexible fee management allows governance to optimize protocol revenue and respond to market conditions without redeploying contracts. Importantly, V3FeeAdapter does not change Uniswap v3 pools' fee mechanism or parameters, it just adds flexibility in how those parameters can be adjusted.
-- **Immutable Components**: The  `collect()` function logic,  `ASSET_SINK` and `FACTORY` addresses, and Merkle tree verification cannot be changed.
+- **Immutable Components**: The  `collect()` function logic,  `TOKEN_JAR` and `FACTORY` addresses, and Merkle tree verification cannot be changed.
 
 ### Firepit Releaser
 
@@ -91,7 +91,7 @@ Firepit is a Releaser contract that implements a mechanism to burn UNI tokens wi
 #### Mechanism
 
 1. Searcher pays fixed UNI amount to Firepit
-2. Firepit releases Asset Sink contents to searcher
+2. Firepit releases Token Jar contents to searcher
 3. UNI tokens are burned (sent to `0xdead`), reducing total supply
 4. Searcher profits from asset value exceeding UNI burn cost
 
@@ -111,6 +111,6 @@ This all happens atomically.
 As an economic example:
 
 - Assume 100 UNI is the `threshold` amount for the Firepit Releaser.
-- When the top *N* assets in the *Asset Sink* are worth slightly more than 100 UNI, **anyone** is incentivized to use the `Firepit.release()` contract to:
+- When the top *N* assets in the *Token Jar* are worth slightly more than 100 UNI, **anyone** is incentivized to use the `Firepit.release()` contract to:
     1. Burn 100 UNI
     2. Withdraw the top *N* assets, *valued* at slightly more than 100 UNI

@@ -1,5 +1,5 @@
 # IUniswapV3FactoryOwnerActions
-[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/interfaces/IUniswapV3FactoryOwnerActions.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/05bb600bef88d196654e551c6a749d9e98fe3f0f/src/interfaces/IUniswapV3FactoryOwnerActions.sol)
 
 The Uniswap V3 Factory facilitates creation of Uniswap V3 pools and control over the
 protocol fees
