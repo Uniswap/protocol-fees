@@ -1,8 +1,8 @@
 # FirepitDestination
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/crosschain/FirepitDestination.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/crosschain/FirepitDestination.sol)
 
 **Inherits:**
-[Nonce](/home/toda/dev/phoenix-fees/forge-docs/src/src/base/Nonce.sol/abstract.Nonce.md), Owned
+[Nonce](/home/toda/dev/protocol-fees/forge-docs/src/src/base/Nonce.sol/abstract.Nonce.md), Owned
 
 a contract for receiving crosschain messages. Validates messages and releases assets
 from the TokenJar

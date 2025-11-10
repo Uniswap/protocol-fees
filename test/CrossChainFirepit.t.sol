@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {PhoenixTestBase, FirepitDestination} from "./utils/PhoenixTestBase.sol";
+import {ProtocolFeesTestBase, FirepitDestination} from "./utils/ProtocolFeesTestBase.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {INonce} from "../src/interfaces/base/INonce.sol";
 
-contract CrossChainFirepitTest is PhoenixTestBase {
+contract CrossChainFirepitTest is ProtocolFeesTestBase {
   uint32 public constant L2_GAS_LIMIT = 1_000_000;
 
   function setUp() public override {

@@ -8,10 +8,10 @@ import {Merkle} from "murky/src/Merkle.sol";
 
 import {V4FeeAdapter} from "src/feeAdapters/V4FeeAdapter.sol";
 import {MockPoolManager} from "./mocks/MockPoolManager.sol";
-import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {ProtocolFeesTestBase} from "./utils/ProtocolFeesTestBase.sol";
 import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
 
-contract TestV4FeeAdapter is PhoenixTestBase {
+contract TestV4FeeAdapter is ProtocolFeesTestBase {
   MockPoolManager poolManager;
   V4FeeAdapter feeAdapter;
 
@@ -78,7 +78,7 @@ contract TestV4FeeAdapter is PhoenixTestBase {
     // Anyone can call collect.
     feeAdapter.collect(currency, amountRequested, amountExpected);
 
-    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    // ProtocolFees Test Base pre-funds token jar, and poolManager sends more funds to it
     assertEq(mockCurrency.balanceOf(address(tokenJar)), INITIAL_TOKEN_AMOUNT * 2);
     assertEq(mockCurrency.balanceOf(address(poolManager)), 0);
   }
@@ -96,7 +96,7 @@ contract TestV4FeeAdapter is PhoenixTestBase {
     // Anyone can call collect.
     feeAdapter.collect(currency, amountRequested, amountExpected);
 
-    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    // ProtocolFees Test Base pre-funds token jar, and poolManager sends more funds to it
     assertEq(mockCurrency.balanceOf(address(tokenJar)), INITIAL_TOKEN_AMOUNT + 1e18);
     assertEq(mockCurrency.balanceOf(address(poolManager)), INITIAL_TOKEN_AMOUNT - 1e18);
   }
@@ -133,7 +133,7 @@ contract TestV4FeeAdapter is PhoenixTestBase {
     // Anyone can call collect.
     feeAdapter.collect(currency, amountRequested, amountExpected);
 
-    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    // ProtocolFees Test Base pre-funds token jar, and poolManager sends more funds to it
     assertEq(mockNative.balanceOf(address(tokenJar)), INITIAL_NATIVE_AMOUNT * 2);
     assertEq(mockNative.balanceOf(address(poolManager)), 0);
   }
@@ -151,7 +151,7 @@ contract TestV4FeeAdapter is PhoenixTestBase {
     // Anyone can call collect.
     feeAdapter.collect(currency, amountRequested, amountExpected);
 
-    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    // ProtocolFees Test Base pre-funds token jar, and poolManager sends more funds to it
     assertEq(mockNative.balanceOf(address(tokenJar)), INITIAL_NATIVE_AMOUNT + 1e18);
     assertEq(mockNative.balanceOf(address(poolManager)), INITIAL_NATIVE_AMOUNT - 1e18);
   }

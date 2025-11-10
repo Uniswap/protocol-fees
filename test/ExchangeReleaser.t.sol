@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {ProtocolFeesTestBase} from "./utils/ProtocolFeesTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {ExchangeReleaserMock} from "./mocks/ExchangeReleaserMock.sol";
 import {INonce} from "../src/interfaces/base/INonce.sol";
 
-contract ExchangeReleaserTest is PhoenixTestBase {
+contract ExchangeReleaserTest is ProtocolFeesTestBase {
   ExchangeReleaserMock public swapReleaser;
   address public recipient = makeAddr("RECIPIENT");
 

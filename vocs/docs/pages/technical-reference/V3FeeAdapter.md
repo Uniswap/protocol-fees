@@ -1,8 +1,8 @@
 # V3FeeAdapter
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/feeAdapters/V3FeeAdapter.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/feeAdapters/V3FeeAdapter.sol)
 
 **Inherits:**
-[IV3FeeAdapter](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/IV3FeeAdapter.sol/interface.IV3FeeAdapter.md), Owned
+[IV3FeeAdapter](/home/toda/dev/protocol-fees/forge-docs/src/src/interfaces/IV3FeeAdapter.sol/interface.IV3FeeAdapter.md), Owned
 
 A contract that allows the setting and collecting of protocol fees per pool, and adding
 new fee tiers to the Uniswap V3 Factory.

@@ -1,8 +1,8 @@
 # ResourceManager
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/base/ResourceManager.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/base/ResourceManager.sol)
 
 **Inherits:**
-[IResourceManager](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/base/IResourceManager.sol/interface.IResourceManager.md), Owned
+[IResourceManager](/home/toda/dev/protocol-fees/forge-docs/src/src/interfaces/base/IResourceManager.sol/interface.IResourceManager.md), Owned
 
 A contract that holds immutable state for the resource token and the resource recipient
 address. It also maintains logic for managing the threshold of the resource token.

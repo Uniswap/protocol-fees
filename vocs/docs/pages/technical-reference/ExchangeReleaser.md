@@ -1,8 +1,8 @@
 # ExchangeReleaser
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/releasers/ExchangeReleaser.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/releasers/ExchangeReleaser.sol)
 
 **Inherits:**
-[IReleaser](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/IReleaser.sol/interface.IReleaser.md), [ResourceManager](/home/toda/dev/phoenix-fees/forge-docs/src/src/base/ResourceManager.sol/abstract.ResourceManager.md), [Nonce](/home/toda/dev/phoenix-fees/forge-docs/src/src/base/Nonce.sol/abstract.Nonce.md)
+[IReleaser](/home/toda/dev/protocol-fees/forge-docs/src/src/interfaces/IReleaser.sol/interface.IReleaser.md), [ResourceManager](/home/toda/dev/protocol-fees/forge-docs/src/src/base/ResourceManager.sol/abstract.ResourceManager.md), [Nonce](/home/toda/dev/protocol-fees/forge-docs/src/src/base/Nonce.sol/abstract.Nonce.md)
 
 A contract that releases assets from an TokenJar in exchange for transferring a
 threshold

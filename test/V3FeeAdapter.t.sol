@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-import {PhoenixTestBase} from "./utils/PhoenixTestBase.sol";
+import {ProtocolFeesTestBase} from "./utils/ProtocolFeesTestBase.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
@@ -13,7 +13,7 @@ import {Merkle} from "murky/src/Merkle.sol";
 import {V3FeeAdapter, IV3FeeAdapter} from "../src/feeAdapters/V3FeeAdapter.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 
-contract V3FeeAdapterTest is PhoenixTestBase {
+contract V3FeeAdapterTest is ProtocolFeesTestBase {
   using MerkleProof for bytes32[];
 
   IUniswapV3Factory public factory;
@@ -126,7 +126,7 @@ contract V3FeeAdapterTest is PhoenixTestBase {
     assertEq(collected[0].amount0Collected, amount0 - 1);
     assertEq(collected[0].amount1Collected, amount1 - 1);
 
-    // Phoenix Test Base pre-funds token jar, and poolManager sends more funds to it
+    // ProtocolFees Test Base pre-funds token jar, and poolManager sends more funds to it
     assertEq(MockERC20(token0).balanceOf(address(tokenJar)), balanceBefore + amount0 - 1);
     assertEq(MockERC20(token1).balanceOf(address(tokenJar)), balanceBefore1 + amount1 - 1);
   }

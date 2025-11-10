@@ -16,7 +16,7 @@ import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
 
 import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
 
-contract PhoenixTestBase is Test {
+contract ProtocolFeesTestBase is Test {
   address owner;
   address alice;
   address bob;

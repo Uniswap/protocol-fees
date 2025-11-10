@@ -1,5 +1,5 @@
 # Deployer
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/Deployer.sol)
+[Git Source](https://github.com/Uniswap/protocol-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/Deployer.sol)
 
 
 ## State Variables
@@ -24,16 +24,6 @@ IV3FeeAdapter public immutable FEE_ADAPTER
 ```
 
 
-<<<<<<< Updated upstream
-### UNI_MINTER
-
-```solidity
-IUNIMinter public immutable UNI_MINTER
-```
-
-
-=======
->>>>>>> Stashed changes
 ### RESOURCE
 
 ```solidity
