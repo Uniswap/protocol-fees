@@ -1,13 +1,13 @@
 # IV3FeeAdapter
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/interfaces/IV3FeeAdapter.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/interfaces/IV3FeeAdapter.sol)
 
 
 ## Functions
-### ASSET_SINK
+### TOKEN_JAR
 
 
 ```solidity
-function ASSET_SINK() external view returns (address);
+function TOKEN_JAR() external view returns (address);
 ```
 **Returns**
 
@@ -72,7 +72,7 @@ function feeTiers(uint256 i) external view returns (uint24);
 
 Stores a fee tier.
 
-*Must be a fee tier that exists on the Uniswap V3 Factory.*
+Must be a fee tier that exists on the Uniswap V3 Factory.
 
 
 ```solidity
@@ -103,14 +103,14 @@ function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValu
 
 |Name|Type|Description|
 |----|----|-----------|
-|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \\| token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### enableFeeAmount
 
 Enables a new fee tier on the Uniswap V3 Factory.
 
-*Only callable by `owner`. Also updates the `feeTiers` array.*
+Only callable by `owner`. Also updates the `feeTiers` array.
 
 
 ```solidity
@@ -128,7 +128,7 @@ function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
 
 Sets the owner of the Uniswap V3 Factory.
 
-*Only callable by `owner`*
+Only callable by `owner`
 
 
 ```solidity
@@ -143,7 +143,7 @@ function setFactoryOwner(address newOwner) external;
 
 ### collect
 
-Collects protocol fees from the specified pools to the designated `ASSET_SINK`
+Collects protocol fees from the specified pools to the designated `TOKEN_JAR`
 
 
 ```solidity
@@ -168,7 +168,7 @@ function collect(CollectParams[] calldata collectParams)
 
 Sets the merkle root used for designating which pools have the fee enabled.
 
-*Only callable by `feeSetter`*
+Only callable by `feeSetter`
 
 
 ```solidity
@@ -194,7 +194,7 @@ function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
 |Name|Type|Description|
 |----|----|-----------|
 |`feeTier`|`uint24`|The fee tier, expressed in pips, to set the default fee for.|
-|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \\| token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### triggerFeeUpdate
@@ -218,7 +218,7 @@ function triggerFeeUpdate(address pool, bytes32[] calldata merkleProof) external
 Triggers a fee update for one pair of tokens with merkle proof verification. There may
 be multiple pools initialized from the given pair.
 
-*Assumes that token0 < token1.*
+Assumes that token0 < token1.
 
 
 ```solidity
@@ -238,7 +238,7 @@ function triggerFeeUpdate(address token0, address token1, bytes32[] calldata pro
 Triggers fee updates for multiple pairs of tokens with batch merkle proof
 verification.
 
-*Assumes that token0 < token1 in the token pair.*
+Assumes that token0 < token1 in the token pair.
 
 
 ```solidity
@@ -312,8 +312,13 @@ The input parameters for the collection.
 
 ```solidity
 struct CollectParams {
+  /// @param pool The pool to collect fees from.
   address pool;
+  /// @param amount0Requested The amount of token0 to collect. If this is higher than the total
+  /// collectable amount, it will collect all but 1 wei of the total token0 allotment.
   uint128 amount0Requested;
+  /// @param amount1Requested The amount of token1 to collect. If this is higher than the total
+  /// collectable amount, it will collect all but 1 wei of the total token1 allotment.
   uint128 amount1Requested;
 }
 ```
@@ -324,7 +329,9 @@ The returned amounts of token0 and token1 that are collected.
 
 ```solidity
 struct Collected {
+  /// @param amount0Collected The amount of token0 that is collected.
   uint128 amount0Collected;
+  /// @param amount1Collected The amount of token1 that is collected.
   uint128 amount1Collected;
 }
 ```
@@ -337,7 +344,9 @@ will be allowed to have a fee enabled.
 
 ```solidity
 struct Pair {
+  /// @param token0 The first token of the pair.
   address token0;
+  /// @param token1 The second token of the pair.
   address token1;
 }
 ```

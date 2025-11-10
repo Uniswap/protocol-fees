@@ -1,6 +1,6 @@
 #!/bin/bash
 
-forge doc --out ../forge-docs
+forge doc --root .. --out ./forge-docs
 
 # copy all .md files from ../forge-docs to ./docs/pages/technical-reference, stripping the `<filetype>.<filename>.md` to just `<filename>.md`
 mkdir -p ./docs/pages/technical-reference

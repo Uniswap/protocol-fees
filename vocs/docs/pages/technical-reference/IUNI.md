@@ -1,12 +1,12 @@
 # IUNI
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/interfaces/IUNI.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/interfaces/IUNI.sol)
 
 **Inherits:**
 IERC20
 
 Interface for the UNI token contract extending ERC20 functionality
 
-*This interface extends IERC20 with UNI-specific minting and governance functions*
+This interface extends IERC20 with UNI-specific minting and governance functions
 
 
 ## Functions
@@ -44,7 +44,7 @@ function mintingAllowedAfter() external view returns (uint256);
 
 Mints new UNI tokens to a specified address
 
-*Only callable by the designated minter*
+Only callable by the designated minter
 
 
 ```solidity
@@ -62,7 +62,7 @@ function mint(address dst, uint256 rawAmount) external;
 
 Sets a new minter address
 
-*Only callable by the current minter, permanently transfers minting rights*
+Only callable by the current minter, permanently transfers minting rights
 
 
 ```solidity
@@ -79,7 +79,7 @@ function setMinter(address minter) external;
 
 Returns the minimum time that must elapse between minting operations
 
-*Used to enforce a delay between token minting*
+Used to enforce a delay between token minting
 
 
 ```solidity

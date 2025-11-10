@@ -1,15 +1,15 @@
 # V3FeeAdapter
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/feeAdapters/V3FeeAdapter.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/feeAdapters/V3FeeAdapter.sol)
 
 **Inherits:**
-[IV3FeeAdapter](/technical-reference/IV3FeeAdapter), Owned
+[IV3FeeAdapter](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/IV3FeeAdapter.sol/interface.IV3FeeAdapter.md), Owned
 
 A contract that allows the setting and collecting of protocol fees per pool, and adding
 new fee tiers to the Uniswap V3 Factory.
 
-*This contract is ownable. The owner can set the merkle root for proving protocol fee
+This contract is ownable. The owner can set the merkle root for proving protocol fee
 amounts per pool, set new fee tiers on Uniswap V3, and change the owner of this contract.
-Note that this contract will be the set owner on the Uniswap V3 Factory.*
+Note that this contract will be the set owner on the Uniswap V3 Factory.
 
 **Note:**
 security-contact: security@uniswap.org
@@ -19,28 +19,28 @@ security-contact: security@uniswap.org
 ### FACTORY
 
 ```solidity
-IUniswapV3Factory public immutable FACTORY;
+IUniswapV3Factory public immutable FACTORY
 ```
 
 
-### ASSET_SINK
+### TOKEN_JAR
 
 ```solidity
-address public immutable ASSET_SINK;
+address public immutable TOKEN_JAR
 ```
 
 
 ### merkleRoot
 
 ```solidity
-bytes32 public merkleRoot;
+bytes32 public merkleRoot
 ```
 
 
 ### feeSetter
 
 ```solidity
-address public feeSetter;
+address public feeSetter
 ```
 
 
@@ -49,17 +49,17 @@ Returns the default fee value for a given fee tier.
 
 
 ```solidity
-mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
+mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees
 ```
 
 
 ### feeTiers
-*Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
-enabled.*
+Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
+enabled.
 
 
 ```solidity
-uint24[] public feeTiers;
+uint24[] public feeTiers
 ```
 
 
@@ -71,23 +71,23 @@ functions
 
 
 ```solidity
-modifier onlyFeeSetter();
+modifier onlyFeeSetter() ;
 ```
 
 ### constructor
 
-*At construction, the fee setter defaults to 0 and its on the owner to set.*
+At construction, the fee setter defaults to 0 and its on the owner to set.
 
 
 ```solidity
-constructor(address _factory, address _assetSink) Owned(msg.sender);
+constructor(address _factory, address _tokenJar) Owned(msg.sender);
 ```
 
 ### storeFeeTier
 
 Stores a fee tier.
 
-*Must be a fee tier that exists on the Uniswap V3 Factory.*
+Must be a fee tier that exists on the Uniswap V3 Factory.
 
 
 ```solidity
@@ -104,7 +104,7 @@ function storeFeeTier(uint24 feeTier) public;
 
 Enables a new fee tier on the Uniswap V3 Factory.
 
-*Only callable by `owner`. Also updates the `feeTiers` array.*
+Only callable by `owner`. Also updates the `feeTiers` array.
 
 
 ```solidity
@@ -127,7 +127,7 @@ function setFactoryOwner(address newOwner) external onlyOwner;
 
 ### collect
 
-Collects protocol fees from the specified pools to the designated `ASSET_SINK`
+Collects protocol fees from the specified pools to the designated `TOKEN_JAR`
 
 
 ```solidity
@@ -152,7 +152,7 @@ function collect(CollectParams[] calldata collectParams)
 
 Sets the merkle root used for designating which pools have the fee enabled.
 
-*Only callable by `feeSetter`*
+Only callable by `feeSetter`
 
 
 ```solidity
@@ -178,7 +178,7 @@ function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external 
 |Name|Type|Description|
 |----|----|-----------|
 |`feeTier`|`uint24`|The fee tier, expressed in pips, to set the default fee for.|
-|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \\| token0Fee)|
+|`defaultFeeValue`|`uint8`|The default fee value to set, expressed as the denominator on the inclusive interval [4, 10]. The fee value is packed (token1Fee \<\< 4 \| token0Fee)|
 
 
 ### setFeeSetter
@@ -234,7 +234,7 @@ function triggerFeeUpdate(address token0, address token1, bytes32[] calldata pro
 Triggers fee updates for multiple pairs of tokens with batch merkle proof
 verification.
 
-*Assumes that token0 < token1 in the token pair.*
+Assumes that token0 < token1 in the token pair.
 
 
 ```solidity

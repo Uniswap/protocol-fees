@@ -1,11 +1,11 @@
 # IUniswapV3FactoryOwnerActions
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/interfaces/IUniswapV3FactoryOwnerActions.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/interfaces/IUniswapV3FactoryOwnerActions.sol)
 
 The Uniswap V3 Factory facilitates creation of Uniswap V3 pools and control over the
 protocol fees
 
-*Stripped down and renamed from:
-https://github.com/Uniswap/v3-core/blob/d8b1c635c275d2a9450bd6a78f3fa2484fef73eb/contracts/interfaces/IUniswapV3Factory.sol*
+Stripped down and renamed from:
+https://github.com/Uniswap/v3-core/blob/d8b1c635c275d2a9450bd6a78f3fa2484fef73eb/contracts/interfaces/IUniswapV3Factory.sol
 
 
 ## Functions
@@ -13,7 +13,7 @@ https://github.com/Uniswap/v3-core/blob/d8b1c635c275d2a9450bd6a78f3fa2484fef73eb
 
 Returns the current owner of the factory
 
-*Can be changed by the current owner via setOwner*
+Can be changed by the current owner via setOwner
 
 
 ```solidity
@@ -30,7 +30,7 @@ function owner() external view returns (address);
 
 Updates the owner of the factory
 
-*Must be called by the current owner*
+Must be called by the current owner
 
 
 ```solidity
@@ -47,7 +47,7 @@ function setOwner(address _owner) external;
 
 Enables a fee amount with the given tickSpacing
 
-*Fee amounts may never be removed once enabled*
+Fee amounts may never be removed once enabled
 
 
 ```solidity
@@ -65,8 +65,8 @@ function enableFeeAmount(uint24 fee, int24 tickSpacing) external;
 
 Returns the tick spacing for a given fee amount, if enabled, or 0 if not enabled
 
-*A fee amount can never be removed, so this value should be hard coded or cached in the
-calling context*
+A fee amount can never be removed, so this value should be hard coded or cached in the
+calling context
 
 
 ```solidity

@@ -1,14 +1,14 @@
 # UNIVesting
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/UNIVesting.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/UNIVesting.sol)
 
 **Inherits:**
-[IUNIVesting](/technical-reference/IUNIVesting), Owned
+[IUNIVesting](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/IUNIVesting.sol/interface.IUNIVesting.md), Owned
 
 A contract for vesting UNI tokens over configurable time periods
 
-*This contract allows for the vesting of UNI tokens with periodic claiming
+This contract allows for the vesting of UNI tokens with periodic claiming
 functionality. It integrates with the UNI token's minting schedule to coordinate
-vesting windows with minting cycles.*
+vesting windows with minting cycles.
 
 **Note:**
 security-contact: security@uniswap.org
@@ -20,7 +20,7 @@ The UNI token contract.
 
 
 ```solidity
-IUNI public immutable UNI;
+IUNI public immutable UNI
 ```
 
 
@@ -29,7 +29,7 @@ The duration of each period, ie. 30 days.
 
 
 ```solidity
-uint256 public immutable periodDuration;
+uint256 public immutable periodDuration
 ```
 
 
@@ -38,7 +38,7 @@ The total vesting period, ie. 365 days.
 
 
 ```solidity
-uint256 public immutable totalVestingPeriod;
+uint256 public immutable totalVestingPeriod
 ```
 
 
@@ -47,7 +47,7 @@ The total number of periods in the vesting window, ie 12.
 
 
 ```solidity
-uint256 public immutable totalPeriods;
+uint256 public immutable totalPeriods
 ```
 
 
@@ -55,11 +55,11 @@ uint256 public immutable totalPeriods;
 The checkpoint of the minting allowed after timestamp set on the UNI token contract.
 Stored to keep track of minting windows.
 
-*Vesting should not be allowed to start if the minting window has not changed.*
+Vesting should not be allowed to start if the minting window has not changed.
 
 
 ```solidity
-uint256 public mintingAllowedAfterCheckpoint;
+uint256 public mintingAllowedAfterCheckpoint
 ```
 
 
@@ -68,7 +68,7 @@ The amount of tokens that are being vested in this window.
 
 
 ```solidity
-uint256 public amountVesting;
+uint256 public amountVesting
 ```
 
 
@@ -77,7 +77,7 @@ The start time of the vesting window.
 
 
 ```solidity
-uint256 public startTime;
+uint256 public startTime
 ```
 
 
@@ -88,7 +88,19 @@ vesting window has begun.
 
 
 ```solidity
-int256 public claimed;
+int256 public claimed
+```
+
+
+### MINIMUM_UNI_TO_VEST
+The minimum amount of UNI required to be held by the contract to start a vesting
+window
+
+This is to prevent DOS'ing and bricking the vesting contract with tiny amounts of UNI
+
+
+```solidity
+uint256 public constant MINIMUM_UNI_TO_VEST = 1000e18
 ```
 
 
@@ -113,8 +125,8 @@ constructor(address _uni, uint256 _periodDuration) Owned(msg.sender);
 
 Starts the vesting window.
 
-*The vesting window can only be started if the minting window has updated on the UNI token
-contract, and if there is not currently an active vest.*
+The vesting window can only be started if the minting window has updated on the UNI token
+contract, and if there is not currently an active vest.
 
 
 ```solidity
@@ -125,7 +137,7 @@ function start() external;
 
 Claims the vested tokens for a recipient.
 
-*Only callable by the owner.*
+Only callable by the owner.
 
 
 ```solidity
@@ -142,8 +154,8 @@ function claim(address recipient) external onlyOwner;
 
 The total amount of tokens that are claimable.
 
-*This COULD return a value greater than `amountVesting` if multiple vesting windows have
-been started and have leftover tokens.*
+This COULD return a value greater than `amountVesting` if multiple vesting windows have
+been started and have leftover tokens.
 
 
 ```solidity
@@ -154,7 +166,7 @@ function claimable() public view returns (uint256);
 
 The total amount of tokens that have been vested in this window.
 
-*Bounded by 0 and `amountVesting`.*
+Bounded by 0 and `amountVesting`.
 
 
 ```solidity

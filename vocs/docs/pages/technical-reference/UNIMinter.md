@@ -1,8 +1,8 @@
 # UNIMinter
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/UNIMinter.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/UNIMinter.sol)
 
 **Inherits:**
-[IUNIMinter](/technical-reference/IUNIMinter), Owned
+[IUNIMinter](/home/toda/dev/phoenix-fees/forge-docs/src/src/interfaces/IUNIMinter.sol/interface.IUNIMinter.md), Owned
 
 **Author:**
 Uniswap
@@ -10,7 +10,7 @@ Uniswap
 A smart contract that manages the minting rights for UNI token, enabling proportional
 distribution to multiple recipients
 
-*This contract holds the minter role and allows annual minting with configurable allocations*
+This contract holds the minter role and allows annual minting with configurable allocations
 
 **Note:**
 security-contact: security@uniswap.org
@@ -22,7 +22,7 @@ The mint cap in percentage terms (2% annual inflation)
 
 
 ```solidity
-uint16 private constant MINT_CAP_PERCENT = 2;
+uint16 private constant MINT_CAP_PERCENT = 2
 ```
 
 
@@ -31,18 +31,29 @@ The time between mints
 
 
 ```solidity
-uint48 private constant MINT_PERIOD = uint48(365 days);
+uint48 private constant MINT_PERIOD = uint48(365 days)
 ```
 
 
 ### MAX_UNITS
 The total number of units representing 100% of mintable tokens
 
-*Unallocated units result in reduced inflation*
+Unallocated units result in reduced inflation
 
 
 ```solidity
-uint16 private constant MAX_UNITS = 10_000;
+uint16 private constant MAX_UNITS = 10_000
+```
+
+
+### START_TIME
+The start time for minting
+
+equivalent to January 1, 2026 00:00:00 UTC
+
+
+```solidity
+uint256 public constant START_TIME = 1_767_225_600
 ```
 
 
@@ -51,18 +62,18 @@ The UNI token contract address on mainnet
 
 
 ```solidity
-IUNI public constant UNI = IUNI(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
+IUNI public constant UNI = IUNI(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984)
 ```
 
 
 ### totalUnits
 Total number of currently allocated units via splits
 
-*Always less than or equal to MAX_UNITS*
+Always less than or equal to MAX_UNITS
 
 
 ```solidity
-uint16 public totalUnits;
+uint16 public totalUnits
 ```
 
 
@@ -71,7 +82,7 @@ Access the Splits array by index
 
 
 ```solidity
-Split[] public splits;
+Split[] public splits
 ```
 
 
@@ -95,8 +106,8 @@ constructor(address _owner) Owned(_owner);
 
 Executes the annual mint and distributes tokens proportionally to split recipients
 
-*Can be called by anyone once per year. Mints based on allocated splits only, unallocated
-splits reduce inflation*
+Can be called by anyone once per year. Mints based on allocated splits only, unallocated
+splits reduce inflation
 
 
 ```solidity
@@ -107,7 +118,7 @@ function mint() external;
 
 Grants a split of the UNI inflation to a recipient
 
-*Only callable by owner (UNI DAO). Reverts if total splits would exceed MAX_UNITS*
+Only callable by owner (UNI DAO). Reverts if total splits would exceed MAX_UNITS
 
 
 ```solidity
@@ -128,7 +139,7 @@ function grantSplit(address _recipient, uint16 _units, uint16 _revocationDelayDa
 
 Initiates the revocation process for a recipient's split
 
-*Only callable by owner. Sets a timestamp after which revocation can be completed*
+Only callable by owner. Sets a timestamp after which revocation can be completed
 
 
 ```solidity
@@ -145,11 +156,11 @@ function initiateRevokeSplit(uint256 _index) external onlyOwner;
 
 Completes or updates split revocation based on timing relative to next mint
 
-*Can be called by anyone to update a split based on its pending revocation timing:
+Can be called by anyone to update a split based on its pending revocation timing:
 - If revocation completes before next mint: split is entirely removed
 - If revocation extends into next mint period: split units are reduced proportionally
 to time remaining until revocation (e.g., 90 days into 365-day period = ~25% of units)
-- revokeSplit must be called to update units for pending revocation*
+- revokeSplit must be called to update units for pending revocation
 
 
 ```solidity
@@ -166,9 +177,9 @@ function revokeSplit(uint256 _index) external;
 
 Transfers the UNI minter role to a new address
 
-*Only callable by owner. This is a critical operation that permanently transfers
+Only callable by owner. This is a critical operation that permanently transfers
 the ability to mint UNI tokens to the new address. Once transferred, this contract
-will no longer be able to mint UNI tokens unless the role is transferred back.*
+will no longer be able to mint UNI tokens unless the role is transferred back.
 
 
 ```solidity

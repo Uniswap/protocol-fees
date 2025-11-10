@@ -1,47 +1,47 @@
 # Deployer
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/Deployer.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/Deployer.sol)
 
 
 ## State Variables
-### ASSET_SINK
+### TOKEN_JAR
 
 ```solidity
-IAssetSink public immutable ASSET_SINK;
+ITokenJar public immutable TOKEN_JAR
 ```
 
 
 ### RELEASER
 
 ```solidity
-IReleaser public immutable RELEASER;
+IReleaser public immutable RELEASER
 ```
 
 
 ### FEE_ADAPTER
 
 ```solidity
-IV3FeeAdapter public immutable FEE_ADAPTER;
+IV3FeeAdapter public immutable FEE_ADAPTER
 ```
 
 
 ### UNI_MINTER
 
 ```solidity
-IUNIMinter public immutable UNI_MINTER;
+IUNIMinter public immutable UNI_MINTER
 ```
 
 
 ### RESOURCE
 
 ```solidity
-address public constant RESOURCE = 0x1000000000000000000000000000000000000000;
+address public constant RESOURCE = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 ```
 
 
 ### THRESHOLD
 
 ```solidity
-uint256 public constant THRESHOLD = 69_420;
+uint256 public constant THRESHOLD = 69_420
 ```
 
 
@@ -49,37 +49,37 @@ uint256 public constant THRESHOLD = 69_420;
 
 ```solidity
 IUniswapV3Factory public constant V3_FACTORY =
-  IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+  IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984)
 ```
 
 
-### SALT_ASSET_SINK
+### SALT_TOKEN_JAR
 
 ```solidity
-bytes32 constant SALT_ASSET_SINK = 0;
+bytes32 constant SALT_TOKEN_JAR = 0
 ```
 
 
 ### SALT_RELEASER
 
 ```solidity
-bytes32 constant SALT_RELEASER = 0;
+bytes32 constant SALT_RELEASER = 0
 ```
 
 
 ### SALT_FEE_ADAPTER
 
 ```solidity
-bytes32 constant SALT_FEE_ADAPTER = 0;
+bytes32 constant SALT_FEE_ADAPTER = 0
 ```
 
 
 ## Functions
 ### constructor
 
-1. Deploy the AssetSink
-3. Set the releaser on the asset sink.
-4. Update the owner on the asset sink.
+1. Deploy the TokenJar
+3. Set the releaser on the token jar.
+4. Update the owner on the token jar.
 RELEASER:
 2. Deploy the Releaser.
 5. Update the thresholdSetter on the releaser to the owner.
@@ -95,6 +95,6 @@ UNIMinter
 
 
 ```solidity
-constructor();
+constructor() ;
 ```
 

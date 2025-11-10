@@ -1,5 +1,5 @@
 # IUNIVesting
-[Git Source](https://github.com/Uniswap/phoenix-fees/blob/38e66458d36a90d45d2da802d97629a7d8137a57/src/interfaces/IUNIVesting.sol)
+[Git Source](https://github.com/Uniswap/phoenix-fees/blob/f7ccbcc4f1be2c8485a362f78f4f1ea34145b2b0/src/interfaces/IUNIVesting.sol)
 
 Interface for the UNIVesting contract
 
@@ -46,7 +46,7 @@ function totalPeriods() external view returns (uint256);
 The checkpoint of the minting allowed after timestamp set on the UNI token contract.
 Stored to keep track of minting windows.
 
-*Vesting should not be allowed to start if the minting window has not changed.*
+Vesting should not be allowed to start if the minting window has not changed.
 
 
 ```solidity
@@ -82,12 +82,24 @@ vesting window has begun.
 function claimed() external view returns (int256);
 ```
 
+### MINIMUM_UNI_TO_VEST
+
+The minimum amount of UNI required to be held by the contract to start a vesting
+window
+
+This is to prevent DOS'ing and bricking the vesting contract with tiny amounts of UNI
+
+
+```solidity
+function MINIMUM_UNI_TO_VEST() external view returns (uint256);
+```
+
 ### start
 
 Starts the vesting window.
 
-*The vesting window can only be started if the minting window has updated on the UNI token
-contract, and if there is not currently an active vest.*
+The vesting window can only be started if the minting window has updated on the UNI token
+contract, and if there is not currently an active vest.
 
 
 ```solidity
@@ -98,10 +110,10 @@ function start() external;
 
 Claims the vested tokens for a recipient.
 
-*Only callable by the owner.*
+Only callable by the owner.
 
-*It's possible that this sets the
-claimed amount to zero, if the only claimable tokens are leftover from a previous vest.*
+It's possible that this sets the
+claimed amount to zero, if the only claimable tokens are leftover from a previous vest.
 
 
 ```solidity
@@ -118,8 +130,8 @@ function claim(address recipient) external;
 
 The total amount of tokens that are claimable.
 
-*This COULD return a value greater than `amountVesting` if multiple vesting windows have
-been started and have leftover tokens.*
+This COULD return a value greater than `amountVesting` if multiple vesting windows have
+been started and have leftover tokens.
 
 
 ```solidity
@@ -130,7 +142,7 @@ function claimable() external view returns (uint256);
 
 The total amount of tokens that have been vested in this window.
 
-*Bounded by 0 and `amountVesting`.*
+Bounded by 0 and `amountVesting`.
 
 
 ```solidity
@@ -148,7 +160,7 @@ error MintingWindowClosed();
 ```
 
 ### NothingToVest
-Thrown if trying to intiate a vesting window with no balance.
+Thrown if trying to intiate a vesting window with an insufficient balance.
 
 
 ```solidity
