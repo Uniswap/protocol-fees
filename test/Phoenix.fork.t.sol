@@ -325,7 +325,7 @@ contract PhoenixForkTest is Test {
 
   function test_releaseV2V3(address caller, address recipient) public {
     vm.assume(caller != address(0));
-    vm.assume(recipient != address(0));
+    vm.assume(recipient != address(0) && recipient != address(tokenJar));
     test_createV2Fees();
     test_collectFeeV3();
 
