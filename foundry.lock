@@ -11,6 +11,12 @@
   "lib/openzeppelin-contracts": {
     "rev": "e34251682bac9c3252af30e91e999f13dd098b9f"
   },
+  "lib/optimism": {
+    "tag": {
+      "name": "v1.16.0",
+      "rev": "971c25eb5a5564ce239e3c4a95778abb24ca87d7"
+    }
+  },
   "lib/solmate": {
     "rev": "e5e0ed64c75e74974151780884e59071d026d84e"
   },

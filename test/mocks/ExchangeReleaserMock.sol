@@ -8,11 +8,4 @@ contract ExchangeReleaserMock is ExchangeReleaser {
   constructor(address _resource, uint256 _threshold, address _tokenJar, address _recipient)
     ExchangeReleaser(_resource, _threshold, _tokenJar, _recipient)
   {}
-
-  function release(uint256 _nonce, Currency[] calldata assets, address recipient)
-    external
-    override
-  {
-    _release(_nonce, assets, recipient);
-  }
 }
