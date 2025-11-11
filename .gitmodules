@@ -19,3 +19,6 @@
 [submodule "lib/briefcase"]
 	path = lib/briefcase
 	url = https://github.com/Uniswap/briefcase
+[submodule "lib/optimism"]
+	path = lib/optimism
+	url = https://github.com/ethereum-optimism/optimism

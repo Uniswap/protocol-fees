@@ -8,6 +8,7 @@ import {INonce} from "../src/interfaces/base/INonce.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 import {Firepit} from "../src/releasers/Firepit.sol";
+import {ExchangeReleaser} from "../src/releasers/ExchangeReleaser.sol";
 
 contract FirepitTest is ProtocolFeesTestBase {
   function setUp() public override {
@@ -153,7 +154,7 @@ contract FirepitTest is ProtocolFeesTestBase {
 
     uint256 nonce = firepit.nonce();
 
-    vm.expectRevert(Firepit.TooManyAssets.selector);
+    vm.expectRevert(ExchangeReleaser.TooManyAssets.selector);
     firepit.release(nonce, assets, alice);
   }
 }
