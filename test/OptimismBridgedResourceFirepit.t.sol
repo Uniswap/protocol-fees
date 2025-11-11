@@ -124,7 +124,7 @@ contract OptimismBridgedResourceFirepitTest is Test {
     // Expect the Withdrawn event from the bridge
     vm.expectEmit(true, true, true, true, Predeploys.L2_STANDARD_BRIDGE);
     emit MockL2StandardBridge.Withdrawn(
-      address(resource), address(firepit), address(0xdead), INITIAL_THRESHOLD, 35_000, ""
+      address(resource), address(firepit), address(0xdead), INITIAL_THRESHOLD, 100_000, ""
     );
 
     firepit.release(nonceBefore, releaseTokens, alice);
@@ -245,7 +245,7 @@ contract OptimismBridgedResourceFirepitTest is Test {
     // Expect the Withdrawn event with new threshold amount
     vm.expectEmit(true, true, true, true, Predeploys.L2_STANDARD_BRIDGE);
     emit MockL2StandardBridge.Withdrawn(
-      address(resource), address(firepit), address(0xdead), newThreshold, 35_000, ""
+      address(resource), address(firepit), address(0xdead), newThreshold, 100_000, ""
     );
 
     firepit.release(firepit.nonce(), releaseTokens, alice);
@@ -366,7 +366,7 @@ contract OptimismBridgedResourceFirepitTest is Test {
     // Expect the Withdrawn event with the fuzzed threshold amount
     vm.expectEmit(true, true, true, true, Predeploys.L2_STANDARD_BRIDGE);
     emit MockL2StandardBridge.Withdrawn(
-      address(resource), address(firepit), address(0xdead), thresholdAmount, 35_000, ""
+      address(resource), address(firepit), address(0xdead), thresholdAmount, 100_000, ""
     );
 
     firepit.release(firepit.nonce(), releaseTokens, alice);
@@ -415,7 +415,7 @@ contract OptimismBridgedResourceFirepitTest is Test {
     // Expect the Withdrawn event even with empty assets array
     vm.expectEmit(true, true, true, true, Predeploys.L2_STANDARD_BRIDGE);
     emit MockL2StandardBridge.Withdrawn(
-      address(resource), address(firepit), address(0xdead), INITIAL_THRESHOLD, 35_000, ""
+      address(resource), address(firepit), address(0xdead), INITIAL_THRESHOLD, 100_000, ""
     );
 
     firepit.release(nonceBefore, emptyAssets, alice);

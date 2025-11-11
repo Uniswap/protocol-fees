@@ -28,8 +28,8 @@ abstract contract OptimismBridgedResourceFirepit is ExchangeReleaser {
   using SafeTransferLib for ERC20;
 
   /// @dev The minimum gas limit for the withdrawal transaction to L1.
-  /// @dev 35,000 gas is sufficient for a simple transfer to 0xdead on L1
-  uint32 internal constant WITHDRAWAL_MIN_GAS = 35_000;
+  /// @dev Gas required for a simple UNI transfer to 0xdead on L1
+  uint32 internal constant WITHDRAWAL_MIN_GAS = 100_000;
 
   /// @dev Final recipient of the bridged resource on L1 (burn address)
   /// @dev Note: This is different from RESOURCE_RECIPIENT which is address(this) on L2

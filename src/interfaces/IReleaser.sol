@@ -7,6 +7,9 @@ import {IResourceManager} from "./base/IResourceManager.sol";
 import {INonce} from "./base/INonce.sol";
 
 interface IReleaser is IResourceManager, INonce {
+  /// @notice Thrown when attempting to release too many assets at once
+  error TooManyAssets();
+
   /// @return Address of the Token Jar contract that will release the assets
   function TOKEN_JAR() external view returns (ITokenJar);
 

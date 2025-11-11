@@ -18,9 +18,6 @@ import {IReleaser} from "../interfaces/IReleaser.sol";
 abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;
 
-  /// @notice Thrown when attempting to release too many assets at once
-  error TooManyAssets();
-
   /// @notice Maximum number of different assets that can be released in a single call
   uint256 public constant MAX_RELEASE_LENGTH = 20;
 
