@@ -11,18 +11,14 @@ import {IUNIVesting} from "./interfaces/IUNIVesting.sol";
 
 /// @title UNIVesting
 /// @notice A vesting contract that releases UNI tokens quarterly to a designated recipient
-/// @dev The contract starts vesting on January 1, 2026 and allows withdrawals every quarter
-/// (approximately 90 days) The owner must approve the contract to transfer UNI tokens on their
-/// behalf
+/// @dev The contract starts vesting on January 1, 2026 and allows withdrawals every calendar
+/// quarter. The owner must maintain an ERC20 allowance for the contract to transfer UNI tokens.
+/// Supports partial withdrawals when allowance is less than vested amount.
 contract UNIVesting is Owned, IUNIVesting {
   using SafeTransferLib for ERC20;
 
   /// @notice Number of months in a quarter
   uint256 private constant MONTHS_PER_QUARTER = 3;
-
-  /// @notice The start time for vesting
-  /// @dev equivalent to January 1, 2026 00:00:00 UTC
-  uint48 private constant START_TIME = 1_767_243_600;
 
   /// @inheritdoc IUNIVesting
   ERC20 public immutable UNI;
@@ -34,7 +30,8 @@ contract UNIVesting is Owned, IUNIVesting {
   address public recipient;
 
   /// @inheritdoc IUNIVesting
-  uint48 public lastQuarterlyTimestamp = START_TIME;
+  /// @dev equivalent to January 1, 2026 00:00:00 UTC
+  uint48 public lastQuarterlyTimestamp = 1_767_243_600;
 
   /// @notice Restricts function access to either the contract owner or the recipient
   /// @dev Reverts with NotAuthorized if caller is neither owner nor recipient
@@ -46,13 +43,17 @@ contract UNIVesting is Owned, IUNIVesting {
   /// @notice Constructs a new UNIVesting contract
   /// @param _uni The address of the UNI token contract
   /// @param _recipient The address that will receive vested UNI tokens
-  /// @dev Sets the caller as the owner and initializes lastQuarterlyTimestamp to START_TIME
+  /// @dev The deployer becomes the owner. The owner must approve this contract
+  /// to spend their UNI tokens for vesting to work properly.
   constructor(address _uni, address _recipient) Owned(msg.sender) {
     UNI = ERC20(_uni);
     recipient = _recipient;
   }
 
   /// @inheritdoc IUNIVesting
+  /// @dev Can only be called by the owner and only when no active quarters are available to
+  /// withdraw (i.e., quarters() == 0). This prevents changing the amount when tokens have already
+  /// vested and are waiting to be claimed
   function updateVestingAmount(uint256 amount) public onlyOwner {
     require(quarters() == 0, CannotUpdateAmount());
     quarterlyVestingAmount = amount;
@@ -60,28 +61,36 @@ contract UNIVesting is Owned, IUNIVesting {
   }
 
   /// @inheritdoc IUNIVesting
+  /// @dev Both the owner and current recipient can update the recipient address.
+  /// This allows the recipient to transfer their vesting rights to another address.
   function updateRecipient(address _recipient) public onlyOwnerOrRecipient {
     recipient = _recipient;
     emit RecipientUpdated(recipient);
   }
 
   /// @inheritdoc IUNIVesting
-  function withdraw() public {
-    // assert some time has passed to avoid underflow in quarters()
+  /// @dev This function can be called by anyone (not just the recipient).
+  /// Handles both full and partial withdrawals based on the owner's allowance.
+  /// If allowance < vested amount, only withdraws what's allowed and updates
+  /// the timestamp accordingly. The remaining quarters can be withdrawn later.
+  /// Relies on owner maintaining sufficient ERC20 allowance.
+  /// If owner revokes allowance, withdrawals will fail with InsufficientAllowance.
+  function withdraw() external {
     uint48 quartersPassed = quarters();
-    // assert at least one quarter has passed else no withdraw is available
     require(quartersPassed > 0, OnlyQuarterly());
 
     uint256 vestedAmount = quarterlyVestingAmount * uint256(quartersPassed);
     uint256 currentAllowance = UNI.allowance(owner, address(this));
 
     if (currentAllowance < vestedAmount) {
-      // Partial withdrawal - calculate how many quarters we can actually withdraw
+      // Partial withdrawal path: owner's allowance is less than vested amount
+      // Calculate how many complete quarters we can withdraw with current allowance
       uint48 withdrawableQuarters = uint48(currentAllowance / quarterlyVestingAmount);
 
       require(withdrawableQuarters > 0, InsufficientAllowance());
 
-      // Only advance by the quarters we can actually pay
+      // Only advance timestamp by the quarters we're actually paying out
+      // This ensures remaining quarters can be withdrawn later when allowance increases
       lastQuarterlyTimestamp = uint48(
         DateTime.addMonths(lastQuarterlyTimestamp, withdrawableQuarters * MONTHS_PER_QUARTER)
       );
@@ -89,7 +98,8 @@ contract UNIVesting is Owned, IUNIVesting {
       uint256 transferAmount = quarterlyVestingAmount * uint256(withdrawableQuarters);
       UNI.safeTransferFrom(owner, recipient, transferAmount);
     } else {
-      // Full withdrawal - advance by all vested quarters
+      // Full withdrawal path: sufficient allowance for all vested quarters
+      // Advance timestamp by all quarters that have vested
       lastQuarterlyTimestamp =
         uint48(DateTime.addMonths(lastQuarterlyTimestamp, quartersPassed * MONTHS_PER_QUARTER));
 
@@ -98,6 +108,8 @@ contract UNIVesting is Owned, IUNIVesting {
   }
 
   /// @inheritdoc IUNIVesting
+  /// @dev Uses calendar-based quarters (3 months each)
+  /// Returns 0 if no quarters have passed since last withdrawal.
   function quarters() public view returns (uint48 quartersPassed) {
     if (block.timestamp < lastQuarterlyTimestamp) return 0;
     quartersPassed =

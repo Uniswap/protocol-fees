@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {console2} from "forge-std/console2.sol";
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {UNIVesting} from "../src/UNIVesting.sol";
@@ -306,5 +305,246 @@ contract UNIVestingTest is Test {
     vesting.withdraw();
     assertEq(vestingToken.balanceOf(recipient), FIVE_M * 5);
     assertEq(vesting.quarters(), totalQuarters - 5);
+  }
+
+  function test_ownership_transferAfterSomeQuartersVested() public {
+    // Setup: 2 quarters vest, recipient withdraws 1 quarter
+    vm.warp(JUL_1_2026); // 2 quarters available
+
+    // Owner approves only 1 quarter
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M);
+
+    // Recipient withdraws 1 quarter
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M);
+    assertEq(vesting.quarters(), 1); // 1 quarter remaining
+
+    // Transfer ownership to new owner
+    address newOwner = makeAddr("newOwner");
+    vestingToken.mint(newOwner, HUNDRED_M);
+
+    vm.prank(owner);
+    vesting.transferOwnership(newOwner);
+    assertEq(vesting.owner(), newOwner);
+
+    // After ownership transfer, new owner needs to approve
+    vm.prank(newOwner);
+    vestingToken.approve(address(vesting), FIVE_M);
+
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M * 2);
+    assertEq(vesting.quarters(), 0);
+  }
+
+  function test_ownership_newOwnerChangesAllowance() public {
+    // Setup: 2 quarters vest
+    vm.warp(JUL_1_2026);
+    assertEq(vesting.quarters(), 2);
+
+    // Transfer ownership
+    address newOwner = makeAddr("newOwner");
+    vestingToken.mint(newOwner, HUNDRED_M);
+
+    vm.prank(owner);
+    vesting.transferOwnership(newOwner);
+
+    // Old owner's allowance exists but new owner hasn't approved
+    assertEq(vestingToken.allowance(owner, address(vesting)), FIVE_M * 8);
+    assertEq(vestingToken.allowance(newOwner, address(vesting)), 0);
+
+    // Withdrawal should fail because new owner has no allowance
+    vm.expectRevert(IUNIVesting.InsufficientAllowance.selector);
+    vesting.withdraw();
+
+    // New owner approves tokens
+    vm.prank(newOwner);
+    vestingToken.approve(address(vesting), FIVE_M * 10);
+
+    // Now withdrawal works with new owner's tokens
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M * 2);
+    assertEq(vestingToken.balanceOf(newOwner), HUNDRED_M - FIVE_M * 2);
+    assertEq(vestingToken.balanceOf(owner), HUNDRED_M); // Old owner keeps their tokens
+  }
+
+  function test_ownership_newOwnerCanWithdraw() public {
+    // Setup: vest 1 quarter
+    vm.warp(APR_1_2026);
+
+    // Transfer ownership
+    address newOwner = makeAddr("newOwner");
+    vestingToken.mint(newOwner, HUNDRED_M);
+
+    vm.prank(owner);
+    vesting.transferOwnership(newOwner);
+
+    // New owner must approve before withdrawal
+    vm.prank(newOwner);
+    vestingToken.approve(address(vesting), FIVE_M);
+
+    // Anyone can call withdraw (it's public)
+    vesting.withdraw();
+
+    // Tokens go to recipient, not new owner
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M);
+    assertEq(vestingToken.balanceOf(newOwner), HUNDRED_M - FIVE_M);
+  }
+
+  function test_ownership_transferDuringVesting() public {
+    // Setup: Start with 3 quarters vested
+    vm.warp(1_798_606_800); // Apr 1, 2027
+    assertEq(vesting.quarters(), 3);
+
+    // Withdraw 1 quarter
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M);
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M);
+
+    // Transfer ownership mid-vesting
+    address newOwner = makeAddr("newOwner");
+    vestingToken.mint(newOwner, HUNDRED_M);
+
+    vm.prank(owner);
+    vesting.transferOwnership(newOwner);
+
+    // New owner updates recipient
+    address newRecipient = makeAddr("newRecipient");
+    vm.prank(newOwner);
+    vesting.updateRecipient(newRecipient);
+
+    // New owner approves and withdraws remaining quarters
+    vm.prank(newOwner);
+    vestingToken.approve(address(vesting), FIVE_M * 2);
+    vesting.withdraw();
+
+    // New recipient gets the remaining 2 quarters
+    assertEq(vestingToken.balanceOf(newRecipient), FIVE_M * 2);
+    assertEq(vestingToken.balanceOf(recipient), FIVE_M); // Old recipient keeps their withdrawn
+    // tokens
+  }
+
+  function test_recipientChange_betweenQuarters() public {
+    // Setup: Vest 3 quarters
+    vm.warp(1_798_606_800); // Apr 1, 2027 (3 quarters)
+    assertEq(vesting.quarters(), 3);
+
+    address recipientA = recipient;
+    address recipientB = makeAddr("recipientB");
+
+    // RecipientA withdraws quarter 1
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M);
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipientA), FIVE_M);
+    assertEq(vesting.quarters(), 2); // 2 quarters remaining
+
+    // RecipientA changes to RecipientB
+    vm.prank(recipientA);
+    vesting.updateRecipient(recipientB);
+    assertEq(vesting.recipient(), recipientB);
+
+    // RecipientB withdraws quarter 2
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M);
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipientB), FIVE_M);
+    assertEq(vesting.quarters(), 1); // 1 quarter remaining
+
+    // RecipientB changes to new address
+    address recipientC = makeAddr("recipientC");
+    vm.prank(recipientB);
+    vesting.updateRecipient(recipientC);
+
+    // RecipientC withdraws quarter 3
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M);
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipientC), FIVE_M);
+
+    // Verify final balances
+    assertEq(vestingToken.balanceOf(recipientA), FIVE_M);
+    assertEq(vestingToken.balanceOf(recipientB), FIVE_M);
+    assertEq(vestingToken.balanceOf(recipientC), FIVE_M);
+    assertEq(vesting.quarters(), 0);
+  }
+
+  function test_recipientChange_ownerChangesWhileVested() public {
+    // Setup: Vest 2 quarters but don't withdraw
+    vm.warp(JUL_1_2026);
+    assertEq(vesting.quarters(), 2);
+
+    address originalRecipient = recipient;
+    address newRecipient = makeAddr("newRecipient");
+
+    // Owner changes recipient while quarters are vested but not withdrawn
+    vm.prank(owner);
+    vesting.updateRecipient(newRecipient);
+
+    // New recipient withdraws all vested quarters
+    vesting.withdraw();
+
+    // All tokens go to new recipient, original gets nothing
+    assertEq(vestingToken.balanceOf(newRecipient), FIVE_M * 2);
+    assertEq(vestingToken.balanceOf(originalRecipient), 0);
+  }
+
+  function test_recipientChange_multipleChangesBeforeWithdrawal() public {
+    // Setup: Vest 1 quarter
+    vm.warp(APR_1_2026);
+
+    address recipient1 = recipient;
+    address recipient2 = makeAddr("recipient2");
+    address recipient3 = makeAddr("recipient3");
+
+    // Multiple recipient changes before withdrawal
+    vm.prank(recipient1);
+    vesting.updateRecipient(recipient2);
+
+    vm.prank(recipient2);
+    vesting.updateRecipient(recipient3);
+
+    vm.prank(owner);
+    vesting.updateRecipient(recipient1); // Owner changes back to original
+
+    // Withdraw - tokens go to current recipient
+    vesting.withdraw();
+
+    assertEq(vestingToken.balanceOf(recipient1), FIVE_M);
+    assertEq(vestingToken.balanceOf(recipient2), 0);
+    assertEq(vestingToken.balanceOf(recipient3), 0);
+  }
+
+  function test_recipientChange_partialWithdrawalThenChange() public {
+    // Setup: Vest 4 quarters
+    vm.warp(1_830_315_600); // Jan 1, 2028
+    uint256 quarters = vesting.quarters();
+    assertGe(quarters, 4);
+
+    address recipientA = recipient;
+    address recipientB = makeAddr("recipientB");
+
+    // RecipientA withdraws 2 quarters (partial)
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M * 2);
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipientA), FIVE_M * 2);
+
+    // RecipientA transfers rights to RecipientB
+    vm.prank(recipientA);
+    vesting.updateRecipient(recipientB);
+
+    // Owner increases allowance
+    vm.prank(owner);
+    vestingToken.approve(address(vesting), FIVE_M * 2);
+
+    // RecipientB withdraws remaining quarters
+    vesting.withdraw();
+    assertEq(vestingToken.balanceOf(recipientB), FIVE_M * 2);
+
+    // Verify both recipients got their share
+    assertEq(vestingToken.balanceOf(recipientA), FIVE_M * 2);
+    assertEq(vestingToken.balanceOf(recipientB), FIVE_M * 2);
   }
 }
