@@ -469,7 +469,6 @@ contract UNIVestingTest is Test {
     // New recipient gets the remaining 2 quarters
     assertEq(vestingToken.balanceOf(newRecipient), FIVE_M * 2);
     assertEq(vestingToken.balanceOf(recipient), FIVE_M); // Old recipient keeps their withdrawn
-      // tokens
   }
 
   function test_recipientChange_betweenQuarters() public {

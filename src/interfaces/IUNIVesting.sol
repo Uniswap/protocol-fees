@@ -33,10 +33,7 @@ interface IUNIVesting {
   /// @param quartersPaid The number of quarters paid out in this withdrawal
   /// @param newLastUnlockTimestamp The updated last unlock timestamp after withdrawal
   event Withdrawn(
-    address indexed recipient,
-    uint256 amount,
-    uint48 quartersPaid,
-    uint48 newLastUnlockTimestamp
+    address indexed recipient, uint256 amount, uint48 quartersPaid, uint48 newLastUnlockTimestamp
   );
 
   /// @notice The UNI token contract
