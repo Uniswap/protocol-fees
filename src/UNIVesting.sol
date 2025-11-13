@@ -86,6 +86,8 @@ contract UNIVesting is Owned, IUNIVesting {
     uint256 vestedAmount = quarterlyVestingAmount * uint256(quartersPassed);
     uint256 currentAllowance = UNI.allowance(owner, address(this));
 
+    uint48 quartersPaid;
+
     if (currentAllowance < vestedAmount) {
       // Partial withdrawal path: owner's allowance is less than vested amount
       // Calculate how many complete quarters we can withdraw with current allowance
@@ -99,13 +101,18 @@ contract UNIVesting is Owned, IUNIVesting {
         uint48(DateTime.addMonths(lastUnlockTimestamp, withdrawableQuarters * MONTHS_PER_QUARTER));
 
       vestedAmount = quarterlyVestingAmount * uint256(withdrawableQuarters);
+      quartersPaid = withdrawableQuarters;
     } else {
       // Full withdrawal path: sufficient allowance for all vested quarters
       // Advance timestamp by all quarters that have vested
       lastUnlockTimestamp =
         uint48(DateTime.addMonths(lastUnlockTimestamp, quartersPassed * MONTHS_PER_QUARTER));
+
+      quartersPaid = quartersPassed;
     }
+
     UNI.safeTransferFrom(owner, recipient, vestedAmount);
+    emit Withdrawn(recipient, vestedAmount, quartersPaid, lastUnlockTimestamp);
   }
 
   /// @inheritdoc IUNIVesting

@@ -27,6 +27,18 @@ interface IUNIVesting {
   /// @param recipient The new recipient address
   event RecipientUpdated(address recipient);
 
+  /// @notice Emitted when vested UNI tokens are withdrawn
+  /// @param recipient The address that received the tokens
+  /// @param amount The amount of tokens withdrawn
+  /// @param quartersPaid The number of quarters paid out in this withdrawal
+  /// @param newLastUnlockTimestamp The updated last unlock timestamp after withdrawal
+  event Withdrawn(
+    address indexed recipient,
+    uint256 amount,
+    uint48 quartersPaid,
+    uint48 newLastUnlockTimestamp
+  );
+
   /// @notice The UNI token contract
   /// @return ERC20 token being vested
   function UNI() external view returns (ERC20);
