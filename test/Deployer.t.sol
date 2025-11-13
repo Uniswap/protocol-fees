@@ -12,8 +12,6 @@ import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract DeployerTest is Test {
   Deployer public deployer;
 
