@@ -11,10 +11,6 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {Firepit} from "../../src/releasers/Firepit.sol";
 import {TokenJar, ITokenJar} from "../../src/TokenJar.sol";
 import {IReleaser} from "../../src/interfaces/IReleaser.sol";
-import {OPStackFirepitSource} from "../../src/crosschain/OPStackFirepitSource.sol";
-import {FirepitDestination} from "../../src/crosschain/FirepitDestination.sol";
-
-import {MockCrossDomainMessenger} from "../mocks/MockCrossDomainMessenger.sol";
 
 contract ProtocolFeesTestBase is Test {
   address owner;
@@ -29,9 +25,6 @@ contract ProtocolFeesTestBase is Test {
 
   ITokenJar tokenJar;
   IReleaser firepit;
-  OPStackFirepitSource opStackFirepitSource;
-  MockCrossDomainMessenger mockCrossDomainMessenger = new MockCrossDomainMessenger();
-  FirepitDestination firepitDestination;
 
   uint256 public constant INITIAL_TOKEN_AMOUNT = 1000e18;
   uint256 public constant INITIAL_NATIVE_AMOUNT = 10 ether;
@@ -73,18 +66,8 @@ contract ProtocolFeesTestBase is Test {
 
     firepit.setThresholdSetter(owner);
 
-    firepitDestination = new FirepitDestination(owner, address(tokenJar));
-    // owner is set to the msg.sender
-    opStackFirepitSource = new OPStackFirepitSource(
-      address(resource), address(mockCrossDomainMessenger), address(firepitDestination)
-    );
-    opStackFirepitSource.setThresholdSetter(owner);
-    opStackFirepitSource.setThreshold(INITIAL_TOKEN_AMOUNT);
-
     revertingToken.setRevertFrom(address(tokenJar), true);
 
-    firepitDestination.setAllowableSource(address(opStackFirepitSource));
-    firepitDestination.setAllowableCallers(address(mockCrossDomainMessenger), true);
     vm.stopPrank();
 
     // Supply tokens to the TokenJar

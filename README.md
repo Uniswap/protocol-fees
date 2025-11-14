@@ -200,7 +200,6 @@ src/
 ├── base
 │   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
 │   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
-├── crosschain/               // Work-in-progress crosschain logic
 ├── feeAdapters
 │   ├── V3FeeAdapter.sol   // Logic for Uniswap v3 fee-setting and collection
 │   └── V4FeeAdapter.sol   // Work-in-progress logic for Uniswap v4 fee-setting and collection
@@ -213,7 +212,6 @@ src/
 
 test
 ├── TokenJar.t.sol
-├── CrossChainFirepit.t.sol
 ├── Deployer.t.sol            // Test Deployer configures the system properly
 ├── ExchangeReleaser.t.sol
 ├── Firepit.t.sol

@@ -429,4 +429,3 @@ contract OptimismBridgedResourceFirepitTest is Test {
     assertEq(firepit.nonce(), nonceBefore + 1);
   }
 }
-
