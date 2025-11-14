@@ -121,10 +121,9 @@ contract UNIVesting is Owned, IUNIVesting {
   /// @inheritdoc IUNIVesting
   /// @dev Uses calendar-based quarters (3 months each)
   /// Returns 0 if no quarters have passed since last withdrawal.
-  function quartersPassed() public view returns (uint48 numQuarters) {
+  function quartersPassed() public view returns (uint48) {
     uint48 _lastUnlockTimestamp = lastUnlockTimestamp;
     if (block.timestamp < _lastUnlockTimestamp) return 0;
-    numQuarters =
-      uint48(DateTime.diffMonths(_lastUnlockTimestamp, block.timestamp) / MONTHS_PER_QUARTER);
+    return uint48(DateTime.diffMonths(_lastUnlockTimestamp, block.timestamp) / MONTHS_PER_QUARTER);
   }
 }
