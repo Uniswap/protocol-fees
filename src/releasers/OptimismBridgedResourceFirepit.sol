@@ -20,7 +20,7 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// - L2StandardBridge burns the L2 tokens held by this contract
 /// - Cross-domain message is queued (7-day challenge period on mainnet)
 /// - L1StandardBridge finalizes withdrawal and transfers tokens to 0xdead on L1
-abstract contract OptimismBridgedResourceFirepit is ExchangeReleaser {
+contract OptimismBridgedResourceFirepit is ExchangeReleaser {
   using SafeTransferLib for ERC20;
 
   /// @dev The minimum gas limit for the withdrawal transaction to L1.

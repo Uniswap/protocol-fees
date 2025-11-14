@@ -6,14 +6,14 @@ import {
   UniswapV3FactoryDeployer,
   IUniswapV3Factory
 } from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
-import {Deployer} from "../src/Deployer.sol";
+import {MainnetDeployer} from "../script/deployers/MainnetDeployer.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
 
 contract DeployerTest is Test {
-  Deployer public deployer;
+  MainnetDeployer public deployer;
 
   IUniswapV3Factory public factory;
 
@@ -40,11 +40,11 @@ contract DeployerTest is Test {
     factory.enableFeeAmount(10_000, 200);
     vm.stopPrank();
 
-    deployer = new Deployer();
+    deployer = new MainnetDeployer();
 
     tokenJar = deployer.TOKEN_JAR();
     releaser = deployer.RELEASER();
-    feeAdapter = deployer.FEE_ADAPTER();
+    feeAdapter = deployer.V3_FEE_ADAPTER();
   }
 
   function test_deployer_tokenJar_setUp() public view {
