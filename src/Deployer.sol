@@ -5,6 +5,8 @@ import {V3FeeAdapter} from "./feeAdapters/V3FeeAdapter.sol";
 import {ITokenJar} from "./interfaces/ITokenJar.sol";
 import {TokenJar} from "./TokenJar.sol";
 import {Firepit} from "./releasers/Firepit.sol";
+import {IUNIVesting} from "./interfaces/IUNIVesting.sol";
+import {UNIVesting} from "./UNIVesting.sol";
 import {IReleaser} from "./interfaces/IReleaser.sol";
 import {IV3FeeAdapter} from "./interfaces/IV3FeeAdapter.sol";
 import {IOwned} from "./interfaces/base/IOwned.sol";
@@ -14,13 +16,17 @@ contract Deployer {
   ITokenJar public immutable TOKEN_JAR;
   IReleaser public immutable RELEASER;
   IV3FeeAdapter public immutable V3_FEE_ADAPTER;
+  IUNIVesting public immutable UNI_VESTING;
 
   address public constant RESOURCE = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
   uint256 public constant THRESHOLD = 10_000e18;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+  // TODO: set with the real UNI recipient when ready
+  address public constant LABS_UNI_RECIPIENT = 0x0000000000000000000000000000000000000000;
 
   // Using the real merkle root from the generated merkle tree in ./merkle-generator
+  // TODO: Regenerate the merkle tree
   bytes32 constant INITIAL_MERKLE_ROOT =
     bytes32(0x472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a);
 
@@ -32,6 +38,7 @@ contract Deployer {
   bytes32 constant SALT_TOKEN_JAR = bytes32(uint256(1));
   bytes32 constant SALT_RELEASER = bytes32(uint256(2));
   bytes32 constant SALT_V3_FEE_ADAPTER = bytes32(uint256(3));
+  bytes32 constant SALT_UNI_VESTING = bytes32(uint256(4));
 
   //// TOKEN JAR:
   /// 1. Deploy the TokenJar
@@ -54,6 +61,10 @@ contract Deployer {
   /// 11. Update the feeSetter to the owner.
   /// 12. Store fee tiers.
   /// 13. Update the owner on the fee adapter.
+
+  /// UNI_VESTING
+  /// 14. Deploy the UNIVesting contract.
+  /// 15. Update the owner on the UNIVesting contract.
   constructor() {
     address owner = V3_FACTORY.owner();
     /// 1. Deploy the TokenJar.
@@ -97,5 +108,12 @@ contract Deployer {
 
     /// 13. Update the owner on the fee adapter.
     IOwned(address(V3_FEE_ADAPTER)).transferOwnership(owner);
+
+    /// 14. Deploy the UNIVesting contract.
+    UNI_VESTING =
+      IUNIVesting(new UNIVesting{salt: SALT_UNI_VESTING}(address(RESOURCE), LABS_UNI_RECIPIENT));
+
+    /// 15. Update the owner on the UNIVesting contract.
+    IOwned(address(UNI_VESTING)).transferOwnership(owner);
   }
 }

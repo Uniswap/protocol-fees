@@ -40,13 +40,12 @@ contract UnificationProposal is Script {
     UNI.transfer(address(0xdead), 100_000_000 ether);
     // Enable UniswapV3 FeeAdapter
     V3_FACTORY.setOwner(address(deployer.V3_FEE_ADAPTER()));
-    // Enable UniswapV2 FeeAdapter
+    // Make governance timelock the feeToSetter for UniswapV2
     IFeeToSetter(OLD_FEE_TO_SETTER).setFeeToSetter(timelock);
+    // Set TokenJar as the UniswapV2 fee recipient
     V2_FACTORY.setFeeTo(address(deployer.TOKEN_JAR()));
-
-    // TODO: add when vesting is merged
     // Approve 40M UNI to UNIVesting contract
-    // UNI.approve(address(deployer.UNI_VESTING()), 40_000_000 ether);
+    UNI.approve(address(deployer.UNI_VESTING()), 40_000_000 ether);
   }
 }
 
