@@ -23,7 +23,7 @@ contract Deployer {
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
   // TODO: set with the real UNI recipient when ready
-  address public constant LABS_UNI_RECIPIENT = 0x0000000000000000000000000000000000000000;
+  address public constant LABS_UNI_RECIPIENT = 0x0000000000000000000000000000000000000001;
 
   // Using the real merkle root from the generated merkle tree in ./merkle-generator
   // TODO: Regenerate the merkle tree
