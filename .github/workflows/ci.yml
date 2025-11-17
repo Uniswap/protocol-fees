@@ -52,3 +52,4 @@ jobs:
           FOUNDRY_PROFILE: pr
           FORGE_SNAPSHOT_CHECK: true
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }}
