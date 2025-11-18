@@ -34,13 +34,14 @@ contract UnificationProposal is Script {
 
     // Burn 100M UNI
     UNI.transfer(address(0xdead), 100_000_000 ether);
-    // Enable UniswapV3 FeeAdapter
+    /// Set the owner of the v3 factory to the configured fee controller
     V3_FACTORY.setOwner(address(deployer.V3_FEE_ADAPTER()));
-    // Make governance timelock the feeToSetter for UniswapV2
+    /// Update the v2 fee to setter to the timelock
     IFeeToSetter(OLD_FEE_TO_SETTER).setFeeToSetter(timelock);
-    // Set TokenJar as the UniswapV2 fee recipient
+    /// Set the recipient of v2 protocol fees to the token jar
     V2_FACTORY.setFeeTo(address(deployer.TOKEN_JAR()));
-    // Approve 40M UNI to UNIVesting contract
+    /// Approve two years of vesting to the UNIvester smart contract UNI stays in treasury until
+    /// vested and unvested UNI can be cancelled by setting approve back to 0
     UNI.approve(address(deployer.UNI_VESTING()), 40_000_000 ether);
   }
 }
