@@ -16,6 +16,9 @@ interface IV3FeeAdapter {
   /// @notice Thrown when trying to store a fee tier that is already stored.
   error TierAlreadyStored();
 
+  /// @notice Thrown when trying to set an invalid fee value that doesn't meet protocol requirements.
+  error InvalidFeeValue();
+
   /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.

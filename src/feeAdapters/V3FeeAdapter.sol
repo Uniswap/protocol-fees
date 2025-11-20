@@ -100,6 +100,15 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   /// @inheritdoc IV3FeeAdapter
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
     require(_feeTierExists(feeTier), InvalidFeeTier());
+    // Extract the two 4-bit values
+    uint8 feeProtocol0 = defaultFeeValue % 16;
+    uint8 feeProtocol1 = defaultFeeValue >> 4;
+    // Validate both values match pool requirements: must be 0 or in range [4, 10]
+    require(
+      (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10)) &&
+      (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)),
+      InvalidFeeValue()
+    );
     defaultFees[feeTier] = defaultFeeValue;
   }
 
