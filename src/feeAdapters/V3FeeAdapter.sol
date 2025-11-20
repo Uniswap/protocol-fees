@@ -68,6 +68,10 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     storeFeeTier(fee);
   }
 
+  /// @notice Transfer ownership of the Uniswap V3 Factory to a new address
+  /// @dev Only callable by the owner of this contract. This is a critical operation
+  ///      as it transfers control of the V3 Factory
+  /// @param newOwner The address that will become the new owner of the V3 Factory
   function setFactoryOwner(address newOwner) external onlyOwner {
     FACTORY.setOwner(newOwner);
   }
@@ -137,6 +141,10 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     require(MerkleProof.multiProofVerify(proof, proofFlags, merkleRoot, leaves), InvalidProof());
   }
 
+  /// @notice Sets protocol fees for all existing pools of a token pair across all fee tiers
+  /// @dev Iterates through all stored fee tiers and sets the protocol fee for each pool that exists
+  /// @param token0 The first token of the pair
+  /// @param token1 The second token of the pair
   function _setProtocolFeesForPair(address token0, address token1) internal {
     uint24 feeTier;
     address pool;
@@ -148,6 +156,11 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     }
   }
 
+  /// @notice Sets the protocol fee for a specific pool based on its fee tier
+  /// @dev Only sets the fee for initialized pools (sqrtPriceX96 != 0)
+  ///      The feeValue encodes both fee0 (lower 4 bits) and fee1 (upper 4 bits)
+  /// @param pool The address of the Uniswap V3 pool
+  /// @param feeTier The fee tier of the pool, used to look up the default fee value
   function _setProtocolFee(address pool, uint24 feeTier) internal {
     // Check if pool is initialized by verifying sqrtPriceX96 is non-zero
     (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
@@ -157,6 +170,12 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }
 
+  /// @notice Computes a double hash of token addresses for Merkle tree verification
+  /// @dev Performs keccak256(abi.encode(keccak256(abi.encode(token0, token1))))
+  ///      Uses assembly for gas optimization
+  /// @param token0 The first token address
+  /// @param token1 The second token address
+  /// @return poolHash The double hash result used as a Merkle tree leaf
   function _doubleHash(address token0, address token1) internal pure returns (bytes32 poolHash) {
     // keccak256(abi.encode(keccak256(abi.encode(token0, token1))));
     assembly ("memory-safe") {
@@ -167,6 +186,10 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     }
   }
 
+  /// @notice Checks if a fee tier exists in the Uniswap V3 Factory
+  /// @dev Verifies existence by checking if the tick spacing for the fee tier is non-zero
+  /// @param feeTier The fee tier to check
+  /// @return True if the fee tier exists, false otherwise
   function _feeTierExists(uint24 feeTier) internal view returns (bool) {
     if (FACTORY.feeAmountTickSpacing(feeTier) == 0) return false;
     return true;
