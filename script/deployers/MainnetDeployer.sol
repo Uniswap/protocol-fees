@@ -22,7 +22,6 @@ contract MainnetDeployer {
   uint256 public constant THRESHOLD = 10_000e18;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
-  // TODO: set with the real UNI recipient when ready
   address public constant LABS_UNI_RECIPIENT = 0xaBA63748c4b4DeF4a3319C3A29fE4829029D926F;
 
   // Using the real merkle root from the generated merkle tree in ./merkle-generator
@@ -52,9 +51,6 @@ contract MainnetDeployer {
 
   /// FEE_ADAPTER
   /// 7. Deploy the FeeAdapter.
-  /// 8. Update the feeSetter to the owner.
-  /// 9. Store fee tiers.
-  /// 10. Update the owner on the fee adapter.
   /// 8. Set this contract as the feeSetter
   /// 9. Set initial merkle root
   /// 10. Set default fees
