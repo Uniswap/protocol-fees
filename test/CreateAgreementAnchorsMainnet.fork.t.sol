@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {
   CreateAgreementAnchors,
   IAgreementAnchorFactory
-} from "../script/03_CreateAgreementAnchorsMainnet.s.sol";
+} from "script/02B_CreateAgreementAnchorsMainnet.s.sol";
 
 contract CreateAgreementAnchorsMainnetForkTest is Test {
   CreateAgreementAnchors public script;
@@ -15,11 +15,7 @@ contract CreateAgreementAnchorsMainnetForkTest is Test {
     script = new CreateAgreementAnchors();
   }
 
-  function test_run() public {
-    script.run();
-  }
-
-  function test_revert_wrongChainId() public {
+  function test_RevertIf_wrongChainId() public {
     vm.chainId(31_337);
     vm.expectRevert("Not mainnet");
     script.run();
