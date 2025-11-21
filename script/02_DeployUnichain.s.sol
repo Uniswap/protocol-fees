@@ -14,9 +14,13 @@ contract DeployUnichain is Script {
   function run() public {
     require(block.chainid == 130, "Not Unichain");
 
+    vm.startBroadcast();
+
     UnichainDeployer deployer = new UnichainDeployer();
     console2.log("Deployed Deployer at:", address(deployer));
     console2.log("TOKEN_JAR at:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER at:", address(deployer.RELEASER()));
+
+    vm.stopBroadcast();
   }
 }
