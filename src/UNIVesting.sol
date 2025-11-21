@@ -14,6 +14,12 @@ import {IUNIVesting} from "./interfaces/IUNIVesting.sol";
 /// @dev The contract unlocks its first tranche on Jan 1, 2026 and allows withdrawals every calendar
 /// quarter thereafter. The owner must maintain an ERC20 allowance for the contract to transfer UNI
 /// tokens. Supports partial withdrawals when allowance is less than vested amount.
+///
+/// @dev In order to claim tokens, they must be both vested AND approved from the owner to
+/// UNIVesting. When `updateVestingAmount()` changes the quarterly amount, any existing
+/// approved tokens not divisible by the new quarterly vesting amount are temporarily unclaimable
+/// without manual intervention. Owners should consider updating approvals to a multiple of
+/// quarterly vesting amount when updating vesting amounts.
 contract UNIVesting is Owned, IUNIVesting {
   using SafeTransferLib for ERC20;
 

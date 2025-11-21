@@ -10,10 +10,16 @@ import {ITokenJar} from "../interfaces/ITokenJar.sol";
 import {IReleaser} from "../interfaces/IReleaser.sol";
 
 /// @title ExchangeReleaser
-/// @notice A contract that releases assets from an TokenJar in exchange for transferring a
+/// @notice A contract that releases assets from the TokenJar in exchange for transferring a
 /// threshold amount of a resource token
 /// @dev Inherits from ResourceManager for resource transferring functionality and Nonce for replay
 /// protection
+/// @dev Note there are some MEV and efficiency considerations around the release length and
+/// threshold. If many assets are collected in the token jar, some may never reach a value high
+/// enough to be released. Larger release lengths can mitigate this at the cost of higher gas and
+/// searching complexity. Sharp price changes relative to the RESOURCE or large deposits into
+/// TokenJar can also cause the exchange to be extra profitable for the release caller. Future
+/// versions may consider dynamic thresholds or other MEV minimizing auction techniques
 /// @custom:security-contact security@uniswap.org
 abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
   using SafeTransferLib for ERC20;

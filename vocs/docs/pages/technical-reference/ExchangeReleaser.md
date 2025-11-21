@@ -4,7 +4,7 @@
 **Inherits:**
 [IReleaser](/Users/daniel/Documents/uniswap/contracts/protocol-fees/forge-docs/src/src/interfaces/IReleaser.sol/interface.IReleaser.md), [ResourceManager](/Users/daniel/Documents/uniswap/contracts/protocol-fees/forge-docs/src/src/base/ResourceManager.sol/abstract.ResourceManager.md), [Nonce](/Users/daniel/Documents/uniswap/contracts/protocol-fees/forge-docs/src/src/base/Nonce.sol/abstract.Nonce.md)
 
-A contract that releases assets from an TokenJar in exchange for transferring a
+A contract that releases assets from the TokenJar in exchange for transferring a
 threshold
 amount of a resource token
 

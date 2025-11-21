@@ -485,12 +485,25 @@ contract V3FeeAdapterTest is ProtocolFeesTestBase {
 
   function test_fuzz_setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFee) public {
     vm.startPrank(feeAdapter.feeSetter());
+
+    // Check if fee tier is valid
     if (factory.feeAmountTickSpacing(feeTier) == 0) {
       vm.expectRevert(IV3FeeAdapter.InvalidFeeTier.selector);
       feeAdapter.setDefaultFeeByFeeTier(feeTier, defaultFee);
     } else {
-      feeAdapter.setDefaultFeeByFeeTier(feeTier, defaultFee);
-      assertEq(feeAdapter.defaultFees(feeTier), defaultFee);
+      // Check if fee value is valid
+      uint8 feeProtocol0 = defaultFee % 16;
+      uint8 feeProtocol1 = defaultFee >> 4;
+      bool isValidFeeValue = (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10));
+
+      if (!isValidFeeValue) {
+        vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+        feeAdapter.setDefaultFeeByFeeTier(feeTier, defaultFee);
+      } else {
+        feeAdapter.setDefaultFeeByFeeTier(feeTier, defaultFee);
+        assertEq(feeAdapter.defaultFees(feeTier), defaultFee);
+      }
     }
 
     vm.stopPrank();
@@ -510,6 +523,43 @@ contract V3FeeAdapterTest is ProtocolFeesTestBase {
     vm.prank(feeSetter);
     vm.expectRevert(IV3FeeAdapter.InvalidFeeTier.selector);
     feeAdapter.setDefaultFeeByFeeTier(11_000, 10);
+  }
+
+  function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeValue_255() public {
+    // Test with 255 (decomposes to 15, 15 - both invalid)
+    // This is the exact scenario mentioned in the bug report
+    uint8 invalidFeeValue = 255;
+    // Verify it decomposes to (15, 15)
+    assertEq(invalidFeeValue % 16, 15);
+    assertEq(invalidFeeValue >> 4, 15);
+
+    vm.prank(feeSetter);
+    vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+    feeAdapter.setDefaultFeeByFeeTier(3000, invalidFeeValue);
+  }
+
+  function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeValue_lowerBitsOutOfRange() public {
+    // Test with lower 4 bits out of range (e.g., 11)
+    uint8 invalidFee = (5 << 4) | 11; // Upper: 5 (valid), Lower: 11 (invalid)
+    vm.prank(feeSetter);
+    vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+    feeAdapter.setDefaultFeeByFeeTier(3000, invalidFee);
+  }
+
+  function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeValue_upperBitsOutOfRange() public {
+    // Test with upper 4 bits out of range (e.g., 12)
+    uint8 invalidFee = (12 << 4) | 5; // Upper: 12 (invalid), Lower: 5 (valid)
+    vm.prank(feeSetter);
+    vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+    feeAdapter.setDefaultFeeByFeeTier(3000, invalidFee);
+  }
+
+  function test_setDefaultFeeByFeeTier_revertsWithInvalidFeeValue_bothBitsInvalidRange() public {
+    // Test with both bits in invalid range [1-3]
+    uint8 invalidFee = (2 << 4) | 3; // Upper: 2 (invalid), Lower: 3 (invalid)
+    vm.prank(feeSetter);
+    vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+    feeAdapter.setDefaultFeeByFeeTier(3000, invalidFee);
   }
 
   function test_triggerFeeUpdate_skipsUninitializedPool() public {

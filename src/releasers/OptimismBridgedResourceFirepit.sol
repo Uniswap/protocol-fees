@@ -4,8 +4,6 @@ pragma solidity ^0.8.29;
 import {Predeploys} from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
 import {IL2StandardBridge} from "../interfaces/external/IL2StandardBridge.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
-import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 /// @title OptimismBridgedResourceFirepit
@@ -21,8 +19,6 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// - Cross-domain message is queued (7-day challenge period on mainnet)
 /// - L1StandardBridge finalizes withdrawal and transfers tokens to 0xdead on L1
 abstract contract OptimismBridgedResourceFirepit is ExchangeReleaser {
-  using SafeTransferLib for ERC20;
-
   /// @dev The minimum gas limit for the withdrawal transaction to L1.
   /// @dev Gas required for a simple UNI transfer to 0xdead on L1
   uint32 internal constant WITHDRAWAL_MIN_GAS = 100_000;
