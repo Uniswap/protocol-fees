@@ -23,6 +23,12 @@ contract UnificationProposal is Script {
     vm.stopBroadcast();
   }
 
+  function runAnvil(MainnetDeployer deployer) public {
+    vm.startBroadcast(V3_FACTORY.owner());
+    _run(deployer);
+    vm.stopBroadcast();
+  }
+
   function runPranked(MainnetDeployer deployer) public {
     vm.startPrank(V3_FACTORY.owner());
     _run(deployer);

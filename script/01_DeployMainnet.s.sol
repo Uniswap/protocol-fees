@@ -12,14 +12,14 @@ contract DeployMainnet is Script {
     require(block.chainid == 1, "Not mainnet");
 
     vm.startBroadcast();
-    
+
     MainnetDeployer deployer = new MainnetDeployer();
     console2.log("Deployed Deployer at:", address(deployer));
     console2.log("TOKEN_JAR at:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER at:", address(deployer.RELEASER()));
     console2.log("V3_FEE_ADAPTER at:", address(deployer.V3_FEE_ADAPTER()));
     console2.log("UNI_VESTING at:", address(deployer.UNI_VESTING()));
-    
+
     vm.stopBroadcast();
   }
 }
