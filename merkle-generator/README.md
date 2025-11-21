@@ -209,6 +209,122 @@ The `examples/` directory contains sample CSV files:
 - `token-pairs.csv` - Basic example with common pairs and comments
 - `token-pairs-large.csv` - Extended example with many token pairs
 
+## Automated Proof Generation and Submission
+
+The merkle-generator includes scripts for automated proof generation and submission to the V3FeeAdapter contract. The process is split into two phases for better reliability and resumability:
+
+1. **Generate Proofs** - Pre-generate all merkle proofs and save to files
+2. **Submit Proofs** - Submit the pre-generated proofs to the blockchain
+
+This two-phase approach provides several benefits:
+- Generate once, submit multiple times if needed
+- Resume from any point if interrupted
+- Review proofs before submission
+- Better error recovery
+
+### Phase 1: Generate Proofs
+
+First, generate all merkle proofs and save them to files:
+
+```bash
+# Generate all proofs (saves to ./data/proofs)
+pnpm run generate-proofs
+
+# Generate with custom options
+pnpm run generate-proofs --batch-size 25 --output-dir ./my-proofs
+
+# Generate limited batches for testing
+pnpm run generate-proofs --max-batches 10
+```
+
+**Options:**
+- `--tree-file <path>`: Path to merkle tree file (default: `./data/merkle-tree.json`)
+- `--batch-size <number>`: Number of pairs per batch (default: 50)
+- `--output-dir <path>`: Directory to save proof files (default: `./data/proofs`)
+- `--max-batches <number>`: Maximum number of batches to generate
+
+**Output:**
+- Individual proof files: `proof-batch-0001.json`, `proof-batch-0002.json`, etc.
+- Manifest file: `manifest.json` containing metadata about all proofs
+
+### Phase 2: Submit Proofs
+
+After generating proofs, submit them to the blockchain:
+
+```bash
+# Configure environment
+cp .env.example .env
+# Edit .env with:
+# - PRIVATE_KEY: Your wallet's private key (needs ETH for gas)
+# - RPC_URL: Your RPC endpoint (e.g., Alchemy, Infura)
+# - FEE_ADAPTER_ADDRESS: The V3FeeAdapter contract address
+
+# Dry run to test and estimate gas
+pnpm run submit-proofs:dry
+
+# Submit all proofs
+pnpm run submit-proofs
+
+# Submit with custom options
+pnpm run submit-proofs --start-batch 10 --max-batches 5
+
+# Resume from a specific batch (e.g., after interruption)
+pnpm run submit-proofs --start-batch 50
+```
+
+**Options:**
+- `--proofs-dir <path>`: Directory containing proof files (default: `./data/proofs`)
+- `--fee-adapter <address>`: V3FeeAdapter contract address (or use env var)
+- `--rpc-url <url>`: RPC URL (or use env var)
+- `--chain <name>`: Chain name: mainnet, sepolia, optimism, arbitrum, base
+- `--dry-run`: Simulate transactions without sending
+- `--start-batch <number>`: Start from specific batch number (for resuming)
+- `--max-batches <number>`: Maximum number of batches to submit
+
+**Features:**
+- **Submission tracking**: Saves progress to `submission-status.json`
+- **Automatic resume**: Skip already submitted batches
+- **Gas estimation**: Dry run mode estimates gas for each batch
+- **Error recovery**: Continue from failed batches
+- **Progress reporting**: Shows overall submission status
+
+### Complete Workflow Example
+
+```bash
+# Step 1: Generate merkle tree from CSV
+merkle-generator generate data/token-pairs.csv -o data/merkle-tree.json
+
+# Step 2: Generate all proofs (9,746 pairs = 195 batches)
+pnpm run generate-proofs
+
+# Step 3: Review generated proofs
+ls -la data/proofs/
+cat data/proofs/manifest.json
+
+# Step 4: Test with dry run (estimate gas)
+pnpm run submit-proofs:dry --max-batches 5
+
+# Step 5: Submit proofs to blockchain
+pnpm run submit-proofs
+
+# If interrupted, resume from where it stopped
+pnpm run submit-proofs --start-batch 100
+```
+
+### Legacy All-in-One Script
+
+The original `propagate` script is still available for simpler use cases:
+
+```bash
+# All-in-one generation and submission
+pnpm run propagate
+
+# Dry run mode
+pnpm run propagate:dry
+```
+
+This script combines both phases but is less flexible for large-scale operations.
+
 ## Development
 
 ```bash
