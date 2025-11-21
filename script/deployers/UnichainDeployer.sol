@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {V3FeeAdapter} from "../../src/feeAdapters/V3FeeAdapter.sol";
 import {ITokenJar} from "../../src/interfaces/ITokenJar.sol";
 import {TokenJar} from "../../src/TokenJar.sol";
 import {IReleaser} from "../../src/interfaces/IReleaser.sol";
-import {IV3FeeAdapter} from "../../src/interfaces/IV3FeeAdapter.sol";
 import {IOwned} from "../../src/interfaces/base/IOwned.sol";
 import {
   OptimismBridgedResourceFirepit

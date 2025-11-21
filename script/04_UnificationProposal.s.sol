@@ -2,8 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
-import "forge-std/Script.sol";
-import "forge-std/StdAssertions.sol";
+import {AttestationRequestData, AttestationRequest, IEAS} from "eas-contracts/IEAS.sol";
+import {Script} from "forge-std/Script.sol";
+import {StdAssertions} from "forge-std/StdAssertions.sol";
 import {MainnetDeployer} from "./deployers/MainnetDeployer.sol";
 import {IUniswapV2Factory} from "briefcase/protocols/v2-core/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV3Factory} from "briefcase/protocols/v3-core/interfaces/IUniswapV3Factory.sol";
@@ -207,24 +208,6 @@ contract UnificationProposal is Script, StdAssertions {
 // the current V2_FACTORY.feeToSetter()
 interface IFeeToSetter {
   function setFeeToSetter(address) external;
-}
-
-struct AttestationRequestData {
-  address recipient;
-  uint64 expirationTime;
-  bool revocable;
-  bytes32 refUID;
-  bytes data;
-  uint256 value;
-}
-
-struct AttestationRequest {
-  bytes32 schema;
-  AttestationRequestData data;
-}
-
-interface IEAS {
-  function attest(AttestationRequest calldata request) external payable returns (bytes32);
 }
 
 interface IGovernorBravo {

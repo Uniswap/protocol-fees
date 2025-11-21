@@ -3,10 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {
-  UniswapV3FactoryDeployer,
-  IUniswapV3Factory
-} from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
+import {IUniswapV3Factory} from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {MainnetDeployer} from "../script/deployers/MainnetDeployer.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
