@@ -19,7 +19,7 @@ contract MainnetDeployer {
   IUNIVesting public immutable UNI_VESTING;
 
   address public constant RESOURCE = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
-  uint256 public constant THRESHOLD = 10_000e18;
+  uint256 public constant THRESHOLD = 4000e18;
   IUniswapV3Factory public constant V3_FACTORY =
     IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
   address public constant LABS_UNI_RECIPIENT = 0xaBA63748c4b4DeF4a3319C3A29fE4829029D926F;

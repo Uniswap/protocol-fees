@@ -17,7 +17,7 @@ contract UnichainDeployer {
 
   // Native Bridge UNI
   address public constant RESOURCE = 0x8f187aA05619a017077f5308904739877ce9eA21;
-  uint256 public constant THRESHOLD = 10_000e18;
+  uint256 public constant THRESHOLD = 2000e18;
   // UNI Timelock alias address on Unichain
   // Calculated from the aliasing scheme defined here
   // https://docs.optimism.io/concepts/stack/differences#address-aliasing
