@@ -49,6 +49,8 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
     require(assets.length <= MAX_RELEASE_LENGTH, TooManyAssets());
     RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
     TOKEN_JAR.release(assets, recipient);
+    emit Released(_nonce, recipient, assets);
+
     _afterRelease(assets, recipient);
   }
 

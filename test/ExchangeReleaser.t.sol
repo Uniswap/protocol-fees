@@ -5,6 +5,7 @@ import {ProtocolFeesTestBase} from "./utils/ProtocolFeesTestBase.sol";
 import {CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {ExchangeReleaserMock} from "./mocks/ExchangeReleaserMock.sol";
 import {INonce} from "../src/interfaces/base/INonce.sol";
+import {IReleaser} from "../src/interfaces/IReleaser.sol";
 
 contract ExchangeReleaserTest is ProtocolFeesTestBase {
   ExchangeReleaserMock public swapReleaser;
@@ -30,6 +31,11 @@ contract ExchangeReleaserTest is ProtocolFeesTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(swapReleaser), INITIAL_TOKEN_AMOUNT);
+
+    // Expect the Released event
+    vm.expectEmit(true, true, false, true, address(swapReleaser));
+    emit IReleaser.Released(swapReleaser.nonce(), alice, releaseMockToken);
+
     swapReleaser.release(swapReleaser.nonce(), releaseMockToken, alice);
 
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
@@ -46,6 +52,11 @@ contract ExchangeReleaserTest is ProtocolFeesTestBase {
 
     vm.startPrank(alice);
     resource.approve(address(swapReleaser), INITIAL_TOKEN_AMOUNT);
+
+    // Expect the Released event
+    vm.expectEmit(true, true, false, true, address(swapReleaser));
+    emit IReleaser.Released(swapReleaser.nonce(), alice, releaseMockNative);
+
     swapReleaser.release(swapReleaser.nonce(), releaseMockNative, alice);
 
     assertEq(CurrencyLibrary.ADDRESS_ZERO.balanceOf(address(tokenJar)), 0);
@@ -87,7 +98,10 @@ contract ExchangeReleaserTest is ProtocolFeesTestBase {
     vm.startPrank(alice);
     resource.approve(address(swapReleaser), type(uint256).max);
 
-    // First release call
+    // First release call - expect the Released event
+    vm.expectEmit(true, true, false, true, address(swapReleaser));
+    emit IReleaser.Released(nonce, alice, releaseMockToken);
+
     swapReleaser.release(nonce, releaseMockToken, alice);
     assertEq(mockToken.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
     assertEq(mockToken.balanceOf(address(tokenJar)), 0);
