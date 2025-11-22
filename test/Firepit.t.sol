@@ -8,8 +8,6 @@ import {INonce} from "../src/interfaces/base/INonce.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
-import {Firepit} from "../src/releasers/Firepit.sol";
-import {ExchangeReleaser} from "../src/releasers/ExchangeReleaser.sol";
 
 contract FirepitTest is ProtocolFeesTestBase {
   function setUp() public override {

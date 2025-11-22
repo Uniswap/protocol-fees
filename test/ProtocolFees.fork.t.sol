@@ -3,12 +3,9 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {
-  UniswapV3FactoryDeployer,
-  IUniswapV3Factory
-} from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
+import {IUniswapV3Factory} from "briefcase/deployers/v3-core/UniswapV3FactoryDeployer.sol";
 import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {Deployer} from "../src/Deployer.sol";
+import {MainnetDeployer} from "../script/deployers/MainnetDeployer.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
@@ -19,11 +16,12 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IUniswapV2Factory} from "./interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "./interfaces/IUniswapV2Pair.sol";
 import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
+import {UnificationProposal} from "../script/04_UnificationProposal.s.sol";
 
 contract ProtocolFeesForkTest is Test {
   using FixedPointMathLib for uint256;
 
-  Deployer public deployer;
+  MainnetDeployer public deployer;
   IUniswapV3Factory public factory;
   IUniswapV2Factory public v2Factory;
   IUniswapV2Router02 public v2Router;
@@ -60,20 +58,14 @@ contract ProtocolFeesForkTest is Test {
     v2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     owner = factory.owner();
 
-    deployer = new Deployer();
+    deployer = new MainnetDeployer();
+    UnificationProposal proposal = new UnificationProposal();
+    proposal.runPranked(deployer);
     tokenJar = deployer.TOKEN_JAR();
     releaser = deployer.RELEASER();
-    feeAdapter = deployer.FEE_ADAPTER();
+    feeAdapter = deployer.V3_FEE_ADAPTER();
 
     merkle = new Merkle();
-
-    // set the fee adapter on the v3 factory
-    vm.prank(owner);
-    factory.setOwner(address(feeAdapter));
-
-    // assumes governance timelock takes back control of the feeSetter
-    vm.prank(owner);
-    IFeeToSetter(0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360).setFeeToSetter(owner);
 
     // USDC-WETH pools
     pool0 = factory.getPool(WETH, USDC, 100); // 1 bip pool
@@ -95,13 +87,6 @@ contract ProtocolFeesForkTest is Test {
 
   function test_enableFeeV3() public {
     assertEq(feeAdapter.feeSetter(), owner);
-    vm.startPrank(owner);
-    feeAdapter.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
-    feeAdapter.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
-    feeAdapter.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
-    feeAdapter.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
-    vm.stopPrank();
-
     // Generate merkle root from leaves
     bytes32 targetLeaf = _hashLeaf(USDC, WETH);
     bytes32 dummyLeaf = _hashLeaf(address(0), address(1));
@@ -117,25 +102,19 @@ contract ProtocolFeesForkTest is Test {
     bytes32[] memory proof = merkle.getProof(leaves, 0);
     feeAdapter.triggerFeeUpdate(USDC, WETH, proof);
 
-    // fees were set correctly
+    // fees were set correctly, from the Deployer.sol
     (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool0).slot0();
-    assertEq(protocolFee, 10 << 4 | 10);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool1).slot0();
-    assertEq(protocolFee, 8 << 4 | 8);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool2).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool3).slot0();
-    assertEq(protocolFee, 4 << 4 | 4);
+    assertEq(protocolFee, 6 << 4 | 6);
   }
 
   function test_enableFeeV3MultiProof() public {
     assertEq(feeAdapter.feeSetter(), owner);
-    vm.startPrank(owner);
-    feeAdapter.setDefaultFeeByFeeTier(100, 10 << 4 | 10);
-    feeAdapter.setDefaultFeeByFeeTier(500, 8 << 4 | 8);
-    feeAdapter.setDefaultFeeByFeeTier(3000, 6 << 4 | 6);
-    feeAdapter.setDefaultFeeByFeeTier(10_000, 4 << 4 | 4);
-    vm.stopPrank();
 
     // Using the real merkle root from the generated merkle tree
     bytes32 merkleRoot = hex"472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a";
@@ -185,23 +164,23 @@ contract ProtocolFeesForkTest is Test {
 
     // Verify fees were set correctly for USDC-WETH pools
     (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool0).slot0();
-    assertEq(protocolFee, 10 << 4 | 10);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool1).slot0();
-    assertEq(protocolFee, 8 << 4 | 8);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool2).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
     (,,,,, protocolFee,) = IUniswapV3Pool(pool3).slot0();
-    assertEq(protocolFee, 4 << 4 | 4);
+    assertEq(protocolFee, 6 << 4 | 6);
 
     // Verify fees were set correctly for DAI-WETH pools
     (,,,,, protocolFee,) = IUniswapV3Pool(daiPool0).slot0();
-    assertEq(protocolFee, 10 << 4 | 10);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(daiPool1).slot0();
-    assertEq(protocolFee, 8 << 4 | 8);
+    assertEq(protocolFee, 4 << 4 | 4);
     (,,,,, protocolFee,) = IUniswapV3Pool(daiPool2).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
     (,,,,, protocolFee,) = IUniswapV3Pool(daiPool3).slot0();
-    assertEq(protocolFee, 4 << 4 | 4);
+    assertEq(protocolFee, 6 << 4 | 6);
   }
 
   function test_enableFeeV2() public {
@@ -247,8 +226,8 @@ contract ProtocolFeesForkTest is Test {
     _exactInSwapV3(pool1, false, 1e18);
 
     (uint128 token0Pool1, uint128 token1Pool1) = IUniswapV3Pool(pool1).protocolFees();
-    assertApproxEqRel(token0Pool1, uint256(1000e6).mulWadDown(0.0005e18) / 8, 0.0001e18);
-    assertApproxEqRel(token1Pool1, uint256(1e18).mulWadDown(0.0005e18) / 8, 0.0001e18);
+    assertApproxEqRel(token0Pool1, uint256(1000e6).mulWadDown(0.0005e18) / 4, 0.0001e18);
+    assertApproxEqRel(token1Pool1, uint256(1e18).mulWadDown(0.0005e18) / 4, 0.0001e18);
 
     // swap on 30 bip pool
     _exactInSwapV3(pool2, true, 1000e6);
@@ -261,8 +240,8 @@ contract ProtocolFeesForkTest is Test {
     _exactInSwapV3(pool3, true, 1000e6);
     _exactInSwapV3(pool3, false, 1e18);
     (uint128 token0Pool3, uint128 token1Pool3) = IUniswapV3Pool(pool3).protocolFees();
-    assertApproxEqRel(token0Pool3, uint256(1000e6).mulWadDown(0.01e18) / 4, 0.0001e18);
-    assertApproxEqRel(token1Pool3, uint256(1e18).mulWadDown(0.01e18) / 4, 0.0001e18);
+    assertApproxEqRel(token0Pool3, uint256(1000e6).mulWadDown(0.01e18) / 6, 0.0001e18);
+    assertApproxEqRel(token1Pool3, uint256(1e18).mulWadDown(0.01e18) / 6, 0.0001e18);
 
     IV3FeeAdapter.CollectParams[] memory params = new IV3FeeAdapter.CollectParams[](3);
     params[0] = IV3FeeAdapter.CollectParams({

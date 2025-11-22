@@ -25,3 +25,6 @@
 [submodule "lib/BokkyPooBahsDateTimeLibrary"]
 	path = lib/BokkyPooBahsDateTimeLibrary
 	url = https://github.com/bokkypoobah/BokkyPooBahsDateTimeLibrary
+[submodule "lib/dao-signer"]
+	path = lib/dao-signer
+	url = https://github.com/ScopeLift/dao-signer

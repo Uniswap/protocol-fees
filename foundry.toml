@@ -1,39 +1,41 @@
 [profile.default]
-  evm_version = "cancun"
-  optimizer = true
-  optimizer_runs = 10_000_000
-  solc_version = "0.8.29"
-  verbosity = 3
-  gas_limit = "9223372036854775807"
-  no_match_test = "test_fuzz_gas_release_malicious"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 10_000_000
+solc_version = "0.8.29"
+verbosity = 3
+gas_limit = "9223372036854775807"
+no_match_test = "test_fuzz_gas_release_malicious"
 
 [rpc_endpoints]
-  mainnet = "${MAINNET_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
+unichain = "${UNICHAIN_RPC_URL}"
 
 [profile.ci]
-  fuzz = { runs = 5000 }
-  invariant = { runs = 1000 }
+fuzz = { runs = 5000 }
+invariant = { runs = 1000 }
 
 [profile.coverage]
-  fuzz = { runs = 100 }
-  invariant = { runs = 0 }
+fuzz = { runs = 100 }
+invariant = { runs = 0 }
 
 [profile.lite]
-  fuzz = { runs = 50 }
-  invariant = { runs = 10 }
-  # Speed up compilation and tests during development.
-  optimizer = false
+fuzz = { runs = 50 }
+invariant = { runs = 10 }
+# Speed up compilation and tests during development.
+optimizer = false
 
 [fmt]
-  bracket_spacing = false
-  int_types = "long"
-  line_length = 100
-  multiline_func_header = "attributes_first"
-  number_underscore = "thousands"
-  quote_style = "double"
-  single_line_statement_blocks = "single"
-  tab_width = 2
-  wrap_comments = true
+bracket_spacing = false
+int_types = "long"
+line_length = 100
+multiline_func_header = "attributes_first"
+number_underscore = "thousands"
+quote_style = "double"
+single_line_statement_blocks = "single"
+tab_width = 2
+wrap_comments = true
 
 [lint]
 exclude_lints = ["mixed-case-variable", "mixed-case-function"]
+
