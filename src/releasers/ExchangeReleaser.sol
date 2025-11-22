@@ -50,6 +50,8 @@ abstract contract ExchangeReleaser is IReleaser, ResourceManager, Nonce {
     RESOURCE.safeTransferFrom(msg.sender, RESOURCE_RECIPIENT, threshold);
     TOKEN_JAR.release(assets, recipient);
     _afterRelease(assets, recipient);
+
+    emit Released(_nonce, recipient, assets);
   }
 
   /// @notice Internal function to handle any post transfer actions

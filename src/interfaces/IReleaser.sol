@@ -10,6 +10,8 @@ interface IReleaser is IResourceManager, INonce {
   /// @notice Thrown when attempting to release too many assets at once
   error TooManyAssets();
 
+  event Released(uint256 indexed nonce, address indexed recipient, Currency[] assets);
+
   /// @return Address of the Token Jar contract that will release the assets
   function TOKEN_JAR() external view returns (ITokenJar);
 

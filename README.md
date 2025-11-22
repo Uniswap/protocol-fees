@@ -226,7 +226,7 @@ test
 
 ## Governance Proposal
 
-For additional commentary and information please see Uniswap Governance Proposal [#92](https://www.tally.xyz/gov/uniswap/proposal/91)
+For additional commentary and information please see Uniswap Governance Proposal [#92](https://vote.uniswapfoundation.org/proposals/92)
 
 With the system already deployed, Uniswap Governance can elect into the system by executing the following calls:
 
