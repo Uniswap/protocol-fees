@@ -3,7 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {IAgreementAnchorFactory} from "dao-signer/src/interfaces/IAgreementAnchorFactory.sol";
-import {AgreementAnchor} from "dao-signer/src/AgreementAnchor.sol";
 
 contract CreateAgreementAnchors is Script {
   IAgreementAnchorFactory public constant AGREEMENT_ANCHOR_FACTORY =
