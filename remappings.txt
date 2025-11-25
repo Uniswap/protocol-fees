@@ -1,3 +1,7 @@
 solmate/=lib/solmate/
 @eth-optimism-bedrock/=lib/optimism/packages/contracts-bedrock
 eas-contracts/=lib/dao-signer/lib/eas-contracts/contracts/
+scripts/libraries/Config.sol=lib/optimism/packages/contracts-bedrock/scripts/libraries/Config.sol
+src/AgreementAnchorFactory.sol=lib/dao-signer/src/AgreementAnchorFactory.sol
+src/AgreementAnchor.sol=lib/dao-signer/src/AgreementAnchor.sol
+src/interfaces/IAgreementAnchorFactory.sol=lib/dao-signer/src/interfaces/IAgreementAnchorFactory.sol

@@ -34,7 +34,7 @@ contract ProtocolFeesForkTest is Test {
   Merkle merkle;
   address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-  address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+  address WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
   // v3 pools
   address pool0; // USDC-WETH 1 bip pool
@@ -42,11 +42,11 @@ contract ProtocolFeesForkTest is Test {
   address pool2; // USDC-WETH 30 bip pool
   address pool3; // USDC-WETH 1% pool
 
-  // DAI-WETH pools
-  address daiPool0; // DAI-WETH 1 bip pool
-  address daiPool1; // DAI-WETH 5 bip pool
-  address daiPool2; // DAI-WETH 30 bip pool
-  address daiPool3; // DAI-WETH 1% pool
+  // WBTC-USDC pools
+  address wbtcPool0; // WBTC-USDC 1 bip pool
+  address wbtcPool1; // WBTC-USDC 5 bip pool
+  address wbtcPool2; // WBTC-USDC 30 bip pool
+  address wbtcPool3; // WBTC-USDC 1% pool
 
   // v2 pair: WETH / USDC
   IUniswapV2Pair pair;
@@ -73,11 +73,11 @@ contract ProtocolFeesForkTest is Test {
     pool2 = factory.getPool(WETH, USDC, 3000); // 30 bip pool
     pool3 = factory.getPool(WETH, USDC, 10_000); // 1% pool
 
-    // DAI-WETH pools
-    daiPool0 = factory.getPool(DAI, WETH, 100); // 1 bip pool
-    daiPool1 = factory.getPool(DAI, WETH, 500); // 5 bip pool
-    daiPool2 = factory.getPool(DAI, WETH, 3000); // 30 bip pool
-    daiPool3 = factory.getPool(DAI, WETH, 10_000); // 1% pool
+    // WBTC-USDC pools
+    wbtcPool0 = factory.getPool(WBTC, USDC, 100); // 1 bip pool
+    wbtcPool1 = factory.getPool(WBTC, USDC, 500); // 5 bip pool
+    wbtcPool2 = factory.getPool(WBTC, USDC, 3000); // 30 bip pool
+    wbtcPool3 = factory.getPool(WBTC, USDC, 10_000); // 1% pool
 
     pair = IUniswapV2Pair(v2Factory.getPair(WETH, USDC));
 
@@ -117,46 +117,48 @@ contract ProtocolFeesForkTest is Test {
     assertEq(feeAdapter.feeSetter(), owner);
 
     // Using the real merkle root from the generated merkle tree
-    bytes32 merkleRoot = hex"472c8960ea78de635eb7e32c5085f9fb963e626b5a68c939bfad24e022383b3a";
+    bytes32 merkleRoot = 0xdbc884abb1e0cfedd01db2ea427d6b8df7be2e63edcc701475387a28edb9a23e;
 
     vm.prank(owner);
     feeAdapter.setMerkleRoot(merkleRoot);
 
-    // Setting up the pairs for USDC-WETH and DAI-WETH
+    // Setting up the pairs for USDC-WETH and WBTC-USDC
     IV3FeeAdapter.Pair[] memory pairs = new IV3FeeAdapter.Pair[](2);
     pairs[0] = IV3FeeAdapter.Pair({token0: USDC, token1: WETH});
-    pairs[1] = IV3FeeAdapter.Pair({token0: DAI, token1: WETH});
+    pairs[1] = IV3FeeAdapter.Pair({token0: WBTC, token1: USDC});
 
     // Multi-proof elements from the generated proof
-    bytes32[] memory proof = new bytes32[](22);
-    proof[0] = hex"64701c9d6df20883102b4515d64953bf39ee59f3069bbb679d1507d8ed141094";
-    proof[1] = hex"72a5540451eb138c2bc018fd4d9387a60ffcc2b1c0c4c3e8c9e91e08d5f8be7d";
-    proof[2] = hex"fd512ec06bd9091616776ead998717afbf49848da3561a29eb98132f51f16c02";
-    proof[3] = hex"c926f4e2351b77ac142ac3e6f99615a392f5567a8131a9d2fd453e0381f28c82";
-    proof[4] = hex"b659678321fbda31383bb84dab1a4b7c8faf6376791174be2b4028382c4ebcdb";
-    proof[5] = hex"9a3b72c48b425ab0b90e7467861e4a8e2501d84daf9843e5215fd52aeb865033";
-    proof[6] = hex"567e458484cfbf530f1b850de67620bb77799744c6f117722e6705613dba33ee";
-    proof[7] = hex"33b421911c7e7b7d1ac6bca41f27f8b73a0f84ef4cdf2e6641b1b077dde02bd9";
-    proof[8] = hex"f1e9daeeb8915523344fd1a071728cc9c1bb0a2d3210a8b262dca51e7fb1df19";
-    proof[9] = hex"a0606657ebdedb82d34ab154a8e767adcc85312f156b8c26c2d4e02b13cbf8aa";
-    proof[10] = hex"d896a7b6c18f8eb93c7a901d80f3dfaaf56a94703b2c27dde812ec30b0239f86";
-    proof[11] = hex"f5da515ff4992343eeb291e6cec5b479700abfc8db75f322619663705de7e741";
-    proof[12] = hex"d8e6f2c82c08686663f81a2ca29fdd83b0e87c6ee1ff9697b0faf5e66457a859";
-    proof[13] = hex"6e6a6a1efdd1e46acac3de1541092734ad99cfc4d201a7bf261257ba31b41d36";
-    proof[14] = hex"389d2c23e948ab29dd7acb4639b93a60c0c5f9311f5e575d11bd2f537d74f6a9";
-    proof[15] = hex"0e36ea79652a7f8f0e6ae4b5266f9371c4dddd9a1b2b1da932e0fd3ad7b77525";
-    proof[16] = hex"c5fdb36b161fa88ea56410fd2572e42d3abc374c146cb0b6062a1537eb650050";
-    proof[17] = hex"a8348a965a2731a7b14b7afc590bb7fb52c554a6a855328139af0722edb30b75";
-    proof[18] = hex"65f4d6dae6ce0f1f01d6e459669bfa3238890e789f0c24998fb0f4ce9388b0ef";
-    proof[19] = hex"f352d10274c3efa4dc4d6f01742bf42c89acf4c1950c6dd64461020c41533a84";
-    proof[20] = hex"b8b5ae9987862c9aebf408e92fa62df4ef4bd96025b51ff741b950388ebc35fc";
-    proof[21] = hex"01fc49a9d2811238276d7e63fbc392d9d748c9a460dcfa617d341a7c39f79fd8";
+    bytes32[] memory proof = new bytes32[](24);
 
-    // Proof flags from the generated proof
-    bool[] memory proofFlags = new bool[](23);
-    // All false except index 20
-    for (uint256 i = 0; i < 23; i++) {
-      proofFlags[i] = (i == 20);
+    proof[0] = hex"64701c9d6df20883102b4515d64953bf39ee59f3069bbb679d1507d8ed141094";
+    proof[1] = hex"ebe503100b6f442e8fc9c3a88b20c2ab46230de463f3979281a03fe582e02b35";
+    proof[2] = hex"f06032377c885016664b258e117b5163e3609e532b129e2ba3b66858c24f9889";
+    proof[3] = hex"1ba2f8601dc46cf2749ef039f27a70910cf925e57e23b4984e4bb19225c11099";
+    proof[4] = hex"3c51f66c15458221ac9963a9d574e61160ecb8e66decb19a8246aac08adc9354";
+    proof[5] = hex"d5a6a0c83b99e0da6befae76bbaea274622433e73c7a40b605ddb2fdf093fbe4";
+    proof[6] = hex"71d40c8eacf44542626e7dce1bd1edcc197f8de627879f0e68dc19281004ef55";
+    proof[7] = hex"f3c97348efd75483909898c9bcf563a16afaa1ced605c753adb2e684d8374546";
+    proof[8] = hex"3e5ee723f1d8bc4b7980214b050d0fd8c7437937ccaf1464cc1bf79a7012198f";
+    proof[9] = hex"039e11de6ee037d54be0d93bbd710f3d278430a4c43f1f0f75da3b320126f030";
+    proof[10] = hex"460625c5bf45d5312c2afc4fdb0977135c8188624f9bfd5635db628e1866553a";
+    proof[11] = hex"a1f0c468b4035d7f6a10eade0c1d6a96f3b265fe6a857ce2532f12ebb8830def";
+    proof[12] = hex"b3a361e8e5cc08a64a724efe50643874da0b4b537871607e02b597a0cde605f8";
+    proof[13] = hex"cdcddb5c974b65f576d39cd91a23a6791349db8b17deb50201f1426e225907c6";
+    proof[14] = hex"7fc77f680964afa66598f98cba163bf9b508dc3c0ddc38a3fca74d69016f26a6";
+    proof[15] = hex"c8f85d9bf23cd7894a0a34d3f6cf71b7916cea62a51a7cae14fc8ea1026f723d";
+    proof[16] = hex"3908366418e98d71e2fc20b99865d1ed75ae093a03242ac6f49f34cb0122a8bd";
+    proof[17] = hex"373722d492d5d2e45864d991439089e5f781a23025b2bd35af9cd0f1cd59634d";
+    proof[18] = hex"b2224a08e832916a5b6c7275020ec7b095aa83e1f8a867a7a0e070b180c11a3b";
+    proof[19] = hex"7681fd79562f8f6d0dd64e124a734b61f7eb06e9d1ccc71ca09a8234410d7018";
+    proof[20] = hex"364acd3000cff9daa7fc419b53e7c352a696a7e8ab222cf410b82e1b1159d296";
+    proof[21] = hex"0c95736773f2b7f44aa6442abdec9f6cd0414777e47cc58cff4f10fd33db7161";
+    proof[22] = hex"035b0f1ff844997b364e73e1783babb476c599824cd398a23c484f9c480e0188";
+    proof[23] = hex"d66e35b63e56a201fef4bd81d2ea4e31c395fab8d7578d1193d1155c790ff2ad";
+
+    // Proof flags from the generated proof (all false except last one)
+    bool[] memory proofFlags = new bool[](25);
+    for (uint256 i = 0; i < 25; i++) {
+      proofFlags[i] = (i == 24);
     }
 
     // Enable fees on the pools
@@ -172,14 +174,14 @@ contract ProtocolFeesForkTest is Test {
     (,,,,, protocolFee,) = IUniswapV3Pool(pool3).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
 
-    // Verify fees were set correctly for DAI-WETH pools
-    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool0).slot0();
+    // Verify fees were set correctly for WBTC-USDC pools
+    (,,,,, protocolFee,) = IUniswapV3Pool(wbtcPool0).slot0();
     assertEq(protocolFee, 4 << 4 | 4);
-    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool1).slot0();
+    (,,,,, protocolFee,) = IUniswapV3Pool(wbtcPool1).slot0();
     assertEq(protocolFee, 4 << 4 | 4);
-    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool2).slot0();
+    (,,,,, protocolFee,) = IUniswapV3Pool(wbtcPool2).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
-    (,,,,, protocolFee,) = IUniswapV3Pool(daiPool3).slot0();
+    (,,,,, protocolFee,) = IUniswapV3Pool(wbtcPool3).slot0();
     assertEq(protocolFee, 6 << 4 | 6);
   }
 
@@ -271,7 +273,7 @@ contract ProtocolFeesForkTest is Test {
 
   function test_releaseV3(address caller, address recipient) public {
     vm.assume(caller != address(0));
-    vm.assume(recipient != address(0) && recipient != address(tokenJar));
+    vm.assume(recipient != address(0) && recipient != address(tokenJar) && recipient != USDC);
     test_collectFeeV3();
 
     // give the caller some UNI to burn
@@ -304,7 +306,7 @@ contract ProtocolFeesForkTest is Test {
 
   function test_releaseV2V3(address caller, address recipient) public {
     vm.assume(caller != address(0));
-    vm.assume(recipient != address(0) && recipient != address(tokenJar));
+    vm.assume(recipient != address(0) && recipient != address(tokenJar) && recipient != USDC);
     test_createV2Fees();
     test_collectFeeV3();
 
