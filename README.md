@@ -157,25 +157,25 @@ Ethereum Mainnet
 
 > Crosschain system coming at a later date
 
-### Deployed Addresses
+## Deployed Addresses
 
-#### Ethereum Mainnet (Chain ID: 1)
-
-| Contract | Address |
-|----------|---------|
-| MainnetDeployer | [`0xA4DB82622eb3Ed538766CAA1c1F232be8c4969Cc`](https://etherscan.io/address/0xA4DB82622eb3Ed538766CAA1c1F232be8c4969Cc) |
-| TokenJar | [`0xc06521c1925079c9Df738e64e84086558887f539`](https://etherscan.io/address/0xc06521c1925079c9Df738e64e84086558887f539) |
-| Releaser (Firepit) | [`0x62fF5241362519277586664340F4FAC6782F1832`](https://etherscan.io/address/0x62fF5241362519277586664340F4FAC6782F1832) |
-| V3FeeAdapter | [`0x59fDBc19ceD63494D2144E31caF15a725677Ffd5`](https://etherscan.io/address/0x59fDBc19ceD63494D2144E31caF15a725677Ffd5) |
-| UNI Vesting | [`0x72Db333908bf5D123ab1889ADde646e017104456`](https://etherscan.io/address/0x72Db333908bf5D123ab1889ADde646e017104456) |
-
-#### Unichain (Chain ID: 130)
+### Ethereum Mainnet (Chain ID: 1)
 
 | Contract | Address |
 |----------|---------|
-| UnichainDeployer | [`0x446Dd2FCe8310963c0c479fCAde6E37767E307Fe`](https://uniscan.xyz/address/0x446Dd2FCe8310963c0c479fCAde6E37767E307Fe) |
-| TokenJar | [`0x280548Ba09771e50a78a9caC007E4b67D6331a11`](https://uniscan.xyz/address/0x280548Ba09771e50a78a9caC007E4b67D6331a11) |
-| Releaser | [`0x9F1cFC8184824aDe8b0C2A3A454E6298c91BB639`](https://uniscan.xyz/address/0x9F1cFC8184824aDe8b0C2A3A454E6298c91BB639) |
+| MainnetDeployer | [`0xd0457dfABEf856bCb5eCaF3681E78F94b0639e8c`](https://etherscan.io/address/0xd0457dfABEf856bCb5eCaF3681E78F94b0639e8c) |
+| TokenJar | [`0x13d1687CA0FD1a5Ac3fDFB1269b6dbD2E25F7777`](https://etherscan.io/address/0x13d1687CA0FD1a5Ac3fDFB1269b6dbD2E25F7777) |
+| Releaser (Firepit) | [`0x6531E445D742a5d8cA28aE3CBD344042fE604AfF`](https://etherscan.io/address/0x6531E445D742a5d8cA28aE3CBD344042fE604AfF) |
+| V3FeeAdapter | [`0x927b985a90AbE651D74Bbe76DC4071092A28b4A2`](https://etherscan.io/address/0x927b985a90AbE651D74Bbe76DC4071092A28b4A2) |
+| UNI Vesting | [`0xF32d53AE98c4D6aB04d4b870fF9a97f37a724F79`](https://etherscan.io/address/0xF32d53AE98c4D6aB04d4b870fF9a97f37a724F79) |
+
+### Unichain (Chain ID: 130)
+
+| Contract | Address |
+|----------|---------|
+| UnichainDeployer | [`0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea`](https://uniscan.xyz/address/0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea) |
+| TokenJar | [`0xD576BDF6b560079a4c204f7644e556DbB19140b5`](https://uniscan.xyz/address/0xD576BDF6b560079a4c204f7644e556DbB19140b5) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB`](https://uniscan.xyz/address/0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB) |
 
 ## Development
 
