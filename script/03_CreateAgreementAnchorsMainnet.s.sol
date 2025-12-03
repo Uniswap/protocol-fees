@@ -13,8 +13,10 @@ contract CreateAgreementAnchors is Script {
   address public constant AGREEMENT_ANCHOR_1_COUNTER_SIGNER = address(0);
   bytes32 public constant AGREEMENT_ANCHOR_2_CONTENT_HASH = "";
   address public constant AGREEMENT_ANCHOR_2_COUNTER_SIGNER = address(0);
+  bytes32 public constant AGREEMENT_ANCHOR_3_CONTENT_HASH = "";
+  address public constant AGREEMENT_ANCHOR_3_COUNTER_SIGNER = address(0);
 
-  function run() public returns (address, address) {
+  function run() public returns (address, address, address) {
     require(block.chainid == 1, "Not mainnet");
     vm.startBroadcast();
     address agreementAnchor1 = address(
@@ -28,9 +30,15 @@ contract CreateAgreementAnchors is Script {
         AGREEMENT_ANCHOR_2_CONTENT_HASH, AGREEMENT_ANCHOR_2_COUNTER_SIGNER
       )
     );
+    address agreementAnchor3 = address(
+      AGREEMENT_ANCHOR_FACTORY.createAgreementAnchor(
+        AGREEMENT_ANCHOR_3_CONTENT_HASH, AGREEMENT_ANCHOR_3_COUNTER_SIGNER
+      )
+    );
     console2.log("Agreement Anchor 1:", agreementAnchor1);
     console2.log("Agreement Anchor 2:", agreementAnchor2);
+    console2.log("Agreement Anchor 3:", agreementAnchor3);
     vm.stopBroadcast();
-    return (agreementAnchor1, agreementAnchor2);
+    return (agreementAnchor1, agreementAnchor2, agreementAnchor3);
   }
 }

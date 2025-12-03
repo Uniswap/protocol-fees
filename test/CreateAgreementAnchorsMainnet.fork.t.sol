@@ -19,7 +19,7 @@ contract CreateAgreementAnchorsMainnetForkTest is Test {
   }
 
   function test_createsAgreementAnchors() public {
-    (address agreementAnchor1, address agreementAnchor2) = script.run();
+    (address agreementAnchor1, address agreementAnchor2, address agreementAnchor3) = script.run();
     assertEq(
       IAgreementAnchor(agreementAnchor1).CONTENT_HASH(), script.AGREEMENT_ANCHOR_1_CONTENT_HASH()
     );
@@ -31,6 +31,12 @@ contract CreateAgreementAnchorsMainnetForkTest is Test {
     );
     assertEq(
       IAgreementAnchor(agreementAnchor2).PARTY_B(), script.AGREEMENT_ANCHOR_2_COUNTER_SIGNER()
+    );
+    assertEq(
+      IAgreementAnchor(agreementAnchor3).CONTENT_HASH(), script.AGREEMENT_ANCHOR_3_CONTENT_HASH()
+    );
+    assertEq(
+      IAgreementAnchor(agreementAnchor3).PARTY_B(), script.AGREEMENT_ANCHOR_3_COUNTER_SIGNER()
     );
   }
 }
