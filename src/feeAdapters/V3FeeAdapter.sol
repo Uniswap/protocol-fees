@@ -201,9 +201,9 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   /// @param feeTier The fee tier of the pool (used for default lookup)
   /// @return The fee value to apply (0 if sentinel, override if set, otherwise default)
   function _getEffectiveFee(address pool, uint24 feeTier) internal view returns (uint8) {
-    uint8 override_ = poolFeeOverrides[pool];
-    if (override_ == OVERRIDE_TO_ZERO) return 0;
-    if (override_ != 0) return override_;
+    uint8 poolFeeOverride = poolFeeOverrides[pool];
+    if (poolFeeOverride == OVERRIDE_TO_ZERO) return 0;
+    if (poolFeeOverride != 0) return poolFeeOverride;
     return defaultFees[feeTier];
   }
 
