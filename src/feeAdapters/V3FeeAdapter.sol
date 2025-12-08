@@ -119,7 +119,7 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     emit PoolFeeOverrideSet(pool, feeOverride);
 
     // Update the pool's fee immediately if the pool is initialized
-    _setProtocolFeeForPool(pool);
+    _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
   }
 
   /// @inheritdoc IV3FeeAdapter
@@ -193,18 +193,6 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
     uint8 feeValue = _getEffectiveFee(pool, feeTier);
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
-  }
-
-  /// @notice Sets the protocol fee for a specific pool using its override or fee tier default
-  /// @dev Only sets the fee for initialized pools. Used by overridePoolFee to immediately apply
-  /// changes. @param pool The address of the Uniswap V3 pool
-  function _setProtocolFeeForPool(address pool) internal {
-    // Check if pool is initialized by verifying sqrtPriceX96 is non-zero
-    (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
-    if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
-
-    uint8 feeValue = _getEffectiveFee(pool, IUniswapV3Pool(pool).fee());
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
   }
 
