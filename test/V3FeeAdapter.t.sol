@@ -624,4 +624,221 @@ contract V3FeeAdapterTest is ProtocolFeesTestBase {
     if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
     return IV3FeeAdapter.Pair({token0: tokenA, token1: tokenB});
   }
+
+  // ==================== Pool Fee Override Tests ====================
+
+  function test_overridePoolFee_success() public {
+    uint8 overrideFee = 7 << 4 | 6; // fee1=7, fee0=6
+
+    vm.prank(feeSetter);
+    vm.expectEmit(true, false, false, true);
+    emit IV3FeeAdapter.PoolFeeOverrideSet(pool, overrideFee);
+    feeAdapter.overridePoolFee(pool, overrideFee);
+
+    // Verify override is stored
+    assertEq(feeAdapter.poolFeeOverrides(pool), overrideFee);
+
+    // Verify pool fee was updated immediately
+    assertEq(_getProtocolFees(pool), overrideFee);
+  }
+
+  function test_overridePoolFee_overridesDefaultFee() public {
+    uint8 defaultFee = 10 << 4 | 10;
+    uint8 overrideFee = 5 << 4 | 5;
+
+    // Set default fee for the fee tier
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFeeByFeeTier(3000, defaultFee);
+
+    // Set override for specific pool
+    feeAdapter.overridePoolFee(pool, overrideFee);
+    vm.stopPrank();
+
+    // Verify pool has override fee, not default
+    assertEq(_getProtocolFees(pool), overrideFee);
+
+    // Trigger fee update via merkle proof and verify override is still used
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = _hashLeaf(pool);
+    leaves[1] = _hashLeaf(pool1);
+    bytes32 root = merkle.getRoot(leaves);
+
+    vm.prank(feeSetter);
+    feeAdapter.setMerkleRoot(root);
+
+    bytes32[] memory proof = merkle.getProof(leaves, 0);
+    feeAdapter.triggerFeeUpdate(pool, proof);
+
+    // Override should still be in effect
+    assertEq(_getProtocolFees(pool), overrideFee);
+  }
+
+  function test_overridePoolFee_revertsUnauthorized() public {
+    address unauthorized = makeAddr("unauthorized");
+    vm.prank(unauthorized);
+    vm.expectRevert(IV3FeeAdapter.Unauthorized.selector);
+    feeAdapter.overridePoolFee(pool, 0x55);
+  }
+
+  function test_overridePoolFee_revertsInvalidFeeValue() public {
+    uint8 invalidFee = 15 << 4 | 15; // Both values > 10
+
+    vm.prank(feeSetter);
+    vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+    feeAdapter.overridePoolFee(pool, invalidFee);
+  }
+
+  function test_overridePoolFee_allowsZeroFee() public {
+    // Zero fee should be valid (disables protocol fee)
+    uint8 zeroFee = 0;
+    uint8 OVERRIDE_TO_ZERO = type(uint8).max; // sentinel value
+
+    vm.prank(feeSetter);
+    feeAdapter.overridePoolFee(pool, zeroFee);
+
+    // Stored as sentinel value, but effective fee is 0
+    assertEq(feeAdapter.poolFeeOverrides(pool), OVERRIDE_TO_ZERO);
+    assertEq(_getProtocolFees(pool), zeroFee);
+  }
+
+  function test_overridePoolFee_skipsUninitializedPool() public {
+    // Create uninitialized pool
+    MockERC20 token2 = new MockERC20("Token2", "TKN2", 18);
+    address uninitializedPool = factory.createPool(address(token2), address(mockToken1), 3000);
+
+    uint8 overrideFee = 6 << 4 | 6;
+
+    // Should not revert, just skip setting the fee
+    vm.prank(feeSetter);
+    feeAdapter.overridePoolFee(uninitializedPool, overrideFee);
+
+    // Override should be stored
+    assertEq(feeAdapter.poolFeeOverrides(uninitializedPool), overrideFee);
+
+    // Pool fee should still be 0 (uninitialized)
+    (,,,,, uint8 poolFees,) = IUniswapV3Pool(uninitializedPool).slot0();
+    assertEq(poolFees, 0);
+  }
+
+  function test_removePoolFeeOverride_success() public {
+    uint8 overrideFee = 7 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.overridePoolFee(pool, overrideFee);
+
+    // Verify override is set
+    assertEq(feeAdapter.poolFeeOverrides(pool), overrideFee);
+
+    vm.expectEmit(true, false, false, false);
+    emit IV3FeeAdapter.PoolFeeOverrideRemoved(pool);
+    feeAdapter.removePoolFeeOverride(pool);
+    vm.stopPrank();
+
+    // Verify override is removed (back to 0 means no override)
+    assertEq(feeAdapter.poolFeeOverrides(pool), 0);
+  }
+
+  function test_removePoolFeeOverride_revertsUnauthorized() public {
+    address unauthorized = makeAddr("unauthorized");
+    vm.prank(unauthorized);
+    vm.expectRevert(IV3FeeAdapter.Unauthorized.selector);
+    feeAdapter.removePoolFeeOverride(pool);
+  }
+
+  function test_triggerFeeUpdate_usesDefaultAfterOverrideRemoved() public {
+    uint8 defaultFee = 10 << 4 | 10;
+    uint8 overrideFee = 5 << 4 | 5;
+
+    // Setup merkle tree
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = _hashLeaf(pool);
+    leaves[1] = _hashLeaf(pool1);
+    bytes32 root = merkle.getRoot(leaves);
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setMerkleRoot(root);
+    feeAdapter.setDefaultFeeByFeeTier(3000, defaultFee);
+
+    // Set override
+    feeAdapter.overridePoolFee(pool, overrideFee);
+    assertEq(_getProtocolFees(pool), overrideFee);
+
+    // Remove override
+    feeAdapter.removePoolFeeOverride(pool);
+    vm.stopPrank();
+
+    // Trigger fee update - should use default now
+    bytes32[] memory proof = merkle.getProof(leaves, 0);
+    feeAdapter.triggerFeeUpdate(pool, proof);
+
+    assertEq(_getProtocolFees(pool), defaultFee);
+  }
+
+  function test_fuzz_overridePoolFee(address _pool, uint8 feeValue) public {
+    uint8 OVERRIDE_TO_ZERO = type(uint8).max;
+    vm.startPrank(feeSetter);
+
+    uint8 feeProtocol0 = feeValue % 16;
+    uint8 feeProtocol1 = feeValue >> 4;
+    bool isValidFeeValue = (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+      && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10));
+
+    if (!isValidFeeValue) {
+      vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
+      feeAdapter.overridePoolFee(_pool, feeValue);
+    } else {
+      feeAdapter.overridePoolFee(_pool, feeValue);
+      // If feeValue is 0, it's stored as sentinel; otherwise stored as-is
+      uint8 expectedStored = feeValue == 0 ? OVERRIDE_TO_ZERO : feeValue;
+      assertEq(feeAdapter.poolFeeOverrides(_pool), expectedStored);
+    }
+
+    vm.stopPrank();
+  }
+
+  function test_overridePoolFee_canUpdateExistingOverride() public {
+    uint8 firstOverride = 5 << 4 | 5;
+    uint8 secondOverride = 8 << 4 | 8;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.overridePoolFee(pool, firstOverride);
+    assertEq(_getProtocolFees(pool), firstOverride);
+
+    feeAdapter.overridePoolFee(pool, secondOverride);
+    assertEq(_getProtocolFees(pool), secondOverride);
+    vm.stopPrank();
+  }
+
+  function test_triggerFeeUpdate_byPair_respectsOverride() public {
+    uint8 defaultFee3000 = 10 << 4 | 10;
+    uint8 defaultFee10000 = 8 << 4 | 8;
+    uint8 overrideFee = 5 << 4 | 5;
+
+    // Setup merkle tree for the pair
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = _hashLeaf(pool);
+    leaves[1] = _hashLeaf(pool1);
+    bytes32 root = merkle.getRoot(leaves);
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setMerkleRoot(root);
+    feeAdapter.setDefaultFeeByFeeTier(3000, defaultFee3000);
+    feeAdapter.setDefaultFeeByFeeTier(10_000, defaultFee10000);
+
+    // Set override only for pool (3000 fee tier)
+    feeAdapter.overridePoolFee(pool, overrideFee);
+    vm.stopPrank();
+
+    // Trigger fee update by pair
+    (address _token0, address _token1) = address(mockToken) < address(mockToken1)
+      ? (address(mockToken), address(mockToken1))
+      : (address(mockToken1), address(mockToken));
+
+    bytes32[] memory proof = merkle.getProof(leaves, 0);
+    feeAdapter.triggerFeeUpdate(_token0, _token1, proof);
+
+    // pool should have override, pool1 should have default
+    assertEq(_getProtocolFees(pool), overrideFee);
+    assertEq(_getProtocolFees(pool1), defaultFee10000);
+  }
 }
