@@ -13,7 +13,7 @@ contract DeployMainnet is Script {
 
     vm.startBroadcast();
 
-    MainnetDeployer deployer = new MainnetDeployer();
+    MainnetDeployer deployer = new MainnetDeployer{salt: bytes32(uint256(1))}();
     console2.log("Deployed Deployer at:", address(deployer));
     console2.log("TOKEN_JAR at:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER at:", address(deployer.RELEASER()));

@@ -307,4 +307,86 @@ program
     }
   });
 
+// Parse-pools command - extracts token pairs from raw SQL output
+program
+  .command('parse-pools')
+  .description('Parse raw SQL pool data and extract unique token pairs')
+  .argument('[input-file]', 'Path to raw CSV file from SQL query', './data/raw.csv')
+  .option('-o, --output <file>', 'Output file for token pairs', './data/token-pairs.csv')
+  .action(async (inputFile, options) => {
+    try {
+      console.log('Parsing pool data from:', inputFile);
+
+      // Read raw CSV
+      const content = readFileSync(inputFile, 'utf-8');
+
+      // Use csv-parse to handle quoted fields with commas
+      const { parse } = await import('csv-parse/sync');
+      const records = parse(content, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_quotes: true,
+      }) as Record<string, string>[];
+
+      if (records.length === 0) {
+        throw new Error('CSV file has no data rows');
+      }
+
+      // Verify unique_key column exists
+      if (!('unique_key' in records[0])) {
+        throw new Error('Could not find "unique_key" column in CSV header');
+      }
+
+      console.log(`Processing ${records.length} rows`);
+
+      // Extract unique token pairs
+      const pairsSet = new Set<string>();
+
+      for (let i = 0; i < records.length; i++) {
+        const uniqueKey = records[i].unique_key?.trim();
+        if (!uniqueKey || uniqueKey === '') {
+          console.warn(`Skipping row ${i + 2}: empty unique_key`);
+          continue;
+        }
+
+        // unique_key format: token0-token1
+        const tokens = uniqueKey.split('-');
+        if (tokens.length !== 2) {
+          console.warn(`Skipping row ${i + 2}: invalid unique_key format "${uniqueKey}"`);
+          continue;
+        }
+
+        const [token0, token1] = tokens;
+
+        // Validate addresses
+        if (!/^0x[a-fA-F0-9]{40}$/.test(token0) || !/^0x[a-fA-F0-9]{40}$/.test(token1)) {
+          console.warn(`Skipping row ${i + 2}: invalid address format in "${uniqueKey}"`);
+          continue;
+        }
+
+        // Sort and normalize addresses
+        const sorted = sortTokenPair(token0, token1);
+        pairsSet.add(`${sorted[0]},${sorted[1]}`);
+      }
+
+      const pairs = Array.from(pairsSet).sort();
+      console.log(`\nExtracted ${pairs.length} unique token pairs`);
+
+      // Write output CSV
+      const outputLines = [
+        '# Token pairs extracted from pools.csv',
+        '# Format: token0,token1',
+        ...pairs,
+      ];
+      writeFileSync(options.output, outputLines.join('\n') + '\n');
+
+      console.log('Token pairs written to:', options.output);
+    }
+    catch (error) {
+      console.error('Error parsing pools:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
 program.parse();
