@@ -774,7 +774,7 @@ contract V3FeeAdapterTest is ProtocolFeesTestBase {
     assertEq(_getProtocolFees(pool), defaultFee);
   }
 
-  function test_fuzz_overridePoolFee(address _pool, uint8 feeValue) public {
+  function test_fuzz_overridePoolFee(uint8 feeValue) public {
     uint8 OVERRIDE_TO_ZERO = type(uint8).max;
     vm.startPrank(feeSetter);
 
@@ -785,12 +785,12 @@ contract V3FeeAdapterTest is ProtocolFeesTestBase {
 
     if (!isValidFeeValue) {
       vm.expectRevert(IV3FeeAdapter.InvalidFeeValue.selector);
-      feeAdapter.overridePoolFee(_pool, feeValue);
+      feeAdapter.overridePoolFee(pool, feeValue);
     } else {
-      feeAdapter.overridePoolFee(_pool, feeValue);
+      feeAdapter.overridePoolFee(pool, feeValue);
       // If feeValue is 0, it's stored as sentinel; otherwise stored as-is
       uint8 expectedStored = feeValue == 0 ? OVERRIDE_TO_ZERO : feeValue;
-      assertEq(feeAdapter.poolFeeOverrides(_pool), expectedStored);
+      assertEq(feeAdapter.poolFeeOverrides(pool), expectedStored);
     }
 
     vm.stopPrank();
