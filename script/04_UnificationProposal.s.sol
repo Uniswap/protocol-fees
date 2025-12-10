@@ -25,6 +25,8 @@ contract UnificationProposal is Script, StdAssertions {
     AgreementAnchor(0x0000000000000000000000000000000000000000);
   AgreementAnchor public constant AGREEMENT_ANCHOR_2 =
     AgreementAnchor(0x0000000000000000000000000000000000000000);
+  AgreementAnchor public constant AGREEMENT_ANCHOR_3 =
+    AgreementAnchor(0x0000000000000000000000000000000000000000);
   string public constant PROPOSAL_DESCRIPTION = "";
 
   IGovernorBravo internal constant GOVERNOR_BRAVO =
@@ -111,7 +113,7 @@ contract UnificationProposal is Script, StdAssertions {
     address timelock = deployer.V3_FACTORY().owner();
 
     // --- Proposal Actions Setup ---
-    actions = new ProposalAction[](7);
+    actions = new ProposalAction[](8);
 
     // Burn 100M UNI
     actions[0] = ProposalAction({
@@ -194,6 +196,29 @@ contract UnificationProposal is Script, StdAssertions {
                 revocable: false,
                 refUID: bytes32(0),
                 data: abi.encode(AGREEMENT_ANCHOR_2.CONTENT_HASH()),
+                value: 0
+              })
+            }))
+        )
+      });
+    }
+
+    // DAO attests to Agreement 3
+    if (address(AGREEMENT_ANCHOR_3) != address(0)) {
+      actions[7] = ProposalAction({
+        target: address(EAS),
+        value: 0,
+        signature: "",
+        data: abi.encodeCall(
+          EAS.attest,
+          (AttestationRequest({
+              schema: AGREEMENT_SCHEMA_UID,
+              data: AttestationRequestData({
+                recipient: address(AGREEMENT_ANCHOR_3),
+                expirationTime: 0,
+                revocable: false,
+                refUID: bytes32(0),
+                data: abi.encode(AGREEMENT_ANCHOR_3.CONTENT_HASH()),
                 value: 0
               })
             }))

@@ -117,7 +117,7 @@ contract ProtocolFeesForkTest is Test {
     assertEq(feeAdapter.feeSetter(), owner);
 
     // Using the real merkle root from the generated merkle tree
-    bytes32 merkleRoot = 0xdbc884abb1e0cfedd01db2ea427d6b8df7be2e63edcc701475387a28edb9a23e;
+    bytes32 merkleRoot = 0x414b3244586a0a8ccde5f69624d8c697705f894f429e2d5adecefddd375d2f58;
 
     vm.prank(owner);
     feeAdapter.setMerkleRoot(merkleRoot);
@@ -128,37 +128,32 @@ contract ProtocolFeesForkTest is Test {
     pairs[1] = IV3FeeAdapter.Pair({token0: WBTC, token1: USDC});
 
     // Multi-proof elements from the generated proof
-    bytes32[] memory proof = new bytes32[](24);
+    bytes32[] memory proof = new bytes32[](19);
 
-    proof[0] = hex"64701c9d6df20883102b4515d64953bf39ee59f3069bbb679d1507d8ed141094";
-    proof[1] = hex"ebe503100b6f442e8fc9c3a88b20c2ab46230de463f3979281a03fe582e02b35";
-    proof[2] = hex"f06032377c885016664b258e117b5163e3609e532b129e2ba3b66858c24f9889";
-    proof[3] = hex"1ba2f8601dc46cf2749ef039f27a70910cf925e57e23b4984e4bb19225c11099";
-    proof[4] = hex"3c51f66c15458221ac9963a9d574e61160ecb8e66decb19a8246aac08adc9354";
-    proof[5] = hex"d5a6a0c83b99e0da6befae76bbaea274622433e73c7a40b605ddb2fdf093fbe4";
-    proof[6] = hex"71d40c8eacf44542626e7dce1bd1edcc197f8de627879f0e68dc19281004ef55";
-    proof[7] = hex"f3c97348efd75483909898c9bcf563a16afaa1ced605c753adb2e684d8374546";
-    proof[8] = hex"3e5ee723f1d8bc4b7980214b050d0fd8c7437937ccaf1464cc1bf79a7012198f";
-    proof[9] = hex"039e11de6ee037d54be0d93bbd710f3d278430a4c43f1f0f75da3b320126f030";
-    proof[10] = hex"460625c5bf45d5312c2afc4fdb0977135c8188624f9bfd5635db628e1866553a";
-    proof[11] = hex"a1f0c468b4035d7f6a10eade0c1d6a96f3b265fe6a857ce2532f12ebb8830def";
-    proof[12] = hex"b3a361e8e5cc08a64a724efe50643874da0b4b537871607e02b597a0cde605f8";
-    proof[13] = hex"cdcddb5c974b65f576d39cd91a23a6791349db8b17deb50201f1426e225907c6";
-    proof[14] = hex"7fc77f680964afa66598f98cba163bf9b508dc3c0ddc38a3fca74d69016f26a6";
-    proof[15] = hex"c8f85d9bf23cd7894a0a34d3f6cf71b7916cea62a51a7cae14fc8ea1026f723d";
-    proof[16] = hex"3908366418e98d71e2fc20b99865d1ed75ae093a03242ac6f49f34cb0122a8bd";
-    proof[17] = hex"373722d492d5d2e45864d991439089e5f781a23025b2bd35af9cd0f1cd59634d";
-    proof[18] = hex"b2224a08e832916a5b6c7275020ec7b095aa83e1f8a867a7a0e070b180c11a3b";
-    proof[19] = hex"7681fd79562f8f6d0dd64e124a734b61f7eb06e9d1ccc71ca09a8234410d7018";
-    proof[20] = hex"364acd3000cff9daa7fc419b53e7c352a696a7e8ab222cf410b82e1b1159d296";
-    proof[21] = hex"0c95736773f2b7f44aa6442abdec9f6cd0414777e47cc58cff4f10fd33db7161";
-    proof[22] = hex"035b0f1ff844997b364e73e1783babb476c599824cd398a23c484f9c480e0188";
-    proof[23] = hex"d66e35b63e56a201fef4bd81d2ea4e31c395fab8d7578d1193d1155c790ff2ad";
+    proof[0] = hex"6491c363f49ce4bb83ce9c2cdd5b56a962c53cf8ad104219ed91385ed1540802";
+    proof[1] = hex"ebece2c743a5fbb314dc2776f896d72e2ff67d3a4f129f1757aa5d5ab677e33a";
+    proof[2] = hex"900fc66a8b61766ca646f09e7674c9d4afc83f717334111f535080c4eccd6c9c";
+    proof[3] = hex"211e83765b6d8e124531eae66c1ee4f9e0570b4c75e9508fd4df802725b5ad4f";
+    proof[4] = hex"5e2bf878cd5f31d0f58df92cbb5ca98ce84608ac1199285988142696e13f138d";
+    proof[5] = hex"00297a030932b384d55bbdcdcaaa589fcac62f155c3764d27e49d16ec3316227";
+    proof[6] = hex"070584a9c964c10b35d9cbd891ae71c5c8c3c4a323a7d4c0ad2dcaea0adb9400";
+    proof[7] = hex"baa50bad5c1038ae56de2dd71badc88c1002f85c225a57d35eb6de619334880e";
+    proof[8] = hex"13bf26148a62f801302746719a0d2360a06c5e803193847305545f77f4286c39";
+    proof[9] = hex"5f8c7d372cb4665567e935966e87020a510746aec6a2939d618c39a1fb3d6628";
+    proof[10] = hex"a3c2cb41e9d0a2de1f5c0fe79764073cd124567902b40c6bb637815342d0569b";
+    proof[11] = hex"75fed44c10fe53b6b9414e14e8a214c56cd02a0bb5c8c2d948f20a546cc376ca";
+    proof[12] = hex"e57a4a98131339fc9734284b6a36e99db186fcbf0640773512a5742c336e8d7f";
+    proof[13] = hex"e5fca2152a8d5a7d959aaa133b564fa41e5155dcccabfe17289d887eb2670185";
+    proof[14] = hex"f2804f3a9b11e320fabcc68c5c0b4beabdbb43eaaaec7c2a8a2c44818ef3ef29";
+    proof[15] = hex"fbe9480f027e8126275f82da9e2fccd453384539a6b48bf811cc853cf2f087f0";
+    proof[16] = hex"53e476e913319c5b3714c352ff8975a79548d96e11cdd06c7dd6be975d417c20";
+    proof[17] = hex"a3e710526979e9dec0755d7e2357c3ef5ef01f838e0a4345736107cb179fb8a1";
+    proof[18] = hex"bc0721000f45dd0c27e8caf9cad20735b833154350d7dc41c2beae6c474f45c3";
 
     // Proof flags from the generated proof (all false except last one)
-    bool[] memory proofFlags = new bool[](25);
-    for (uint256 i = 0; i < 25; i++) {
-      proofFlags[i] = (i == 24);
+    bool[] memory proofFlags = new bool[](20);
+    for (uint256 i = 0; i < 20; i++) {
+      proofFlags[i] = (i == 19);
     }
 
     // Enable fees on the pools
