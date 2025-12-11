@@ -151,6 +151,7 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 4. Token Jar contents are released to the searcher's specified recipient
 
 **Stage 2 - L1 Bridge & Burn:**
+
 5. The `_afterRelease()` hook automatically initiates an L2→L1 bridge withdrawal
 6. Bridged UNI is burned on L2 via the L2StandardBridge
 7. A cross-domain message is queued for L1
