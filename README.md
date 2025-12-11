@@ -108,25 +108,79 @@ Searcher → Pay UNI → Releaser → Release Assets → Burn UNI
 
 1. Searcher pays a fixed UNI amount to Releaser
 2. Releaser releases Token Jar contents to searcher's specified recipient
-3. UNI tokens are burned, reducing total supply
+3. UNI tokens are burned (sent to `0xdead`), reducing total supply
 4. Searcher profits from asset value exceeding UNI burn cost
 
-#### (In-Progress) Cross-Chain UNI Burn
+#### Cross-Chain UNI Burn (OP Stack L2s)
 
-> Note: Cross-chain value accrual is not ready at this time, below we outline our expectations
-
-For chains without native UNI:
+For OP Stack L2 chains (Unichain, Optimism, Base, etc.) where only bridged UNI exists:
 
 ```
-Searcher → Burn UNI (Mainnet) → Bridge Message → Release Assets (Spoke)
+┌─────────────────────────────────────────────────────────────────┐
+│                          L2 (Unichain)                          │
+│                                                                 │
+│  Searcher → Pay Bridged UNI → OptimismBridgedResourceFirepit   │
+│                                      │                          │
+│                              ┌───────┴───────┐                  │
+│                              │               │                  │
+│                        Release Assets   Bridge Withdrawal       │
+│                        to Recipient     (L2→L1)                │
+│                                              │                  │
+└──────────────────────────────────────────────│──────────────────┘
+                                               │
+                                        7-day challenge
+                                            period
+                                               │
+                                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                       Ethereum Mainnet (L1)                      │
+│                                                                  │
+│              L1StandardBridge → Transfer UNI → 0xdead (Burn)    │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 **Mechanism:**
 
-1. Searcher burns UNI on Ethereum mainnet
-2. Cross-chain message triggers asset release on spoke chain
-3. Monotonic nonce ensures strict ordering
-4. Bundled multicalls optimize gas efficiency
+The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
+
+**Stage 1 - L2 Collection:**
+1. Searcher calls `release()` with the current nonce, assets to release, and recipient
+2. Searcher pays a fixed amount of bridged UNI tokens
+3. UNI is transferred to the Firepit contract (not burned yet)
+4. Token Jar contents are released to the searcher's specified recipient
+
+**Stage 2 - L1 Bridge & Burn:**
+5. The `_afterRelease()` hook automatically initiates an L2→L1 bridge withdrawal
+6. Bridged UNI is burned on L2 via the L2StandardBridge
+7. A cross-domain message is queued for L1
+8. After the 7-day challenge period, L1 UNI is transferred to `0xdead`
+
+**Key Properties:**
+
+- **Same Economics**: Searchers profit when fee asset value exceeds UNI threshold cost
+- **Nonce Protection**: Sequential nonces prevent front-running and ensure deterministic ordering
+- **Fault Tolerant**: If bridge is unavailable, fees safely accumulate in TokenJar until recovery
+- **Native Bridge Security**: Uses Optimism's canonical bridge infrastructure
+
+**Configuration:**
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| RESOURCE | Bridged UNI | OptimismMintableERC20 token on L2 |
+| THRESHOLD | 2000 UNI | Amount required per release |
+| WITHDRAWAL_MIN_GAS | 100,000 | Gas for L1 transfer to burn address |
+| L1_RESOURCE_RECIPIENT | `0xdead` | Final burn destination on mainnet |
+
+#### (Future) Hub-and-Spoke Cross-Chain
+
+> Note: Additional cross-chain patterns are planned for future development
+
+For non-OP Stack chains:
+
+```
+Searcher → Burn UNI (Mainnet) → Bridge Message → Release Assets (Spoke)
+```
 
 ## Economic Incentives
 
@@ -227,21 +281,23 @@ src/
 ├── libraries
 │   ├── ArrayLib.sol          // Utility library
 └── releasers
-    ├── ExchangeReleaser.sol  // Utility contract to exchange a RESOURCE for Token Jar assets
-    └── Firepit.sol           // Burns UNI (resource) in exchange for Token Jar assets
+    ├── ExchangeReleaser.sol              // Abstract contract to exchange a RESOURCE for Token Jar assets
+    ├── Firepit.sol                       // Burns UNI directly on mainnet (RESOURCE_RECIPIENT = 0xdead)
+    └── OptimismBridgedResourceFirepit.sol // Two-stage burn for OP Stack L2s via bridge withdrawal
 
 test
 ├── TokenJar.t.sol
-├── Deployer.t.sol            // Test Deployer configures the system properly
+├── Deployer.t.sol                        // Test Deployer configures the system properly
 ├── ExchangeReleaser.t.sol
 ├── Firepit.t.sol
-├── ProtocolFees.fork.t.sol   // Fork tests against Ethereum Mainnet, using Deployer.sol
+├── OptimismBridgedResourceFirepit.t.sol  // Tests for L2 bridge burn mechanism
+├── ProtocolFees.fork.t.sol               // Fork tests against Ethereum Mainnet, using Deployer.sol
 ├── V3FeeAdapter.t.sol
 ├── V4FeeAdapter.t.sol
-├── interfaces/               // interfaces for integrations
-├── mocks/                    // mocks and examples
+├── interfaces/                           // interfaces for integrations
+├── mocks/                                // mocks and examples
 └── utils
-    └── ProtocolFeesTestBase.sol   // Test base that configures the system
+    └── ProtocolFeesTestBase.sol          // Test base that configures the system
 ```
 
 ## Governance Proposal
