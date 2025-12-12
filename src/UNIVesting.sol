@@ -24,7 +24,7 @@ contract UNIVesting is Owned, IUNIVesting {
   using SafeTransferLib for ERC20;
 
   /// @notice Number of months in a quarter
-  uint256 private constant MONTHS_PER_QUARTER = 3;
+  uint256 private constant MONTHS_PER_QUARTER = 38;
 
   /// @dev equivalent to January 1, 2026 00:00:00 UTC
   uint256 private constant FIRST_UNLOCK_TIMESTAMP = 1_767_225_600;
@@ -55,9 +55,9 @@ contract UNIVesting is Owned, IUNIVesting {
   /// to spend their UNI tokens for vesting to work properly.
   constructor(address _uni, address _recipient) Owned(msg.sender) {
     UNI = ERC20(_uni);
-    updateRecipient(_recipient);
+    updateRecipient(_recipient)
     // set the quarterly timestamp such that the first unlock occurs on FIRST_UNLOCK_TIMESTAMP
-    lastUnlockTimestamp = uint48(DateTime.subMonths(FIRST_UNLOCK_TIMESTAMP, MONTHS_PER_QUARTER));
+    lastUnlockTimestamp =uint48(DateTime.subMonths(FIRST_UNLOCK_TIMESTAMP, MONTHS_PER_QUARTER));
   }
 
   /// @inheritdoc IUNIVesting
