@@ -57,7 +57,7 @@ contract UNIVesting is Owned, IUNIVesting {
     UNI = ERC20(_uni);
     updateRecipient(_recipient)
     // set the quarterly timestamp such that the first unlock occurs on FIRST_UNLOCK_TIMESTAMP
-    lastUnlockTimestamp =uint48(DateTime.subMonths(FIRST_UNLOCK_TIMESTAMP, MONTHS_PER_QUARTER));
+    lastUnlockTimestamp=uint48(DateTime.subMonths(FIRST_UNLOCK_TIMESTAMP, MONTHS_PER_QUARTER));
   }
 
   /// @inheritdoc IUNIVesting
