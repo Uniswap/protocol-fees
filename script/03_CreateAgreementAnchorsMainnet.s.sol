@@ -8,14 +8,16 @@ contract CreateAgreementAnchors is Script {
   IAgreementAnchorFactory public constant AGREEMENT_ANCHOR_FACTORY =
     IAgreementAnchorFactory(0x5Ef3cCf9eC7E0af61E1767b2EEbB50e052b5Df47);
 
-  // TODO: set content hashes and counterparty addresses for DUNI agreements
-  bytes32 public constant AGREEMENT_ANCHOR_1_CONTENT_HASH = "";
+  bytes32 public constant AGREEMENT_ANCHOR_1_CONTENT_HASH =
+    0xb7a5a04f613e49ce4a8c2fb142a37c6781bda05c62d46a782f36bb6e97068d3b;
   address public constant AGREEMENT_ANCHOR_1_COUNTER_SIGNER =
     0x7A36852A428513221555aeC720a09eCd83818310;
-  bytes32 public constant AGREEMENT_ANCHOR_2_CONTENT_HASH = "";
+  bytes32 public constant AGREEMENT_ANCHOR_2_CONTENT_HASH =
+    0xa4e0d81bb3af7544e6efcb37a5d38c96511c815274c8616176708c998d1761f1;
   address public constant AGREEMENT_ANCHOR_2_COUNTER_SIGNER =
     0xD1F55571cbB04139716a9a5076Aa69626B6df009;
-  bytes32 public constant AGREEMENT_ANCHOR_3_CONTENT_HASH = "";
+  bytes32 public constant AGREEMENT_ANCHOR_3_CONTENT_HASH =
+    0xdac83d28ab1675b69c7fea7f6eb6ee20d19893a426cd9a3e58b654330ac94429;
   address public constant AGREEMENT_ANCHOR_3_COUNTER_SIGNER =
     0x5018e04241D2739E65919fa9B4826C79044e13e2;
 
