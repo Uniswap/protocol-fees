@@ -23,9 +23,9 @@ contract UnificationProposal is Script, StdAssertions {
   AgreementAnchor public constant AGREEMENT_ANCHOR_1 =
     AgreementAnchor(0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8);
   AgreementAnchor public constant AGREEMENT_ANCHOR_2 =
-    AgreementAnchor(0x01159Fa9970d865914C8Ad8080FcCc5cDbadeFEB);
+    AgreementAnchor(0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd);
   AgreementAnchor public constant AGREEMENT_ANCHOR_3 =
-    AgreementAnchor(0x6089Da244854CcFC83265Eb30739767B383380CE);
+    AgreementAnchor(0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1);
   string public constant PROPOSAL_DESCRIPTION = "";
 
   IGovernorBravo internal constant GOVERNOR_BRAVO =
