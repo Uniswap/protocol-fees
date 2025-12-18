@@ -230,8 +230,8 @@ contract UnificationProposal is Script, StdAssertions {
     "* [Fee contracts](https://github.com/Uniswap/protocol-fees/tree/main/src)\n"
     "* [Protocol Fee Discount Auction whitepaper](https://drive.google.com/file/d/1qhZFLTGOOHBx9OZW00dt5DzqEY0C3lhr/view?usp=sharing)\n"
     "* [Draft letter of intent](https://drive.google.com/file/d/1yXv2fm1XMr1eOsSMzG4DloGzvkFEYc1-/view?usp=sharing)\n"
-    "* [Final services agreement](https://drive.google.com/file/d/1yXv2fm1XMr1eOsSMzG4DloGzvkFEYc1-/view?usp=sharing)\n"
-    "* [Indemnification agreement for Hart Lambur](https://drive.google.com/file/d/1yXv2fm1XMr1eOsSMzG4DloGzvkFEYc1-/view?usp=sharing)\n"
+    "* [Final services agreement](https://drive.google.com/file/d/1FxtK846m9CKQ9UqEnBt7uHRRMu9eTifs/view?usp=sharing)\n"
+    "* [Indemnification agreement for Hart Lambur](https://drive.google.com/file/d/1kgq66KcAGD5mZzZrW28S8n-XuQS0PH8f/view?usp=drive_link)\n"
     "* [Indemnification agreement for Ben Jones](https://drive.google.com/file/d/18Mp0Honnb3nxGCx0k_aU4wBVncAwDA4F/view?usp=drive_link)\n";
 
   IGovernorBravo internal constant GOVERNOR_BRAVO =
