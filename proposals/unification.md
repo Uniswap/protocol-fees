@@ -1,3 +1,7 @@
+# UNIfication
+
+*This vote covers the [UNIfication proposal](https://gov.uniswap.org/t/unification-proposal/25881) and includes the final copy of the services agreement, indemnification agreements for the independent negotiation committee, final spec, and an updated list of v3 pools that has been refreshed to reflect the latest available data. We recommend reading the full details before voting.*
+
 ## Proposal Spec
 
 If this proposal passes, it will execute eight function calls:
