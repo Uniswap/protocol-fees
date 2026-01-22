@@ -5,17 +5,17 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 import {OPStackDeployer} from "./deployers/OPStackDeployer.sol";
 
-/// @title DeployUnichain
-/// @notice Deployment script for Unichain (Chain ID: 130)
-contract DeployUnichain is Script {
-  // Unichain chain ID
-  uint256 public constant CHAIN_ID = 130;
+/// @title DeployBase
+/// @notice Deployment script for Base (Chain ID: 8453)
+contract DeployBase is Script {
+  // Base chain ID
+  uint256 public constant CHAIN_ID = 8453;
 
-  // Native Bridge UNI on Unichain
-  address public constant RESOURCE = 0x8f187aA05619a017077f5308904739877ce9eA21;
+  // Bridged UNI token on Base
+  address public constant RESOURCE = 0x8Cc32d205d8Ea6F04574B72CAc4a82fbA425986C;
 
   // UNI threshold for release
-  uint256 public constant THRESHOLD = 2000e18;
+  uint256 public constant THRESHOLD = 2000e18; // TODO: Confirm threshold
 
   // UNI Timelock alias (same for all OP Stack chains)
   // L1: 0x1a9C8182C09F50C8318d769245beA52c32BE35BC + 0x1111000000000000000000000000000000001111
@@ -24,14 +24,14 @@ contract DeployUnichain is Script {
   function setUp() public {}
 
   function run() public {
-    require(block.chainid == CHAIN_ID, "Not Unichain");
+    require(block.chainid == CHAIN_ID, "Not Base");
 
     vm.startBroadcast();
 
     OPStackDeployer deployer =
       new OPStackDeployer{salt: bytes32(uint256(1))}(RESOURCE, THRESHOLD, OWNER);
 
-    console2.log("=== Unichain Deployment ===");
+    console2.log("=== Base Deployment ===");
     console2.log("Deployer:", address(deployer));
     console2.log("TOKEN_JAR:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER:", address(deployer.RELEASER()));
