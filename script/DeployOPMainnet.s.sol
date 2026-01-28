@@ -15,7 +15,7 @@ contract DeployOPMainnet is Script {
   address public constant RESOURCE = 0x6fd9d7AD17242c41f7131d257212c54A0e816691;
 
   // UNI threshold for release
-  uint256 public constant THRESHOLD = 2000e18; // TODO: Confirm threshold
+  uint256 public constant THRESHOLD = 2000e18;
 
   // UNI Timelock alias (same for all OP Stack chains)
   // L1: 0x1a9C8182C09F50C8318d769245beA52c32BE35BC + 0x1111000000000000000000000000000000001111
