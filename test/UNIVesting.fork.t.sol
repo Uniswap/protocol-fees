@@ -24,7 +24,7 @@ contract UNIVestingForkTest is Test {
   uint256 constant QUARTERLY_AMOUNT = 5_000_000 ether;
 
   function setUp() public {
-    vm.createSelectFork("mainnet", 24106377);
+    vm.createSelectFork("mainnet", 24_106_377);
     factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
     owner = factory.owner();
 
