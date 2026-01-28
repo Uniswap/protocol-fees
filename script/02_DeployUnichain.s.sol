@@ -3,38 +3,21 @@ pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
-import {OPStackDeployer} from "./deployers/OPStackDeployer.sol";
+import {UnichainDeployer} from "./deployers/UnichainDeployer.sol";
+import {OptimismBridgedResourceFirepit} from "../src/releasers/OptimismBridgedResourceFirepit.sol";
 
-/// @title DeployUnichain
-/// @notice Deployment script for Unichain (Chain ID: 130)
 contract DeployUnichain is Script {
-  // Unichain chain ID
-  uint256 public constant CHAIN_ID = 130;
-
-  // Native Bridge UNI on Unichain
-  address public constant RESOURCE = 0x8f187aA05619a017077f5308904739877ce9eA21;
-
-  // UNI threshold for release
-  uint256 public constant THRESHOLD = 2000e18;
-
-  // UNI Timelock alias (same for all OP Stack chains)
-  // L1: 0x1a9C8182C09F50C8318d769245beA52c32BE35BC + 0x1111000000000000000000000000000000001111
-  address public constant OWNER = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
-
   function setUp() public {}
 
   function run() public {
-    require(block.chainid == CHAIN_ID, "Not Unichain");
+    require(block.chainid == 130, "Not Unichain");
 
     vm.startBroadcast();
 
-    OPStackDeployer deployer =
-      new OPStackDeployer{salt: bytes32(uint256(1))}(RESOURCE, THRESHOLD, OWNER);
-
-    console2.log("=== Unichain Deployment ===");
-    console2.log("Deployer:", address(deployer));
-    console2.log("TOKEN_JAR:", address(deployer.TOKEN_JAR()));
-    console2.log("RELEASER:", address(deployer.RELEASER()));
+    UnichainDeployer deployer = new UnichainDeployer{salt: bytes32(uint256(1))}();
+    console2.log("Deployed Deployer at:", address(deployer));
+    console2.log("TOKEN_JAR at:", address(deployer.TOKEN_JAR()));
+    console2.log("RELEASER at:", address(deployer.RELEASER()));
 
     vm.stopBroadcast();
   }

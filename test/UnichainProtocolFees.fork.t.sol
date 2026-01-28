@@ -3,22 +3,26 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {OPStackDeployer} from "../script/deployers/OPStackDeployer.sol";
+import {UnichainDeployer} from "../script/deployers/UnichainDeployer.sol";
+import {DeployUnichain} from "../script/02_DeployUnichain.s.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
 contract UnichainProtocolFeesForkTest is Test {
-  OPStackDeployer public deployer;
+  UnichainDeployer public deployer;
+  DeployUnichain public deployScript;
 
   ITokenJar public tokenJar;
   IReleaser public releaser;
 
-  // Unichain constants (must match script/02_DeployUnichain.s.sol)
-  address constant RESOURCE = 0x8f187aA05619a017077f5308904739877ce9eA21; // Native Bridge UNI
-  uint256 constant THRESHOLD = 2000e18;
-  address constant OWNER = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD; // UNI Timelock alias
+  address public constant RESOURCE = 0x8f187aA05619a017077f5308904739877ce9eA21; // Native Bridge
+  // UNI
+  uint256 public constant THRESHOLD = 2000e18;
+
+  // Expected owner address (UNI Timelock alias on Unichain)
+  address public constant owner = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
 
   function setUp() public {
     // Fork Unichain
@@ -27,8 +31,8 @@ contract UnichainProtocolFeesForkTest is Test {
     // Verify we're on the right chain
     assertEq(block.chainid, 130, "Not on Unichain");
 
-    // Deploy the contracts using OPStackDeployer
-    deployer = new OPStackDeployer(RESOURCE, THRESHOLD, OWNER);
+    // Deploy the contracts using UnichainDeployer
+    deployer = new UnichainDeployer();
     tokenJar = deployer.TOKEN_JAR();
     releaser = deployer.RELEASER();
   }
@@ -36,14 +40,14 @@ contract UnichainProtocolFeesForkTest is Test {
   function test_deploymentConfiguration() public view {
     // Test TokenJar deployment and configuration
     assertEq(tokenJar.releaser(), address(releaser), "Incorrect releaser on TokenJar");
-    assertEq(IOwned(address(tokenJar)).owner(), OWNER, "Incorrect owner on TokenJar");
+    assertEq(IOwned(address(tokenJar)).owner(), owner, "Incorrect owner on TokenJar");
 
     // Test Releaser deployment and configuration
     assertEq(address(releaser.RESOURCE()), RESOURCE, "Incorrect resource token");
     assertEq(releaser.threshold(), THRESHOLD, "Incorrect threshold");
     assertEq(address(releaser.TOKEN_JAR()), address(tokenJar), "Incorrect TokenJar address");
-    assertEq(releaser.thresholdSetter(), OWNER, "Incorrect threshold setter");
-    assertEq(IOwned(address(releaser)).owner(), OWNER, "Incorrect owner on Releaser");
+    assertEq(releaser.thresholdSetter(), owner, "Incorrect threshold setter");
+    assertEq(IOwned(address(releaser)).owner(), owner, "Incorrect owner on Releaser");
   }
 
   function test_sequencerFeesAccumulation() public {
@@ -142,12 +146,12 @@ contract UnichainProtocolFeesForkTest is Test {
     address newOwner = address(0x9999);
 
     // Transfer TokenJar ownership
-    vm.prank(OWNER);
+    vm.prank(owner);
     IOwned(address(tokenJar)).transferOwnership(newOwner);
     assertEq(IOwned(address(tokenJar)).owner(), newOwner, "TokenJar ownership not transferred");
 
     // Transfer Releaser ownership
-    vm.prank(OWNER);
+    vm.prank(owner);
     IOwned(address(releaser)).transferOwnership(newOwner);
     assertEq(IOwned(address(releaser)).owner(), newOwner, "Releaser ownership not transferred");
 
@@ -161,7 +165,7 @@ contract UnichainProtocolFeesForkTest is Test {
     // Test that threshold can be updated by thresholdSetter
     uint256 newThreshold = 20_000e18;
 
-    vm.prank(OWNER);
+    vm.prank(owner);
     releaser.setThreshold(newThreshold);
     assertEq(releaser.threshold(), newThreshold, "Threshold not updated");
   }
@@ -170,7 +174,7 @@ contract UnichainProtocolFeesForkTest is Test {
     // Test that releaser can be updated on TokenJar
     address newReleaser = address(0x8888);
 
-    vm.prank(OWNER);
+    vm.prank(owner);
     tokenJar.setReleaser(newReleaser);
     assertEq(tokenJar.releaser(), newReleaser, "Releaser not updated on TokenJar");
   }
@@ -203,7 +207,7 @@ contract UnichainProtocolFeesForkTest is Test {
 
   function test_deploymentAddressDeterminism() public {
     // Test that deployment addresses are deterministic with salt
-    OPStackDeployer deployer2 = new OPStackDeployer(RESOURCE, THRESHOLD, OWNER);
+    UnichainDeployer deployer2 = new UnichainDeployer();
 
     // Addresses should be different for different deployer instances
     // but the pattern should be consistent
@@ -211,3 +215,4 @@ contract UnichainProtocolFeesForkTest is Test {
     assertTrue(address(deployer2.RELEASER()) != address(0), "Releaser not deployed");
   }
 }
+
