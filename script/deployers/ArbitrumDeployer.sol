@@ -5,8 +5,9 @@ import {ITokenJar} from "../../src/interfaces/ITokenJar.sol";
 import {TokenJar} from "../../src/TokenJar.sol";
 import {IReleaser} from "../../src/interfaces/IReleaser.sol";
 import {IOwned} from "../../src/interfaces/base/IOwned.sol";
-import {ArbitrumBridgedResourceFirepit} from
-  "../../src/releasers/ArbitrumBridgedResourceFirepit.sol";
+import {
+  ArbitrumBridgedResourceFirepit
+} from "../../src/releasers/ArbitrumBridgedResourceFirepit.sol";
 
 /// @title ArbitrumDeployer
 /// @notice Deployer for TokenJar + ArbitrumBridgedResourceFirepit on Arbitrum One

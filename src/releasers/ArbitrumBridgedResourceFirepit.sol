@@ -61,11 +61,12 @@ contract ArbitrumBridgedResourceFirepit is ExchangeReleaser {
     // 1. Burn the L2 tokens held by this contract
     // 2. Queue a cross-domain message for L1
     // 3. After challenge period, release underlying resource tokens to 0xdead on L1
-    IL2GatewayRouter(L2_GATEWAY_ROUTER).outboundTransfer(
-      L1_RESOURCE, // L1 token address (required by Arbitrum gateway)
-      L1_RESOURCE_RECIPIENT, // Destination on L1 (burn address)
-      threshold, // Amount to withdraw
-      bytes("") // Empty extra data for standard withdrawal
-    );
+    IL2GatewayRouter(L2_GATEWAY_ROUTER)
+      .outboundTransfer(
+        L1_RESOURCE, // L1 token address (required by Arbitrum gateway)
+        L1_RESOURCE_RECIPIENT, // Destination on L1 (burn address)
+        threshold, // Amount to withdraw
+        bytes("") // Empty extra data for standard withdrawal
+      );
   }
 }
