@@ -39,8 +39,9 @@ contract MockL2GatewayRouter is IL2GatewayRouter {
 
 /// @notice Mock Gateway for token approval
 contract MockGateway {
-// Just needs to exist for approval
-}
+  // Just needs to exist for approval
+
+  }
 
 contract ArbitrumDeployerTest is Test {
   ArbitrumDeployer public deployer;
