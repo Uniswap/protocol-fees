@@ -198,6 +198,13 @@ contract ArbitrumDeployerTest is Test {
     vm.assume(_l1Resource != address(0));
     vm.assume(_threshold > 0);
     vm.assume(_owner != address(0));
+    // Exclude precompile addresses (can't vm.etch them)
+    vm.assume(uint160(_resource) > 0xFF);
+    // Exclude L2_GATEWAY_ROUTER address (needed for gateway lookup)
+    vm.assume(_resource != 0x5288c571Fd7aD117beA99bF60FE0846C4E84F933);
+
+    // Etch ERC20 code at the fuzzed resource address since safeApprove requires extcodesize > 0
+    vm.etch(_resource, address(resource).code);
 
     ArbitrumDeployer fuzzDeployer = new ArbitrumDeployer(_resource, _l1Resource, _threshold, _owner);
 
