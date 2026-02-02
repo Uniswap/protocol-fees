@@ -12,7 +12,8 @@ contract DeployBase is Script {
   uint256 public constant CHAIN_ID = 8453;
 
   // Bridged UNI token on Base
-  address public constant RESOURCE = 0x8Cc32d205d8Ea6F04574B72CAc4a82fbA425986C;
+  // https://basescan.org/address/0xc3de830ea07524a0761646a6a4e4be0e114a3c83
+  address public constant RESOURCE = 0xc3De830EA07524a0761646a6a4e4be0e114a3C83;
 
   // UNI threshold for release
   uint256 public constant THRESHOLD = 2000e18;
