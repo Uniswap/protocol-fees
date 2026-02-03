@@ -10,6 +10,8 @@ no_match_test = "test_fuzz_gas_release_malicious"
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
 unichain = "${UNICHAIN_RPC_URL}"
+base = "${BASE_RPC_URL}"
+optimism = "${OPTIMISM_RPC_URL}"
 
 [profile.ci]
 fuzz = { runs = 5000 }
