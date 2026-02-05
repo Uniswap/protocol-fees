@@ -23,8 +23,11 @@ contract UNIVestingForkTest is Test {
   uint256 constant MONTHS_PER_QUARTER = 3;
   uint256 constant QUARTERLY_AMOUNT = 5_000_000 ether;
 
+  // Fork from block before the unification proposal was executed
+  uint256 constant FORK_BLOCK = 24_106_377;
+
   function setUp() public {
-    vm.createSelectFork("mainnet");
+    vm.createSelectFork("mainnet", FORK_BLOCK);
     factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
     owner = factory.owner();
 
