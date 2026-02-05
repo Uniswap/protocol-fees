@@ -284,7 +284,6 @@ contract ArbitrumProtocolFeesForkTest is Test {
 
   function test_gatewayApproval() public view {
     // Verify the releaser has approved the gateway to spend UNI
-    ArbitrumBridgedResourceFirepit arbReleaser = ArbitrumBridgedResourceFirepit(address(releaser));
     address gateway = 0x09e9222E96E7B4AE2a407B98d48e330053351EEe; // L2 ERC20 Gateway for UNI
 
     uint256 allowance = IERC20(RESOURCE).allowance(address(releaser), gateway);

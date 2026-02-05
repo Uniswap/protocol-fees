@@ -314,7 +314,7 @@ contract UnificationProposal is Script, StdAssertions {
     vm.stopPrank();
   }
 
-  function _run(MainnetDeployer deployer) public returns (ProposalAction[] memory actions) {
+  function _run(MainnetDeployer deployer) public view returns (ProposalAction[] memory actions) {
     address timelock = deployer.V3_FACTORY().owner();
 
     // --- Proposal Actions Setup ---

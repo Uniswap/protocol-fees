@@ -29,7 +29,6 @@ contract MockL2GatewayRouter is IL2GatewayRouter {
   {
     // Pull tokens from the caller to simulate the gateway taking custody
     // In reality, the router delegates to the gateway, but for testing we simplify
-    address l2Token = msg.sender; // The firepit is calling us
     // We need to get the L2 token from the firepit
     ArbitrumBridgedResourceFirepit firepit = ArbitrumBridgedResourceFirepit(msg.sender);
     MockERC20(address(firepit.RESOURCE())).transferFrom(msg.sender, address(this), _amount);
