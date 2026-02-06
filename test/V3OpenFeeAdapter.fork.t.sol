@@ -7,21 +7,19 @@ import {IUniswapV3Pool} from "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-import {MainnetDeployer} from "../script/deployers/MainnetDeployer.sol";
 import {V3OpenMainnetDeployer} from "../script/deployers/V3OpenMainnetDeployer.sol";
 import {V3OpenUnichainDeployer} from "../script/deployers/V3OpenUnichainDeployer.sol";
 import {V3OpenFeeAdapterProposal} from "../script/08_V3OpenFeeAdapterProposal.s.sol";
-import {UnificationProposal} from "../script/04_UnificationProposal.s.sol";
 import {V3OpenFeeAdapter} from "../src/feeAdapters/V3OpenFeeAdapter.sol";
 import {IV3OpenFeeAdapter} from "../src/interfaces/IV3OpenFeeAdapter.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 
 /// @notice Fork tests for V3OpenFeeAdapter on Mainnet
+/// @dev This test relies on the Unification Proposal being already executed
 contract V3OpenFeeAdapterMainnetForkTest is Test {
   using FixedPointMathLib for uint256;
 
-  MainnetDeployer public mainnetDeployer;
   V3OpenMainnetDeployer public v3OpenDeployer;
   IV3OpenFeeAdapter public v3OpenFeeAdapter;
   IV3FeeAdapter public v3FeeAdapter;
@@ -44,15 +42,12 @@ contract V3OpenFeeAdapterMainnetForkTest is Test {
   address public user = makeAddr("user");
 
   function setUp() public {
-    // Fork mainnet at block before unification proposal
-    vm.createSelectFork("mainnet", 24_106_377);
+    // Fork mainnet after Unification Proposal executed (current state)
+    vm.createSelectFork("mainnet", 24_398_700);
     assertEq(block.chainid, 1, "Not on mainnet");
 
-    // Deploy MainnetDeployer and execute unification proposal
-    mainnetDeployer = new MainnetDeployer();
-    UnificationProposal unificationProposal = new UnificationProposal();
-    unificationProposal.runPranked(mainnetDeployer);
-    v3FeeAdapter = mainnetDeployer.V3_FEE_ADAPTER();
+    // Get the live V3FeeAdapter (current factory owner after Unification Proposal)
+    v3FeeAdapter = IV3FeeAdapter(V3_FACTORY.owner());
 
     // Deploy V3OpenFeeAdapter
     v3OpenDeployer = new V3OpenMainnetDeployer();
