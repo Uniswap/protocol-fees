@@ -282,14 +282,6 @@ contract ArbitrumProtocolFeesForkTest is Test {
     assertTrue(address(deployer2.RELEASER()) != address(0), "Releaser not deployed");
   }
 
-  function test_gatewayApproval() public view {
-    // Verify the releaser has approved the gateway to spend UNI
-    address gateway = 0x09e9222E96E7B4AE2a407B98d48e330053351EEe; // L2 ERC20 Gateway for UNI
-
-    uint256 allowance = IERC20(RESOURCE).allowance(address(releaser), gateway);
-    assertEq(allowance, type(uint256).max, "Gateway not approved for max UNI");
-  }
-
   function test_l1ResourceConfiguration() public view {
     // Verify L1 resource is correctly configured
     ArbitrumBridgedResourceFirepit arbReleaser = ArbitrumBridgedResourceFirepit(address(releaser));

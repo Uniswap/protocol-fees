@@ -47,11 +47,6 @@ contract ArbitrumBridgedResourceFirepit is ExchangeReleaser {
   {
     require(_l1Resource != address(0), "ArbitrumBridgedResourceFirepit: l1Resource is zero");
     L1_RESOURCE = _l1Resource;
-
-    // Approve the gateway to spend our resource tokens for withdrawals
-    // Get the gateway for this token and approve it
-    address gateway = IL2GatewayRouter(L2_GATEWAY_ROUTER).getGateway(_l1Resource);
-    ERC20(_resource).safeApprove(gateway, type(uint256).max);
   }
 
   /// @notice Hook called after assets are released - initiates stage 2 withdrawal to L1
