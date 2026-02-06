@@ -15,9 +15,20 @@ import {ArrayLib} from "../libraries/ArrayLib.sol";
 /// @dev This is a simplified version of V3FeeAdapter that removes Merkle proof authorization.
 /// Fee updates are permissionless - anyone can call triggerFeeUpdate to apply the default fees
 /// set by the feeSetter. This contract will be the set owner on the Uniswap V3 Factory.
+///
+/// Fee resolution uses a waterfall pattern: pool override → fee tier default → global default
+///
+/// Storage encoding:
+/// - 0 in storage = "not set" (continue waterfall)
+/// - ZERO_FEE_SENTINEL in storage = "explicitly set to zero" (fees disabled)
+/// - Any other value = that actual fee
+///
 /// @custom:security-contact security@uniswap.org
 contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   using ArrayLib for uint24[];
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  uint8 public constant ZERO_FEE_SENTINEL = type(uint8).max;
 
   /// @inheritdoc IV3OpenFeeAdapter
   IUniswapV3Factory public immutable FACTORY;
@@ -28,7 +39,13 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   address public feeSetter;
 
   /// @inheritdoc IV3OpenFeeAdapter
-  mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
+  uint8 public defaultFee;
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  mapping(uint24 feeTier => uint8 feeValue) public feeTierDefaults;
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  mapping(address pool => uint8 feeValue) public poolOverrides;
 
   /// @return The fee tiers that are enabled on the factory. Iterable so that the protocol fee for
   /// pools of the same pair can be activated with the same call.
@@ -87,18 +104,52 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
+  function setDefaultFee(uint8 feeValue) external onlyFeeSetter {
+    _validateFeeValue(feeValue);
+    defaultFee = _encodeFee(feeValue);
+    emit DefaultFeeUpdated(feeValue);
+  }
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  function setFeeTierDefault(uint24 feeTier, uint8 feeValue) external onlyFeeSetter {
+    require(_feeTierExists(feeTier), InvalidFeeTier());
+    _validateFeeValue(feeValue);
+    feeTierDefaults[feeTier] = _encodeFee(feeValue);
+    emit FeeTierDefaultUpdated(feeTier, feeValue);
+  }
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  function setPoolOverride(address pool, uint8 feeValue) external onlyFeeSetter {
+    _validateFeeValue(feeValue);
+    poolOverrides[pool] = _encodeFee(feeValue);
+    emit PoolOverrideUpdated(pool, feeValue);
+  }
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  function clearFeeTierDefault(uint24 feeTier) external onlyFeeSetter {
+    delete feeTierDefaults[feeTier];
+    emit FeeTierDefaultUpdated(feeTier, 0);
+  }
+
+  /// @inheritdoc IV3OpenFeeAdapter
+  function clearPoolOverride(address pool) external onlyFeeSetter {
+    delete poolOverrides[pool];
+    emit PoolOverrideUpdated(pool, 0);
+  }
+
+  /// @notice Legacy function for backwards compatibility
+  /// @dev Renamed to setFeeTierDefault; this function is kept for existing integrations
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
     require(_feeTierExists(feeTier), InvalidFeeTier());
-    // Extract the two 4-bit values
-    uint8 feeProtocol0 = defaultFeeValue % 16;
-    uint8 feeProtocol1 = defaultFeeValue >> 4;
-    // Validate both values match pool requirements: must be 0 or in range [4, 10]
-    require(
-      (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
-        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)),
-      InvalidFeeValue()
-    );
-    defaultFees[feeTier] = defaultFeeValue;
+    _validateFeeValue(defaultFeeValue);
+    feeTierDefaults[feeTier] = _encodeFee(defaultFeeValue);
+    emit FeeTierDefaultUpdated(feeTier, defaultFeeValue);
+  }
+
+  /// @notice Legacy getter for backwards compatibility
+  /// @dev Returns the decoded fee value for the tier (0 if not set)
+  function defaultFees(uint24 feeTier) external view returns (uint8) {
+    return _decodeFee(feeTierDefaults[feeTier]);
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
@@ -108,13 +159,7 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
 
   /// @inheritdoc IV3OpenFeeAdapter
   function triggerFeeUpdate(address pool) external {
-    // Check pool exists before calling fee()
-    uint256 size;
-    assembly {
-      size := extcodesize(pool)
-    }
-    if (size == 0) return;
-    _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
+    _setProtocolFee(pool);
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
@@ -142,7 +187,7 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
       assembly {
         size := extcodesize(pool)
       }
-      if (size > 0) _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
+      if (size > 0) _setProtocolFee(pool);
       unchecked {
         ++i;
       }
@@ -160,20 +205,40 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     for (uint256 i; i < length;) {
       feeTier = feeTiers[i];
       pool = FACTORY.getPool(token0, token1, feeTier);
-      if (pool != address(0)) _setProtocolFee(pool, feeTier);
+      if (pool != address(0)) _setProtocolFee(pool);
       unchecked {
         ++i;
       }
     }
   }
 
-  /// @notice Sets the protocol fee for a specific pool based on its fee tier
+  /// @inheritdoc IV3OpenFeeAdapter
+  function getFee(address pool) public view returns (uint8 fee) {
+    uint8 stored;
+
+    // 1. Pool override (most specific)
+    stored = poolOverrides[pool];
+    if (stored != 0) return _decodeFee(stored);
+
+    // 2. Fee tier default
+    uint24 feeTier = IUniswapV3Pool(pool).fee();
+    stored = feeTierDefaults[feeTier];
+    if (stored != 0) return _decodeFee(stored);
+
+    // 3. Global default
+    stored = defaultFee;
+    if (stored != 0) return _decodeFee(stored);
+
+    // Nothing set → no protocol fee
+    return 0;
+  }
+
+  /// @notice Sets the protocol fee for a specific pool using waterfall resolution
   /// @dev Only sets the fee for initialized pools (sqrtPriceX96 != 0).
   ///      Includes idempotency check to skip if fees already match.
-  ///      The feeValue encodes both fee0 (lower 4 bits) and fee1 (upper 4 bits)
+  ///      Resolution order: pool override → fee tier default → global default
   /// @param pool The address of the Uniswap V3 pool
-  /// @param feeTier The fee tier of the pool, used to look up the default fee value
-  function _setProtocolFee(address pool, uint24 feeTier) internal {
+  function _setProtocolFee(address pool) internal {
     // Gas optimization: Check pool exists before expensive slot0 read
     uint256 size;
     assembly {
@@ -185,7 +250,7 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     (uint160 sqrtPriceX96,,,, uint16 currentFeeProtocol,,) = IUniswapV3Pool(pool).slot0();
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
-    uint8 feeValue = defaultFees[feeTier];
+    uint8 feeValue = getFee(pool);
 
     // Idempotency check: Skip if already set (prevents griefing)
     if (uint8(currentFeeProtocol) == feeValue) return;
@@ -200,7 +265,38 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   /// @param feeTier The fee tier to check
   /// @return True if the fee tier exists, false otherwise
   function _feeTierExists(uint24 feeTier) internal view returns (bool) {
-    if (FACTORY.feeAmountTickSpacing(feeTier) == 0) return false;
-    return true;
+    return FACTORY.feeAmountTickSpacing(feeTier) != 0;
+  }
+
+  /// @notice Validates that a fee value meets V3 protocol requirements
+  /// @dev V3 fees are packed uint8 with two 4-bit values, each must be 0 or in range [4, 10]
+  /// @param feeValue The fee value to validate
+  function _validateFeeValue(uint8 feeValue) internal pure {
+    // Extract the two 4-bit values
+    uint8 feeProtocol0 = feeValue % 16;
+    uint8 feeProtocol1 = feeValue >> 4;
+    // Validate both values match pool requirements: must be 0 or in range [4, 10]
+    if (
+      !((feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)))
+    ) {
+      revert InvalidFeeValue();
+    }
+  }
+
+  /// @notice Encodes a fee for storage
+  /// @dev Converts 0 to ZERO_FEE_SENTINEL so we can distinguish from "not set"
+  /// @param feeValue The actual fee value
+  /// @return The encoded value to store
+  function _encodeFee(uint8 feeValue) internal pure returns (uint8) {
+    return feeValue == 0 ? ZERO_FEE_SENTINEL : feeValue;
+  }
+
+  /// @notice Decodes a fee from storage
+  /// @dev Converts ZERO_FEE_SENTINEL back to 0
+  /// @param stored The value from storage
+  /// @return The actual fee value
+  function _decodeFee(uint8 stored) internal pure returns (uint8) {
+    return stored == ZERO_FEE_SENTINEL ? 0 : stored;
   }
 }

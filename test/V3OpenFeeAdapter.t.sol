@@ -686,6 +686,279 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     vm.snapshotGasLastCall("V3OpenFeeAdapter_batchUpdate_10pools");
   }
 
+  // ═════════════ Waterfall Resolution Tests ═════════════
+
+  function test_getFee_returnsZeroWhenNothingSet() public view {
+    // No defaults, no tier defaults, no pool overrides
+    assertEq(feeAdapter.getFee(pool), 0);
+  }
+
+  function test_getFee_returnsGlobalDefault() public {
+    // Set global default (6 | 6 = 0x66 = 1/6 fee)
+    uint8 globalDefault = 6 << 4 | 6;
+    vm.prank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+
+    assertEq(feeAdapter.getFee(pool), globalDefault);
+  }
+
+  function test_getFee_tierDefaultOverridesGlobalDefault() public {
+    uint8 globalDefault = 6 << 4 | 6;
+    uint8 tierDefault = 4 << 4 | 4;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), tierDefault);
+  }
+
+  function test_getFee_poolOverrideOverridesTierDefault() public {
+    uint8 globalDefault = 6 << 4 | 6;
+    uint8 tierDefault = 4 << 4 | 4;
+    uint8 poolOverride = 5 << 4 | 5;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    feeAdapter.setPoolOverride(pool, poolOverride);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), poolOverride);
+  }
+
+  function test_getFee_zeroPoolOverrideDisablesFees() public {
+    uint8 tierDefault = 6 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    feeAdapter.setPoolOverride(pool, 0);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), 0);
+  }
+
+  function test_getFee_zeroTierDefaultDisablesFees() public {
+    uint8 globalDefault = 6 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, 0);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), 0);
+  }
+
+  function test_clearPoolOverride_fallsBackToTierDefault() public {
+    uint8 tierDefault = 6 << 4 | 6;
+    uint8 poolOverride = 4 << 4 | 4;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    feeAdapter.setPoolOverride(pool, poolOverride);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), poolOverride);
+
+    vm.prank(feeSetter);
+    feeAdapter.clearPoolOverride(pool);
+
+    assertEq(feeAdapter.getFee(pool), tierDefault);
+  }
+
+  function test_clearFeeTierDefault_fallsBackToGlobalDefault() public {
+    uint8 globalDefault = 5 << 4 | 5;
+    uint8 tierDefault = 6 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.getFee(pool), tierDefault);
+
+    // Clear tier default
+    vm.prank(feeSetter);
+    feeAdapter.clearFeeTierDefault(3000);
+
+    // Should fall back to global default
+    assertEq(feeAdapter.getFee(pool), globalDefault);
+  }
+
+  function test_fullWaterfallChain() public {
+    // Set all three levels
+    uint8 globalDefault = 4 << 4 | 4;
+    uint8 tierDefault = 5 << 4 | 5;
+    uint8 poolOverride = 6 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    feeAdapter.setPoolOverride(pool, poolOverride);
+    vm.stopPrank();
+
+    // Pool override takes precedence
+    assertEq(feeAdapter.getFee(pool), poolOverride);
+
+    // Clear pool override → tier default
+    vm.prank(feeSetter);
+    feeAdapter.clearPoolOverride(pool);
+    assertEq(feeAdapter.getFee(pool), tierDefault);
+
+    // Clear tier default → global default
+    vm.prank(feeSetter);
+    feeAdapter.clearFeeTierDefault(3000);
+    assertEq(feeAdapter.getFee(pool), globalDefault);
+  }
+
+  function test_setDefaultFee_onlyFeeSetter() public {
+    vm.expectRevert(IV3OpenFeeAdapter.Unauthorized.selector);
+    vm.prank(alice);
+    feeAdapter.setDefaultFee(4 << 4 | 4);
+  }
+
+  function test_setFeeTierDefault_onlyFeeSetter() public {
+    vm.expectRevert(IV3OpenFeeAdapter.Unauthorized.selector);
+    vm.prank(alice);
+    feeAdapter.setFeeTierDefault(3000, 4 << 4 | 4);
+  }
+
+  function test_setPoolOverride_onlyFeeSetter() public {
+    vm.expectRevert(IV3OpenFeeAdapter.Unauthorized.selector);
+    vm.prank(alice);
+    feeAdapter.setPoolOverride(pool, 4 << 4 | 4);
+  }
+
+  function test_setDefaultFee_revertsWithInvalidFeeValue() public {
+    vm.expectRevert(IV3OpenFeeAdapter.InvalidFeeValue.selector);
+    vm.prank(feeSetter);
+    feeAdapter.setDefaultFee(3 << 4 | 3); // 3 is out of range [4,10]
+  }
+
+  function test_setFeeTierDefault_revertsWithInvalidFeeValue() public {
+    vm.expectRevert(IV3OpenFeeAdapter.InvalidFeeValue.selector);
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, 11 << 4 | 11); // 11 is out of range [4,10]
+  }
+
+  function test_setPoolOverride_revertsWithInvalidFeeValue() public {
+    vm.expectRevert(IV3OpenFeeAdapter.InvalidFeeValue.selector);
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, 2 << 4 | 2); // 2 is out of range [4,10]
+  }
+
+  function test_setDefaultFee_emitsEvent() public {
+    uint8 feeValue = 6 << 4 | 6;
+    vm.expectEmit(false, false, false, true);
+    emit IV3OpenFeeAdapter.DefaultFeeUpdated(feeValue);
+    vm.prank(feeSetter);
+    feeAdapter.setDefaultFee(feeValue);
+  }
+
+  function test_setFeeTierDefault_emitsEvent() public {
+    uint8 feeValue = 5 << 4 | 5;
+    vm.expectEmit(true, false, false, true);
+    emit IV3OpenFeeAdapter.FeeTierDefaultUpdated(3000, feeValue);
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, feeValue);
+  }
+
+  function test_setPoolOverride_emitsEvent() public {
+    uint8 feeValue = 4 << 4 | 4;
+    vm.expectEmit(true, false, false, true);
+    emit IV3OpenFeeAdapter.PoolOverrideUpdated(pool, feeValue);
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, feeValue);
+  }
+
+  function test_clearFeeTierDefault_emitsEvent() public {
+    // First set a tier default
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, 5 << 4 | 5);
+
+    // Clear it - should emit event with 0
+    vm.expectEmit(true, false, false, true);
+    emit IV3OpenFeeAdapter.FeeTierDefaultUpdated(3000, 0);
+    vm.prank(feeSetter);
+    feeAdapter.clearFeeTierDefault(3000);
+  }
+
+  function test_clearPoolOverride_emitsEvent() public {
+    // First set a pool override
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, 4 << 4 | 4);
+
+    // Clear it - should emit event with 0
+    vm.expectEmit(true, false, false, true);
+    emit IV3OpenFeeAdapter.PoolOverrideUpdated(pool, 0);
+    vm.prank(feeSetter);
+    feeAdapter.clearPoolOverride(pool);
+  }
+
+  function test_triggerFeeUpdate_usesWaterfallResolution() public {
+    // Set tier default
+    uint8 tierDefault = 6 << 4 | 6;
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+
+    // Trigger fee update
+    feeAdapter.triggerFeeUpdate(pool);
+
+    // Verify fee was set on pool
+    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool).slot0();
+    assertEq(protocolFee, tierDefault);
+  }
+
+  function test_triggerFeeUpdate_poolOverrideTakesPrecedence() public {
+    // Set tier default
+    uint8 tierDefault = 6 << 4 | 6;
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+
+    // Set pool override
+    uint8 poolOverride = 4 << 4 | 4;
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, poolOverride);
+
+    // Trigger fee update
+    feeAdapter.triggerFeeUpdate(pool);
+
+    // Verify pool override was applied
+    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool).slot0();
+    assertEq(protocolFee, poolOverride);
+  }
+
+  function test_legacyDefaultFees_returnsDecodedValue() public {
+    // Set tier default using new function
+    uint8 tierDefault = 5 << 4 | 5;
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+
+    // Legacy getter should return the same value
+    assertEq(feeAdapter.defaultFees(3000), tierDefault);
+  }
+
+  function test_legacyDefaultFees_returnsZeroForUnset() public view {
+    // Unset tier should return 0
+    assertEq(feeAdapter.defaultFees(3000), 0);
+  }
+
+  function test_legacySetDefaultFeeByFeeTier_setsFeeTierDefault() public {
+    uint8 feeValue = 6 << 4 | 6;
+    vm.prank(feeSetter);
+    feeAdapter.setDefaultFeeByFeeTier(3000, feeValue);
+
+    // Both legacy and new getter should return the value
+    assertEq(feeAdapter.defaultFees(3000), feeValue);
+    // feeTierDefaults stores the encoded value (same as feeValue since non-zero)
+    assertEq(feeAdapter.feeTierDefaults(3000), feeValue);
+  }
+
+  function test_ZERO_FEE_SENTINEL_constant() public view {
+    assertEq(feeAdapter.ZERO_FEE_SENTINEL(), type(uint8).max);
+  }
+
   // ============ Helper Functions ============
 
   function _mockSetProtocolFees(uint128 token0, uint128 token1) internal {
