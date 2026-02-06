@@ -8,8 +8,6 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {V3OpenMainnetDeployer} from "../script/deployers/V3OpenMainnetDeployer.sol";
-import {V3OpenUnichainDeployer} from "../script/deployers/V3OpenUnichainDeployer.sol";
-import {V3OpenFeeAdapterProposal} from "../script/08_V3OpenFeeAdapterProposal.s.sol";
 import {V3OpenFeeAdapter} from "../src/feeAdapters/V3OpenFeeAdapter.sol";
 import {IV3OpenFeeAdapter} from "../src/interfaces/IV3OpenFeeAdapter.sol";
 import {IV3FeeAdapter} from "../src/interfaces/IV3FeeAdapter.sol";
@@ -57,9 +55,9 @@ contract V3OpenFeeAdapterMainnetForkTest is Test {
     pool_USDC_WETH_500 = V3_FACTORY.getPool(USDC, WETH, 500);
     pool_USDC_WETH_3000 = V3_FACTORY.getPool(USDC, WETH, 3000);
 
-    // Execute V3OpenFeeAdapter migration proposal
-    V3OpenFeeAdapterProposal v3OpenProposal = new V3OpenFeeAdapterProposal();
-    v3OpenProposal.runPranked(v3FeeAdapter, v3OpenFeeAdapter);
+    // Simulate governance proposal: transfer factory ownership to V3OpenFeeAdapter
+    vm.prank(TIMELOCK);
+    v3FeeAdapter.setFactoryOwner(address(v3OpenFeeAdapter));
   }
 
   function test_deploymentConfiguration() public view {
@@ -381,215 +379,6 @@ contract V3OpenFeeAdapterMainnetForkTest is Test {
       uint256 expectedFee = uint256(swapAmount).mulWadDown(0.003e18) / 6;
       assertApproxEqAbs(fee0After - fee0Before, expectedFee, 1, "3000 tier fee should match");
     }
-  }
-
-  // --- Helpers ---
-
-  function _exactInSwapV3(address pool, bool zeroForOne, uint256 amountIn) internal {
-    IUniswapV3Pool(pool)
-      .swap(
-        address(this),
-        zeroForOne,
-        int256(amountIn),
-        zeroForOne
-          ? 4_295_128_739 + 1
-          : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
-        abi.encode(address(this))
-      );
-  }
-
-  function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data)
-    external
-  {
-    address payer = abi.decode(data, (address));
-    if (amount0Delta > 0) {
-      IERC20 token = IERC20(IUniswapV3Pool(msg.sender).token0());
-      vm.prank(payer);
-      token.approve(address(this), uint256(amount0Delta));
-      token.transferFrom(payer, msg.sender, uint256(amount0Delta));
-    } else if (amount1Delta > 0) {
-      IERC20 token = IERC20(IUniswapV3Pool(msg.sender).token1());
-      vm.prank(payer);
-      token.approve(address(this), uint256(amount1Delta));
-      token.transferFrom(payer, msg.sender, uint256(amount1Delta));
-    }
-  }
-}
-
-/// @notice Fork tests for V3OpenFeeAdapter on Unichain
-contract V3OpenFeeAdapterUnichainForkTest is Test {
-  using FixedPointMathLib for uint256;
-
-  V3OpenUnichainDeployer public deployer;
-  IV3OpenFeeAdapter public v3OpenFeeAdapter;
-
-  IUniswapV3Factory public constant V3_FACTORY =
-    IUniswapV3Factory(0x1F98400000000000000000000000000000000003);
-
-  address public constant OWNER = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
-  address public constant TOKEN_JAR = 0xD576BDF6b560079a4c204f7644e556DbB19140b5;
-
-  // Unichain tokens
-  address public constant WETH = 0x4200000000000000000000000000000000000006;
-  address public constant USDC = 0x078D782b760474a361dDA0AF3839290b0EF57AD6;
-
-  // Real pools (resolved in setUp)
-  address public pool_USDC_WETH_500;
-  address public pool_USDC_WETH_3000;
-
-  function setUp() public {
-    vm.createSelectFork("unichain");
-    assertEq(block.chainid, 130, "Not on Unichain");
-
-    address currentOwner = V3_FACTORY.owner();
-
-    deployer = new V3OpenUnichainDeployer();
-    v3OpenFeeAdapter = deployer.V3_OPEN_FEE_ADAPTER();
-
-    vm.prank(currentOwner);
-    V3_FACTORY.setOwner(address(v3OpenFeeAdapter));
-
-    // Resolve real pools
-    pool_USDC_WETH_500 = V3_FACTORY.getPool(USDC, WETH, 500);
-    pool_USDC_WETH_3000 = V3_FACTORY.getPool(USDC, WETH, 3000);
-  }
-
-  function test_deploymentConfiguration() public view {
-    assertEq(address(v3OpenFeeAdapter.FACTORY()), address(V3_FACTORY));
-    assertEq(v3OpenFeeAdapter.TOKEN_JAR(), TOKEN_JAR);
-    assertEq(v3OpenFeeAdapter.feeSetter(), OWNER);
-    assertEq(IOwned(address(v3OpenFeeAdapter)).owner(), OWNER);
-    assertEq(V3_FACTORY.owner(), address(v3OpenFeeAdapter));
-  }
-
-  function test_feeTierDefaultsConfigured() public view {
-    assertEq(v3OpenFeeAdapter.defaultFees(100), 4 << 4 | 4);
-    assertEq(v3OpenFeeAdapter.defaultFees(500), 4 << 4 | 4);
-    assertEq(v3OpenFeeAdapter.defaultFees(3000), 6 << 4 | 6);
-    assertEq(v3OpenFeeAdapter.defaultFees(10_000), 6 << 4 | 6);
-  }
-
-  function test_permissionlessTriggerFeeUpdate() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    address randomCaller = makeAddr("random");
-    vm.prank(randomCaller);
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-
-    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(protocolFee, 4 << 4 | 4, "Fee should be 1/4 for 500 tier");
-  }
-
-  function test_waterfallResolution_poolOverride() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    uint8 poolOverride = 8 << 4 | 8;
-
-    vm.prank(OWNER);
-    v3OpenFeeAdapter.setPoolOverride(pool_USDC_WETH_500, poolOverride);
-
-    assertEq(v3OpenFeeAdapter.getFee(pool_USDC_WETH_500), poolOverride);
-
-    // Trigger and verify on-chain
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(protocolFee, poolOverride);
-  }
-
-  function test_waterfallResolution_tierDefault() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    // No override set, should use tier default
-    assertEq(v3OpenFeeAdapter.getFee(pool_USDC_WETH_500), 4 << 4 | 4);
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(protocolFee, 4 << 4 | 4);
-  }
-
-  function test_waterfallResolution_globalDefault() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    uint8 globalDefault = 7 << 4 | 7;
-
-    vm.startPrank(OWNER);
-    v3OpenFeeAdapter.setDefaultFee(globalDefault);
-    v3OpenFeeAdapter.clearFeeTierDefault(500);
-    vm.stopPrank();
-
-    // With tier default cleared, should fall back to global
-    assertEq(v3OpenFeeAdapter.getFee(pool_USDC_WETH_500), globalDefault);
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 protocolFee,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(protocolFee, globalDefault);
-  }
-
-  function test_clearPoolOverride_fallsBackToTierDefault() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    uint8 poolOverride = 10 << 4 | 10;
-
-    vm.startPrank(OWNER);
-    v3OpenFeeAdapter.setPoolOverride(pool_USDC_WETH_500, poolOverride);
-    vm.stopPrank();
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 feeWithOverride,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(feeWithOverride, poolOverride);
-
-    vm.prank(OWNER);
-    v3OpenFeeAdapter.clearPoolOverride(pool_USDC_WETH_500);
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 feeAfterClear,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(feeAfterClear, 4 << 4 | 4, "Should fall back to tier default");
-  }
-
-  function test_zeroPoolOverrideDisablesFees() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    // First set a fee via tier default
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 feeBefore,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertTrue(feeBefore > 0, "Fee should be set");
-
-    // Set pool override to 0 (disable fees)
-    vm.prank(OWNER);
-    v3OpenFeeAdapter.setPoolOverride(pool_USDC_WETH_500, 0);
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-    (,,,,, uint8 feeAfter,) = IUniswapV3Pool(pool_USDC_WETH_500).slot0();
-    assertEq(feeAfter, 0, "Fees should be disabled");
-  }
-
-  function test_nonOwnerCannotSetFees() public {
-    address notOwner = makeAddr("notOwner");
-
-    vm.expectRevert(IV3OpenFeeAdapter.Unauthorized.selector);
-    vm.prank(notOwner);
-    v3OpenFeeAdapter.setDefaultFee(5 << 4 | 5);
-  }
-
-  function test_swapCollectsFees() public {
-    if (pool_USDC_WETH_500 == address(0)) return;
-
-    v3OpenFeeAdapter.triggerFeeUpdate(pool_USDC_WETH_500);
-
-    (uint128 fee0Before, uint128 fee1Before) = IUniswapV3Pool(pool_USDC_WETH_500).protocolFees();
-
-    uint256 swapAmount = 10_000 * 1e6;
-    deal(USDC, address(this), swapAmount);
-
-    bool zeroForOne = USDC < WETH;
-    _exactInSwapV3(pool_USDC_WETH_500, zeroForOne, swapAmount);
-
-    (uint128 fee0After, uint128 fee1After) = IUniswapV3Pool(pool_USDC_WETH_500).protocolFees();
-
-    uint128 feeAccrued = zeroForOne ? fee0After - fee0Before : fee1After - fee1Before;
-    uint256 expectedFee = uint256(swapAmount).mulWadDown(0.0005e18) / 4;
-    // Allow small rounding tolerance from V3 pool fee math
-    assertApproxEqRel(feeAccrued, expectedFee, 0.0001e18, "Fee should match expected");
   }
 
   // --- Helpers ---

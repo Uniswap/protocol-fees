@@ -28,6 +28,8 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   using ArrayLib for uint24[];
 
   /// @inheritdoc IV3OpenFeeAdapter
+  /// @dev Safe to use max uint8 (255) as sentinel because V3 protocol fees pack two 4-bit values
+  /// where each must be 0 or in range [4,10]. Max valid packed fee is (10 << 4) | 10 = 170 (0xAA).
   uint8 public constant ZERO_FEE_SENTINEL = type(uint8).max;
 
   /// @inheritdoc IV3OpenFeeAdapter
