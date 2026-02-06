@@ -142,12 +142,6 @@ contract UNIVestingTest is Test {
       uint48 expectedQuartersPaid = quarters > 8 ? 8 : uint48(quarters);
       uint256 expectedWithdrawal = uint256(expectedQuartersPaid) * vesting.quarterlyVestingAmount();
 
-      // Calculate expected timestamp after withdrawal
-      uint48 lastTimestampBefore = vesting.lastUnlockTimestamp();
-      uint48 expectedTimestamp = uint48(
-        BokkyPooBahsDateTimeLibrary.addMonths(lastTimestampBefore, expectedQuartersPaid * 3)
-      );
-
       vm.expectEmit(true, true, true, true);
       emit IUNIVesting.Withdrawn(recipient, expectedWithdrawal, expectedQuartersPaid);
       vesting.withdraw();
@@ -254,8 +248,6 @@ contract UNIVestingTest is Test {
     vestingToken.approve(address(vesting), FIVE_M * 2);
 
     // First withdrawal: 2 quarters paid out of 3 vested
-    uint48 startTimestamp = vesting.lastUnlockTimestamp();
-    uint48 expectedTimestamp1 = uint48(BokkyPooBahsDateTimeLibrary.addMonths(startTimestamp, 2 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M * 2, 2);
     vesting.withdraw();
@@ -272,8 +264,6 @@ contract UNIVestingTest is Test {
     vestingToken.approve(address(vesting), FIVE_M);
 
     // Second withdrawal: 1 remaining quarter
-    uint48 expectedTimestamp2 =
-      uint48(BokkyPooBahsDateTimeLibrary.addMonths(expectedTimestamp1, 1 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M, 1);
     vesting.withdraw();
@@ -306,8 +296,6 @@ contract UNIVestingTest is Test {
     vm.prank(owner);
     vestingToken.approve(address(vesting), FIVE_M);
 
-    uint48 startTimestamp = vesting.lastUnlockTimestamp();
-    uint48 expectedTimestamp = uint48(BokkyPooBahsDateTimeLibrary.addMonths(startTimestamp, 1 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M, 1);
     vesting.withdraw();
@@ -338,13 +326,10 @@ contract UNIVestingTest is Test {
     uint256 totalQuarters = vesting.quartersPassed();
     assertGe(totalQuarters, 5); // At least 5 quarters available
 
-    uint48 startTimestamp = vesting.lastUnlockTimestamp();
-
     // First withdrawal: approve and withdraw 2 quarters
     vm.prank(owner);
     vestingToken.approve(address(vesting), FIVE_M * 2);
 
-    uint48 expectedTimestamp1 = uint48(BokkyPooBahsDateTimeLibrary.addMonths(startTimestamp, 2 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M * 2, 2);
     vesting.withdraw();
@@ -356,8 +341,6 @@ contract UNIVestingTest is Test {
     vm.prank(owner);
     vestingToken.approve(address(vesting), FIVE_M);
 
-    uint48 expectedTimestamp2 =
-      uint48(BokkyPooBahsDateTimeLibrary.addMonths(expectedTimestamp1, 1 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M, 1);
     vesting.withdraw();
@@ -369,8 +352,6 @@ contract UNIVestingTest is Test {
     vm.prank(owner);
     vestingToken.approve(address(vesting), FIVE_M * 2);
 
-    uint48 expectedTimestamp3 =
-      uint48(BokkyPooBahsDateTimeLibrary.addMonths(expectedTimestamp2, 2 * 3));
     vm.expectEmit(true, true, true, true);
     emit IUNIVesting.Withdrawn(recipient, FIVE_M * 2, 2);
     vesting.withdraw();
