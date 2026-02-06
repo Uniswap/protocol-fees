@@ -686,7 +686,7 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     vm.snapshotGasLastCall("V3OpenFeeAdapter_batchUpdate_10pools");
   }
 
-  // ═════════════ Waterfall Resolution Tests ═════════════
+  // ==══════════ Waterfall Resolution Tests ══════════==
 
   function test_getFee_returnsZeroWhenNothingSet() public view {
     // No defaults, no tier defaults, no pool overrides

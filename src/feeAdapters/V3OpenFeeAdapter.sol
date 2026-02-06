@@ -276,12 +276,8 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     uint8 feeProtocol0 = feeValue % 16;
     uint8 feeProtocol1 = feeValue >> 4;
     // Validate both values match pool requirements: must be 0 or in range [4, 10]
-    if (
-      !((feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
-        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)))
-    ) {
-      revert InvalidFeeValue();
-    }
+    if (!((feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+          && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)))) revert InvalidFeeValue();
   }
 
   /// @notice Encodes a fee for storage

@@ -8,7 +8,8 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 
 /// @title V3OpenUnichainDeployer
 /// @notice Deploys V3OpenFeeAdapter on Unichain
-/// @dev This adapter uses waterfall fee resolution: pool override → tier default → global default
+/// @dev This adapter uses waterfall fee resolution: pool override → tier default → global
+/// default
 ///      Factory ownership must be transferred separately
 contract V3OpenUnichainDeployer {
   /// @notice The deployed V3OpenFeeAdapter contract instance
@@ -19,7 +20,8 @@ contract V3OpenUnichainDeployer {
     IUniswapV3Factory(0x1F98400000000000000000000000000000000003);
 
   /// @notice The UNI Timelock alias address on Unichain
-  /// @dev Calculated from OP Stack aliasing scheme targeting 0x1a9C8182C09F50C8318d769245beA52c32BE35BC
+  /// @dev Calculated from OP Stack aliasing scheme targeting
+  /// 0x1a9C8182C09F50C8318d769245beA52c32BE35BC
   address public constant OWNER = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
 
   /// @notice The TokenJar address for fee collection on Unichain

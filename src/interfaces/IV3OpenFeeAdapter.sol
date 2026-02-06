@@ -6,7 +6,8 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 /// @title IV3OpenFeeAdapter
 /// @notice Interface for a permissionless fee adapter that allows anyone to trigger fee updates
 /// @dev This is a simplified version of IV3FeeAdapter that removes Merkle proof authorization.
-///      Fee resolution uses a waterfall pattern: pool override → fee tier default → global default.
+///      Fee resolution uses a waterfall pattern: pool override → fee tier default → global
+/// default.
 ///      Storage encoding: 0 = "not set" (continue waterfall), ZERO_FEE_SENTINEL = "explicitly zero"
 interface IV3OpenFeeAdapter {
   /// @notice Thrown when trying to set a default fee for a non-enabled fee tier.

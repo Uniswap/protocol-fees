@@ -8,7 +8,8 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 
 /// @title V3OpenMainnetDeployer
 /// @notice Deploys V3OpenFeeAdapter on Ethereum mainnet
-/// @dev This adapter uses waterfall fee resolution: pool override → tier default → global default
+/// @dev This adapter uses waterfall fee resolution: pool override → tier default → global
+/// default
 ///      Factory ownership must be transferred separately via governance proposal
 contract V3OpenMainnetDeployer {
   /// @notice The deployed V3OpenFeeAdapter contract instance

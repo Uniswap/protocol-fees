@@ -391,15 +391,16 @@ contract V3OpenFeeAdapterMainnetForkTest is Test {
   // --- Helpers ---
 
   function _exactInSwapV3(address pool, bool zeroForOne, uint256 amountIn) internal {
-    IUniswapV3Pool(pool).swap(
-      address(this),
-      zeroForOne,
-      int256(amountIn),
-      zeroForOne
-        ? 4_295_128_739 + 1
-        : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
-      abi.encode(address(this))
-    );
+    IUniswapV3Pool(pool)
+      .swap(
+        address(this),
+        zeroForOne,
+        int256(amountIn),
+        zeroForOne
+          ? 4_295_128_739 + 1
+          : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
+        abi.encode(address(this))
+      );
   }
 
   function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data)
@@ -599,15 +600,16 @@ contract V3OpenFeeAdapterUnichainForkTest is Test {
   // --- Helpers ---
 
   function _exactInSwapV3(address pool, bool zeroForOne, uint256 amountIn) internal {
-    IUniswapV3Pool(pool).swap(
-      address(this),
-      zeroForOne,
-      int256(amountIn),
-      zeroForOne
-        ? 4_295_128_739 + 1
-        : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
-      abi.encode(address(this))
-    );
+    IUniswapV3Pool(pool)
+      .swap(
+        address(this),
+        zeroForOne,
+        int256(amountIn),
+        zeroForOne
+          ? 4_295_128_739 + 1
+          : 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342 - 1,
+        abi.encode(address(this))
+      );
   }
 
   function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data)
