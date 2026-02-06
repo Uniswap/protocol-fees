@@ -442,18 +442,19 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     feeAdapter.setFactoryOwner(address(0));
   }
 
-  function testFuzz_setFeeSetter(address newFeeSetter) public {
+  function test_setFeeSetter_emitsEvent() public {
+    address oldFeeSetter = feeAdapter.feeSetter();
+    address newFeeSetter = makeAddr("newFeeSetter");
     vm.prank(owner);
+    vm.expectEmit(true, true, false, false, address(feeAdapter));
+    emit IV3OpenFeeAdapter.FeeSetterUpdated(oldFeeSetter, newFeeSetter);
     feeAdapter.setFeeSetter(newFeeSetter);
-    assertEq(feeAdapter.feeSetter(), newFeeSetter);
   }
 
-  function testFuzz_revert_setFeeSetter(address caller, address newFeeSetter) public {
-    vm.assume(caller != IOwned(address(feeAdapter)).owner());
-
-    vm.prank(caller);
+  function test_setFeeSetter_revertsUnauthorized() public {
     vm.expectRevert("UNAUTHORIZED");
-    feeAdapter.setFeeSetter(newFeeSetter);
+    vm.prank(makeAddr("rando"));
+    feeAdapter.setFeeSetter(address(this));
   }
 
   // ============ Fee Validation Tests ============

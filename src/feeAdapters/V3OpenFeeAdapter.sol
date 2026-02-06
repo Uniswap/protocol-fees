@@ -154,7 +154,9 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
 
   /// @inheritdoc IV3OpenFeeAdapter
   function setFeeSetter(address newFeeSetter) external onlyOwner {
+    address oldFeeSetter = feeSetter;
     feeSetter = newFeeSetter;
+    emit FeeSetterUpdated(oldFeeSetter, newFeeSetter);
   }
 
   /// @inheritdoc IV3OpenFeeAdapter

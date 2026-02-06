@@ -43,6 +43,11 @@ interface IV3OpenFeeAdapter {
   /// @param feeValue The new fee value for the pool
   event PoolOverrideUpdated(address indexed pool, uint8 feeValue);
 
+  /// @notice Emitted when the fee setter is updated
+  /// @param oldFeeSetter The previous fee setter address
+  /// @param newFeeSetter The new fee setter address
+  event FeeSetterUpdated(address indexed oldFeeSetter, address indexed newFeeSetter);
+
   /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.
