@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
