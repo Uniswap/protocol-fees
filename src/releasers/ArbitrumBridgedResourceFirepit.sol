@@ -23,6 +23,8 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 contract ArbitrumBridgedResourceFirepit is ExchangeReleaser {
   using SafeTransferLib for ERC20;
 
+  error ZeroAddress();
+
   /// @dev The L2 Gateway Router address on Arbitrum One
   /// @dev This is not a predeploy - it's a regular deployed contract
   address public constant L2_GATEWAY_ROUTER = 0x5288c571Fd7aD117beA99bF60FE0846C4E84F933;
@@ -45,7 +47,7 @@ contract ArbitrumBridgedResourceFirepit is ExchangeReleaser {
   constructor(address _resource, address _l1Resource, uint256 _threshold, address _tokenJar)
     ExchangeReleaser(_resource, _threshold, _tokenJar, address(this))
   {
-    require(_l1Resource != address(0), "ArbitrumBridgedResourceFirepit: l1Resource is zero");
+    require(_l1Resource != address(0), ZeroAddress());
     L1_RESOURCE = _l1Resource;
   }
 

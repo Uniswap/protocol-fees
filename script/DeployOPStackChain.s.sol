@@ -26,6 +26,7 @@ interface IOptimismMintableERC20Factory {
 ///      messages via the L2CrossDomainMessenger + xDomainMessageSender check. Chains that already
 ///      have a CrossChainAccount (e.g. OP Mainnet, Base) can override `_owner()` to reuse it.
 abstract contract DeployOPStackChain is Script {
+  error WrongChain();
   // UNI threshold for release
   uint256 public constant THRESHOLD = 2000e18;
 
@@ -79,7 +80,7 @@ abstract contract DeployOPStackChain is Script {
   function setUp() public {}
 
   function run() public {
-    require(block.chainid == _chainId(), string.concat("Not ", _name()));
+    require(block.chainid == _chainId(), WrongChain());
 
     console2.log(string.concat("=== ", _name(), " Deployment ==="));
     vm.startBroadcast();

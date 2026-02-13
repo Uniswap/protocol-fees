@@ -10,6 +10,8 @@ import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 /// @title DeployArbitrum
 /// @notice Deployment script for Arbitrum One (Chain ID: 42161)
 contract DeployArbitrum is Script {
+  error WrongChain();
+
   // Arbitrum One chain ID
   uint256 public constant CHAIN_ID = 42_161;
 
@@ -33,7 +35,7 @@ contract DeployArbitrum is Script {
   function setUp() public {}
 
   function run() public {
-    require(block.chainid == CHAIN_ID, "Not Arbitrum One");
+    require(block.chainid == CHAIN_ID, WrongChain());
 
     vm.startBroadcast();
 

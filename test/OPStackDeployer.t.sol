@@ -121,17 +121,17 @@ contract OPStackDeployerTest is Test {
   }
 
   function test_revert_deployer_zeroResource() public {
-    vm.expectRevert("OPStackDeployer: resource is zero address");
+    vm.expectRevert(OPStackDeployer.ZeroAddress.selector);
     new OPStackDeployer(address(0), threshold, owner);
   }
 
   function test_revert_deployer_zeroThreshold() public {
-    vm.expectRevert("OPStackDeployer: threshold must be > 0");
+    vm.expectRevert(OPStackDeployer.ZeroThreshold.selector);
     new OPStackDeployer(address(resource), 0, owner);
   }
 
   function test_revert_deployer_zeroOwner() public {
-    vm.expectRevert("OPStackDeployer: owner is zero address");
+    vm.expectRevert(OPStackDeployer.ZeroAddress.selector);
     new OPStackDeployer(address(resource), threshold, address(0));
   }
 

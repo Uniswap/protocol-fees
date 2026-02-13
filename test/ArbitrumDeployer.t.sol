@@ -169,22 +169,22 @@ contract ArbitrumDeployerTest is Test {
   }
 
   function test_revert_deployer_zeroResource() public {
-    vm.expectRevert("ArbitrumDeployer: resource is zero address");
+    vm.expectRevert(ArbitrumDeployer.ZeroAddress.selector);
     new ArbitrumDeployer(address(0), l1Resource, threshold, owner);
   }
 
   function test_revert_deployer_zeroL1Resource() public {
-    vm.expectRevert("ArbitrumDeployer: l1Resource is zero address");
+    vm.expectRevert(ArbitrumDeployer.ZeroAddress.selector);
     new ArbitrumDeployer(address(resource), address(0), threshold, owner);
   }
 
   function test_revert_deployer_zeroThreshold() public {
-    vm.expectRevert("ArbitrumDeployer: threshold must be > 0");
+    vm.expectRevert(ArbitrumDeployer.ZeroThreshold.selector);
     new ArbitrumDeployer(address(resource), l1Resource, 0, owner);
   }
 
   function test_revert_deployer_zeroOwner() public {
-    vm.expectRevert("ArbitrumDeployer: owner is zero address");
+    vm.expectRevert(ArbitrumDeployer.ZeroAddress.selector);
     new ArbitrumDeployer(address(resource), l1Resource, threshold, address(0));
   }
 
