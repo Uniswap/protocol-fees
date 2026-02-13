@@ -106,9 +106,11 @@ interface IV3OpenFeeAdapter {
   /// @return feeValue The encoded fee value for the pool (0 if not set)
   function poolOverrides(address pool) external view returns (uint8 feeValue);
 
-  /// @notice Legacy getter for backwards compatibility - returns decoded fee tier default
+  /// @notice Legacy getter for backwards compatibility - returns effective fee for a tier
+  /// @dev Applies waterfall resolution: fee tier default → global default.
+  ///      Returns 0 only when neither level is configured.
   /// @param feeTier The fee tier to query
-  /// @return defaultFeeValue The decoded fee value (0 if not set)
+  /// @return defaultFeeValue The resolved fee value
   function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValue);
 
   /// @notice Stores a fee tier.

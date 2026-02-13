@@ -149,9 +149,16 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   }
 
   /// @notice Legacy getter for backwards compatibility
-  /// @dev Returns the decoded fee value for the tier (0 if not set)
+  /// @dev Applies waterfall resolution: fee tier default → global default.
+  ///      Returns 0 only when neither a tier default nor a global default is configured.
   function defaultFees(uint24 feeTier) external view returns (uint8) {
-    return _decodeFee(feeTierDefaults[feeTier]);
+    uint8 stored = feeTierDefaults[feeTier];
+    if (stored != 0) return _decodeFee(stored);
+
+    stored = defaultFee;
+    if (stored != 0) return _decodeFee(stored);
+
+    return 0;
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
