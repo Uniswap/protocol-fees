@@ -14,7 +14,8 @@ import {
 /// @dev Deploys and configures the fee collection system with chain-specific parameters.
 ///      The `_owner` parameter is expected to be a CrossChainAccount contract address on L2.
 ///      Governance proposals target these L2 contracts via the standard OP Stack XDM flow:
-///      L1 Timelock → L1CrossDomainMessenger.sendMessage(CrossChainAccount, forward(target, data))
+///      L1 Timelock → L1CrossDomainMessenger.sendMessage(CrossChainAccount, forward(target,
+/// data))
 ///      The CrossChainAccount verifies xDomainMessageSender() == L1 Timelock before forwarding.
 ///      This provides replayability, gas safety, and consistency with existing Uniswap governance
 ///      patterns (e.g. the v3 factory fee switch uses the same CrossChainAccount approach).

@@ -17,8 +17,8 @@ interface IOptimismMintableERC20Factory {
 }
 
 /// @title DeployOPStackChain
-/// @notice Abstract base for deploying TokenJar + OptimismBridgedResourceFirepit on any OP Stack chain
-/// @dev Concrete scripts override `_chainId()`, `_resource()`, and `_name()`.
+/// @notice Abstract base for deploying TokenJar + OptimismBridgedResourceFirepit on any OP Stack
+/// chain @dev Concrete scripts override `_chainId()`, `_resource()`, and `_name()`.
 ///      THRESHOLD is shared across all OP Stack deployments.
 ///      If `_resource()` returns address(0), the script first creates a canonical bridged UNI token
 ///      via the OptimismMintableERC20Factory predeploy before proceeding with deployment.
@@ -48,8 +48,8 @@ abstract contract DeployOPStackChain is Script {
   function _chainId() internal pure virtual returns (uint256);
 
   /// @notice The address of the resource token (typically the bridged UNI token)
-  /// @dev If `_resource()` returns address(0), the script first creates a canonical bridged UNI token
-  ///      via the OptimismMintableERC20Factory predeploy before proceeding with deployment.
+  /// @dev If `_resource()` returns address(0), the script first creates a canonical bridged UNI
+  /// token via the OptimismMintableERC20Factory predeploy before proceeding with deployment.
   /// @dev Concrete scripts override this function to return the address of the resource token
   function _resource() internal pure virtual returns (address);
 
@@ -69,8 +69,8 @@ abstract contract DeployOPStackChain is Script {
   }
 
   /// @notice Creates a canonical bridged UNI token via the OptimismMintableERC20Factory predeploy
-  /// @dev Concrete scripts can override this function to create the resource token differently if needed.
-  /// @return resource The address of the created bridged UNI token
+  /// @dev Concrete scripts can override this function to create the resource token differently if
+  /// needed. @return resource The address of the created bridged UNI token
   function _createBridgedUNI() internal virtual returns (address resource) {
     resource = OP_STACK_ERC20_FACTORY.createOptimismMintableERC20(L1_UNI, "Uniswap", "UNI");
     console2.log("Created bridged UNI:", resource);
@@ -88,9 +88,7 @@ abstract contract DeployOPStackChain is Script {
     address owner = _owner();
 
     address resource = _resource();
-    if (resource == address(0)) {
-      resource = _createBridgedUNI();
-    }
+    if (resource == address(0)) resource = _createBridgedUNI();
 
     OPStackDeployer deployer =
       new OPStackDeployer{salt: bytes32(uint256(1))}(resource, THRESHOLD, owner);

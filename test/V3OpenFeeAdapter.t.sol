@@ -960,6 +960,178 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     assertEq(feeAdapter.ZERO_FEE_SENTINEL(), type(uint8).max);
   }
 
+  // ============ Idempotency Correctness Tests (M-01) ============
+
+  function test_idempotencyCheck_readsFeeProtocol_notObservationCardinalityNext() public {
+    // This test validates that _setProtocolFee reads feeProtocol (slot0 position 5),
+    // NOT observationCardinalityNext (position 4). If the wrong field is read,
+    // the idempotency check would compare against the wrong value.
+
+    uint8 feeValue = 4 << 4 | 4; // = 68
+
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, feeValue);
+
+    // First call sets the fee on the pool
+    feeAdapter.triggerFeeUpdate(pool);
+    assertEq(_getProtocolFees(pool), feeValue);
+
+    // Verify slot0 fields differ: feeProtocol should be 68,
+    // observationCardinalityNext is 1 (initial value for a fresh pool)
+    (,,,, uint16 observationCardinalityNext, uint8 feeProtocol,) = IUniswapV3Pool(pool).slot0();
+    assertEq(feeProtocol, feeValue);
+    // observationCardinalityNext should NOT equal feeValue for this to be a meaningful test
+    assertTrue(
+      observationCardinalityNext != feeValue,
+      "Test setup: observationCardinalityNext should differ from feeValue"
+    );
+
+    // Second call should be idempotent (early return because feeProtocol already matches).
+    // If the code incorrectly reads observationCardinalityNext instead of feeProtocol,
+    // it would NOT early-return and would make an unnecessary setFeeProtocol call.
+    // We expect NO FeeUpdateTriggered event — if one is emitted, the idempotency check is broken.
+    vm.recordLogs();
+    feeAdapter.triggerFeeUpdate(pool);
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+    for (uint256 i; i < entries.length; i++) {
+      assertTrue(
+        entries[i].topics[0] != keccak256("FeeUpdateTriggered(address,address,uint8)"),
+        "Idempotent call should not emit FeeUpdateTriggered"
+      );
+    }
+  }
+
+  function test_idempotencyCheck_doesNotSkipWhenFeesDiffer() public {
+    // Set initial fee and apply it
+    uint8 initialFee = 4 << 4 | 4;
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, initialFee);
+    feeAdapter.triggerFeeUpdate(pool);
+    assertEq(_getProtocolFees(pool), initialFee);
+
+    // Change the fee
+    uint8 newFee = 10 << 4 | 10;
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, newFee);
+
+    // Should emit event since fees differ — the update must NOT be skipped
+    vm.expectEmit(true, true, false, true, address(feeAdapter));
+    emit IV3OpenFeeAdapter.FeeUpdateTriggered(address(this), pool, newFee);
+    feeAdapter.triggerFeeUpdate(pool);
+    assertEq(_getProtocolFees(pool), newFee);
+  }
+
+  // ============ Legacy defaultFees Waterfall Tests (L-02) ============
+
+  function test_defaultFees_waterfallsToGlobalDefault() public {
+    uint8 globalDefault = 6 << 4 | 6;
+    vm.prank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+
+    // No tier default set — should fall through to global default
+    assertEq(feeAdapter.defaultFees(3000), globalDefault);
+  }
+
+  function test_defaultFees_tierDefaultTakesPrecedenceOverGlobal() public {
+    uint8 globalDefault = 6 << 4 | 6;
+    uint8 tierDefault = 4 << 4 | 4;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.defaultFees(3000), tierDefault);
+  }
+
+  function test_defaultFees_returnsZeroWhenNothingConfigured() public view {
+    // Neither tier default nor global default set
+    assertEq(feeAdapter.defaultFees(3000), 0);
+  }
+
+  function test_defaultFees_clearTierDefault_fallsBackToGlobal() public {
+    uint8 globalDefault = 5 << 4 | 5;
+    uint8 tierDefault = 7 << 4 | 7;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, tierDefault);
+    vm.stopPrank();
+
+    assertEq(feeAdapter.defaultFees(3000), tierDefault);
+
+    vm.prank(feeSetter);
+    feeAdapter.clearFeeTierDefault(3000);
+
+    assertEq(feeAdapter.defaultFees(3000), globalDefault);
+  }
+
+  function test_defaultFees_explicitZeroTierDefault_returnsZero() public {
+    uint8 globalDefault = 6 << 4 | 6;
+
+    vm.startPrank(feeSetter);
+    feeAdapter.setDefaultFee(globalDefault);
+    feeAdapter.setFeeTierDefault(3000, 0); // Explicit zero disables
+    vm.stopPrank();
+
+    // Explicit zero should NOT waterfall to global — fees are intentionally disabled
+    assertEq(feeAdapter.defaultFees(3000), 0);
+  }
+
+  // ============ Distinct Event Tests (L-03) ============
+
+  function test_clearEvent_differsFromSetToZeroEvent() public {
+    // Set a tier default, then explicitly set to zero — emits FeeTierDefaultUpdated
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, 5 << 4 | 5);
+
+    vm.recordLogs();
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, 0);
+    Vm.Log[] memory setLogs = vm.getRecordedLogs();
+
+    // Set it again before clearing
+    vm.prank(feeSetter);
+    feeAdapter.setFeeTierDefault(3000, 5 << 4 | 5);
+
+    // Clear it — emits FeeTierDefaultCleared
+    vm.recordLogs();
+    vm.prank(feeSetter);
+    feeAdapter.clearFeeTierDefault(3000);
+    Vm.Log[] memory clearLogs = vm.getRecordedLogs();
+
+    // The event signatures should differ
+    assertTrue(setLogs.length > 0 && clearLogs.length > 0);
+    assertTrue(
+      setLogs[0].topics[0] != clearLogs[0].topics[0],
+      "Set-to-zero and clear should emit different event signatures"
+    );
+  }
+
+  function test_clearPoolEvent_differsFromSetToZeroEvent() public {
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, 4 << 4 | 4);
+
+    vm.recordLogs();
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, 0);
+    Vm.Log[] memory setLogs = vm.getRecordedLogs();
+
+    vm.prank(feeSetter);
+    feeAdapter.setPoolOverride(pool, 4 << 4 | 4);
+
+    vm.recordLogs();
+    vm.prank(feeSetter);
+    feeAdapter.clearPoolOverride(pool);
+    Vm.Log[] memory clearLogs = vm.getRecordedLogs();
+
+    assertTrue(setLogs.length > 0 && clearLogs.length > 0);
+    assertTrue(
+      setLogs[0].topics[0] != clearLogs[0].topics[0],
+      "Set-to-zero and clear should emit different event signatures"
+    );
+  }
+
   // ============ Helper Functions ============
 
   function _mockSetProtocolFees(uint128 token0, uint128 token1) internal {
