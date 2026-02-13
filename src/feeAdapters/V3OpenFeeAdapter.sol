@@ -251,13 +251,13 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     if (size == 0) return;
 
     // Check if pool is initialized and get current fee protocol
-    (uint160 sqrtPriceX96,,,, uint16 currentFeeProtocol,,) = IUniswapV3Pool(pool).slot0();
+    (uint160 sqrtPriceX96,,,,, uint8 currentFeeProtocol,) = IUniswapV3Pool(pool).slot0();
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
     uint8 feeValue = getFee(pool);
 
     // Idempotency check: Skip if already set (prevents griefing)
-    if (uint8(currentFeeProtocol) == feeValue) return;
+    if (currentFeeProtocol == feeValue) return;
 
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
 
