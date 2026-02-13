@@ -128,7 +128,7 @@ interface IV3OpenFeeAdapter {
 
   /// @notice Enables a new fee tier on the Uniswap V3 Factory.
   /// @dev Only callable by `owner`. Also updates the `feeTiers` array.
-  /// @param newFeeTier The fee tier to enable.
+  /// @param newFeeTier The fee amount to enable, denominated in hundredths of a bip (i.e. 1e-6).
   /// @param tickSpacing The corresponding tick spacing for the new fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
 
