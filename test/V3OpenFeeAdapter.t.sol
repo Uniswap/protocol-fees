@@ -878,9 +878,9 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     vm.prank(feeSetter);
     feeAdapter.setFeeTierDefault(3000, 5 << 4 | 5);
 
-    // Clear it - should emit event with 0
+    // Clear it - should emit distinct clear event
     vm.expectEmit(true, false, false, true);
-    emit IV3OpenFeeAdapter.FeeTierDefaultUpdated(3000, 0);
+    emit IV3OpenFeeAdapter.FeeTierDefaultCleared(3000);
     vm.prank(feeSetter);
     feeAdapter.clearFeeTierDefault(3000);
   }
@@ -890,9 +890,9 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     vm.prank(feeSetter);
     feeAdapter.setPoolOverride(pool, 4 << 4 | 4);
 
-    // Clear it - should emit event with 0
+    // Clear it - should emit distinct clear event
     vm.expectEmit(true, false, false, true);
-    emit IV3OpenFeeAdapter.PoolOverrideUpdated(pool, 0);
+    emit IV3OpenFeeAdapter.PoolOverrideCleared(pool);
     vm.prank(feeSetter);
     feeAdapter.clearPoolOverride(pool);
   }

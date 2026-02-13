@@ -43,6 +43,14 @@ interface IV3OpenFeeAdapter {
   /// @param feeValue The new fee value for the pool
   event PoolOverrideUpdated(address indexed pool, uint8 feeValue);
 
+  /// @notice Emitted when a fee tier default is cleared (deleted from storage)
+  /// @param feeTier The fee tier that was cleared
+  event FeeTierDefaultCleared(uint24 indexed feeTier);
+
+  /// @notice Emitted when a pool override is cleared (deleted from storage)
+  /// @param pool The pool that was cleared
+  event PoolOverrideCleared(address indexed pool);
+
   /// @notice Emitted when the fee setter is updated
   /// @param oldFeeSetter The previous fee setter address
   /// @param newFeeSetter The new fee setter address

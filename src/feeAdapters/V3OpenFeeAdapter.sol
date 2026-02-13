@@ -130,13 +130,13 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   /// @inheritdoc IV3OpenFeeAdapter
   function clearFeeTierDefault(uint24 feeTier) external onlyFeeSetter {
     delete feeTierDefaults[feeTier];
-    emit FeeTierDefaultUpdated(feeTier, 0);
+    emit FeeTierDefaultCleared(feeTier);
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
   function clearPoolOverride(address pool) external onlyFeeSetter {
     delete poolOverrides[pool];
-    emit PoolOverrideUpdated(pool, 0);
+    emit PoolOverrideCleared(pool);
   }
 
   /// @notice Legacy function for backwards compatibility
