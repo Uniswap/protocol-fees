@@ -240,8 +240,7 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     stored = defaultFee;
     if (stored != 0) return _decodeFee(stored);
 
-    // Nothing set → no protocol fee
-    return 0;
+    // Nothing set → no protocol fee (fee defaults to 0)
   }
 
   /// @notice Sets the protocol fee for a specific pool using waterfall resolution
