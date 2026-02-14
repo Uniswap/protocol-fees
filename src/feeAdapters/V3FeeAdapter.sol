@@ -35,6 +35,13 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   /// @inheritdoc IV3FeeAdapter
   mapping(uint24 feeTier => uint8 defaultFeeValue) public defaultFees;
 
+  /// @inheritdoc IV3FeeAdapter
+  mapping(address pool => uint8 feeOverride) public poolFeeOverrides;
+
+  /// @notice Sentinel value stored in poolFeeOverrides to represent "override to 0"
+  /// @dev We use 255 because it's an invalid fee value (both nibbles = 15, outside valid range)
+  uint8 internal constant OVERRIDE_TO_ZERO = type(uint8).max;
+
   /// @return The fee tiers that are enabled on the factory. Iterable so that the protocol fee for
   /// pools of the same pair can be activated with the same merkle proof.
   /// @dev Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
@@ -100,16 +107,25 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
   /// @inheritdoc IV3FeeAdapter
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external onlyFeeSetter {
     require(_feeTierExists(feeTier), InvalidFeeTier());
-    // Extract the two 4-bit values
-    uint8 feeProtocol0 = defaultFeeValue % 16;
-    uint8 feeProtocol1 = defaultFeeValue >> 4;
-    // Validate both values match pool requirements: must be 0 or in range [4, 10]
-    require(
-      (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
-        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)),
-      InvalidFeeValue()
-    );
+    _validateFeeValue(defaultFeeValue);
     defaultFees[feeTier] = defaultFeeValue;
+  }
+
+  /// @inheritdoc IV3FeeAdapter
+  function overridePoolFee(address pool, uint8 feeOverride) external onlyFeeSetter {
+    _validateFeeValue(feeOverride);
+    // Store sentinel value if overriding to 0, otherwise store the actual value
+    poolFeeOverrides[pool] = feeOverride == 0 ? OVERRIDE_TO_ZERO : feeOverride;
+    emit PoolFeeOverrideSet(pool, feeOverride);
+
+    // Update the pool's fee immediately if the pool is initialized
+    _setProtocolFee(pool, IUniswapV3Pool(pool).fee());
+  }
+
+  /// @inheritdoc IV3FeeAdapter
+  function removePoolFeeOverride(address pool) external onlyFeeSetter {
+    delete poolFeeOverrides[pool];
+    emit PoolFeeOverrideRemoved(pool);
   }
 
   /// @inheritdoc IV3FeeAdapter
@@ -164,18 +180,46 @@ contract V3FeeAdapter is IV3FeeAdapter, Owned {
     }
   }
 
-  /// @notice Sets the protocol fee for a specific pool based on its fee tier
+  /// @notice Sets the protocol fee for a specific pool based on its fee tier or override
   /// @dev Only sets the fee for initialized pools (sqrtPriceX96 != 0)
-  ///      The feeValue encodes both fee0 (lower 4 bits) and fee1 (upper 4 bits)
+  ///      If pool has an override, uses the override value; otherwise uses the default for the fee
+  /// tier The feeValue encodes both fee0 (lower 4 bits) and fee1 (upper 4 bits)
   /// @param pool The address of the Uniswap V3 pool
-  /// @param feeTier The fee tier of the pool, used to look up the default fee value
+  /// @param feeTier The fee tier of the pool, used to look up the default fee value if no override
+  /// exists
   function _setProtocolFee(address pool, uint24 feeTier) internal {
     // Check if pool is initialized by verifying sqrtPriceX96 is non-zero
     (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
-    uint8 feeValue = defaultFees[feeTier];
+    uint8 feeValue = _getEffectiveFee(pool, feeTier);
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+  }
+
+  /// @notice Returns the effective fee for a pool, considering overrides
+  /// @param pool The pool address
+  /// @param feeTier The fee tier of the pool (used for default lookup)
+  /// @return The fee value to apply (0 if sentinel, override if set, otherwise default)
+  function _getEffectiveFee(address pool, uint24 feeTier) internal view returns (uint8) {
+    uint8 poolFeeOverride = poolFeeOverrides[pool];
+    if (poolFeeOverride == 0) return defaultFees[feeTier];
+    if (poolFeeOverride == OVERRIDE_TO_ZERO) return 0;
+    return poolFeeOverride;
+  }
+
+  /// @notice Validates that a fee value meets protocol requirements
+  /// @dev Both 4-bit fee values must be 0 or in the range [4, 10]
+  /// @param feeValue The packed fee value to validate (token1Fee << 4 | token0Fee)
+  function _validateFeeValue(uint8 feeValue) internal pure {
+    // Extract the two 4-bit values
+    uint8 feeProtocol0 = feeValue % 16;
+    uint8 feeProtocol1 = feeValue >> 4;
+    // Validate both values match pool requirements: must be 0 or in range [4, 10]
+    require(
+      (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)),
+      InvalidFeeValue()
+    );
   }
 
   /// @notice Computes a double hash of token addresses for Merkle tree verification
