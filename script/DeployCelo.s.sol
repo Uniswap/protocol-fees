@@ -13,6 +13,12 @@ contract DeployCelo is DeployOPStackChain {
     return "Celo";
   }
 
+  /// @dev Uniswap V3 Factory on Celo
+  /// https://celoscan.io/address/0xAfE208a311B21f13EF87E33A90049fC17A7acDEc
+  function _v3Factory() internal pure override returns (address) {
+    return 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
+  }
+
   /// @dev Bridged UNI is not yet deployed, will be created via OptimismMintableERC20Factory
   function _resource() internal pure override returns (address) {
     return address(0);
