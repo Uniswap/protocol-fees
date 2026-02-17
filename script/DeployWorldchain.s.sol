@@ -13,6 +13,12 @@ contract DeployWorldchain is DeployOPStackChain {
     return "World Chain";
   }
 
+  /// @dev CrossChainAccount for Worldchain (existing, used by v3 factory governance)
+  /// https://worldscan.org/address/0xcb2436774c3e191c85056d248ef4260ce5f27a9d
+  function _owner() internal pure override returns (address) {
+    return 0xcb2436774C3e191c85056d248EF4260ce5f27a9d;
+  }
+
   /// @dev Bridged UNI is not yet deployed, will be created via OptimismMintableERC20Factory
   function _resource() internal pure override returns (address) {
     return address(0);

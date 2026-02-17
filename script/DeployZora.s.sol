@@ -13,6 +13,12 @@ contract DeployZora is DeployOPStackChain {
     return "Zora";
   }
 
+  /// @dev CrossChainAccount for Zora (existing, used by v3 factory governance)
+  /// https://explorer.zora.energy/address/0x36eEC182D0B24Df3DC23115D64DB521A93D5154f
+  function _owner() internal pure override returns (address) {
+    return 0x36eEC182D0B24Df3DC23115D64DB521A93D5154f;
+  }
+
   /// @dev Bridged UNI is not yet deployed, will be created via OptimismMintableERC20Factory
   function _resource() internal pure override returns (address) {
     return address(0);
