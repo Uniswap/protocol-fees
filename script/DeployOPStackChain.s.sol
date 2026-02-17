@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 import {OPStackDeployer} from "./deployers/OPStackDeployer.sol";
-import {CrossChainAccount, IMessenger} from "./CrossChainAccount.sol";
+import {CrossChainAccount, IMessenger} from "../src/CrossChainAccount.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 
@@ -58,10 +58,17 @@ abstract contract DeployOPStackChain is Script {
   function _name() internal pure virtual returns (string memory);
 
   /// @notice Returns the owner address for the deployed contracts
-  /// @dev Default implementation deploys a new CrossChainAccount that authenticates governance
-  ///      messages via L2CrossDomainMessenger.xDomainMessageSender() == L1_TIMELOCK.
-  ///      Override for chains that already have a CrossChainAccount (e.g. OP Mainnet, Base).
-  function _owner() internal virtual returns (address) {
+  /// @dev If this returns address(0), a new CrossChainAccount is deployed via
+  ///      `_createCrossChainAccount()`. Override for chains that already have
+  ///      a CrossChainAccount that properly authenticates governance messages.
+  function _owner() internal pure virtual returns (address) {
+    return address(0);
+  }
+
+  /// @notice Deploys a new CrossChainAccount that authenticates governance messages
+  ///         via L2CrossDomainMessenger.xDomainMessageSender() == L1_TIMELOCK
+  /// @dev Override for chains that need a different messenger or construction pattern.
+  function _createCrossChainAccount() internal virtual returns (address) {
     CrossChainAccount xAccount =
       new CrossChainAccount{salt: bytes32(uint256(1))}(IMessenger(L2_MESSENGER), L1_TIMELOCK);
     console2.log("CrossChainAccount:", address(xAccount));
@@ -73,7 +80,7 @@ abstract contract DeployOPStackChain is Script {
   /// needed. @return resource The address of the created bridged UNI token
   function _createBridgedUNI() internal virtual returns (address resource) {
     resource = OP_STACK_ERC20_FACTORY.createOptimismMintableERC20(L1_UNI, "Uniswap", "UNI");
-    console2.log("Created bridged UNI:", resource);
+    console2.log("Bridged UNI:", resource);
     return resource;
   }
 
@@ -86,6 +93,7 @@ abstract contract DeployOPStackChain is Script {
     vm.startBroadcast();
 
     address owner = _owner();
+    if (owner == address(0)) owner = _createCrossChainAccount();
 
     address resource = _resource();
     if (resource == address(0)) resource = _createBridgedUNI();
