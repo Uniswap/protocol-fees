@@ -13,6 +13,12 @@ contract DeployXLayer is DeployOPStackChain {
     return "X Layer";
   }
 
+  /// @dev Uniswap V3 Factory on X Layer
+  /// https://www.oklink.com/xlayer/address/0x4B2ab38DBF28D31D467aA8993f6c2585981D6804
+  function _v3Factory() internal pure override returns (address) {
+    return 0x4B2ab38DBF28D31D467aA8993f6c2585981D6804;
+  }
+
   /// @dev Bridged UNI is not yet deployed, will be created via OptimismMintableERC20Factory
   function _resource() internal pure override returns (address) {
     return address(0);

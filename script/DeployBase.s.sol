@@ -20,6 +20,12 @@ contract DeployBase is DeployOPStackChain {
     return 0x31FAfd4889FA1269F7a13A66eE0fB458f27D72A9;
   }
 
+  /// @dev Uniswap V3 Factory on Base
+  /// https://basescan.org/address/0x33128a8fC17869897dcE68Ed026d694621f6FDfD
+  function _v3Factory() internal pure override returns (address) {
+    return 0x33128a8fC17869897dcE68Ed026d694621f6FDfD;
+  }
+
   /// @dev Bridged UNI on Base
   /// https://basescan.org/address/0xc3de830ea07524a0761646a6a4e4be0e114a3c83
   function _resource() internal pure override returns (address) {
