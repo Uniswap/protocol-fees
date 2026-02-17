@@ -14,6 +14,12 @@ contract DeployOPMainnet is DeployOPStackChain {
     return "OP Mainnet";
   }
 
+  /// @dev CrossChainAccount for OP Mainnet
+  /// https://optimistic.etherscan.io/address/0xa1dD330d602c32622AA270Ea73d078B803Cb3518
+  function _owner() internal pure override returns (address) {
+    return 0xa1dD330d602c32622AA270Ea73d078B803Cb3518;
+  }
+
   /// @dev Bridged UNI on OP Mainnet
   function _resource() internal pure override returns (address) {
     return 0x6fd9d7AD17242c41f7131d257212c54A0e816691;

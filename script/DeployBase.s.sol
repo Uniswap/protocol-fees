@@ -14,6 +14,12 @@ contract DeployBase is DeployOPStackChain {
     return "Base";
   }
 
+  /// @dev CrossChainAccount for Base
+  /// https://basescan.org/address/0x31FAfd4889FA1269F7a13A66eE0fB458f27D72A9
+  function _owner() internal pure override returns (address) {
+    return 0x31FAfd4889FA1269F7a13A66eE0fB458f27D72A9;
+  }
+
   /// @dev Bridged UNI on Base
   /// https://basescan.org/address/0xc3de830ea07524a0761646a6a4e4be0e114a3c83
   function _resource() internal pure override returns (address) {
