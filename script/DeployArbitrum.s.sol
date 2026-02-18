@@ -44,8 +44,9 @@ contract DeployArbitrum is Script {
 
     vm.startBroadcast();
 
-    ArbitrumDeployer deployer =
-      new ArbitrumDeployer{salt: bytes32(uint256(1))}(RESOURCE, L1_RESOURCE, THRESHOLD, OWNER, V3_FACTORY);
+    ArbitrumDeployer deployer = new ArbitrumDeployer{salt: bytes32(uint256(1))}(
+      RESOURCE, L1_RESOURCE, THRESHOLD, OWNER, V3_FACTORY
+    );
 
     console2.log("=== Arbitrum One Deployment ===");
     console2.log("Deployer:", address(deployer));

@@ -41,7 +41,8 @@ contract MockL2GatewayRouter is IL2GatewayRouter {
 /// @notice Mock Gateway for token approval
 contract MockGateway {
   // Just needs to exist for approval
-}
+
+  }
 
 /// @notice Mock V3 Factory for testing — returns non-zero tick spacing for known fee tiers
 contract MockV3Factory {
@@ -153,10 +154,12 @@ contract ArbitrumDeployerTest is Test {
     uint256 lowThreshold = 1000e18;
     uint256 highThreshold = 5000e18;
 
-    ArbitrumDeployer lowDeployer =
-      new ArbitrumDeployer(address(resource), l1Resource, lowThreshold, owner, address(mockV3Factory));
-    ArbitrumDeployer highDeployer =
-      new ArbitrumDeployer(address(resource), l1Resource, highThreshold, owner, address(mockV3Factory));
+    ArbitrumDeployer lowDeployer = new ArbitrumDeployer(
+      address(resource), l1Resource, lowThreshold, owner, address(mockV3Factory)
+    );
+    ArbitrumDeployer highDeployer = new ArbitrumDeployer(
+      address(resource), l1Resource, highThreshold, owner, address(mockV3Factory)
+    );
 
     assertEq(lowDeployer.RELEASER().threshold(), lowThreshold);
     assertEq(highDeployer.RELEASER().threshold(), highThreshold);
@@ -166,10 +169,12 @@ contract ArbitrumDeployerTest is Test {
     address owner1 = makeAddr("owner1");
     address owner2 = makeAddr("owner2");
 
-    ArbitrumDeployer deployer1 =
-      new ArbitrumDeployer(address(resource), l1Resource, threshold, owner1, address(mockV3Factory));
-    ArbitrumDeployer deployer2 =
-      new ArbitrumDeployer(address(resource), l1Resource, threshold, owner2, address(mockV3Factory));
+    ArbitrumDeployer deployer1 = new ArbitrumDeployer(
+      address(resource), l1Resource, threshold, owner1, address(mockV3Factory)
+    );
+    ArbitrumDeployer deployer2 = new ArbitrumDeployer(
+      address(resource), l1Resource, threshold, owner2, address(mockV3Factory)
+    );
 
     assertEq(IOwned(address(deployer1.TOKEN_JAR())).owner(), owner1);
     assertEq(IOwned(address(deployer2.TOKEN_JAR())).owner(), owner2);
@@ -181,10 +186,12 @@ contract ArbitrumDeployerTest is Test {
     MockERC20 resource1 = new MockERC20("Resource1", "R1", 18);
     MockERC20 resource2 = new MockERC20("Resource2", "R2", 18);
 
-    ArbitrumDeployer deployer1 =
-      new ArbitrumDeployer(address(resource1), l1Resource, threshold, owner, address(mockV3Factory));
-    ArbitrumDeployer deployer2 =
-      new ArbitrumDeployer(address(resource2), l1Resource, threshold, owner, address(mockV3Factory));
+    ArbitrumDeployer deployer1 = new ArbitrumDeployer(
+      address(resource1), l1Resource, threshold, owner, address(mockV3Factory)
+    );
+    ArbitrumDeployer deployer2 = new ArbitrumDeployer(
+      address(resource2), l1Resource, threshold, owner, address(mockV3Factory)
+    );
 
     assertEq(address(deployer1.RELEASER().RESOURCE()), address(resource1));
     assertEq(address(deployer2.RELEASER().RESOURCE()), address(resource2));
@@ -207,7 +214,9 @@ contract ArbitrumDeployerTest is Test {
 
   function test_revert_deployer_zeroOwner() public {
     vm.expectRevert(ArbitrumDeployer.ZeroAddress.selector);
-    new ArbitrumDeployer(address(resource), l1Resource, threshold, address(0), address(mockV3Factory));
+    new ArbitrumDeployer(
+      address(resource), l1Resource, threshold, address(0), address(mockV3Factory)
+    );
   }
 
   function test_revert_deployer_zeroV3Factory() public {

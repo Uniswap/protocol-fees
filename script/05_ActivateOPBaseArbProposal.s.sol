@@ -48,7 +48,8 @@ struct ProposalAction {
 /// @dev This proposal transfers v3 factory ownership to the pre-deployed V3OpenFeeAdapter
 ///      on each chain:
 ///      - OP Mainnet & Base: L1CrossDomainMessenger → CrossChainAccount → factory.setOwner()
-///      - Arbitrum: Inbox.createRetryableTicket() → factory.setOwner() (aliased Timelock is owner)
+///      - Arbitrum: Inbox.createRetryableTicket() → factory.setOwner() (aliased Timelock is
+/// owner)
 ///
 ///      Prerequisites (must be completed before proposal execution):
 ///      1. V3OpenFeeAdapter must be deployed on all 3 chains
@@ -106,8 +107,7 @@ contract ActivateOPBaseArbProposal is Script {
 
   // ─── Proposal ───
 
-  string internal constant PROPOSAL_DESCRIPTION =
-    "# Activate V3 Protocol Fees on OP Mainnet, Base, and Arbitrum\n\n"
+  string internal constant PROPOSAL_DESCRIPTION = "# Activate V3 Protocol Fees on OP Mainnet, Base, and Arbitrum\n\n"
     "This proposal activates Uniswap V3 protocol fees on OP Mainnet, Base, and Arbitrum by\n"
     "transferring V3 factory ownership on each chain to a pre-deployed V3OpenFeeAdapter.\n\n"
     "## Actions\n\n"
@@ -115,13 +115,10 @@ contract ActivateOPBaseArbProposal is Script {
     "existing CrossChainAccount on L2, which forwards the call to transfer V3 factory ownership.\n\n"
     "**Arbitrum:** Sends a retryable ticket via the Arbitrum Inbox. The L1 Timelock's aliased\n"
     "address is the current factory owner on Arbitrum, so the retryable ticket directly calls\n"
-    "factory.setOwner(adapter).\n\n"
-    "## Fee Configuration\n\n"
+    "factory.setOwner(adapter).\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
-    "Ethereum mainnet:\n"
-    "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
-    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n"
-    "## Post-execution\n\n"
+    "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
+    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
     "- V3 factory ownership is transferred to V3OpenFeeAdapter (all chains)\n"
     "- OP/Base: V3OpenFeeAdapter controlled by CrossChainAccount (via L1 Timelock + XDM)\n"
     "- Arbitrum: V3OpenFeeAdapter controlled by aliased Timelock (via retryable tickets)\n"
