@@ -277,8 +277,6 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     assertEq(_getProtocolFees(pool1), protocolFee10000);
   }
 
-
-
   // ============ Edge Case Tests ============
 
   function test_triggerFeeUpdate_skipsUninitializedPool() public {
