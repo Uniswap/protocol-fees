@@ -41,6 +41,10 @@ interface IUniswapV2Factory {
   function setFeeToSetter(address) external;
 }
 
+interface IOwned {
+  function transferOwnership(address newOwner) external;
+}
+
 interface IV3FeeAdapter {
   function setFactoryOwner(address newOwner) external;
 }
@@ -82,6 +86,7 @@ struct ProposalAction {
 ///      4. Celo governance handoff — Wormhole → CrossChainAccount:
 ///         - WormholeSender → Celo WormholeReceiver → V3Factory.setOwner(CrossChainAccount)
 ///                                                  + V2Factory.setFeeToSetter(CrossChainAccount)
+///                                                  + PoolManager.transferOwnership(CrossChainAccount)
 ///
 ///      Prerequisites (must be completed before proposal execution):
 ///      1. V3OpenFeeAdapter and TokenJar must be deployed on OP, Base, and Arbitrum
@@ -96,6 +101,7 @@ struct ProposalAction {
 ///      - Arbitrum: governance via aliased Timelock (retryable tickets)
 ///      - Celo: V3 factory.owner() = CrossChainAccount (ready for proposal 06)
 ///      - Celo: V2 factory.feeToSetter() = CrossChainAccount (ready for proposal 06)
+///      - Celo: V4 PoolManager.owner() = CrossChainAccount (ready for proposal 06)
 contract ActivateOPBaseArbProposal is Script {
   IGovernorBravo internal constant GOVERNOR_BRAVO =
     IGovernorBravo(0x408ED6354d4973f66138C91495F2f2FCbd8724C3);
@@ -179,6 +185,7 @@ contract ActivateOPBaseArbProposal is Script {
 
   address internal constant CELO_V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
   address internal constant CELO_V2_FACTORY = 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f;
+  address internal constant CELO_V4_POOL_MANAGER = 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC;
 
   /// @dev Set after CrossChainAccount is deployed on Celo (by DeployCelo script)
   address internal constant CELO_CROSS_CHAIN_ACCOUNT = address(0); // TODO: fill after deployment
@@ -200,10 +207,10 @@ contract ActivateOPBaseArbProposal is Script {
     "## V2 Fee Activation (L2)\n\n"
     "Sets V2 factory feeTo to the pre-deployed TokenJar on OP Mainnet, Base, and Arbitrum,\n"
     "enabling V2 protocol fee collection.\n\n" "## Celo Governance Handoff\n\n"
-    "Sends a final Wormhole message to transfer both the Celo V3 factory (setOwner) and V2\n"
-    "factory (setFeeToSetter) from the Wormhole Receiver to the CrossChainAccount deployed via\n"
-    "the OP bridge. This unifies Celo under the same OP Stack governance model used by other\n"
-    "chains.\n\n" "## Fee Configuration\n\n"
+    "Sends a final Wormhole message to transfer the Celo V3 factory (setOwner), V2 factory\n"
+    "(setFeeToSetter), and V4 PoolManager (transferOwnership) from the Wormhole Receiver to the\n"
+    "CrossChainAccount deployed via the OP bridge. This unifies Celo under the same OP Stack\n"
+    "governance model used by other chains.\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
     "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
     "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
@@ -211,7 +218,7 @@ contract ActivateOPBaseArbProposal is Script {
     "- V2 factory.feeTo() = TokenJar (OP, Base, Arbitrum)\n"
     "- OP/Base: governance via CrossChainAccount (L1 Timelock + XDM)\n"
     "- Arbitrum: governance via aliased Timelock (retryable tickets)\n"
-    "- Celo: V3 factory ownership + V2 feeToSetter transferred to CrossChainAccount (fee activation in follow-up)\n"
+    "- Celo: V3 factory, V2 feeToSetter, V4 PoolManager transferred to CrossChainAccount (fee activation in follow-up)\n"
     "- Anyone can trigger fee updates permissionlessly via V3OpenFeeAdapter\n"
     "- Fee parameters can be adjusted by governance\n";
 
@@ -367,13 +374,13 @@ contract ActivateOPBaseArbProposal is Script {
 
     // ═══ Celo Governance Handoff ═══
 
-    // Action 7: Celo — Wormhole handoff: transfer V3 + V2 factories from Wormhole Receiver →
+    // Action 7: Celo — Wormhole handoff: transfer V3 + V2 + V4 from Wormhole Receiver →
     // CrossChainAccount L1 Timelock → WormholeSender → Wormhole → WormholeReceiver →
-    // V3Factory.setOwner() + V2Factory.setFeeToSetter()
+    // V3Factory.setOwner() + V2Factory.setFeeToSetter() + PoolManager.transferOwnership()
     {
-      address[] memory targets = new address[](2);
-      uint256[] memory values = new uint256[](2);
-      bytes[] memory datas = new bytes[](2);
+      address[] memory targets = new address[](3);
+      uint256[] memory values = new uint256[](3);
+      bytes[] memory datas = new bytes[](3);
 
       targets[0] = CELO_V3_FACTORY;
       values[0] = 0;
@@ -382,6 +389,10 @@ contract ActivateOPBaseArbProposal is Script {
       targets[1] = CELO_V2_FACTORY;
       values[1] = 0;
       datas[1] = abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (CELO_CROSS_CHAIN_ACCOUNT));
+
+      targets[2] = CELO_V4_POOL_MANAGER;
+      values[2] = 0;
+      datas[2] = abi.encodeCall(IOwned.transferOwnership, (CELO_CROSS_CHAIN_ACCOUNT));
 
       actions[7] = ProposalAction({
         target: address(WORMHOLE_SENDER),
