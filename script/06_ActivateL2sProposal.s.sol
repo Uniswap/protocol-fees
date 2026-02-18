@@ -97,7 +97,7 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on XLayer
   address internal constant XLAYER_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Celo (owner = CrossChainAccount after proposal 05 Wormhole handoff -> XDM) ───
+  // ─── Celo (owner = CrossChainAccount after Wormhole handoff -> XDM) ───
 
   IL1CrossDomainMessenger internal constant CELO_L1_MESSENGER =
     IL1CrossDomainMessenger(0x1AC1181fc4e4F877963680587AEAa2C90D7EbB95);
