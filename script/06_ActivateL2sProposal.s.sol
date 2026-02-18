@@ -239,7 +239,7 @@ contract ActivateL2sProposal is Script {
 
       actions[2] = ProposalAction({
         target: address(WORMHOLE_SENDER),
-        value: 0, // Wormhole fee is currently 0
+        value: 0, // TODO: verify wormhole fee
         signature: "",
         data: abi.encodeCall(
           IWormholeSender.sendMessage,
