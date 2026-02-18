@@ -245,7 +245,6 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
 
   /// @notice Sets the protocol fee for a specific pool using waterfall resolution
   /// @dev Only sets the fee for initialized pools (sqrtPriceX96 != 0).
-  ///      Includes idempotency check to skip if fees already match.
   ///      Resolution order: pool override → fee tier default → global default
   /// @param pool The address of the Uniswap V3 pool
   function _setProtocolFee(address pool) internal {
@@ -256,14 +255,11 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     }
     if (size == 0) return;
 
-    // Check if pool is initialized and get current fee protocol
-    (uint160 sqrtPriceX96,,,,, uint8 currentFeeProtocol,) = IUniswapV3Pool(pool).slot0();
+    // Check if pool is initialized
+    (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
     uint8 feeValue = getFee(pool);
-
-    // Idempotency check: Skip if already set (prevents griefing)
-    if (currentFeeProtocol == feeValue) return;
 
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
 

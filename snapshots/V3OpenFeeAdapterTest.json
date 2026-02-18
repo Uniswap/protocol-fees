@@ -1,7 +1,5 @@
 {
-  "V3OpenFeeAdapter_batchUpdate_10pools": "121578",
-  "V3OpenFeeAdapter_triggerFeeUpdate_cold": "21209",
-  "V3OpenFeeAdapter_triggerFeeUpdate_warm": "9909",
-  "triggerFeeUpdate_first": "21209",
-  "triggerFeeUpdate_idempotent": "3418"
+  "V3OpenFeeAdapter_batchUpdate_10pools": "121158",
+  "V3OpenFeeAdapter_triggerFeeUpdate_cold": "21167",
+  "V3OpenFeeAdapter_triggerFeeUpdate_warm": "9867"
 }
