@@ -85,9 +85,8 @@ struct ProposalAction {
 ///
 ///      4. Celo governance handoff — Wormhole → CrossChainAccount:
 ///         - WormholeSender → Celo WormholeReceiver → V3Factory.setOwner(CrossChainAccount)
-///                                                  + V2Factory.setFeeToSetter(CrossChainAccount)
-///                                                  + PoolManager.transferOwnership(CrossChainAccount)
-///
+///             + V2Factory.setFeeToSetter(CrossChainAccount)
+///             + PoolManager.transferOwnership(CrossChainAccount)
 ///      Prerequisites (must be completed before proposal execution):
 ///      1. V3OpenFeeAdapter and TokenJar must be deployed on OP, Base, and Arbitrum
 ///      2. V3OpenMainnetDeployer must be deployed on Ethereum mainnet
