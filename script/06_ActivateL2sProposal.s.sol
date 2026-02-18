@@ -23,6 +23,10 @@ interface ICrossChainAccount {
   function forward(address target, bytes memory data) external;
 }
 
+interface IUniswapV2Factory {
+  function setFeeTo(address) external;
+}
+
 interface IGovernorBravo {
   function propose(
     address[] memory targets,
@@ -49,11 +53,13 @@ struct ProposalAction {
 ///      Transfers V3 factory ownership on Soneium and XLayer from the aliased Timelock
 ///      to V3OpenFeeAdapter via OptimismPortal.depositTransaction().
 ///
-///      Phase 2 — Activate fees:
+///      Phase 2 — Activate fees via XDM:
 ///      Transfers V3 factory ownership on Celo, Worldchain, and Zora from their existing
 ///      CrossChainAccount to V3OpenFeeAdapter via L1CrossDomainMessenger -> XDM.
 ///      (Celo's CrossChainAccount received ownership from the Wormhole Receiver in the
 ///      previous proposal.)
+///      Also sets Celo V2 factory feeTo to TokenJar via the same XDM path.
+///      (Celo's CrossChainAccount became the V2 feeToSetter in the previous proposal.)
 ///
 ///      All actions must be ordered correctly: Phase 1 deposit transactions are processed
 ///      in the same L2 block, so ordering within the proposal matters.
@@ -106,9 +112,13 @@ contract ActivateL2sProposal is Script {
   address internal constant CELO_CROSS_CHAIN_ACCOUNT = address(0); // TODO: fill after deployment
 
   address internal constant CELO_V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
+  address internal constant CELO_V2_FACTORY = 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f;
 
   /// @dev Set after V3OpenFeeAdapter is deployed on Celo
   address internal constant CELO_FEE_ADAPTER = address(0); // TODO: fill after deployment
+
+  /// @dev Set after TokenJar is deployed on Celo
+  address internal constant CELO_TOKEN_JAR = address(0); // TODO: fill after deployment
 
   // ─── Worldchain (owner = CrossChainAccount -> XDM) ───
 
@@ -148,7 +158,9 @@ contract ActivateL2sProposal is Script {
     "For **Celo**, **Worldchain**, and **Zora**, the V3 factory is owned by a CrossChainAccount.\n"
     "(Celo's CrossChainAccount received ownership from the Wormhole Receiver in proposal 05.)\n"
     "This proposal sends L1CrossDomainMessenger messages to transfer ownership to the\n"
-    "V3OpenFeeAdapter.\n\n" "## Fee Configuration\n\n"
+    "V3OpenFeeAdapter.\n\n"
+    "Additionally, Celo V2 factory `feeTo` is set to the pre-deployed TokenJar via XDM.\n"
+    "(The CrossChainAccount became the V2 `feeToSetter` in proposal 05.)\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
     "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
     "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
@@ -166,10 +178,11 @@ contract ActivateL2sProposal is Script {
     require(XLAYER_FEE_ADAPTER != address(0), "XLayer fee adapter address not set");
     require(CELO_CROSS_CHAIN_ACCOUNT != address(0), "Celo CrossChainAccount address not set");
     require(CELO_FEE_ADAPTER != address(0), "Celo fee adapter address not set");
+    require(CELO_TOKEN_JAR != address(0), "Celo TokenJar address not set");
     require(WORLDCHAIN_FEE_ADAPTER != address(0), "Worldchain fee adapter address not set");
     require(ZORA_FEE_ADAPTER != address(0), "Zora fee adapter address not set");
 
-    actions = new ProposalAction[](5);
+    actions = new ProposalAction[](6);
 
     // ═══ Phase 1: Unify ownership ═══
 
@@ -231,11 +244,31 @@ contract ActivateL2sProposal is Script {
       )
     });
 
+    // Action 3: Celo — set V2 factory feeTo to TokenJar
+    // L1 Timelock -> L1CrossDomainMessenger(Celo) -> CrossChainAccount.forward(V2Factory, setFeeTo)
+    // NOTE: CrossChainAccount became feeToSetter via Wormhole handoff in proposal 05
+    actions[3] = ProposalAction({
+      target: address(CELO_L1_MESSENGER),
+      value: 0,
+      signature: "",
+      data: abi.encodeCall(
+        IL1CrossDomainMessenger.sendMessage,
+        (
+          CELO_CROSS_CHAIN_ACCOUNT,
+          abi.encodeCall(
+            ICrossChainAccount.forward,
+            (CELO_V2_FACTORY, abi.encodeCall(IUniswapV2Factory.setFeeTo, (CELO_TOKEN_JAR)))
+          ),
+          XDM_GAS_LIMIT
+        )
+      )
+    });
+
     // ═══ Phase 2: Activate via XDM ═══
 
-    // Action 3: Worldchain — XDM to transfer factory to fee adapter
+    // Action 4: Worldchain — XDM to transfer factory to fee adapter
     // L1 Timelock -> L1CrossDomainMessenger -> CrossChainAccount.forward(factory, setOwner)
-    actions[3] = ProposalAction({
+    actions[4] = ProposalAction({
       target: address(WORLDCHAIN_L1_MESSENGER),
       value: 0,
       signature: "",
@@ -255,9 +288,9 @@ contract ActivateL2sProposal is Script {
       )
     });
 
-    // Action 4: Zora — XDM to transfer factory to fee adapter
+    // Action 5: Zora — XDM to transfer factory to fee adapter
     // L1 Timelock -> L1CrossDomainMessenger -> CrossChainAccount.forward(factory, setOwner)
-    actions[4] = ProposalAction({
+    actions[5] = ProposalAction({
       target: address(ZORA_L1_MESSENGER),
       value: 0,
       signature: "",
