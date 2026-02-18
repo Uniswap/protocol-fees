@@ -23,16 +23,6 @@ interface ICrossChainAccount {
   function forward(address target, bytes memory data) external;
 }
 
-interface IWormholeSender {
-  function sendMessage(
-    address[] memory targets,
-    uint256[] memory values,
-    bytes[] memory datas,
-    address wormhole,
-    uint16 chainId
-  ) external;
-}
-
 interface IGovernorBravo {
   function propose(
     address[] memory targets,
@@ -58,12 +48,12 @@ struct ProposalAction {
 ///      Phase 1 — Unify ownership model:
 ///      Transfers V3 factory ownership on Soneium and XLayer from the aliased Timelock
 ///      to V3OpenFeeAdapter via OptimismPortal.depositTransaction().
-///      Transfers V3 factory ownership on Celo from the Wormhole Receiver
-///      to V3OpenFeeAdapter via the Uniswap Wormhole Message Sender.
 ///
 ///      Phase 2 — Activate fees:
-///      Transfers V3 factory ownership on Worldchain and Zora from their existing
+///      Transfers V3 factory ownership on Celo, Worldchain, and Zora from their existing
 ///      CrossChainAccount to V3OpenFeeAdapter via L1CrossDomainMessenger -> XDM.
+///      (Celo's CrossChainAccount received ownership from the Wormhole Receiver in the 
+///      previous proposal.)
 ///
 ///      All actions must be ordered correctly: Phase 1 deposit transactions are processed
 ///      in the same L2 block, so ordering within the proposal matters.
@@ -73,6 +63,7 @@ struct ProposalAction {
 ///      2. CrossChainAccount must exist on all 5 chains (deployed by the deploy script)
 ///      3. V3OpenFeeAdapter owner and feeSetter must be set to the respective CrossChainAccount
 ///      4. Fee tier defaults must be configured on V3OpenFeeAdapter
+///      5. Previous proposal must have executed (Celo factory ownership transferred to CrossChainAccount)
 ///
 ///      Post-execution state on each chain:
 ///      - factory.owner() = V3OpenFeeAdapter
@@ -85,18 +76,6 @@ contract ActivateL2sProposal is Script {
   // Gas limits
   uint32 internal constant XDM_GAS_LIMIT = 200_000;
   uint64 internal constant DEPOSIT_GAS_LIMIT = 200_000;
-
-  // ─── Wormhole ───
-
-  /// @dev Uniswap Wormhole Message Sender on L1 (owned by L1 Timelock)
-  IWormholeSender internal constant WORMHOLE_SENDER =
-    IWormholeSender(0xf5F4496219F31CDCBa6130B5402873624585615a);
-
-  /// @dev Wormhole Core Bridge on Ethereum mainnet
-  address internal constant WORMHOLE_BRIDGE = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
-
-  /// @dev Wormhole chain ID for Celo
-  uint16 internal constant WORMHOLE_CELO_CHAIN_ID = 14;
 
   // ─── Soneium (owner = aliased Timelock -> depositTransaction) ───
 
@@ -118,7 +97,13 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on XLayer
   address internal constant XLAYER_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Celo (owner = Wormhole Receiver -> Wormhole message) ───
+  // ─── Celo (owner = CrossChainAccount after proposal 05 Wormhole handoff -> XDM) ───
+
+  IL1CrossDomainMessenger internal constant CELO_L1_MESSENGER =
+    IL1CrossDomainMessenger(0x1AC1181fc4e4F877963680587AEAa2C90D7EbB95);
+
+  /// @dev Set after CrossChainAccount is deployed on Celo (by DeployCelo script)
+  address internal constant CELO_CROSS_CHAIN_ACCOUNT = address(0); // TODO: fill after deployment
 
   address internal constant CELO_V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
 
@@ -159,10 +144,9 @@ contract ActivateL2sProposal is Script {
     "For **Soneium** and **X Layer**, the V3 factory is currently owned by the aliased L1\n"
     "Timelock (via depositTransaction). This proposal transfers ownership directly to the\n"
     "V3OpenFeeAdapter via OptimismPortal.depositTransaction().\n\n"
-    "For **Celo**, the V3 factory is owned by a Uniswap Wormhole Message Receiver (pre-OP\n"
-    "Stack governance). This proposal sends a final Wormhole message to transfer ownership\n"
-    "to the V3OpenFeeAdapter.\n\n" "## Phase 2: Activate via XDM\n\n"
-    "For **Worldchain** and **Zora**, the V3 factory is already owned by a CrossChainAccount.\n"
+    "## Phase 2: Activate via XDM\n\n"
+    "For **Celo**, **Worldchain**, and **Zora**, the V3 factory is owned by a CrossChainAccount.\n"
+    "(Celo's CrossChainAccount received ownership from the Wormhole Receiver in proposal 05.)\n"
     "This proposal sends L1CrossDomainMessenger messages to transfer ownership to the\n"
     "V3OpenFeeAdapter.\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
@@ -180,6 +164,7 @@ contract ActivateL2sProposal is Script {
   function _buildActions() internal pure returns (ProposalAction[] memory actions) {
     require(SONEIUM_FEE_ADAPTER != address(0), "Soneium fee adapter address not set");
     require(XLAYER_FEE_ADAPTER != address(0), "XLayer fee adapter address not set");
+    require(CELO_CROSS_CHAIN_ACCOUNT != address(0), "Celo CrossChainAccount address not set");
     require(CELO_FEE_ADAPTER != address(0), "Celo fee adapter address not set");
     require(WORLDCHAIN_FEE_ADAPTER != address(0), "Worldchain fee adapter address not set");
     require(ZORA_FEE_ADAPTER != address(0), "Zora fee adapter address not set");
@@ -226,27 +211,25 @@ contract ActivateL2sProposal is Script {
       )
     });
 
-    // Action 2: Celo — Wormhole message to transfer factory to fee adapter
-    // L1 Timelock -> WormholeSender -> Wormhole -> Celo WormholeReceiver -> factory.setOwner()
-    {
-      address[] memory targets = new address[](1);
-      uint256[] memory values = new uint256[](1);
-      bytes[] memory datas = new bytes[](1);
-
-      targets[0] = CELO_V3_FACTORY;
-      values[0] = 0;
-      datas[0] = abi.encodeCall(IUniswapV3Factory.setOwner, (CELO_FEE_ADAPTER));
-
-      actions[2] = ProposalAction({
-        target: address(WORMHOLE_SENDER),
-        value: 0, // TODO: verify wormhole fee
-        signature: "",
-        data: abi.encodeCall(
-          IWormholeSender.sendMessage,
-          (targets, values, datas, WORMHOLE_BRIDGE, WORMHOLE_CELO_CHAIN_ID)
+    // Action 2: Celo — XDM to transfer factory to fee adapter
+    // L1 Timelock -> L1CrossDomainMessenger(Celo) -> CrossChainAccount.forward(factory, setOwner)
+    // NOTE: CrossChainAccount received factory ownership from Wormhole Receiver in proposal 05
+    actions[2] = ProposalAction({
+      target: address(CELO_L1_MESSENGER),
+      value: 0,
+      signature: "",
+      data: abi.encodeCall(
+        IL1CrossDomainMessenger.sendMessage,
+        (
+          CELO_CROSS_CHAIN_ACCOUNT,
+          abi.encodeCall(
+            ICrossChainAccount.forward,
+            (CELO_V3_FACTORY, abi.encodeCall(IUniswapV3Factory.setOwner, (CELO_FEE_ADAPTER)))
+          ),
+          XDM_GAS_LIMIT
         )
-      });
-    }
+      )
+    });
 
     // ═══ Phase 2: Activate via XDM ═══
 
