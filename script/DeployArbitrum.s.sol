@@ -6,6 +6,7 @@ import {Script} from "forge-std/Script.sol";
 import {ArbitrumDeployer} from "./deployers/ArbitrumDeployer.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
+import {IV3OpenFeeAdapter} from "../src/interfaces/IV3OpenFeeAdapter.sol";
 
 /// @title DeployArbitrum
 /// @notice Deployment script for Arbitrum One (Chain ID: 42161)
@@ -32,6 +33,10 @@ contract DeployArbitrum is Script {
   // Result: 0x2BAD8182C09F50c8318d769245beA52C32Be46CD
   address public constant OWNER = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
 
+  // Uniswap V3 Factory on Arbitrum One
+  // https://arbiscan.io/address/0x1F98431c8aD98523631AE4a59f267346ea31F984
+  address public constant V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+
   function setUp() public {}
 
   function run() public {
@@ -40,12 +45,13 @@ contract DeployArbitrum is Script {
     vm.startBroadcast();
 
     ArbitrumDeployer deployer =
-      new ArbitrumDeployer{salt: bytes32(uint256(1))}(RESOURCE, L1_RESOURCE, THRESHOLD, OWNER);
+      new ArbitrumDeployer{salt: bytes32(uint256(1))}(RESOURCE, L1_RESOURCE, THRESHOLD, OWNER, V3_FACTORY);
 
     console2.log("=== Arbitrum One Deployment ===");
     console2.log("Deployer:", address(deployer));
     console2.log("TOKEN_JAR:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER:", address(deployer.RELEASER()));
+    console2.log("V3OpenFeeAdapter:", address(deployer.V3_OPEN_FEE_ADAPTER()));
 
     vm.stopBroadcast();
 
@@ -54,5 +60,7 @@ contract DeployArbitrum is Script {
     assert(IOwned(address(deployer.TOKEN_JAR())).owner() == OWNER);
     assert(IResourceManager(address(deployer.RELEASER())).thresholdSetter() == OWNER);
     assert(IOwned(address(deployer.RELEASER())).owner() == OWNER);
+    assert(IOwned(address(deployer.V3_OPEN_FEE_ADAPTER())).owner() == OWNER);
+    assert(deployer.V3_OPEN_FEE_ADAPTER().feeSetter() == OWNER);
   }
 }
