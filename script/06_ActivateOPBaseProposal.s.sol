@@ -52,7 +52,7 @@ contract ActivateOPBaseProposal is Script {
   // Gas limit for L2 execution of CrossChainAccount.forward(factory, setOwner(adapter))
   uint32 internal constant XDM_GAS_LIMIT = 200_000;
 
-  // ─── OP Mainnet ───────────────────────────────────────────────────────────────
+  // ─── OP Mainnet ───
 
   IL1CrossDomainMessenger internal constant OP_L1_MESSENGER =
     IL1CrossDomainMessenger(0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1);
@@ -63,7 +63,7 @@ contract ActivateOPBaseProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on OP Mainnet
   address internal constant OP_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Base ─────────────────────────────────────────────────────────────────────
+  // ─── Base ────
 
   IL1CrossDomainMessenger internal constant BASE_L1_MESSENGER =
     IL1CrossDomainMessenger(0x866E82a600A1414e583f7F13623F1aC5d58b0Afa);
@@ -74,22 +74,18 @@ contract ActivateOPBaseProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on Base
   address internal constant BASE_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Proposal ─────────────────────────────────────────────────────────────────
+  // ─── Proposal ───
 
-  string internal constant PROPOSAL_DESCRIPTION =
-    "# Activate V3 Protocol Fees on OP Mainnet and Base\n\n"
+  string internal constant PROPOSAL_DESCRIPTION = "# Activate V3 Protocol Fees on OP Mainnet and Base\n\n"
     "This proposal activates Uniswap V3 protocol fees on OP Mainnet and Base by transferring\n"
     "the V3 factory ownership on each chain to a pre-deployed V3OpenFeeAdapter contract.\n\n"
     "## Actions\n\n"
     "For each chain (OP Mainnet and Base), this proposal sends a cross-domain message via the\n"
     "L1CrossDomainMessenger to the existing CrossChainAccount on L2, which forwards the call\n"
-    "to transfer V3 factory ownership to the V3OpenFeeAdapter.\n\n"
-    "## Fee Configuration\n\n"
+    "to transfer V3 factory ownership to the V3OpenFeeAdapter.\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
-    "Ethereum mainnet:\n"
-    "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
-    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n"
-    "## Post-execution\n\n"
+    "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
+    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
     "- V3 factory ownership is transferred to V3OpenFeeAdapter\n"
     "- V3OpenFeeAdapter is controlled by CrossChainAccount (via L1 Timelock + XDM)\n"
     "- Anyone can trigger fee updates permissionlessly via V3OpenFeeAdapter\n"
@@ -105,7 +101,8 @@ contract ActivateOPBaseProposal is Script {
     actions = new ProposalAction[](2);
 
     // Action 0: Transfer OP Mainnet V3 factory ownership to V3OpenFeeAdapter
-    // L1 Timelock → L1CrossDomainMessenger(OP) → CrossChainAccount.forward(factory, setOwner(adapter))
+    // L1 Timelock → L1CrossDomainMessenger(OP) → CrossChainAccount.forward(factory,
+    // setOwner(adapter))
     actions[0] = ProposalAction({
       target: address(OP_L1_MESSENGER),
       value: 0,
@@ -124,7 +121,8 @@ contract ActivateOPBaseProposal is Script {
     });
 
     // Action 1: Transfer Base V3 factory ownership to V3OpenFeeAdapter
-    // L1 Timelock → L1CrossDomainMessenger(Base) → CrossChainAccount.forward(factory, setOwner(adapter))
+    // L1 Timelock → L1CrossDomainMessenger(Base) → CrossChainAccount.forward(factory,
+    // setOwner(adapter))
     actions[1] = ProposalAction({
       target: address(BASE_L1_MESSENGER),
       value: 0,

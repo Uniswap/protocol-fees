@@ -86,7 +86,7 @@ contract ActivateL2sProposal is Script {
   uint32 internal constant XDM_GAS_LIMIT = 200_000;
   uint64 internal constant DEPOSIT_GAS_LIMIT = 200_000;
 
-  // ─── Wormhole ─────────────────────────────────────────────────────────────────
+  // ─── Wormhole ───
 
   /// @dev Uniswap Wormhole Message Sender on L1 (owned by L1 Timelock)
   IWormholeSender internal constant WORMHOLE_SENDER =
@@ -98,7 +98,7 @@ contract ActivateL2sProposal is Script {
   /// @dev Wormhole chain ID for Celo
   uint16 internal constant WORMHOLE_CELO_CHAIN_ID = 14;
 
-  // ─── Soneium (factory owner = aliased Timelock -> depositTransaction) ──────────
+  // ─── Soneium (owner = aliased Timelock -> depositTransaction) ───
 
   IOptimismPortal internal constant SONEIUM_PORTAL =
     IOptimismPortal(0x88e529A6ccd302c948689Cd5156C83D4614FAE92);
@@ -108,7 +108,7 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on Soneium
   address internal constant SONEIUM_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── XLayer (factory owner = aliased Timelock -> depositTransaction) ───────────
+  // ─── XLayer (owner = aliased Timelock -> depositTransaction) ───
 
   IOptimismPortal internal constant XLAYER_PORTAL =
     IOptimismPortal(0x64057ad1DdAc804d0D26A7275b193D9DACa19993);
@@ -118,14 +118,14 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on XLayer
   address internal constant XLAYER_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Celo (factory owner = Wormhole Receiver -> Wormhole message) ──────────────
+  // ─── Celo (owner = Wormhole Receiver -> Wormhole message) ───
 
   address internal constant CELO_V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
 
   /// @dev Set after V3OpenFeeAdapter is deployed on Celo
   address internal constant CELO_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Worldchain (factory owner = CrossChainAccount -> XDM) ─────────────────────
+  // ─── Worldchain (owner = CrossChainAccount -> XDM) ───
 
   IL1CrossDomainMessenger internal constant WORLDCHAIN_L1_MESSENGER =
     IL1CrossDomainMessenger(0xf931a81D18B1766d15695ffc7c1920a62b7e710a);
@@ -138,7 +138,7 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on Worldchain
   address internal constant WORLDCHAIN_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Zora (factory owner = CrossChainAccount -> XDM) ───────────────────────────
+  // ─── Zora (owner = CrossChainAccount -> XDM) ───
 
   IL1CrossDomainMessenger internal constant ZORA_L1_MESSENGER =
     IL1CrossDomainMessenger(0xdC40a14d9abd6F410226f1E6de71aE03441ca506);
@@ -150,10 +150,9 @@ contract ActivateL2sProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on Zora
   address internal constant ZORA_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
-  // ─── Proposal ─────────────────────────────────────────────────────────────────
+  // ─── Proposal ───
 
-  string internal constant PROPOSAL_DESCRIPTION =
-    "# Activate V3 Protocol Fees on Celo, Soneium, Worldchain, X Layer, and Zora\n\n"
+  string internal constant PROPOSAL_DESCRIPTION = "# Activate V3 Protocol Fees on Celo, Soneium, Worldchain, X Layer, and Zora\n\n"
     "This proposal activates Uniswap V3 protocol fees on five L2 chains by transferring\n"
     "V3 factory ownership to pre-deployed V3OpenFeeAdapter contracts.\n\n"
     "## Phase 1: Unify Ownership Model\n\n"
@@ -162,17 +161,13 @@ contract ActivateL2sProposal is Script {
     "V3OpenFeeAdapter via OptimismPortal.depositTransaction().\n\n"
     "For **Celo**, the V3 factory is owned by a Uniswap Wormhole Message Receiver (pre-OP\n"
     "Stack governance). This proposal sends a final Wormhole message to transfer ownership\n"
-    "to the V3OpenFeeAdapter.\n\n"
-    "## Phase 2: Activate via XDM\n\n"
+    "to the V3OpenFeeAdapter.\n\n" "## Phase 2: Activate via XDM\n\n"
     "For **Worldchain** and **Zora**, the V3 factory is already owned by a CrossChainAccount.\n"
     "This proposal sends L1CrossDomainMessenger messages to transfer ownership to the\n"
-    "V3OpenFeeAdapter.\n\n"
-    "## Fee Configuration\n\n"
+    "V3OpenFeeAdapter.\n\n" "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
-    "Ethereum mainnet:\n"
-    "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
-    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n"
-    "## Post-execution\n\n"
+    "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
+    "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
     "After this proposal, all chains will have a unified ownership model:\n"
     "- V3 factory -> owned by V3OpenFeeAdapter\n"
     "- V3OpenFeeAdapter -> owned by CrossChainAccount\n"
@@ -191,7 +186,7 @@ contract ActivateL2sProposal is Script {
 
     actions = new ProposalAction[](5);
 
-    // ═══ Phase 1: Unify ownership ═══════════════════════════════════════════════
+    // ═══ Phase 1: Unify ownership ═══
 
     // Action 0: Soneium — depositTransaction to transfer factory to fee adapter
     // L1 Timelock -> OptimismPortal(Soneium) -> factory.setOwner(feeAdapter)
@@ -253,7 +248,7 @@ contract ActivateL2sProposal is Script {
       });
     }
 
-    // ═══ Phase 2: Activate via XDM ══════════════════════════════════════════════
+    // ═══ Phase 2: Activate via XDM ═══
 
     // Action 3: Worldchain — XDM to transfer factory to fee adapter
     // L1 Timelock -> L1CrossDomainMessenger -> CrossChainAccount.forward(factory, setOwner)
