@@ -102,7 +102,8 @@ contract OPStackDeployerTest is Test {
 
   function test_deployer_deterministicAddresses() public {
     // Deploy another deployer with same parameters
-    OPStackDeployer deployer2 = new OPStackDeployer(address(resource), threshold, owner, address(mockV3Factory));
+    OPStackDeployer deployer2 =
+      new OPStackDeployer(address(resource), threshold, owner, address(mockV3Factory));
 
     // TokenJar and Releaser should have different addresses (different deployer address)
     // But if we deploy from the same address with same salt, we'd get same addresses
@@ -115,8 +116,10 @@ contract OPStackDeployerTest is Test {
     uint256 lowThreshold = 1000e18;
     uint256 highThreshold = 5000e18;
 
-    OPStackDeployer lowDeployer = new OPStackDeployer(address(resource), lowThreshold, owner, address(mockV3Factory));
-    OPStackDeployer highDeployer = new OPStackDeployer(address(resource), highThreshold, owner, address(mockV3Factory));
+    OPStackDeployer lowDeployer =
+      new OPStackDeployer(address(resource), lowThreshold, owner, address(mockV3Factory));
+    OPStackDeployer highDeployer =
+      new OPStackDeployer(address(resource), highThreshold, owner, address(mockV3Factory));
 
     assertEq(lowDeployer.RELEASER().threshold(), lowThreshold);
     assertEq(highDeployer.RELEASER().threshold(), highThreshold);
@@ -126,8 +129,10 @@ contract OPStackDeployerTest is Test {
     address owner1 = makeAddr("owner1");
     address owner2 = makeAddr("owner2");
 
-    OPStackDeployer deployer1 = new OPStackDeployer(address(resource), threshold, owner1, address(mockV3Factory));
-    OPStackDeployer deployer2 = new OPStackDeployer(address(resource), threshold, owner2, address(mockV3Factory));
+    OPStackDeployer deployer1 =
+      new OPStackDeployer(address(resource), threshold, owner1, address(mockV3Factory));
+    OPStackDeployer deployer2 =
+      new OPStackDeployer(address(resource), threshold, owner2, address(mockV3Factory));
 
     assertEq(IOwned(address(deployer1.TOKEN_JAR())).owner(), owner1);
     assertEq(IOwned(address(deployer2.TOKEN_JAR())).owner(), owner2);
@@ -139,8 +144,10 @@ contract OPStackDeployerTest is Test {
     MockERC20 resource1 = new MockERC20("Resource1", "R1", 18);
     MockERC20 resource2 = new MockERC20("Resource2", "R2", 18);
 
-    OPStackDeployer deployer1 = new OPStackDeployer(address(resource1), threshold, owner, address(mockV3Factory));
-    OPStackDeployer deployer2 = new OPStackDeployer(address(resource2), threshold, owner, address(mockV3Factory));
+    OPStackDeployer deployer1 =
+      new OPStackDeployer(address(resource1), threshold, owner, address(mockV3Factory));
+    OPStackDeployer deployer2 =
+      new OPStackDeployer(address(resource2), threshold, owner, address(mockV3Factory));
 
     assertEq(address(deployer1.RELEASER().RESOURCE()), address(resource1));
     assertEq(address(deployer2.RELEASER().RESOURCE()), address(resource2));
