@@ -26,6 +26,16 @@ interface ICrossChainAccount {
   function forward(address target, bytes memory data) external;
 }
 
+interface IWormholeSender {
+  function sendMessage(
+    address[] memory targets,
+    uint256[] memory values,
+    bytes[] memory datas,
+    address wormhole,
+    uint16 chainId
+  ) external;
+}
+
 interface IGovernorBravo {
   function propose(
     address[] memory targets,
@@ -44,22 +54,29 @@ struct ProposalAction {
 }
 
 /// @title ActivateOPBaseArbProposal
-/// @notice Governance proposal to activate V3 protocol fees on OP Mainnet, Base, and Arbitrum
+/// @notice Governance proposal to activate V3 protocol fees on OP Mainnet, Base, and Arbitrum,
+///         and transfer Celo V3 factory ownership from Wormhole to OP bridge governance
 /// @dev This proposal transfers v3 factory ownership to the pre-deployed V3OpenFeeAdapter
 ///      on each chain:
 ///      - OP Mainnet & Base: L1CrossDomainMessenger → CrossChainAccount → factory.setOwner()
 ///      - Arbitrum: Inbox.createRetryableTicket() → factory.setOwner() (aliased Timelock is
 /// owner)
 ///
+///      Additionally, it transfers Celo V3 factory ownership from the Wormhole Receiver
+///      to a CrossChainAccount via a final Wormhole message. This handoff must complete before
+///      proposal 06 can activate fees on Celo via the OP bridge XDM path.
+///
 ///      Prerequisites (must be completed before proposal execution):
-///      1. V3OpenFeeAdapter must be deployed on all 3 chains
+///      1. V3OpenFeeAdapter must be deployed on OP, Base, and Arbitrum
 ///      2. V3OpenFeeAdapter owner and feeSetter must be set to the respective governance controller
 ///      3. Fee tier defaults must be configured on V3OpenFeeAdapter
+///      4. CrossChainAccount must be deployed on Celo (by the DeployCelo script)
 ///
 ///      Post-execution state:
-///      - factory.owner() = V3OpenFeeAdapter (all chains)
+///      - factory.owner() = V3OpenFeeAdapter (OP, Base, Arbitrum)
 ///      - OP/Base: V3OpenFeeAdapter.owner() = CrossChainAccount (via L1 Timelock + XDM)
 ///      - Arbitrum: V3OpenFeeAdapter.owner() = aliased Timelock (via retryable tickets)
+///      - Celo: factory.owner() = CrossChainAccount (ready for proposal 06)
 contract ActivateOPBaseArbProposal is Script {
   IGovernorBravo internal constant GOVERNOR_BRAVO =
     IGovernorBravo(0x408ED6354d4973f66138C91495F2f2FCbd8724C3);
@@ -105,23 +122,47 @@ contract ActivateOPBaseArbProposal is Script {
   /// @dev Set after V3OpenFeeAdapter is deployed on Arbitrum
   address internal constant ARB_FEE_ADAPTER = address(0); // TODO: fill after deployment
 
+  // ─── Celo (Wormhole handoff: Wormhole Receiver → CrossChainAccount) ───
+
+  /// @dev Uniswap Wormhole Message Sender on L1 (owned by L1 Timelock)
+  IWormholeSender internal constant WORMHOLE_SENDER =
+    IWormholeSender(0xf5F4496219F31CDCBa6130B5402873624585615a);
+
+  /// @dev Wormhole Core Bridge on Ethereum mainnet
+  address internal constant WORMHOLE_BRIDGE = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
+
+  /// @dev Wormhole chain ID for Celo
+  uint16 internal constant WORMHOLE_CELO_CHAIN_ID = 14;
+
+  address internal constant CELO_V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
+
+  /// @dev Set after CrossChainAccount is deployed on Celo (by DeployCelo script)
+  address internal constant CELO_CROSS_CHAIN_ACCOUNT = address(0); // TODO: fill after deployment
+
   // ─── Proposal ───
 
-  string internal constant PROPOSAL_DESCRIPTION = "# Activate V3 Protocol Fees on OP Mainnet, Base, and Arbitrum\n\n"
+  string internal constant PROPOSAL_DESCRIPTION = "# Activate V3 Protocol Fees on OP Mainnet, Base, and Arbitrum + Celo Governance Handoff\n\n"
     "This proposal activates Uniswap V3 protocol fees on OP Mainnet, Base, and Arbitrum by\n"
     "transferring V3 factory ownership on each chain to a pre-deployed V3OpenFeeAdapter.\n\n"
+    "Additionally, it transfers Celo V3 factory ownership from the Wormhole Receiver to a\n"
+    "CrossChainAccount, preparing Celo for fee activation via the OP bridge in a follow-up proposal.\n\n"
     "## Actions\n\n"
     "**OP Mainnet & Base:** Sends cross-domain messages via L1CrossDomainMessenger to the\n"
     "existing CrossChainAccount on L2, which forwards the call to transfer V3 factory ownership.\n\n"
     "**Arbitrum:** Sends a retryable ticket via the Arbitrum Inbox. The L1 Timelock's aliased\n"
     "address is the current factory owner on Arbitrum, so the retryable ticket directly calls\n"
-    "factory.setOwner(adapter).\n\n" "## Fee Configuration\n\n"
+    "factory.setOwner(adapter).\n\n"
+    "**Celo (governance handoff):** Sends a final Wormhole message to transfer the V3 factory\n"
+    "from the Wormhole Receiver to the CrossChainAccount deployed via the OP bridge. This unifies\n"
+    "Celo under the same OP Stack governance model used by other chains.\n\n"
+    "## Fee Configuration\n\n"
     "The V3OpenFeeAdapter on each chain is pre-configured with the same fee tier defaults as\n"
     "Ethereum mainnet:\n" "- 0.01% and 0.05% tiers: protocol fee = 1/4th of LP fees\n"
     "- 0.30% and 1.00% tiers: protocol fee = 1/6th of LP fees\n\n" "## Post-execution\n\n"
-    "- V3 factory ownership is transferred to V3OpenFeeAdapter (all chains)\n"
+    "- V3 factory ownership is transferred to V3OpenFeeAdapter (OP, Base, Arbitrum)\n"
     "- OP/Base: V3OpenFeeAdapter controlled by CrossChainAccount (via L1 Timelock + XDM)\n"
     "- Arbitrum: V3OpenFeeAdapter controlled by aliased Timelock (via retryable tickets)\n"
+    "- Celo: V3 factory ownership transferred to CrossChainAccount (fee activation in follow-up)\n"
     "- Anyone can trigger fee updates permissionlessly via V3OpenFeeAdapter\n"
     "- Fee parameters can be adjusted by governance\n";
 
@@ -132,8 +173,9 @@ contract ActivateOPBaseArbProposal is Script {
     require(OP_FEE_ADAPTER != address(0), "OP fee adapter address not set");
     require(BASE_FEE_ADAPTER != address(0), "Base fee adapter address not set");
     require(ARB_FEE_ADAPTER != address(0), "Arbitrum fee adapter address not set");
+    require(CELO_CROSS_CHAIN_ACCOUNT != address(0), "Celo CrossChainAccount address not set");
 
-    actions = new ProposalAction[](3);
+    actions = new ProposalAction[](4);
 
     // Action 0: Transfer OP Mainnet V3 factory ownership to V3OpenFeeAdapter
     // L1 Timelock → L1CrossDomainMessenger(OP) → CrossChainAccount.forward(factory,
@@ -196,6 +238,28 @@ contract ActivateOPBaseArbProposal is Script {
         )
       )
     });
+
+    // Action 3: Celo — Wormhole handoff: transfer factory from Wormhole Receiver → CrossChainAccount
+    // L1 Timelock → WormholeSender → Wormhole → Celo WormholeReceiver → factory.setOwner()
+    {
+      address[] memory targets = new address[](1);
+      uint256[] memory values = new uint256[](1);
+      bytes[] memory datas = new bytes[](1);
+
+      targets[0] = CELO_V3_FACTORY;
+      values[0] = 0;
+      datas[0] = abi.encodeCall(IUniswapV3Factory.setOwner, (CELO_CROSS_CHAIN_ACCOUNT));
+
+      actions[3] = ProposalAction({
+        target: address(WORMHOLE_SENDER),
+        value: 0, // TODO: verify wormhole fee
+        signature: "",
+        data: abi.encodeCall(
+          IWormholeSender.sendMessage,
+          (targets, values, datas, WORMHOLE_BRIDGE, WORMHOLE_CELO_CHAIN_ID)
+        )
+      });
+    }
   }
 
   /// @notice Submit the proposal to GovernorBravo
@@ -216,7 +280,7 @@ contract ActivateOPBaseArbProposal is Script {
       calldatas[i] = actions[i].data;
     }
 
-    console2.log("=== Proposal: Activate V3 Fees on OP + Base + Arbitrum ===");
+    console2.log("=== Proposal: Activate V3 Fees on OP + Base + Arbitrum + Celo Handoff ===");
     for (uint256 i = 0; i < actions.length; i++) {
       console2.log("Action", i);
       console2.log("  Target:", actions[i].target);
