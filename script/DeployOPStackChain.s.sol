@@ -5,8 +5,6 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 import {OPStackDeployer} from "./deployers/OPStackDeployer.sol";
 import {CrossChainAccount, IMessenger} from "../src/CrossChainAccount.sol";
-import {V3OpenFeeAdapter} from "../src/feeAdapters/V3OpenFeeAdapter.sol";
-import {IV3OpenFeeAdapter} from "../src/interfaces/IV3OpenFeeAdapter.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
 import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 
@@ -25,7 +23,6 @@ interface IOptimismMintableERC20Factory {
 ///      THRESHOLD is shared across all OP Stack deployments.
 ///      If `_resource()` returns address(0), the script first creates a canonical bridged UNI token
 ///      via the OptimismMintableERC20Factory predeploy before proceeding with deployment.
-///      If `_v3Factory()` returns address(0), V3OpenFeeAdapter deployment is skipped.
 ///      Ownership is delegated to a CrossChainAccount contract, which authenticates governance
 ///      messages via the L2CrossDomainMessenger + xDomainMessageSender check. Chains that already
 ///      have a CrossChainAccount (e.g. OP Mainnet, Base) can override `_owner()` to reuse it.
@@ -33,14 +30,6 @@ abstract contract DeployOPStackChain is Script {
   error WrongChain();
   // UNI threshold for release
   uint256 public constant THRESHOLD = 2000e18;
-
-  // Protocol fee defaults — same as mainnet
-  // 0.01% and 0.05% tiers: 1/4th of LP fees
-  uint8 public constant DEFAULT_FEE_100 = 4 << 4 | 4;
-  uint8 public constant DEFAULT_FEE_500 = 4 << 4 | 4;
-  // 0.30% and 1.00% tiers: 1/6th of LP fees
-  uint8 public constant DEFAULT_FEE_3000 = 6 << 4 | 6;
-  uint8 public constant DEFAULT_FEE_10000 = 6 << 4 | 6;
 
   // L1 UNI Timelock (the real L1 address, NOT aliased)
   address public constant L1_TIMELOCK = 0x1a9C8182C09F50C8318d769245beA52c32BE35BC;
@@ -70,11 +59,8 @@ abstract contract DeployOPStackChain is Script {
   function _name() internal pure virtual returns (string memory);
 
   /// @notice The Uniswap V3 Factory address on this chain
-  /// @dev If this returns address(0), V3OpenFeeAdapter deployment is skipped.
-  ///      Concrete scripts override this function to return the V3 Factory address.
-  function _v3Factory() internal pure virtual returns (address) {
-    return address(0);
-  }
+  /// @dev Concrete scripts must override this function to return the V3 Factory address.
+  function _v3Factory() internal pure virtual returns (address);
 
   /// @notice Returns the owner address for the deployed contracts
   /// @dev If this returns address(0), a new CrossChainAccount is deployed via
@@ -118,42 +104,12 @@ abstract contract DeployOPStackChain is Script {
     if (resource == address(0)) resource = _createBridgedUNI();
 
     OPStackDeployer deployer =
-      new OPStackDeployer{salt: bytes32(uint256(1))}(resource, THRESHOLD, owner);
+      new OPStackDeployer{salt: bytes32(uint256(1))}(resource, THRESHOLD, owner, _v3Factory());
 
     console2.log("Deployer:", address(deployer));
     console2.log("TOKEN_JAR:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER:", address(deployer.RELEASER()));
-
-    // Deploy V3OpenFeeAdapter if a v3 factory is specified
-    address v3Factory = _v3Factory();
-    if (v3Factory != address(0)) {
-      V3OpenFeeAdapter feeAdapter = new V3OpenFeeAdapter{salt: bytes32(uint256(2))}(
-        v3Factory, address(deployer.TOKEN_JAR())
-      );
-
-      // Configure fee tiers and defaults (deployer EOA is initial owner)
-      feeAdapter.setFeeSetter(msg.sender);
-      feeAdapter.setFeeTierDefault(100, DEFAULT_FEE_100);
-      feeAdapter.setFeeTierDefault(500, DEFAULT_FEE_500);
-      feeAdapter.setFeeTierDefault(3000, DEFAULT_FEE_3000);
-      feeAdapter.setFeeTierDefault(10_000, DEFAULT_FEE_10000);
-      feeAdapter.storeFeeTier(100);
-      feeAdapter.storeFeeTier(500);
-      feeAdapter.storeFeeTier(3000);
-      feeAdapter.storeFeeTier(10_000);
-
-      // Transfer feeSetter and ownership to CrossChainAccount
-      feeAdapter.setFeeSetter(owner);
-      feeAdapter.transferOwnership(owner);
-
-      console2.log("V3OpenFeeAdapter:", address(feeAdapter));
-
-      // Post-deployment assertions for fee adapter
-      assert(address(feeAdapter.FACTORY()) == v3Factory);
-      assert(feeAdapter.TOKEN_JAR() == address(deployer.TOKEN_JAR()));
-      assert(feeAdapter.feeSetter() == owner);
-      assert(feeAdapter.owner() == owner);
-    }
+    console2.log("V3OpenFeeAdapter:", address(deployer.V3_OPEN_FEE_ADAPTER()));
 
     vm.stopBroadcast();
 
@@ -162,5 +118,7 @@ abstract contract DeployOPStackChain is Script {
     assert(IOwned(address(deployer.TOKEN_JAR())).owner() == owner);
     assert(IResourceManager(address(deployer.RELEASER())).thresholdSetter() == owner);
     assert(IOwned(address(deployer.RELEASER())).owner() == owner);
+    assert(IOwned(address(deployer.V3_OPEN_FEE_ADAPTER())).owner() == owner);
+    assert(deployer.V3_OPEN_FEE_ADAPTER().feeSetter() == owner);
   }
 }
