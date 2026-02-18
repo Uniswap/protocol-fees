@@ -52,7 +52,7 @@ struct ProposalAction {
 ///      Phase 2 — Activate fees:
 ///      Transfers V3 factory ownership on Celo, Worldchain, and Zora from their existing
 ///      CrossChainAccount to V3OpenFeeAdapter via L1CrossDomainMessenger -> XDM.
-///      (Celo's CrossChainAccount received ownership from the Wormhole Receiver in the 
+///      (Celo's CrossChainAccount received ownership from the Wormhole Receiver in the
 ///      previous proposal.)
 ///
 ///      All actions must be ordered correctly: Phase 1 deposit transactions are processed
@@ -63,8 +63,8 @@ struct ProposalAction {
 ///      2. CrossChainAccount must exist on all 5 chains (deployed by the deploy script)
 ///      3. V3OpenFeeAdapter owner and feeSetter must be set to the respective CrossChainAccount
 ///      4. Fee tier defaults must be configured on V3OpenFeeAdapter
-///      5. Previous proposal must have executed (Celo factory ownership transferred to CrossChainAccount)
-///
+///      5. Previous proposal must have executed (Celo factory ownership transferred to
+/// CrossChainAccount)
 ///      Post-execution state on each chain:
 ///      - factory.owner() = V3OpenFeeAdapter
 ///      - V3OpenFeeAdapter.owner() = CrossChainAccount (controlled by L1 Timelock via XDM)
