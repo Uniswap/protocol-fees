@@ -1,0 +1,8 @@
+{
+  "drip_erc20_first": "55104",
+  "drip_erc20_midWindow": "67940",
+  "drip_nativeCurrency_first": "49468",
+  "drip_nativeCurrency_midWindow": "68546",
+  "release_erc20_midWindow": "65921",
+  "release_nativeCurrency_midWindow": "66527"
+}

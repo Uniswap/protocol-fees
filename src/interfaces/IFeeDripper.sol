@@ -9,32 +9,42 @@ interface IFeeDripper {
     address indexed currency, uint48 indexed fullyReleasedBlock, uint160 perBlockRate
   );
   event Released(address indexed currency, uint256 amount);
-  event ReleaseWindowSet(uint16 indexed releaseWindow);
+  event ReleaseSettingsSet(uint16 indexed releaseWindow, uint16 indexed windowResetBps);
 
-  /// @notice Thrown when the supplied release window is zero.
-  error InvalidReleaseWindow();
-  /// @notice Thrown when the drip amount is bigger than uint160.max.
-  error DripAmountTooLarge(uint256 amount, uint256 max);
+  /// @notice Thrown when the owner address provided in the constructor is zero address.
+  error InvalidOwner();
   /// @notice Thrown when the token jar address provided in the constructor is zero address.
   error InvalidTokenJar();
+  /// @notice Thrown when the supplied release window is zero.
+  error InvalidReleaseWindow();
+  /// @notice Thrown when the supplied window reset basis points is greater than 10_000.
+  error InvalidWindowResetBps();
+  /// @notice Thrown when the drip amount is bigger than uint160.max.
+  error DripAmountTooLarge(uint256 amount, uint256 max);
 
-  /// @notice Syncs new deposits and resets the release window. Accrued tokens are released first,
-  ///   then the entire remaining balance (old unreleased + new deposits) is spread over a fresh
-  ///   releaseWindow.
-  /// @dev Known griefing vector: anyone can send a small amount (>= releaseWindow wei) to this
-  ///   contract and call drip() to reset the release window, slowing the flow to TOKEN_JAR. This is
-  ///   accepted because slowing flow in the same direction as FeeDripper's purpose (preventing
-  ///   TokenJar overflow).
+  /// @notice Syncs deposits and updates the active drip schedule for `currency`.
+  /// @dev Releases accrued amount first, then recomputes the stream from the remaining balance
+  ///      (unreleased prior balance + any new deposits).
+  ///      If a drip is active and `newDeposit / previousBalance < windowResetBps / 10_000`,
+  ///      the schedule keeps the existing end block (no full reset). Otherwise it resets to a
+  ///      fresh `releaseWindow`.
+  ///      Callable by anyone.
+  ///      Griefing note: an attacker can still delay flow by adding enough balance to meet the
+  ///      reset threshold and repeatedly calling `drip()`, but cannot steal or redirect funds.
   /// @param currency The currency to drip
   function drip(Currency currency) external;
 
-  /// @notice Releases accrued tokens and updates the latest release block.
-  /// @dev This will not start a drip for any idle tokens in the contract.
+  /// @notice Releases accrued amount for `currency` to `TOKEN_JAR` without starting a new drip.
+  /// @dev Only accrual from the current stream is released.
+  ///      Does not recompute rate or end block, and does not incorporate newly deposited idle
+  ///      balance into the stream (that requires `drip()`).
+  ///      Callable by anyone.
   /// @param currency The currency to release
   function release(Currency currency) external;
 
   /// @notice Sets the release window.
   /// @dev Only callable by the owner.
   /// @param _releaseWindow The new release window
-  function setReleaseWindow(uint16 _releaseWindow) external;
+  /// @param _windowResetBps The new window reset basis points
+  function setReleaseSettings(uint16 _releaseWindow, uint16 _windowResetBps) external;
 }
