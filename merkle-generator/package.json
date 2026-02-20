@@ -1,9 +1,9 @@
 {
-  "name": "@uniswap/merkle-generator",
+  "name": "@uniswap/protocol-fees",
   "type": "module",
   "version": "0.0.0",
   "packageManager": "pnpm@10.17.1",
-  "description": "CLI tool for generating Merkle trees and proofs for Uniswap V3 fee adapter",
+  "description": "CLI tool for Uniswap protocol fee management - Merkle tree generation and fee propagation",
   "author": "Uniswap Labs",
   "license": "MIT",
   "funding": "https://github.com/sponsors/antfu",
@@ -23,7 +23,7 @@
   "module": "./dist/cli.js",
   "types": "./dist/cli.d.ts",
   "bin": {
-    "merkle-generator": "./dist/cli.js"
+    "protocol-fees": "./dist/cli.js"
   },
   "files": [
     "dist"
