@@ -130,13 +130,13 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   /// @inheritdoc IV3OpenFeeAdapter
   function clearFeeTierDefault(uint24 feeTier) external onlyFeeSetter {
     delete feeTierDefaults[feeTier];
-    emit FeeTierDefaultUpdated(feeTier, 0);
+    emit FeeTierDefaultCleared(feeTier);
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
   function clearPoolOverride(address pool) external onlyFeeSetter {
     delete poolOverrides[pool];
-    emit PoolOverrideUpdated(pool, 0);
+    emit PoolOverrideCleared(pool);
   }
 
   /// @notice Legacy function for backwards compatibility
@@ -149,9 +149,16 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   }
 
   /// @notice Legacy getter for backwards compatibility
-  /// @dev Returns the decoded fee value for the tier (0 if not set)
+  /// @dev Applies waterfall resolution: fee tier default → global default.
+  ///      Returns 0 only when neither a tier default nor a global default is configured.
   function defaultFees(uint24 feeTier) external view returns (uint8) {
-    return _decodeFee(feeTierDefaults[feeTier]);
+    uint8 stored = feeTierDefaults[feeTier];
+    if (stored != 0) return _decodeFee(stored);
+
+    stored = defaultFee;
+    if (stored != 0) return _decodeFee(stored);
+
+    return 0;
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
@@ -233,8 +240,7 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     stored = defaultFee;
     if (stored != 0) return _decodeFee(stored);
 
-    // Nothing set → no protocol fee
-    return 0;
+    // Nothing set → no protocol fee (fee defaults to 0)
   }
 
   /// @notice Sets the protocol fee for a specific pool using waterfall resolution
@@ -251,13 +257,13 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     if (size == 0) return;
 
     // Check if pool is initialized and get current fee protocol
-    (uint160 sqrtPriceX96,,,, uint16 currentFeeProtocol,,) = IUniswapV3Pool(pool).slot0();
+    (uint160 sqrtPriceX96,,,,, uint8 currentFeeProtocol,) = IUniswapV3Pool(pool).slot0();
     if (sqrtPriceX96 == 0) return; // Pool exists but not initialized, skip
 
     uint8 feeValue = getFee(pool);
 
     // Idempotency check: Skip if already set (prevents griefing)
-    if (uint8(currentFeeProtocol) == feeValue) return;
+    if (currentFeeProtocol == feeValue) return;
 
     IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
 
@@ -280,8 +286,11 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
     uint8 feeProtocol0 = feeValue % 16;
     uint8 feeProtocol1 = feeValue >> 4;
     // Validate both values match pool requirements: must be 0 or in range [4, 10]
-    if (!((feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
-          && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)))) revert InvalidFeeValue();
+    require(
+      (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10))
+        && (feeProtocol1 == 0 || (feeProtocol1 >= 4 && feeProtocol1 <= 10)),
+      InvalidFeeValue()
+    );
   }
 
   /// @notice Encodes a fee for storage

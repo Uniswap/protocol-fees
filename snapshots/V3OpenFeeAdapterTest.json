@@ -3,5 +3,5 @@
   "V3OpenFeeAdapter_triggerFeeUpdate_cold": "47141",
   "V3OpenFeeAdapter_triggerFeeUpdate_warm": "47141",
   "triggerFeeUpdate_first": "47141",
-  "triggerFeeUpdate_idempotent": "44341"
+  "triggerFeeUpdate_idempotent": "33350"
 }

@@ -4,10 +4,14 @@ pragma solidity ^0.8.20;
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 import {ArbitrumDeployer} from "./deployers/ArbitrumDeployer.sol";
+import {IOwned} from "../src/interfaces/base/IOwned.sol";
+import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 
 /// @title DeployArbitrum
 /// @notice Deployment script for Arbitrum One (Chain ID: 42161)
 contract DeployArbitrum is Script {
+  error WrongChain();
+
   // Arbitrum One chain ID
   uint256 public constant CHAIN_ID = 42_161;
 
@@ -31,7 +35,7 @@ contract DeployArbitrum is Script {
   function setUp() public {}
 
   function run() public {
-    require(block.chainid == CHAIN_ID, "Not Arbitrum One");
+    require(block.chainid == CHAIN_ID, WrongChain());
 
     vm.startBroadcast();
 
@@ -44,5 +48,11 @@ contract DeployArbitrum is Script {
     console2.log("RELEASER:", address(deployer.RELEASER()));
 
     vm.stopBroadcast();
+
+    // Post-deployment assertions
+    assert(deployer.TOKEN_JAR().releaser() == address(deployer.RELEASER()));
+    assert(IOwned(address(deployer.TOKEN_JAR())).owner() == OWNER);
+    assert(IResourceManager(address(deployer.RELEASER())).thresholdSetter() == OWNER);
+    assert(IOwned(address(deployer.RELEASER())).owner() == OWNER);
   }
 }

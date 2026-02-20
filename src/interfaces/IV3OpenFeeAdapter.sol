@@ -43,6 +43,14 @@ interface IV3OpenFeeAdapter {
   /// @param feeValue The new fee value for the pool
   event PoolOverrideUpdated(address indexed pool, uint8 feeValue);
 
+  /// @notice Emitted when a fee tier default is cleared (deleted from storage)
+  /// @param feeTier The fee tier that was cleared
+  event FeeTierDefaultCleared(uint24 indexed feeTier);
+
+  /// @notice Emitted when a pool override is cleared (deleted from storage)
+  /// @param pool The pool that was cleared
+  event PoolOverrideCleared(address indexed pool);
+
   /// @notice Emitted when the fee setter is updated
   /// @param oldFeeSetter The previous fee setter address
   /// @param newFeeSetter The new fee setter address
@@ -106,9 +114,11 @@ interface IV3OpenFeeAdapter {
   /// @return feeValue The encoded fee value for the pool (0 if not set)
   function poolOverrides(address pool) external view returns (uint8 feeValue);
 
-  /// @notice Legacy getter for backwards compatibility - returns decoded fee tier default
+  /// @notice Legacy getter for backwards compatibility - returns effective fee for a tier
+  /// @dev Applies waterfall resolution: fee tier default → global default.
+  ///      Returns 0 only when neither level is configured.
   /// @param feeTier The fee tier to query
-  /// @return defaultFeeValue The decoded fee value (0 if not set)
+  /// @return defaultFeeValue The resolved fee value
   function defaultFees(uint24 feeTier) external view returns (uint8 defaultFeeValue);
 
   /// @notice Stores a fee tier.
@@ -118,7 +128,7 @@ interface IV3OpenFeeAdapter {
 
   /// @notice Enables a new fee tier on the Uniswap V3 Factory.
   /// @dev Only callable by `owner`. Also updates the `feeTiers` array.
-  /// @param newFeeTier The fee tier to enable.
+  /// @param newFeeTier The fee amount to enable, denominated in hundredths of a bip (i.e. 1e-6).
   /// @param tickSpacing The corresponding tick spacing for the new fee tier.
   function enableFeeAmount(uint24 newFeeTier, int24 tickSpacing) external;
 

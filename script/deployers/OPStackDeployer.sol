@@ -11,8 +11,18 @@ import {
 
 /// @title OPStackDeployer
 /// @notice Generic deployer for TokenJar + OptimismBridgedResourceFirepit on OP Stack chains
-/// @dev Deploys and configures the fee collection system with chain-specific parameters
+/// @dev Deploys and configures the fee collection system with chain-specific parameters.
+///      The `_owner` parameter is expected to be a CrossChainAccount contract address on L2.
+///      Governance proposals target these L2 contracts via the standard OP Stack XDM flow:
+///      L1 Timelock → L1CrossDomainMessenger.sendMessage(CrossChainAccount, forward(target,
+/// data))
+///      The CrossChainAccount verifies xDomainMessageSender() == L1 Timelock before forwarding.
+///      This provides replayability, gas safety, and consistency with existing Uniswap governance
+///      patterns (e.g. the v3 factory fee switch uses the same CrossChainAccount approach).
 contract OPStackDeployer {
+  error ZeroAddress();
+  error ZeroThreshold();
+
   ITokenJar public immutable TOKEN_JAR;
   IReleaser public immutable RELEASER;
 
@@ -22,7 +32,7 @@ contract OPStackDeployer {
   /// @notice Deploys TokenJar and OptimismBridgedResourceFirepit with the given configuration
   /// @param _resource The bridged UNI token address on this chain
   /// @param _threshold The minimum UNI amount required per release
-  /// @param _owner The owner address (typically UNI Timelock alias)
+  /// @param _owner The owner address - should be a CrossChainAccount controlled by the L1 Timelock
   /// @dev Deployment sequence:
   ///      1. Deploy TokenJar
   ///      2. Deploy OptimismBridgedResourceFirepit (Releaser)
@@ -31,9 +41,9 @@ contract OPStackDeployer {
   ///      5. Set thresholdSetter on Releaser to owner
   ///      6. Transfer Releaser ownership to owner
   constructor(address _resource, uint256 _threshold, address _owner) {
-    require(_resource != address(0), "OPStackDeployer: resource is zero address");
-    require(_threshold > 0, "OPStackDeployer: threshold must be > 0");
-    require(_owner != address(0), "OPStackDeployer: owner is zero address");
+    require(_resource != address(0), ZeroAddress());
+    require(_threshold > 0, ZeroThreshold());
+    require(_owner != address(0), ZeroAddress());
 
     /// 1. Deploy the TokenJar
     TOKEN_JAR = new TokenJar{salt: SALT_TOKEN_JAR}();
