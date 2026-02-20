@@ -134,7 +134,9 @@ contract FeeDripperTest is Test {
     assertEq(latestBlock, block.number);
   }
 
-  function test_drip_releasesAccruedAndKeepsWindowWhenNoNewDeposits(bool _useNativeCurrency) public {
+  function test_drip_releasesAccruedAndKeepsWindowWhenNoNewDeposits(bool _useNativeCurrency)
+    public
+  {
     Currency currency = _currency(_useNativeCurrency);
     _deal(address(feeDripper), 1e18, _useNativeCurrency);
     feeDripper.drip(currency);
@@ -149,9 +151,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency);
 
     // TokenJar should have received the accrued amount
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     assertEq(jarBalance, expectedReleased);
 
     // Window should be kept because no new deposits were made.
@@ -170,9 +170,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency);
 
     // All tokens should be in tokenJar (minus dust)
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     assertApproxEqAbs(jarBalance, 1e18, _releaseWindow());
   }
 
@@ -184,9 +182,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency);
 
     // Dust should be flushed immediately
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     assertEq(jarBalance, dustAmount);
 
     // Rate should be zero
@@ -201,11 +197,7 @@ contract FeeDripperTest is Test {
     erc20Currency.mint(address(feeDripper), tooLarge);
 
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IFeeDripper.DripAmountTooLarge.selector,
-        tooLarge,
-        type(uint160).max
-      )
+      abi.encodeWithSelector(IFeeDripper.DripAmountTooLarge.selector, tooLarge, type(uint160).max)
     );
     feeDripper.drip(currency);
   }
@@ -225,9 +217,7 @@ contract FeeDripperTest is Test {
 
     feeDripper.release(currency);
 
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     assertEq(jarBalance, expectedReleased);
 
     // Window should NOT be reset
@@ -276,9 +266,7 @@ contract FeeDripperTest is Test {
     // release without prior drip — no window set, nothing to release
     feeDripper.release(currency);
 
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     // Balance >= releaseWindow so no dust flush, rate is 0, nothing released
     assertEq(jarBalance, 0);
   }
@@ -311,9 +299,7 @@ contract FeeDripperTest is Test {
     vm.roll(block.number + 200);
     feeDripper.release(currency);
 
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     assertApproxEqAbs(jarBalance, 1e18, _releaseWindow());
   }
 
@@ -413,13 +399,9 @@ contract FeeDripperTest is Test {
     uint256 totalReleasedPerBlock = 0;
     for (uint256 i = 0; i < window; i++) {
       vm.roll(block.number + 1);
-      uint256 before = _useNativeCurrency
-        ? tokenJar.balance
-        : erc20Currency.balanceOf(tokenJar);
+      uint256 before = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
       feeDripper.release(currency);
-      uint256 after_ = _useNativeCurrency
-        ? tokenJar.balance
-        : erc20Currency.balanceOf(tokenJar);
+      uint256 after_ = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
       totalReleasedPerBlock += (after_ - before);
     }
 
@@ -428,9 +410,8 @@ contract FeeDripperTest is Test {
     // Release all at once
     vm.roll(block.number + window);
     feeDripper.release(currency);
-    uint256 totalReleasedAtOnce = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 totalReleasedAtOnce =
+      _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
 
     assertEq(totalReleasedPerBlock, totalReleasedAtOnce, "per-block vs at-once should match");
   }
@@ -450,9 +431,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency);
 
     // Should not double-release — second call sees blocksPassed=0
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
 
     // Released exactly half-window blocks worth.
     uint256 expectedRelease = uint256(1e18 / _releaseWindow()) * halfWindow;
@@ -471,9 +450,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency); // second drip in same block
 
     // Should not double-release
-    uint256 jarBalance = _useNativeCurrency
-      ? tokenJar.balance
-      : erc20Currency.balanceOf(tokenJar);
+    uint256 jarBalance = _useNativeCurrency ? tokenJar.balance : erc20Currency.balanceOf(tokenJar);
     uint256 expectedRelease = uint256(1e18 / _releaseWindow()) * halfWindow;
     assertEq(jarBalance, expectedRelease);
   }
