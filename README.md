@@ -235,6 +235,81 @@ Ethereum Mainnet
 | TokenJar | [`0xD576BDF6b560079a4c204f7644e556DbB19140b5`](https://uniscan.xyz/address/0xD576BDF6b560079a4c204f7644e556DbB19140b5) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB`](https://uniscan.xyz/address/0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB) |
 
+### World Chain (Chain ID: 480)
+
+| Contract | Address |
+|----------|---------|
+| Deployer | [`0x4E524DAbf30A1D6e87261c804991119181F65bb8`](https://worldscan.org/address/0x4E524DAbf30A1D6e87261c804991119181F65bb8) |
+| TokenJar | [`0xbDb82c2dE7D8748A3e499e771604ef8ef8544918`](https://worldscan.org/address/0xbDb82c2dE7D8748A3e499e771604ef8ef8544918) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x455e844D286631566cF98D6cb2996149734618C6`](https://worldscan.org/address/0x455e844D286631566cF98D6cb2996149734618C6) |
+| V3OpenFeeAdapter | [`0x1CE9d4DfB474Ef9ea7dc0e804a333202e40d6201`](https://worldscan.org/address/0x1CE9d4DfB474Ef9ea7dc0e804a333202e40d6201) |
+
+### Soneium (Chain ID: 1868)
+
+| Contract | Address |
+|----------|---------|
+| CrossChainAccount | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://soneium.blockscout.com/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer | [`0xD63fFE536bE3f44AE8f33C5f9c81581f9C94d1C8`](https://soneium.blockscout.com/address/0xD63fFE536bE3f44AE8f33C5f9c81581f9C94d1C8) |
+| TokenJar | [`0x85aeb792b94a9d79741002FC871423Ec5dAD29e9`](https://soneium.blockscout.com/address/0x85aeb792b94a9d79741002FC871423Ec5dAD29e9) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xc9CC50A75cE2a5f88fa77B43e3b050480c731b6e`](https://soneium.blockscout.com/address/0xc9CC50A75cE2a5f88fa77B43e3b050480c731b6e) |
+| V3OpenFeeAdapter | [`0x47Cf920815344Fd684A48BBEFcbfbed9C7AE09CF`](https://soneium.blockscout.com/address/0x47Cf920815344Fd684A48BBEFcbfbed9C7AE09CF) |
+
+### Celo (Chain ID: 42220)
+
+| Contract | Address |
+|----------|---------|
+| CrossChainAccount | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://celoscan.io/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer | [`0x91Df768dF14E94a3fCa42badBF1907E3a3b0240f`](https://celoscan.io/address/0x91Df768dF14E94a3fCa42badBF1907E3a3b0240f) |
+| TokenJar | [`0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B`](https://celoscan.io/address/0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25`](https://celoscan.io/address/0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25) |
+| V3OpenFeeAdapter | [`0xB9952C01830306ea2fAAe1505f6539BD260Bfc48`](https://celoscan.io/address/0xB9952C01830306ea2fAAe1505f6539BD260Bfc48) |
+
+### Zora (Chain ID: 7777777)
+
+| Contract | Address |
+|----------|---------|
+| Deployer | [`0x71F14F2A8b827cD29453498d5AF24F605caee931`](https://explorer.zora.energy/address/0x71F14F2A8b827cD29453498d5AF24F605caee931) |
+| TokenJar | [`0x4753C137002D802f45302b118E265c41140e73C2`](https://explorer.zora.energy/address/0x4753C137002D802f45302b118E265c41140e73C2) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x2f98eD4D04e633169FbC941BFCc54E785853b143`](https://explorer.zora.energy/address/0x2f98eD4D04e633169FbC941BFCc54E785853b143) |
+| V3OpenFeeAdapter | [`0xbfc49b47637a4DC9b7B8dE8E71BF41E519103B95`](https://explorer.zora.energy/address/0xbfc49b47637a4DC9b7B8dE8E71BF41E519103B95) |
+
+### X Layer (Chain ID: 196)
+
+| Contract | Address |
+|----------|---------|
+| CrossChainAccount | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://www.oklink.com/xlayer/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer | [`0xC943dd90D459dB082D9e9C1baBf89D4Afe79E7E0`](https://www.oklink.com/xlayer/address/0xC943dd90D459dB082D9e9C1baBf89D4Afe79E7E0) |
+| TokenJar | [`0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754`](https://www.oklink.com/xlayer/address/0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xe122E231cb52aea99690963Fd73E91e33E97468f`](https://www.oklink.com/xlayer/address/0xe122E231cb52aea99690963Fd73E91e33E97468f) |
+| V3OpenFeeAdapter | [`0x6A88EF2e6511CAFfE2D006e260e7A5d1E7D4d7D7`](https://www.oklink.com/xlayer/address/0x6A88EF2e6511CAFfE2D006e260e7A5d1E7D4d7D7) |
+
+### Arbitrum One (Chain ID: 42161)
+
+| Contract | Address |
+|----------|---------|
+| Deployer | [`0x3Ac66e1bfC79032C9deFCB23aE4DEe3F8c1630eb`](https://arbiscan.io/address/0x3Ac66e1bfC79032C9deFCB23aE4DEe3F8c1630eb) |
+| TokenJar | [`0x95E337C5B155385945D407f5396387D0c2a3A263`](https://arbiscan.io/address/0x95E337C5B155385945D407f5396387D0c2a3A263) |
+| Releaser | [`0xB8018422bcE25D82E70cB98FdA96a4f502D89427`](https://arbiscan.io/address/0xB8018422bcE25D82E70cB98FdA96a4f502D89427) |
+| V3OpenFeeAdapter | [`0xFF7aD5dA31fECdC678796c88B05926dB896b0699`](https://arbiscan.io/address/0xFF7aD5dA31fECdC678796c88B05926dB896b0699) |
+
+### OP Mainnet (Chain ID: 10)
+
+| Contract | Address |
+|----------|---------|
+| Deployer | [`0x3398783D2ffE6F79B56dade84CEAea888C400da4`](https://optimistic.etherscan.io/address/0x3398783D2ffE6F79B56dade84CEAea888C400da4) |
+| TokenJar | [`0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3`](https://optimistic.etherscan.io/address/0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x94460443Ca27FFC1baeCa61165fde18346C91AbD`](https://optimistic.etherscan.io/address/0x94460443Ca27FFC1baeCa61165fde18346C91AbD) |
+| V3OpenFeeAdapter | [`0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4`](https://optimistic.etherscan.io/address/0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4) |
+
+### Base (Chain ID: 8453)
+
+| Contract | Address |
+|----------|---------|
+| Deployer | [`0x076f84717f3601B8Cd177bb84b217A2679B38b7d`](https://basescan.org/address/0x076f84717f3601B8Cd177bb84b217A2679B38b7d) |
+| TokenJar | [`0x9bD25e67bF390437C8fAF480AC735a27BcF6168c`](https://basescan.org/address/0x9bD25e67bF390437C8fAF480AC735a27BcF6168c) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xFf77c0ED0B6b13A20446969107E5867abc46f53a`](https://basescan.org/address/0xFf77c0ED0B6b13A20446969107E5867abc46f53a) |
+| V3OpenFeeAdapter | [`0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1`](https://basescan.org/address/0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1) |
+
 ## Development
 
 ### Prerequisites
