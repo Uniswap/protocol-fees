@@ -7,7 +7,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 interface IFeeDripper {
   /// @notice Emitted when a drip is started for a given currency.
   event DripStarted(
-    address indexed currency, uint48 indexed fullyReleasedBlock, uint160 perBlockRate
+    address indexed currency, uint256 indexed fullyReleasedBlock, uint160 perBlockRate
   );
   /// @notice Emitted when a release to the token jar is completed.
   event Released(address indexed currency, uint256 amount);

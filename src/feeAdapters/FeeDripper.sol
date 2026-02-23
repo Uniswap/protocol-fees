@@ -29,8 +29,8 @@ contract FeeDripper is Owned, IFeeDripper {
   mapping(Currency => Drip) public drips;
 
   struct ReleaseSettings {
-    uint16 releaseWindow;
-    uint16 windowResetBps;
+    uint16 releaseWindow; // the window of blocks over which the fees are released
+    uint16 windowResetBps; // min new-deposit-to-previous-balance ratio (in bps) to reset the window
   }
 
   struct Drip {
@@ -51,35 +51,33 @@ contract FeeDripper is Owned, IFeeDripper {
     (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
       _readDripState(currency);
 
-    (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow) =
+    (uint256 postDripBalance, uint256 releasedAmount, uint16 _releaseWindow) =
       _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
-    // We only check remainingBalance against type(uint160).max (not divided by releaseWindow)
+    // We only check postDripBalance against type(uint160).max (not divided by releaseWindow)
     // because releaseWindow could be set to 1 by the owner at any time
-    if (remainingBalance > type(uint160).max) {
-      revert DripAmountTooLarge(remainingBalance, type(uint160).max);
+    if (postDripBalance > type(uint160).max) {
+      revert DripAmountTooLarge(postDripBalance, type(uint160).max);
     }
 
     // Set the drip state - reset the release window
-    uint160 updatedPerBlockRate = uint160(remainingBalance / _releaseWindow);
+    uint160 updatedPerBlockRate = uint160(postDripBalance / _releaseWindow);
 
     // branchless: fullyReleasedBlock is block.number for zero remaining balance, otherwise
     // block.number + _releaseWindow
     uint256 fullyReleasedBlock = block.number;
     assembly ("memory-safe") {
-      fullyReleasedBlock := add(fullyReleasedBlock, mul(_releaseWindow, gt(remainingBalance, 0)))
+      fullyReleasedBlock := add(fullyReleasedBlock, mul(_releaseWindow, gt(postDripBalance, 0)))
     }
-    // Convert to uint48 (safe for reasonable protocol horizon assumption)
-    uint48 fullyReleasedBlock48 = uint48(fullyReleasedBlock);
 
-    // Update the state. Even for zero remaining balance, we update instead of deleting to avoid
-    // re-initializing the drip state.
-    _writeDripState(currency, updatedPerBlockRate, fullyReleasedBlock48, block.number);
+    // Update the state. Uint48 for fullyReleasedBlock is safe for reasonable protocol horizon
+    // assumption.
+    _writeDripState(currency, updatedPerBlockRate, uint48(fullyReleasedBlock), block.number);
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
-    if (remainingBalance > 0) {
-      emit DripStarted(Currency.unwrap(currency), fullyReleasedBlock48, updatedPerBlockRate);
+    if (postDripBalance > 0) {
+      emit DripStarted(Currency.unwrap(currency), fullyReleasedBlock, updatedPerBlockRate);
     }
   }
 
@@ -89,11 +87,11 @@ contract FeeDripper is Owned, IFeeDripper {
     (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
       _readDripState(currency);
 
-    (uint256 remainingBalance, uint256 releasedAmount,) =
+    (uint256 postDripBalance, uint256 releasedAmount,) =
       _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     assembly ("memory-safe") {
-      perBlockRate := mul(perBlockRate, gt(remainingBalance, 0))
+      perBlockRate := mul(perBlockRate, gt(postDripBalance, 0))
     }
 
     // Update the drip state - only the latest release block is updated to avoid
@@ -180,23 +178,20 @@ contract FeeDripper is Owned, IFeeDripper {
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  )
-    internal
-    view
-    returns (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow)
-  {
+  ) internal view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 _releaseWindow) {
     // Calculate the previous balance of the currency at last call
     uint256 previousBalance = (endReleaseBlock - latestReleaseBlock) * perBlockRate;
 
     // Calculate the amount of blocks passed since the last call
     uint256 blocksPassed = block.number - latestReleaseBlock;
     // Calculate the amount of tokens released since the last call
+    // limit to previous balance if block.number > endReleaseBlock
     releasedAmount = Math.min(blocksPassed * perBlockRate, previousBalance);
 
     uint256 currentBalance = currency.balanceOfSelf();
 
     // Calculate the remaining balance ahead of the release
-    remainingBalance = currentBalance - releasedAmount;
+    postDripBalance = currentBalance - releasedAmount;
 
     // Cache the release settings in stack to avoid multiple storage reads within this call
     (uint16 _originalReleaseWindow, uint16 _windowResetBps) = _readReleaseSettings();
@@ -213,11 +208,11 @@ contract FeeDripper is Owned, IFeeDripper {
 
     // If the remaining balance is less than the release window, immediately release the remaining
     // balance to skip dust accumulation
-    if (remainingBalance < _originalReleaseWindow) {
-      releasedAmount += remainingBalance;
-      remainingBalance = 0;
+    if (postDripBalance < _originalReleaseWindow) {
+      releasedAmount += postDripBalance;
+      postDripBalance = 0;
     }
 
-    return (remainingBalance, releasedAmount, _releaseWindow);
+    return (postDripBalance, releasedAmount, _releaseWindow);
   }
 }
