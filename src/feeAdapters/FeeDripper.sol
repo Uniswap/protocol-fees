@@ -70,7 +70,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
     // Update the state. Uint48 for fullyReleasedBlock is safe for reasonable protocol horizon
     // assumption.
-    _writeDripState(currency, updatedPerBlockRate, uint48(fullyReleasedBlock), block.number);
+    _writeDripState(currency, updatedPerBlockRate, uint48(fullyReleasedBlock), uint48(block.number));
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
@@ -124,7 +124,7 @@ contract FeeDripper is Owned, IFeeDripper {
     Currency currency,
     uint160 perBlockRate,
     uint48 endReleaseBlock,
-    uint256 latestReleaseBlock
+    uint48 latestReleaseBlock
   ) internal {
     // Used assembly to pack and store values directly from stack and skip memory allocation.
     assembly ("memory-safe") {
