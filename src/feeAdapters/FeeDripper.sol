@@ -45,7 +45,7 @@ contract FeeDripper is Owned, IFeeDripper {
     Drip memory dripState = drips[currency];
 
     (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow) =
-      _releasePreparation(currency, dripState);
+      _prepareRelease(currency, dripState);
 
     // We only check remainingBalance against type(uint160).max (not divided by releaseWindow)
     // because releaseWindow could be set to 1 by the owner at any time
@@ -53,10 +53,8 @@ contract FeeDripper is Owned, IFeeDripper {
       revert DripAmountTooLarge(remainingBalance, type(uint160).max);
     }
 
-    // Update the drip state - reset the release window
-    dripState.latestReleaseBlock = uint48(block.number);
+    // Set the drip state - reset the release window
     uint160 perBlockRate = uint160(remainingBalance / _releaseWindow);
-    dripState.perBlockRate = perBlockRate;
     uint256 fullyReleasedBlock = block.number;
     // branchless: fullyReleasedBlock is block.number for zero remaining balance, otherwise
     // block.number + _releaseWindow
@@ -65,11 +63,19 @@ contract FeeDripper is Owned, IFeeDripper {
     }
     // Convert to uint48 (safe for reasonable protocol horizon assumption)
     uint48 fullyReleasedBlock48 = uint48(fullyReleasedBlock);
-    dripState.endReleaseBlock = fullyReleasedBlock48;
 
     // Update the state. Even for zero remaining balance, we update instead of deleting to avoid
-    // re-initializing the drip state.
-    drips[currency] = dripState;
+    // re-initializing the drip state. Used assembly to pack and store values directly from stack.
+    assembly ("memory-safe") {
+      mstore(0x00, currency)
+      mstore(0x20, drips.slot)
+      let dripPacked :=
+        or( /* latestReleaseBlock */
+          shl(208, number()),
+          or( /* endReleaseBlock */ shl(160, fullyReleasedBlock48), /* perBlockRate */ perBlockRate)
+        )
+      sstore(keccak256(0x00, 0x40), dripPacked)
+    }
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
@@ -83,7 +89,7 @@ contract FeeDripper is Owned, IFeeDripper {
     // Copy the drip state to memory
     Drip memory dripState = drips[currency];
 
-    (, uint256 releasedAmount,) = _releasePreparation(currency, dripState);
+    (, uint256 releasedAmount,) = _prepareRelease(currency, dripState);
 
     // Update the drip state - only the latest release block is updated to avoid
     // resetting the release window.
@@ -113,7 +119,7 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
-  function _releasePreparation(Currency currency, Drip memory dripState)
+  function _prepareRelease(Currency currency, Drip memory dripState)
     internal
     view
     returns (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow)
@@ -137,10 +143,13 @@ contract FeeDripper is Owned, IFeeDripper {
 
     _releaseWindow = _releaseSettings.releaseWindow;
     uint256 newDeposit = currentBalance - previousBalance;
-    if (
-      previousBalance > 0 && block.number < dripState.endReleaseBlock
-        && newDeposit < (previousBalance * _releaseSettings.windowResetBps) / BPS
-    ) _releaseWindow = uint16(dripState.endReleaseBlock - block.number);
+
+    if (previousBalance > 0 && block.number < dripState.endReleaseBlock) {
+      uint256 minBalanceForReset = (previousBalance * _releaseSettings.windowResetBps) / BPS;
+      if (newDeposit < minBalanceForReset) {
+        _releaseWindow = uint16(dripState.endReleaseBlock - block.number);
+      }
+    }
 
     // If the remaining balance is less than the release window, immediately release the remaining
     // balance to skip dust accumulation
