@@ -8,8 +8,8 @@ import { formatAddress, parseCSV, sortTokenPair } from './utils.js';
 const program = new Command();
 
 program
-  .name('merkle-generator')
-  .description('CLI tool for generating Merkle trees and proofs for Uniswap V3 fee adapter')
+  .name('protocol-fees')
+  .description('CLI tool for Uniswap protocol fee management')
   .version('0.0.0');
 
 // Generate command
