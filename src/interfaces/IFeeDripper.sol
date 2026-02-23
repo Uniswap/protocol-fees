@@ -22,8 +22,6 @@ interface IFeeDripper {
   error InvalidReleaseWindow();
   /// @notice Thrown when the supplied window reset basis points is greater than 10_000.
   error InvalidWindowResetBps();
-  /// @notice Thrown when the drip amount is bigger than uint160.max.
-  error DripAmountTooLarge(uint256 amount, uint256 max);
 
   /// @notice Syncs deposits and updates the active drip schedule for `currency`.
   /// @dev Releases accrued amount first, then recomputes the stream from the remaining balance

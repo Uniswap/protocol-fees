@@ -56,9 +56,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
     // We only check postDripBalance against type(uint160).max (not divided by releaseWindow)
     // because releaseWindow could be set to 1 by the owner at any time
-    if (postDripBalance > type(uint160).max) {
-      revert DripAmountTooLarge(postDripBalance, type(uint160).max);
-    }
+    if (postDripBalance > type(uint160).max) postDripBalance = type(uint160).max;
 
     // Set the drip state - reset the release window
     uint160 updatedPerBlockRate = uint160(postDripBalance / _releaseWindow);

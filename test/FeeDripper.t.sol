@@ -190,16 +190,43 @@ contract FeeDripperTest is Test {
     assertEq(rate, 0);
   }
 
-  function test_drip_revertsOnAmountTooLarge() public {
+  function test_drip_capsAtUint160Max() public {
     Currency currency = Currency.wrap(address(erc20Currency));
-    // Mint more than uint160.max
-    uint256 tooLarge = uint256(type(uint160).max) + 1;
-    erc20Currency.mint(address(feeDripper), tooLarge);
+    uint256 excess = 1e18;
+    uint256 total = uint256(type(uint160).max) + excess;
+    erc20Currency.mint(address(feeDripper), total);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(IFeeDripper.DripAmountTooLarge.selector, tooLarge, type(uint160).max)
-    );
+    uint16 window = _releaseWindow();
+    uint160 expectedRate = uint160(uint256(type(uint160).max) / window);
+
     feeDripper.drip(currency);
+
+    (uint160 rate, uint48 endBlock,) = feeDripper.drips(currency);
+    assertEq(rate, expectedRate, "rate should be based on capped balance");
+    assertEq(endBlock, uint48(block.number + window));
+    assertEq(erc20Currency.balanceOf(address(feeDripper)), total);
+
+    // release mid-window
+    vm.roll(block.number + 500);
+    feeDripper.release(currency);
+
+    uint256 expectedReleasedMidWindow = uint256(expectedRate) * 500;
+    assertEq(erc20Currency.balanceOf(tokenJar), expectedReleasedMidWindow);
+
+    // drip again after the window — picks up leftover (excess + integer division dust)
+    vm.roll(block.number + window + 1);
+    feeDripper.drip(currency);
+
+    uint256 leftover = uint256(type(uint160).max) - uint256(expectedRate) * window + excess;
+    uint160 expectedLeftoverRate = uint160(leftover / window);
+
+    (uint160 rateAfter, uint48 endBlockAfter,) = feeDripper.drips(currency);
+    assertEq(rateAfter, expectedLeftoverRate);
+    assertEq(endBlockAfter, uint48(block.number + window));
+    assertEq(
+      erc20Currency.balanceOf(tokenJar),
+      expectedReleasedMidWindow + uint256(expectedRate) * 500
+    );
   }
 
   // ============ release ============
