@@ -89,8 +89,12 @@ contract FeeDripper is Owned, IFeeDripper {
     (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
       _readDripState(currency);
 
-    (, uint256 releasedAmount,) =
+    (uint256 remainingBalance, uint256 releasedAmount,) =
       _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
+
+    assembly ("memory-safe") {
+      perBlockRate := mul(perBlockRate, gt(remainingBalance, 0))
+    }
 
     // Update the drip state - only the latest release block is updated to avoid
     // resetting the release window.

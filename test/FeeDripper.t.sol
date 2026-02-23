@@ -621,4 +621,46 @@ contract FeeDripperTest is Test {
     // Should not revert when previousBalance == 0 and there is no active drip.
     feeDripper.drip(currency);
   }
+
+  // ============ Dust flush via release() mid-window ============
+
+  function test_release_dustFlushMidWindow_doesNotBrickCurrency() public {
+    Currency currency = Currency.wrap(address(erc20Currency));
+    uint16 window = _releaseWindow();
+
+    // Deposit in [window, window²) so perBlockRate = 1 (low rate).
+    // With 1500 and window=1000: rate = 1500/1000 = 1, dust = 500
+    uint256 deposit = uint256(window) + 500;
+    erc20Currency.mint(address(feeDripper), deposit);
+    feeDripper.drip(currency);
+
+    (uint160 rate,,) = feeDripper.drips(currency);
+    assertEq(rate, 1);
+
+    // Roll to where remaining balance < releaseWindow (triggers dust flush).
+    // remaining = (1000 - 601) * 1 + 500 (dust) = 899 < 1000
+    vm.roll(block.number + 601);
+    feeDripper.release(currency);
+
+    // All tokens flushed to jar
+    assertEq(erc20Currency.balanceOf(address(feeDripper)), 0);
+    assertEq(erc20Currency.balanceOf(tokenJar), deposit);
+
+    // Rate should be zeroed by the fix — prevents bricked currency
+    (uint160 rateAfter,,) = feeDripper.drips(currency);
+    assertEq(rateAfter, 0, "perBlockRate should be zeroed after dust flush");
+
+    // Subsequent calls must NOT revert (would underflow without the fix)
+    vm.roll(block.number + 100);
+    feeDripper.release(currency);
+    feeDripper.drip(currency);
+
+    // New deposit starts a fresh drip schedule
+    erc20Currency.mint(address(feeDripper), 1e18);
+    feeDripper.drip(currency);
+
+    (uint160 recoveredRate, uint48 newEnd,) = feeDripper.drips(currency);
+    assertGt(recoveredRate, 0, "should start a new drip after recovery deposit");
+    assertEq(newEnd, uint48(block.number + window));
+  }
 }
