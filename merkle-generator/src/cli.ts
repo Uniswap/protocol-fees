@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
 import { Command } from 'commander';
+import { propagateFees } from './propagate-fees.js';
 import { formatAddress, parseCSV, sortTokenPair } from './utils.js';
 
 const program = new Command();
@@ -385,6 +386,34 @@ program
     }
     catch (error) {
       console.error('Error parsing pools:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+// Propagate fees command
+program
+  .command('propagate-fees')
+  .description('Discover V3 pools and propagate protocol fees via V3OpenFeeAdapter')
+  .requiredOption('--rpc-url <url>', 'RPC endpoint URL')
+  .requiredOption('--adapter-address <address>', 'V3OpenFeeAdapter contract address')
+  .requiredOption('--factory-address <address>', 'Uniswap V3 Factory contract address')
+  .requiredOption('--private-key <key>', 'Private key for signing transactions')
+  .option('--batch-size <number>', 'Max pools per transaction', '500')
+  .option('--from-block <number>', 'Start block for event scanning', '0')
+  .option('--chunk-size <number>', 'Block range per getLogs request', '10000')
+  .action(async (options) => {
+    try {
+      await propagateFees({
+        rpcUrl: options.rpcUrl,
+        adapterAddress: options.adapterAddress,
+        factoryAddress: options.factoryAddress,
+        privateKey: options.privateKey,
+        batchSize: parseInt(options.batchSize),
+        fromBlock: parseInt(options.fromBlock),
+        chunkSize: parseInt(options.chunkSize),
+      });
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   });
