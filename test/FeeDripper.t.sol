@@ -224,8 +224,7 @@ contract FeeDripperTest is Test {
     assertEq(rateAfter, expectedLeftoverRate);
     assertEq(endBlockAfter, uint48(block.number + window));
     assertEq(
-      erc20Currency.balanceOf(tokenJar),
-      expectedReleasedMidWindow + uint256(expectedRate) * 500
+      erc20Currency.balanceOf(tokenJar), expectedReleasedMidWindow + uint256(expectedRate) * 500
     );
   }
 
