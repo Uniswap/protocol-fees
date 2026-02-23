@@ -14,6 +14,12 @@ import {IFeeDripper} from "../interfaces/IFeeDripper.sol";
 contract FeeDripper is Owned, IFeeDripper {
   /// @notice Basis points denominator
   uint24 public constant BPS = 10_000;
+
+  // masks for the perBlockRate, endReleaseBlock, and latestReleaseBlock
+  uint256 constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+  uint256 constant UINT48_MASK = 0xFFFFFFFFFFFF;
+  uint256 constant UINT16_MASK = 0xFFFF;
+
   // token jar address to receive the dripped fees
   address public immutable TOKEN_JAR;
   // the window of blocks over which the fees are released
@@ -41,11 +47,12 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @inheritdoc IFeeDripper
   function drip(Currency currency) external {
-    // Copy the drip state to memory
-    Drip memory dripState = drips[currency];
+    // Copy the drip state to stack
+    (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
+      _readDripState(currency);
 
     (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow) =
-      _prepareRelease(currency, dripState);
+      _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     // We only check remainingBalance against type(uint160).max (not divided by releaseWindow)
     // because releaseWindow could be set to 1 by the owner at any time
@@ -54,10 +61,11 @@ contract FeeDripper is Owned, IFeeDripper {
     }
 
     // Set the drip state - reset the release window
-    uint160 perBlockRate = uint160(remainingBalance / _releaseWindow);
-    uint256 fullyReleasedBlock = block.number;
+    uint160 updatedPerBlockRate = uint160(remainingBalance / _releaseWindow);
+
     // branchless: fullyReleasedBlock is block.number for zero remaining balance, otherwise
     // block.number + _releaseWindow
+    uint256 fullyReleasedBlock = block.number;
     assembly ("memory-safe") {
       fullyReleasedBlock := add(fullyReleasedBlock, mul(_releaseWindow, gt(remainingBalance, 0)))
     }
@@ -65,36 +73,29 @@ contract FeeDripper is Owned, IFeeDripper {
     uint48 fullyReleasedBlock48 = uint48(fullyReleasedBlock);
 
     // Update the state. Even for zero remaining balance, we update instead of deleting to avoid
-    // re-initializing the drip state. Used assembly to pack and store values directly from stack.
-    assembly ("memory-safe") {
-      mstore(0x00, currency)
-      mstore(0x20, drips.slot)
-      let dripPacked :=
-        or( /* latestReleaseBlock */
-          shl(208, number()),
-          or( /* endReleaseBlock */ shl(160, fullyReleasedBlock48), /* perBlockRate */ perBlockRate)
-        )
-      sstore(keccak256(0x00, 0x40), dripPacked)
-    }
+    // re-initializing the drip state.
+    _writeDripState(currency, updatedPerBlockRate, fullyReleasedBlock48, block.number);
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
     if (remainingBalance > 0) {
-      emit DripStarted(Currency.unwrap(currency), fullyReleasedBlock48, perBlockRate);
+      emit DripStarted(Currency.unwrap(currency), fullyReleasedBlock48, updatedPerBlockRate);
     }
   }
 
   /// @inheritdoc IFeeDripper
   function release(Currency currency) external {
-    // Copy the drip state to memory
-    Drip memory dripState = drips[currency];
+    // Copy the drip state to stack
+    (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
+      _readDripState(currency);
 
-    (, uint256 releasedAmount,) = _prepareRelease(currency, dripState);
+    (, uint256 releasedAmount,) =
+      _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     // Update the drip state - only the latest release block is updated to avoid
     // resetting the release window.
-    dripState.latestReleaseBlock = uint48(Math.min(block.number, dripState.endReleaseBlock));
-    drips[currency] = dripState;
+    latestReleaseBlock = uint48(Math.min(block.number, endReleaseBlock));
+    _writeDripState(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
@@ -119,41 +120,96 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
-  function _prepareRelease(Currency currency, Drip memory dripState)
+  function _writeDripState(
+    Currency currency,
+    uint160 perBlockRate,
+    uint48 endReleaseBlock,
+    uint256 latestReleaseBlock
+  ) internal {
+    // Used assembly to pack and store values directly from stack and skip memory allocation.
+    assembly ("memory-safe") {
+      mstore(0x00, currency)
+      mstore(0x20, drips.slot)
+      let dripPacked :=
+        or(
+          shl(208, latestReleaseBlock), // latestReleaseBlock
+          or(
+            shl(160, endReleaseBlock), // endReleaseBlock
+            perBlockRate // perBlockRate
+          )
+        )
+      sstore(keccak256(0x00, 0x40), dripPacked)
+    }
+  }
+
+  function _readDripState(Currency currency)
+    internal
+    view
+    returns (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock)
+  {
+    // Read the drip state from storage and unpack into stack variables
+    assembly ("memory-safe") {
+      mstore(0x00, currency)
+      mstore(0x20, drips.slot)
+      let dripPacked := sload(keccak256(0x00, 0x40))
+
+      perBlockRate := and(dripPacked, UINT160_MASK)
+      endReleaseBlock := and(shr(160, dripPacked), UINT48_MASK)
+      latestReleaseBlock := shr(208, dripPacked)
+    }
+  }
+
+  function _readReleaseSettings()
+    internal
+    view
+    returns (uint16 releaseWindow, uint16 windowResetBps)
+  {
+    assembly ("memory-safe") {
+      let releaseSettingsPacked := sload(releaseSettings.slot)
+      releaseWindow := and(releaseSettingsPacked, UINT16_MASK)
+      windowResetBps := and(shr(16, releaseSettingsPacked), UINT16_MASK)
+    }
+  }
+
+  function _prepareRelease(
+    Currency currency,
+    uint160 perBlockRate,
+    uint48 endReleaseBlock,
+    uint48 latestReleaseBlock
+  )
     internal
     view
     returns (uint256 remainingBalance, uint256 releasedAmount, uint16 _releaseWindow)
   {
     // Calculate the previous balance of the currency at last call
-    uint256 previousBalance =
-      (dripState.endReleaseBlock - dripState.latestReleaseBlock) * dripState.perBlockRate;
+    uint256 previousBalance = (endReleaseBlock - latestReleaseBlock) * perBlockRate;
 
     // Calculate the amount of blocks passed since the last call
-    uint256 blocksPassed = block.number - dripState.latestReleaseBlock;
+    uint256 blocksPassed = block.number - latestReleaseBlock;
     // Calculate the amount of tokens released since the last call
-    releasedAmount = Math.min(blocksPassed * dripState.perBlockRate, previousBalance);
+    releasedAmount = Math.min(blocksPassed * perBlockRate, previousBalance);
 
     uint256 currentBalance = currency.balanceOfSelf();
 
     // Calculate the remaining balance ahead of the release
     remainingBalance = currentBalance - releasedAmount;
 
-    // Cache the release settings to avoid multiple storage reads within this call
-    ReleaseSettings memory _releaseSettings = releaseSettings;
+    // Cache the release settings in stack to avoid multiple storage reads within this call
+    (uint16 _originalReleaseWindow, uint16 _windowResetBps) = _readReleaseSettings();
 
-    _releaseWindow = _releaseSettings.releaseWindow;
+    _releaseWindow = _originalReleaseWindow;
     uint256 newDeposit = currentBalance - previousBalance;
 
-    if (previousBalance > 0 && block.number < dripState.endReleaseBlock) {
-      uint256 minBalanceForReset = (previousBalance * _releaseSettings.windowResetBps) / BPS;
+    if (previousBalance > 0 && block.number < endReleaseBlock) {
+      uint256 minBalanceForReset = (previousBalance * _windowResetBps) / BPS;
       if (newDeposit < minBalanceForReset) {
-        _releaseWindow = uint16(dripState.endReleaseBlock - block.number);
+        _releaseWindow = uint16(endReleaseBlock - block.number);
       }
     }
 
     // If the remaining balance is less than the release window, immediately release the remaining
     // balance to skip dust accumulation
-    if (remainingBalance < _releaseSettings.releaseWindow) {
+    if (remainingBalance < _originalReleaseWindow) {
       releasedAmount += remainingBalance;
       remainingBalance = 0;
     }

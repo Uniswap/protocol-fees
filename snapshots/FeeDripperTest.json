@@ -1,8 +1,8 @@
 {
-  "drip_erc20_first": "54813",
-  "drip_erc20_midWindow": "67679",
-  "drip_nativeCurrency_first": "49177",
-  "drip_nativeCurrency_midWindow": "68285",
-  "release_erc20_midWindow": "65931",
-  "release_nativeCurrency_midWindow": "66537"
+  "drip_erc20_first": "54623",
+  "drip_erc20_midWindow": "67447",
+  "drip_nativeCurrency_first": "48987",
+  "drip_nativeCurrency_midWindow": "68053",
+  "release_erc20_midWindow": "65441",
+  "release_nativeCurrency_midWindow": "66047"
 }
