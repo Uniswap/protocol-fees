@@ -119,13 +119,11 @@ contract ActivateOPBaseArbProposal is Script {
   address internal constant OP_CROSS_CHAIN_ACCOUNT = 0xa1dD330d602c32622AA270Ea73d078B803Cb3518;
   address internal constant OP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
-  /// @dev Set after V3OpenFeeAdapter is deployed on OP Mainnet
-  address internal constant OP_FEE_ADAPTER = address(0); // TODO: fill after deployment
+  address internal constant OP_FEE_ADAPTER = 0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4;
 
   address internal constant OP_V2_FACTORY = 0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf;
 
-  /// @dev Set after TokenJar is deployed on OP Mainnet
-  address internal constant OP_TOKEN_JAR = address(0); // TODO: fill after deployment
+  address internal constant OP_TOKEN_JAR = 0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3;
 
   // ─── Base ────
 
@@ -135,13 +133,11 @@ contract ActivateOPBaseArbProposal is Script {
   address internal constant BASE_CROSS_CHAIN_ACCOUNT = 0x31FAfd4889FA1269F7a13A66eE0fB458f27D72A9;
   address internal constant BASE_V3_FACTORY = 0x33128a8fC17869897dcE68Ed026d694621f6FDfD;
 
-  /// @dev Set after V3OpenFeeAdapter is deployed on Base
-  address internal constant BASE_FEE_ADAPTER = address(0); // TODO: fill after deployment
+  address internal constant BASE_FEE_ADAPTER = 0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1;
 
   address internal constant BASE_V2_FACTORY = 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6;
 
-  /// @dev Set after TokenJar is deployed on Base
-  address internal constant BASE_TOKEN_JAR = address(0); // TODO: fill after deployment
+  address internal constant BASE_TOKEN_JAR = 0x9bD25e67bF390437C8fAF480AC735a27BcF6168c;
 
   // ─── Arbitrum ───
 
@@ -153,22 +149,20 @@ contract ActivateOPBaseArbProposal is Script {
   /// @dev Aliased L1 Timelock on Arbitrum (used as refund address for excess retryable ticket ETH)
   address internal constant ARB_ALIASED_TIMELOCK = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
 
-  /// @dev Set after V3OpenFeeAdapter is deployed on Arbitrum
-  address internal constant ARB_FEE_ADAPTER = address(0); // TODO: fill after deployment
+  address internal constant ARB_FEE_ADAPTER = 0xFF7aD5dA31fECdC678796c88B05926dB896b0699;
 
   address internal constant ARB_V2_FACTORY = 0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9;
 
-  /// @dev Set after TokenJar is deployed on Arbitrum
-  address internal constant ARB_TOKEN_JAR = address(0); // TODO: fill after deployment
+  address internal constant ARB_TOKEN_JAR = 0x95E337C5B155385945D407f5396387D0c2a3A263;
 
   // ─── Ethereum Mainnet (V3 factory migration: V3FeeAdapter → V3OpenFeeAdapter) ───
 
   /// @dev Current V3FeeAdapter (merkle-based) — owns the mainnet V3 factory since proposal 04
-  /// Set after V3FeeAdapter address is confirmed from MainnetDeployer
-  address internal constant MAINNET_V3_FEE_ADAPTER = address(0); // TODO: fill with deployed address
+  address internal constant MAINNET_V3_FEE_ADAPTER = 0x5E74C9f42EEd283bFf3744fBD1889d398d40867d;
 
   /// @dev New V3OpenFeeAdapter (permissionless) — deployed by V3OpenMainnetDeployer
-  address internal constant MAINNET_V3_OPEN_FEE_ADAPTER = address(0); // TODO: fill after deployment
+  address internal constant MAINNET_V3_OPEN_FEE_ADAPTER =
+    0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A;
 
   // ─── Celo (Wormhole handoff: Wormhole Receiver → CrossChainAccount) ───
 
@@ -186,8 +180,7 @@ contract ActivateOPBaseArbProposal is Script {
   address internal constant CELO_V2_FACTORY = 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f;
   address internal constant CELO_V4_POOL_MANAGER = 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC;
 
-  /// @dev Set after CrossChainAccount is deployed on Celo (by DeployCelo script)
-  address internal constant CELO_CROSS_CHAIN_ACCOUNT = address(0); // TODO: fill after deployment
+  address internal constant CELO_CROSS_CHAIN_ACCOUNT = 0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7;
 
   // ─── Proposal ───
 
