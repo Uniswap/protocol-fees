@@ -39,10 +39,10 @@ contract FeeDripper is Owned, IFeeDripper {
     uint48 latestReleaseBlock;
   }
 
-  constructor(address _tokenJar, address _owner) Owned(_owner) {
-    if (_owner == address(0)) revert InvalidOwner();
-    if (_tokenJar == address(0)) revert InvalidTokenJar();
-    TOKEN_JAR = _tokenJar;
+  constructor(address tokenJar, address owner) Owned(owner) {
+    if (owner == address(0)) revert InvalidOwner();
+    if (tokenJar == address(0)) revert InvalidTokenJar();
+    TOKEN_JAR = tokenJar;
   }
 
   /// @inheritdoc IFeeDripper
@@ -51,31 +51,31 @@ contract FeeDripper is Owned, IFeeDripper {
     (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock) =
       _readDripState(currency);
 
-    (uint256 postDripBalance, uint256 releasedAmount, uint16 _releaseWindow) =
+    (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) =
       _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     // We only check postDripBalance against type(uint160).max (not divided by releaseWindow)
     // because releaseWindow could be set to 1 by the owner at any time
     if (postDripBalance > type(uint160).max) postDripBalance = type(uint160).max;
 
-    // Set the drip state - reset the release window
-    uint160 updatedPerBlockRate = uint160(postDripBalance / _releaseWindow);
+    // Update the per block rate for the new drip timeframe
+    uint160 updatedPerBlockRate = uint160(postDripBalance / releaseWindow);
 
     // branchless: fullyReleasedBlock is block.number for zero remaining balance, otherwise
-    // block.number + _releaseWindow
+    // block.number + releaseWindow
     uint256 fullyReleasedBlock = block.number;
     assembly ("memory-safe") {
-      fullyReleasedBlock := add(fullyReleasedBlock, mul(_releaseWindow, gt(postDripBalance, 0)))
+      fullyReleasedBlock := add(fullyReleasedBlock, mul(releaseWindow, gt(postDripBalance, 0)))
     }
 
-    // Update the state. Uint48 for fullyReleasedBlock is safe for reasonable protocol horizon
-    // assumption.
+    // Update the state. Uint48 for fullyReleasedBlock is safe for reasonable
+    // protocol horizon assumption.
     _writeDripState(currency, updatedPerBlockRate, uint48(fullyReleasedBlock), uint48(block.number));
 
     // Release the tokens to the token jar
     _releaseTokens(currency, releasedAmount);
     if (postDripBalance > 0) {
-      emit DripStarted(Currency.unwrap(currency), fullyReleasedBlock, updatedPerBlockRate);
+      emit DripUpdated(Currency.unwrap(currency), fullyReleasedBlock, updatedPerBlockRate);
     }
   }
 
@@ -102,16 +102,17 @@ contract FeeDripper is Owned, IFeeDripper {
   }
 
   /// @inheritdoc IFeeDripper
-  function setReleaseSettings(uint16 _releaseWindow, uint16 _windowResetBps) external onlyOwner {
-    if (_releaseWindow == 0) revert InvalidReleaseWindow();
-    if (_windowResetBps > BPS) revert InvalidWindowResetBps();
+  function setReleaseSettings(uint16 releaseWindow, uint16 windowResetBps) external onlyOwner {
+    if (releaseWindow == 0) revert InvalidReleaseWindow();
+    if (windowResetBps > BPS) revert InvalidWindowResetBps();
     releaseSettings =
-      ReleaseSettings({releaseWindow: _releaseWindow, windowResetBps: _windowResetBps});
-    emit ReleaseSettingsSet(_releaseWindow, _windowResetBps);
+      ReleaseSettings({releaseWindow: releaseWindow, windowResetBps: windowResetBps});
+    emit ReleaseSettingsSet(releaseWindow, windowResetBps);
   }
 
   receive() external payable {}
 
+  /// @dev Transfers tokens to the token jar. Emits the Released event.
   function _releaseTokens(Currency currency, uint256 releasedAmount) internal {
     // Transfer released tokens to the token jar
     if (releasedAmount > 0) {
@@ -120,6 +121,7 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
+  /// @dev Packs and writes the drip state to a single slot in storage.
   function _writeDripState(
     Currency currency,
     uint160 perBlockRate,
@@ -142,6 +144,7 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
+  /// @dev Reads the drip state from storage. Skips memory and reads directly to stack
   function _readDripState(Currency currency)
     internal
     view
@@ -159,6 +162,7 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
+  /// @dev Reads the release settings from storage. Skips memory and reads directly to stack
   function _readReleaseSettings()
     internal
     view
@@ -171,12 +175,13 @@ contract FeeDripper is Owned, IFeeDripper {
     }
   }
 
+  /// @dev Shared logic to calculate accrued amount and prepare the release of those tokens.
   function _prepareRelease(
     Currency currency,
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  ) internal view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 _releaseWindow) {
+  ) internal view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) {
     // Calculate the previous balance of the currency at last call
     uint256 previousBalance = (endReleaseBlock - latestReleaseBlock) * perBlockRate;
 
@@ -192,25 +197,27 @@ contract FeeDripper is Owned, IFeeDripper {
     postDripBalance = currentBalance - releasedAmount;
 
     // Cache the release settings in stack to avoid multiple storage reads within this call
-    (uint16 _originalReleaseWindow, uint16 _windowResetBps) = _readReleaseSettings();
+    (uint16 originalReleaseWindow, uint16 windowResetBps) = _readReleaseSettings();
 
-    _releaseWindow = _originalReleaseWindow;
+    // By default, extend the drip timeframe by the original release window.
+    releaseWindow = originalReleaseWindow;
     uint256 newDeposit = currentBalance - previousBalance;
 
     if (previousBalance > 0 && block.number < endReleaseBlock) {
-      uint256 minBalanceForReset = (previousBalance * _windowResetBps) / BPS;
+      uint256 minBalanceForReset = (previousBalance * windowResetBps) / BPS;
       if (newDeposit < minBalanceForReset) {
-        _releaseWindow = uint16(endReleaseBlock - block.number);
+        // Threshold not exceeded, add the tokens to the currently active drip.
+        releaseWindow = uint16(endReleaseBlock - block.number);
       }
     }
 
     // If the remaining balance is less than the release window, immediately release the remaining
     // balance to skip dust accumulation
-    if (postDripBalance < _originalReleaseWindow) {
+    if (postDripBalance < originalReleaseWindow) {
       releasedAmount += postDripBalance;
       postDripBalance = 0;
     }
 
-    return (postDripBalance, releasedAmount, _releaseWindow);
+    return (postDripBalance, releasedAmount, releaseWindow);
   }
 }

@@ -6,13 +6,13 @@ import {Currency} from "v4-core/types/Currency.sol";
 /// @title IFeeDripper
 interface IFeeDripper {
   /// @notice Emitted when a drip is started for a given currency.
-  event DripStarted(
+  event DripUpdated(
     address indexed currency, uint256 indexed fullyReleasedBlock, uint160 perBlockRate
   );
   /// @notice Emitted when a release to the token jar is completed.
   event Released(address indexed currency, uint256 amount);
   /// @notice Emitted when the release settings are updated by the owner.
-  event ReleaseSettingsSet(uint16 indexed releaseWindow, uint16 indexed windowResetBps);
+  event ReleaseSettingsSet(uint16 releaseWindow, uint16 windowResetBps);
 
   /// @notice Thrown when the owner address provided in the constructor is zero address.
   error InvalidOwner();
