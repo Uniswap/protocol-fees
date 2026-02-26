@@ -88,13 +88,13 @@ contract FeeDripper is Owned, IFeeDripper {
     (uint256 postDripBalance, uint256 releasedAmount,) =
       _prepareRelease(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
-    assembly ("memory-safe") {
-      perBlockRate := mul(perBlockRate, gt(postDripBalance, 0))
+    latestReleaseBlock = uint48(Math.min(block.number, endReleaseBlock));
+    if (postDripBalance == 0) {
+      perBlockRate = 0;
+      endReleaseBlock = latestReleaseBlock;
     }
 
-    // Update the drip state - only the latest release block is updated to avoid
-    // resetting the release window.
-    latestReleaseBlock = uint48(Math.min(block.number, endReleaseBlock));
+    // Update the drip state
     _writeDripState(currency, perBlockRate, endReleaseBlock, latestReleaseBlock);
 
     // Release the tokens to the token jar
