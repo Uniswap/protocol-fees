@@ -125,7 +125,7 @@ contract FeeDripperTest is Test {
     uint48 expectedEnd = uint48(block.number + window);
 
     vm.expectEmit(true, true, true, true);
-    emit IFeeDripper.DripStarted(Currency.unwrap(currency), expectedEnd, expectedRate);
+    emit IFeeDripper.DripUpdated(Currency.unwrap(currency), expectedEnd, expectedRate);
     feeDripper.drip(currency);
 
     (uint160 rate, uint48 endBlock, uint48 latestBlock) = feeDripper.drips(currency);
