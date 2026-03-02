@@ -24,7 +24,7 @@ contract FeeDripper is Owned, IFeeDripper {
   address public immutable TOKEN_JAR;
   // the window of blocks over which the fees are released
   ReleaseSettings public releaseSettings =
-    ReleaseSettings({releaseWindow: 1000, windowResetBps: 50});
+    ReleaseSettings({releaseWindow: 2000, windowResetBps: 50});
   // mapping of currency to drip
   mapping(Currency => Drip) public drips;
 
@@ -203,6 +203,9 @@ contract FeeDripper is Owned, IFeeDripper {
     releaseWindow = originalReleaseWindow;
     uint256 newDeposit = currentBalance - previousBalance;
 
+    // Threshold is based on previousBalance (from last checkpoint), not remaining scheduled
+    // balance. This is intentional: if no actor called release(), the accrued amount is likely
+    // insignificant to searchers, so a higher threshold (favoring faster release) is acceptable.
     if (previousBalance > 0 && block.number < endReleaseBlock) {
       uint256 minBalanceForReset = (previousBalance * windowResetBps) / BPS;
       if (newDeposit < minBalanceForReset) {
