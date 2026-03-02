@@ -64,7 +64,7 @@ contract FeeDripperTest is Test {
     assertEq(feeDripper.TOKEN_JAR(), tokenJar);
     assertEq(feeDripper.owner(), owner);
     (uint16 window, uint16 windowResetBps) = _releaseSettings();
-    assertEq(window, 1000);
+    assertEq(window, 2000);
     assertEq(windowResetBps, 50);
   }
 
@@ -115,7 +115,7 @@ contract FeeDripperTest is Test {
   // ============ drip ============
 
   function test_drip_firstDrip(uint128 _amount, bool _useNativeCurrency) public {
-    _amount = uint128(bound(_amount, 1000, type(uint128).max));
+    _amount = uint128(bound(_amount, _releaseWindow(), type(uint128).max));
 
     Currency currency = _currency(_useNativeCurrency);
     _deal(address(feeDripper), _amount, _useNativeCurrency);
@@ -165,8 +165,8 @@ contract FeeDripperTest is Test {
     _deal(address(feeDripper), 1e18, _useNativeCurrency);
     feeDripper.drip(currency);
 
-    // Advance well past the window
-    vm.roll(block.number + 2000);
+    // Advance past the window
+    vm.roll(block.number + _releaseWindow() + 1);
     feeDripper.drip(currency);
 
     // All tokens should be in tokenJar (minus dust)
@@ -207,10 +207,11 @@ contract FeeDripperTest is Test {
     assertEq(erc20Currency.balanceOf(address(feeDripper)), total);
 
     // release mid-window
-    vm.roll(block.number + 500);
+    uint256 halfWindow = _halfWindow();
+    vm.roll(block.number + halfWindow);
     feeDripper.release(currency);
 
-    uint256 expectedReleasedMidWindow = uint256(expectedRate) * 500;
+    uint256 expectedReleasedMidWindow = uint256(expectedRate) * halfWindow;
     assertEq(erc20Currency.balanceOf(tokenJar), expectedReleasedMidWindow);
 
     // drip again after the window — picks up leftover (excess + integer division dust)
@@ -224,7 +225,8 @@ contract FeeDripperTest is Test {
     assertEq(rateAfter, expectedLeftoverRate);
     assertEq(endBlockAfter, uint48(block.number + window));
     assertEq(
-      erc20Currency.balanceOf(tokenJar), expectedReleasedMidWindow + uint256(expectedRate) * 500
+      erc20Currency.balanceOf(tokenJar),
+      expectedReleasedMidWindow + uint256(expectedRate) * (window - halfWindow)
     );
   }
 
@@ -273,7 +275,7 @@ contract FeeDripperTest is Test {
     feeDripper.drip(currency);
 
     // Advance past the window
-    vm.roll(block.number + 2000);
+    vm.roll(block.number + _releaseWindow() * 2);
     feeDripper.release(currency);
 
     // latestReleaseBlock should be capped at endReleaseBlock
@@ -654,8 +656,7 @@ contract FeeDripperTest is Test {
     Currency currency = Currency.wrap(address(erc20Currency));
     uint16 window = _releaseWindow();
 
-    // Deposit in [window, window²) so perBlockRate = 1 (low rate).
-    // With 1500 and window=1000: rate = 1500/1000 = 1, dust = 500
+    // Deposit in [window, window*2) so perBlockRate = 1 (low rate).
     uint256 deposit = uint256(window) + 500;
     erc20Currency.mint(address(feeDripper), deposit);
     feeDripper.drip(currency);
@@ -664,8 +665,8 @@ contract FeeDripperTest is Test {
     assertEq(rate, 1);
 
     // Roll to where remaining balance < releaseWindow (triggers dust flush).
-    // remaining = (1000 - 601) * 1 + 500 (dust) = 899 < 1000
-    vm.roll(block.number + 601);
+    uint256 blocksToFlush = deposit - window + 1;
+    vm.roll(block.number + blocksToFlush);
     feeDripper.release(currency);
 
     // All tokens flushed to jar
