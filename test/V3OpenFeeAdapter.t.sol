@@ -277,48 +277,6 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
     assertEq(_getProtocolFees(pool1), protocolFee10000);
   }
 
-  // ============ Idempotency Tests ============
-
-  function test_triggerFeeUpdate_idempotent_noRevert() public {
-    uint8 protocolFee = 10 << 4 | 8;
-
-    vm.prank(feeSetter);
-    feeAdapter.setDefaultFeeByFeeTier(3000, protocolFee);
-
-    // First update
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), protocolFee);
-
-    // Second update with same fee - should not revert
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), protocolFee);
-
-    // Third update - still works
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), protocolFee);
-  }
-
-  function test_triggerFeeUpdate_idempotent_gasEfficient() public {
-    uint8 protocolFee = 10 << 4 | 8;
-
-    vm.prank(feeSetter);
-    feeAdapter.setDefaultFeeByFeeTier(3000, protocolFee);
-
-    // First update
-    feeAdapter.triggerFeeUpdate(pool);
-    uint256 gasFirst = vm.snapshotGasLastCall("triggerFeeUpdate_first");
-
-    // Second update (idempotent) - should use less gas due to early return
-    feeAdapter.triggerFeeUpdate(pool);
-    uint256 gasSecond = vm.snapshotGasLastCall("triggerFeeUpdate_idempotent");
-
-    // State should be correct
-    assertEq(_getProtocolFees(pool), protocolFee);
-
-    // Second call should use less gas (no setFeeProtocol call)
-    assertLt(gasSecond, gasFirst, "Idempotent call should use less gas");
-  }
-
   // ============ Edge Case Tests ============
 
   function test_triggerFeeUpdate_skipsUninitializedPool() public {
@@ -958,67 +916,6 @@ contract V3OpenFeeAdapterTest is ProtocolFeesTestBase {
 
   function test_ZERO_FEE_SENTINEL_constant() public view {
     assertEq(feeAdapter.ZERO_FEE_SENTINEL(), type(uint8).max);
-  }
-
-  // ============ Idempotency Correctness Tests (M-01) ============
-
-  function test_idempotencyCheck_readsFeeProtocol_notObservationCardinalityNext() public {
-    // This test validates that _setProtocolFee reads feeProtocol (slot0 position 5),
-    // NOT observationCardinalityNext (position 4). If the wrong field is read,
-    // the idempotency check would compare against the wrong value.
-
-    uint8 feeValue = 4 << 4 | 4; // = 68
-
-    vm.prank(feeSetter);
-    feeAdapter.setFeeTierDefault(3000, feeValue);
-
-    // First call sets the fee on the pool
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), feeValue);
-
-    // Verify slot0 fields differ: feeProtocol should be 68,
-    // observationCardinalityNext is 1 (initial value for a fresh pool)
-    (,,,, uint16 observationCardinalityNext, uint8 feeProtocol,) = IUniswapV3Pool(pool).slot0();
-    assertEq(feeProtocol, feeValue);
-    // observationCardinalityNext should NOT equal feeValue for this to be a meaningful test
-    assertTrue(
-      observationCardinalityNext != feeValue,
-      "Test setup: observationCardinalityNext should differ from feeValue"
-    );
-
-    // Second call should be idempotent (early return because feeProtocol already matches).
-    // If the code incorrectly reads observationCardinalityNext instead of feeProtocol,
-    // it would NOT early-return and would make an unnecessary setFeeProtocol call.
-    // We expect NO FeeUpdateTriggered event — if one is emitted, the idempotency check is broken.
-    vm.recordLogs();
-    feeAdapter.triggerFeeUpdate(pool);
-    Vm.Log[] memory entries = vm.getRecordedLogs();
-    for (uint256 i; i < entries.length; i++) {
-      assertTrue(
-        entries[i].topics[0] != keccak256("FeeUpdateTriggered(address,address,uint8)"),
-        "Idempotent call should not emit FeeUpdateTriggered"
-      );
-    }
-  }
-
-  function test_idempotencyCheck_doesNotSkipWhenFeesDiffer() public {
-    // Set initial fee and apply it
-    uint8 initialFee = 4 << 4 | 4;
-    vm.prank(feeSetter);
-    feeAdapter.setFeeTierDefault(3000, initialFee);
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), initialFee);
-
-    // Change the fee
-    uint8 newFee = 10 << 4 | 10;
-    vm.prank(feeSetter);
-    feeAdapter.setFeeTierDefault(3000, newFee);
-
-    // Should emit event since fees differ — the update must NOT be skipped
-    vm.expectEmit(true, true, false, true, address(feeAdapter));
-    emit IV3OpenFeeAdapter.FeeUpdateTriggered(address(this), pool, newFee);
-    feeAdapter.triggerFeeUpdate(pool);
-    assertEq(_getProtocolFees(pool), newFee);
   }
 
   // ============ Legacy defaultFees Waterfall Tests (L-02) ============

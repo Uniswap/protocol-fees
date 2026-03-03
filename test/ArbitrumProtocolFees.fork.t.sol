@@ -86,7 +86,10 @@ contract ArbitrumProtocolFeesForkTest is Test {
     vm.etch(ARB_SYS, address(mockArbSys).code);
 
     // Deploy the contracts using ArbitrumDeployer
-    deployer = new ArbitrumDeployer(RESOURCE, L1_RESOURCE, THRESHOLD, owner);
+    // V3 Factory on Arbitrum One: 0x1F98431c8aD98523631AE4a59f267346ea31F984
+    deployer = new ArbitrumDeployer(
+      RESOURCE, L1_RESOURCE, THRESHOLD, owner, 0x1F98431c8aD98523631AE4a59f267346ea31F984
+    );
     tokenJar = deployer.TOKEN_JAR();
     releaser = deployer.RELEASER();
   }
@@ -274,7 +277,9 @@ contract ArbitrumProtocolFeesForkTest is Test {
 
   function test_deploymentAddressDeterminism() public {
     // Test that deployment addresses are deterministic with salt
-    ArbitrumDeployer deployer2 = new ArbitrumDeployer(RESOURCE, L1_RESOURCE, THRESHOLD, owner);
+    ArbitrumDeployer deployer2 = new ArbitrumDeployer(
+      RESOURCE, L1_RESOURCE, THRESHOLD, owner, 0x1F98431c8aD98523631AE4a59f267346ea31F984
+    );
 
     // Addresses should be different for different deployer instances
     // but the pattern should be consistent

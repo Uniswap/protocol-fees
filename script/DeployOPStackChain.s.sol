@@ -17,8 +17,9 @@ interface IOptimismMintableERC20Factory {
 }
 
 /// @title DeployOPStackChain
-/// @notice Abstract base for deploying TokenJar + OptimismBridgedResourceFirepit on any OP Stack
-/// chain @dev Concrete scripts override `_chainId()`, `_resource()`, and `_name()`.
+/// @notice Abstract base for deploying TokenJar + OptimismBridgedResourceFirepit + V3OpenFeeAdapter
+///         on any OP Stack chain
+/// @dev Concrete scripts override `_chainId()`, `_resource()`, `_v3Factory()`, and `_name()`.
 ///      THRESHOLD is shared across all OP Stack deployments.
 ///      If `_resource()` returns address(0), the script first creates a canonical bridged UNI token
 ///      via the OptimismMintableERC20Factory predeploy before proceeding with deployment.
@@ -56,6 +57,10 @@ abstract contract DeployOPStackChain is Script {
   /// @notice The name of the chain
   /// @dev Concrete scripts override this function to return the name of the chain
   function _name() internal pure virtual returns (string memory);
+
+  /// @notice The Uniswap V3 Factory address on this chain
+  /// @dev Concrete scripts must override this function to return the V3 Factory address.
+  function _v3Factory() internal pure virtual returns (address);
 
   /// @notice Returns the owner address for the deployed contracts
   /// @dev If this returns address(0), a new CrossChainAccount is deployed via
@@ -99,11 +104,12 @@ abstract contract DeployOPStackChain is Script {
     if (resource == address(0)) resource = _createBridgedUNI();
 
     OPStackDeployer deployer =
-      new OPStackDeployer{salt: bytes32(uint256(1))}(resource, THRESHOLD, owner);
+      new OPStackDeployer{salt: bytes32(uint256(1))}(resource, THRESHOLD, owner, _v3Factory());
 
     console2.log("Deployer:", address(deployer));
     console2.log("TOKEN_JAR:", address(deployer.TOKEN_JAR()));
     console2.log("RELEASER:", address(deployer.RELEASER()));
+    console2.log("V3OpenFeeAdapter:", address(deployer.V3_OPEN_FEE_ADAPTER()));
 
     vm.stopBroadcast();
 
@@ -112,5 +118,7 @@ abstract contract DeployOPStackChain is Script {
     assert(IOwned(address(deployer.TOKEN_JAR())).owner() == owner);
     assert(IResourceManager(address(deployer.RELEASER())).thresholdSetter() == owner);
     assert(IOwned(address(deployer.RELEASER())).owner() == owner);
+    assert(IOwned(address(deployer.V3_OPEN_FEE_ADAPTER())).owner() == owner);
+    assert(deployer.V3_OPEN_FEE_ADAPTER().feeSetter() == owner);
   }
 }
