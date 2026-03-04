@@ -52,6 +52,9 @@ contract V3OpenMainnetDeployer {
     // 2. Set this contract as feeSetter temporarily
     V3_OPEN_FEE_ADAPTER.setFeeSetter(address(this));
 
+    // Set default fee (applied when no tier or pool override is set)
+    V3_OPEN_FEE_ADAPTER.setDefaultFee(DEFAULT_FEE_100);
+
     // 3. Set default fees for each tier
     V3_OPEN_FEE_ADAPTER.setFeeTierDefault(100, DEFAULT_FEE_100);
     V3_OPEN_FEE_ADAPTER.setFeeTierDefault(500, DEFAULT_FEE_500);

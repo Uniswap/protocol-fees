@@ -1,8 +1,9 @@
 # Uniswap Fee Collection
 
-*A unified system for collecting and converting fees from arbitrary revenue sources on arbitrary chains.*
+_A unified system for collecting and converting fees from arbitrary revenue sources on arbitrary chains._
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Goals](#goals)
 - [Architecture](#architecture)
@@ -10,20 +11,19 @@
 - [Fault Tolerance](#fault-tolerance)
 - [Deployment Architecture](#deployment-architecture)
 - [Development](#development)
-    - [Prerequisites](#prerequisites)
-    - [Installation](#installation)
-    - [Testing](#testing)
-    - [Project Structure](#project-structure)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Testing](#testing)
+  - [Project Structure](#project-structure)
 - [Governance Proposal](#governance-proposal)
 - [Security](#security)
 - [Future Development](#future-development)
-    - [Protocol Fee Auctions](#protocol-fee-auctions)
-    - [Additional Protocol Support](#additional-protocol-support)
-    - [Cross-chain Expansion](#cross-chain-expansion)
+  - [Protocol Fee Auctions](#protocol-fee-auctions)
+  - [Additional Protocol Support](#additional-protocol-support)
+  - [Cross-chain Expansion](#cross-chain-expansion)
 - [Contributing](#contributing)
 - [License](#license)
 - [Support](#support)
-
 
 ## Overview
 
@@ -145,6 +145,7 @@ For OP Stack L2 chains (Unichain, Optimism, Base, etc.) where only bridged UNI e
 The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 
 **Stage 1 - L2 Collection:**
+
 1. Searcher calls `release()` with the current nonce, assets to release, and recipient
 2. Searcher pays a fixed amount of bridged UNI tokens
 3. UNI is transferred to the Firepit contract (not burned yet)
@@ -166,12 +167,12 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 
 **Configuration:**
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| RESOURCE | Bridged UNI | OptimismMintableERC20 token on L2 |
-| THRESHOLD | 2000 UNI | Amount required per release |
-| WITHDRAWAL_MIN_GAS | 100,000 | Gas for L1 transfer to burn address |
-| L1_RESOURCE_RECIPIENT | `0xdead` | Final burn destination on mainnet |
+| Parameter             | Value       | Description                         |
+| --------------------- | ----------- | ----------------------------------- |
+| RESOURCE              | Bridged UNI | OptimismMintableERC20 token on L2   |
+| THRESHOLD             | 2000 UNI    | Amount required per release         |
+| WITHDRAWAL_MIN_GAS    | 100,000     | Gas for L1 transfer to burn address |
+| L1_RESOURCE_RECIPIENT | `0xdead`    | Final burn destination on mainnet   |
 
 #### (Future) Hub-and-Spoke Cross-Chain
 
@@ -216,24 +217,100 @@ Ethereum Mainnet
 
 ### Ethereum Mainnet (Chain ID: 1)
 
-| Contract | Address |
-|----------|---------|
-| MainnetDeployer | [`0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C`](https://etherscan.io/address/0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C) |
-| TokenJar | [`0xf38521f130fcCF29dB1961597bc5d2B60F995f85`](https://etherscan.io/address/0xf38521f130fcCF29dB1961597bc5d2B60F995f85) |
+| Contract           | Address                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| MainnetDeployer    | [`0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C`](https://etherscan.io/address/0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C) |
+| TokenJar           | [`0xf38521f130fcCF29dB1961597bc5d2B60F995f85`](https://etherscan.io/address/0xf38521f130fcCF29dB1961597bc5d2B60F995f85) |
 | Releaser (Firepit) | [`0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721`](https://etherscan.io/address/0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721) |
-| V3FeeAdapter | [`0x5E74C9f42EEd283bFf3744fBD1889d398d40867d`](https://etherscan.io/address/0x5E74C9f42EEd283bFf3744fBD1889d398d40867d) |
-| UNI Vesting | [`0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2`](https://etherscan.io/address/0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2) |
+| V3FeeAdapter       | [`0x5E74C9f42EEd283bFf3744fBD1889d398d40867d`](https://etherscan.io/address/0x5E74C9f42EEd283bFf3744fBD1889d398d40867d) |
+| V3OpenFeeAdapter   | [`0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`](https://etherscan.io/address/0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A) |
+| UNI Vesting        | [`0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2`](https://etherscan.io/address/0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2) |
 | Agreement Anchor 1 | [`0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8`](https://etherscan.io/address/0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8) |
 | Agreement Anchor 2 | [`0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd`](https://etherscan.io/address/0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd) |
 | Agreement Anchor 3 | [`0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1`](https://etherscan.io/address/0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1) |
 
 ### Unichain (Chain ID: 130)
 
-| Contract | Address |
-|----------|---------|
-| UnichainDeployer | [`0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea`](https://uniscan.xyz/address/0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea) |
-| TokenJar | [`0xD576BDF6b560079a4c204f7644e556DbB19140b5`](https://uniscan.xyz/address/0xD576BDF6b560079a4c204f7644e556DbB19140b5) |
+| Contract                                  | Address                                                                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| UnichainDeployer                          | [`0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea`](https://uniscan.xyz/address/0xD16c47bf3ae22e0B2BAc5925D990b81416f18dea) |
+| TokenJar                                  | [`0xD576BDF6b560079a4c204f7644e556DbB19140b5`](https://uniscan.xyz/address/0xD576BDF6b560079a4c204f7644e556DbB19140b5) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB`](https://uniscan.xyz/address/0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB) |
+
+### World Chain (Chain ID: 480)
+
+| Contract                                  | Address                                                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Deployer                                  | [`0x4E524DAbf30A1D6e87261c804991119181F65bb8`](https://worldscan.org/address/0x4E524DAbf30A1D6e87261c804991119181F65bb8) |
+| TokenJar                                  | [`0xbDb82c2dE7D8748A3e499e771604ef8ef8544918`](https://worldscan.org/address/0xbDb82c2dE7D8748A3e499e771604ef8ef8544918) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x455e844D286631566cF98D6cb2996149734618C6`](https://worldscan.org/address/0x455e844D286631566cF98D6cb2996149734618C6) |
+| V3OpenFeeAdapter                          | [`0x1CE9d4DfB474Ef9ea7dc0e804a333202e40d6201`](https://worldscan.org/address/0x1CE9d4DfB474Ef9ea7dc0e804a333202e40d6201) |
+
+### Soneium (Chain ID: 1868)
+
+| Contract                                  | Address                                                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| CrossChainAccount                         | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://soneium.blockscout.com/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer                                  | [`0xD63fFE536bE3f44AE8f33C5f9c81581f9C94d1C8`](https://soneium.blockscout.com/address/0xD63fFE536bE3f44AE8f33C5f9c81581f9C94d1C8) |
+| TokenJar                                  | [`0x85aeb792b94a9d79741002FC871423Ec5dAD29e9`](https://soneium.blockscout.com/address/0x85aeb792b94a9d79741002FC871423Ec5dAD29e9) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xc9CC50A75cE2a5f88fa77B43e3b050480c731b6e`](https://soneium.blockscout.com/address/0xc9CC50A75cE2a5f88fa77B43e3b050480c731b6e) |
+| V3OpenFeeAdapter                          | [`0x47Cf920815344Fd684A48BBEFcbfbed9C7AE09CF`](https://soneium.blockscout.com/address/0x47Cf920815344Fd684A48BBEFcbfbed9C7AE09CF) |
+
+### Celo (Chain ID: 42220)
+
+| Contract                                  | Address                                                                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| CrossChainAccount                         | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://celoscan.io/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer                                  | [`0x91Df768dF14E94a3fCa42badBF1907E3a3b0240f`](https://celoscan.io/address/0x91Df768dF14E94a3fCa42badBF1907E3a3b0240f) |
+| TokenJar                                  | [`0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B`](https://celoscan.io/address/0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25`](https://celoscan.io/address/0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25) |
+| V3OpenFeeAdapter                          | [`0xB9952C01830306ea2fAAe1505f6539BD260Bfc48`](https://celoscan.io/address/0xB9952C01830306ea2fAAe1505f6539BD260Bfc48) |
+
+### Zora (Chain ID: 7777777)
+
+| Contract                                  | Address                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Deployer                                  | [`0x71F14F2A8b827cD29453498d5AF24F605caee931`](https://explorer.zora.energy/address/0x71F14F2A8b827cD29453498d5AF24F605caee931) |
+| TokenJar                                  | [`0x4753C137002D802f45302b118E265c41140e73C2`](https://explorer.zora.energy/address/0x4753C137002D802f45302b118E265c41140e73C2) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x2f98eD4D04e633169FbC941BFCc54E785853b143`](https://explorer.zora.energy/address/0x2f98eD4D04e633169FbC941BFCc54E785853b143) |
+| V3OpenFeeAdapter                          | [`0xbfc49b47637a4DC9b7B8dE8E71BF41E519103B95`](https://explorer.zora.energy/address/0xbfc49b47637a4DC9b7B8dE8E71BF41E519103B95) |
+
+### X Layer (Chain ID: 196)
+
+| Contract                                  | Address                                                                                                                          |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| CrossChainAccount                         | [`0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7`](https://www.oklink.com/xlayer/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7) |
+| Deployer                                  | [`0xC943dd90D459dB082D9e9C1baBf89D4Afe79E7E0`](https://www.oklink.com/xlayer/address/0xC943dd90D459dB082D9e9C1baBf89D4Afe79E7E0) |
+| TokenJar                                  | [`0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754`](https://www.oklink.com/xlayer/address/0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xe122E231cb52aea99690963Fd73E91e33E97468f`](https://www.oklink.com/xlayer/address/0xe122E231cb52aea99690963Fd73E91e33E97468f) |
+| V3OpenFeeAdapter                          | [`0x6A88EF2e6511CAFfE2D006e260e7A5d1E7D4d7D7`](https://www.oklink.com/xlayer/address/0x6A88EF2e6511CAFfE2D006e260e7A5d1E7D4d7D7) |
+
+### Arbitrum One (Chain ID: 42161)
+
+| Contract         | Address                                                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Deployer         | [`0x3Ac66e1bfC79032C9deFCB23aE4DEe3F8c1630eb`](https://arbiscan.io/address/0x3Ac66e1bfC79032C9deFCB23aE4DEe3F8c1630eb) |
+| TokenJar         | [`0x95E337C5B155385945D407f5396387D0c2a3A263`](https://arbiscan.io/address/0x95E337C5B155385945D407f5396387D0c2a3A263) |
+| Releaser         | [`0xB8018422bcE25D82E70cB98FdA96a4f502D89427`](https://arbiscan.io/address/0xB8018422bcE25D82E70cB98FdA96a4f502D89427) |
+| V3OpenFeeAdapter | [`0xFF7aD5dA31fECdC678796c88B05926dB896b0699`](https://arbiscan.io/address/0xFF7aD5dA31fECdC678796c88B05926dB896b0699) |
+
+### OP Mainnet (Chain ID: 10)
+
+| Contract                                  | Address                                                                                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Deployer                                  | [`0x3398783D2ffE6F79B56dade84CEAea888C400da4`](https://optimistic.etherscan.io/address/0x3398783D2ffE6F79B56dade84CEAea888C400da4) |
+| TokenJar                                  | [`0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3`](https://optimistic.etherscan.io/address/0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0x94460443Ca27FFC1baeCa61165fde18346C91AbD`](https://optimistic.etherscan.io/address/0x94460443Ca27FFC1baeCa61165fde18346C91AbD) |
+| V3OpenFeeAdapter                          | [`0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4`](https://optimistic.etherscan.io/address/0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4) |
+
+### Base (Chain ID: 8453)
+
+| Contract                                  | Address                                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Deployer                                  | [`0x076f84717f3601B8Cd177bb84b217A2679B38b7d`](https://basescan.org/address/0x076f84717f3601B8Cd177bb84b217A2679B38b7d) |
+| TokenJar                                  | [`0x9bD25e67bF390437C8fAF480AC735a27BcF6168c`](https://basescan.org/address/0x9bD25e67bF390437C8fAF480AC735a27BcF6168c) |
+| Releaser (OptimismBridgedResourceFirepit) | [`0xFf77c0ED0B6b13A20446969107E5867abc46f53a`](https://basescan.org/address/0xFf77c0ED0B6b13A20446969107E5867abc46f53a) |
+| V3OpenFeeAdapter                          | [`0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1`](https://basescan.org/address/0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1) |
 
 ## Development
 
@@ -311,17 +388,18 @@ For additional commentary and information please see Uniswap Governance Proposal
 With the system already deployed, Uniswap Governance can elect into the system by executing the following calls:
 
 | Contract         | Address                                                                                                               | Calldata                                                                     | function                               | function signature | parameters                                                                                                            |
-|------------------|-----------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|----------------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------------------|
-| UniswapV3Factory | [0x1F98431c8aD98523631AE4a59f267346ea31F984](https://etherscan.io/address/0x1f98431c8ad98523631ae4a59f267346ea31f984) | `0x13af40350000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setOwner(address _owner)`             | `0x13af4035`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| UniswapV3Factory | [0x1F98431c8aD98523631AE4a59f267346ea31F984](https://etherscan.io/address/0x1f98431c8ad98523631ae4a59f267346ea31f984) | `0x13af40350000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setOwner(address _owner)`             | `0x13af4035`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                                 |
 | FeeToSetter      | [0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360](https://etherscan.io/address/0x18e433c7Bf8A2E1d0197CE5d8f9AFAda1A771360) | `0xa2e74af60000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeToSetter(address feeToSetter_)` | `0xa2e74af6`       | [0x1a9C8182C09F50C8318d769245beA52c32BE35BC](https://etherscan.io/address/0x1a9c8182c09f50c8318d769245bea52c32be35bc) |
-| UniswapV2Factory | [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f](https://etherscan.io/address/0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f) | `0xf46901ed0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeTo(address _feeTo)`             | `0xf46901ed`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                               |
+| UniswapV2Factory | [0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f](https://etherscan.io/address/0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f) | `0xf46901ed0000000000000000000000001a9c8182c09f50c8318d769245bea52c32be35bc` | `setFeeTo(address _feeTo)`             | `0xf46901ed`       | [0xTOKENJAR](https://etherscan.io/address/0xTOKENJAR)                                                                 |
 
 ## Security
 
 **Audits**:
 Audit reports available in [audit/](./audit/)
-  - OpenZeppelin
-  - Spearbit
+
+- OpenZeppelin
+- Spearbit
 
 ## Future Development
 
@@ -356,4 +434,3 @@ This project is licensed under AGPL-3.0-only.
 ## Support
 
 For questions or issues, please open an issue in the repository.
-
