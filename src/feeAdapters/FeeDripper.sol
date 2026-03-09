@@ -13,7 +13,7 @@ import {IFeeDripper} from "../interfaces/IFeeDripper.sol";
 /// @custom:security-contact security@uniswap.org
 contract FeeDripper is Owned, IFeeDripper {
   /// @notice Basis points denominator
-  uint24 public constant BPS = 10_000;
+  uint16 public constant BPS = 10_000;
 
   // masks for the perBlockRate, endReleaseBlock, and latestReleaseBlock
   uint256 private constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
