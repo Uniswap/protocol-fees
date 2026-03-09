@@ -214,8 +214,9 @@ contract FeeDripper is Owned, IFeeDripper {
       }
     }
 
-    // If the remaining balance is less than the release window, immediately release the remaining
-    // balance to skip dust accumulation
+    // Flush when postDripBalance / originalReleaseWindow truncates to 0 (perBlockRate = 0).
+    // Without this, sub-divisor amounts are locked in the dripper.
+    // Note: compares token units against block count.
     if (postDripBalance < originalReleaseWindow) {
       releasedAmount += postDripBalance;
       postDripBalance = 0;
