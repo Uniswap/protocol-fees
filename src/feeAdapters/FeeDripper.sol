@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity 0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
