@@ -16,9 +16,9 @@ contract FeeDripper is Owned, IFeeDripper {
   uint24 public constant BPS = 10_000;
 
   // masks for the perBlockRate, endReleaseBlock, and latestReleaseBlock
-  uint256 constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-  uint256 constant UINT48_MASK = 0xFFFFFFFFFFFF;
-  uint256 constant UINT16_MASK = 0xFFFF;
+  uint256 private constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+  uint256 private constant UINT48_MASK = 0xFFFFFFFFFFFF;
+  uint256 private constant UINT16_MASK = 0xFFFF;
 
   // token jar address to receive the dripped fees
   address public immutable TOKEN_JAR;
