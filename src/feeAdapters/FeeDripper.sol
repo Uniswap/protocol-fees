@@ -40,8 +40,8 @@ contract FeeDripper is Owned, IFeeDripper {
   }
 
   constructor(address tokenJar, address owner) Owned(owner) {
-    if (owner == address(0)) revert InvalidOwner();
-    if (tokenJar == address(0)) revert InvalidTokenJar();
+    require(owner != address(0), InvalidOwner());
+    require(tokenJar != address(0), InvalidTokenJar());
     TOKEN_JAR = tokenJar;
   }
 
@@ -103,8 +103,8 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @inheritdoc IFeeDripper
   function setReleaseSettings(uint16 releaseWindow, uint16 windowResetBps) external onlyOwner {
-    if (releaseWindow == 0) revert InvalidReleaseWindow();
-    if (windowResetBps > BPS) revert InvalidWindowResetBps();
+    require(releaseWindow > 0, InvalidReleaseWindow());
+    require(windowResetBps <= BPS, InvalidWindowResetBps());
     releaseSettings =
       ReleaseSettings({releaseWindow: releaseWindow, windowResetBps: windowResetBps});
     emit ReleaseSettingsSet(releaseWindow, windowResetBps);
