@@ -12,6 +12,17 @@ import {IFeeDripper} from "../interfaces/IFeeDripper.sol";
 ///      PoolManager and CCA auctions, which also assume exact-amount transfers.
 /// @custom:security-contact security@uniswap.org
 contract FeeDripper is Owned, IFeeDripper {
+  struct ReleaseSettings {
+    uint16 releaseWindow; // the window of blocks over which the fees are released
+    uint16 windowResetBps; // min new-deposit-to-previous-balance ratio (in bps) to reset the window
+  }
+
+  struct Drip {
+    uint160 perBlockRate;
+    uint48 endReleaseBlock;
+    uint48 latestReleaseBlock;
+  }
+
   /// @notice Basis points denominator
   uint16 public constant BPS = 10_000;
 
@@ -27,17 +38,6 @@ contract FeeDripper is Owned, IFeeDripper {
     ReleaseSettings({releaseWindow: 2000, windowResetBps: 50});
   // mapping of currency to drip
   mapping(Currency => Drip) public drips;
-
-  struct ReleaseSettings {
-    uint16 releaseWindow; // the window of blocks over which the fees are released
-    uint16 windowResetBps; // min new-deposit-to-previous-balance ratio (in bps) to reset the window
-  }
-
-  struct Drip {
-    uint160 perBlockRate;
-    uint48 endReleaseBlock;
-    uint48 latestReleaseBlock;
-  }
 
   constructor(address tokenJar, address owner) Owned(owner) {
     require(owner != address(0), InvalidOwner());
