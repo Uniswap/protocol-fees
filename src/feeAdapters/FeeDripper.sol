@@ -113,7 +113,7 @@ contract FeeDripper is Owned, IFeeDripper {
   receive() external payable {}
 
   /// @dev Transfers tokens to the token jar. Emits the Released event.
-  function _releaseTokens(Currency currency, uint256 releasedAmount) internal {
+  function _releaseTokens(Currency currency, uint256 releasedAmount) private {
     // Transfer released tokens to the token jar
     if (releasedAmount > 0) {
       currency.transfer(TOKEN_JAR, releasedAmount);
@@ -127,7 +127,7 @@ contract FeeDripper is Owned, IFeeDripper {
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  ) internal {
+  ) private {
     // Used assembly to pack and store values directly from stack and skip memory allocation.
     assembly ("memory-safe") {
       mstore(0x00, currency)
@@ -146,7 +146,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @dev Reads the drip state from storage. Skips memory and reads directly to stack
   function _readDripState(Currency currency)
-    internal
+    private
     view
     returns (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock)
   {
@@ -164,7 +164,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @dev Reads the release settings from storage. Skips memory and reads directly to stack
   function _readReleaseSettings()
-    internal
+    private
     view
     returns (uint16 releaseWindow, uint16 windowResetBps)
   {
@@ -181,7 +181,7 @@ contract FeeDripper is Owned, IFeeDripper {
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  ) internal view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) {
+  ) private view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) {
     // Calculate the previous balance of the currency at last call
     uint256 previousBalance = (endReleaseBlock - latestReleaseBlock) * perBlockRate;
 
