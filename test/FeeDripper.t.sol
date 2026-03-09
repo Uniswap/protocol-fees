@@ -17,7 +17,8 @@ contract FeeDripperTest is Test {
   ERC20Mock public erc20Currency;
 
   function setUp() public {
-    feeDripper = new FeeDripper(tokenJar, owner);
+    vm.prank(owner);
+    feeDripper = new FeeDripper(tokenJar);
     vm.deal(address(this), type(uint256).max);
     erc20Currency = new ERC20Mock();
   }
@@ -57,7 +58,7 @@ contract FeeDripperTest is Test {
 
   function test_constructor_revertsOnZeroTokenJar() public {
     vm.expectRevert(IFeeDripper.InvalidTokenJar.selector);
-    new FeeDripper(address(0), owner);
+    new FeeDripper(address(0));
   }
 
   function test_constructor_setsImmutables() public view {

@@ -21,8 +21,6 @@ interface IFeeDripper {
   /// @param windowResetBps The new window reset threshold in basis points
   event ReleaseSettingsSet(uint16 releaseWindow, uint16 windowResetBps);
 
-  /// @notice Thrown when the owner address provided in the constructor is zero address.
-  error InvalidOwner();
   /// @notice Thrown when the token jar address provided in the constructor is zero address.
   error InvalidTokenJar();
   /// @notice Thrown when the supplied release window is zero.

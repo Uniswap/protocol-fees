@@ -39,8 +39,7 @@ contract FeeDripper is Owned, IFeeDripper {
   // mapping of currency to drip
   mapping(Currency => Drip) public drips;
 
-  constructor(address tokenJar, address owner) Owned(owner) {
-    require(owner != address(0), InvalidOwner());
+  constructor(address tokenJar) Owned(msg.sender) {
     require(tokenJar != address(0), InvalidTokenJar());
     TOKEN_JAR = tokenJar;
   }
