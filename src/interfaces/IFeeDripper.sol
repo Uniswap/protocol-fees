@@ -43,14 +43,15 @@ interface IFeeDripper {
   function drip(Currency currency) external;
 
   /// @notice Releases accrued amount for `currency` to `TOKEN_JAR` without starting a new drip.
-  /// @dev Only accrual from the current stream is released.
+  /// @dev Releases accrual from the current stream. If the remaining balance (including idle
+  ///      deposits) is below the dust threshold, the entire balance is flushed.
   ///      Does not recompute rate or end block, and does not incorporate newly deposited idle
   ///      balance into the stream (that requires `drip()`).
   ///      Callable by anyone.
   /// @param currency The currency to release
   function release(Currency currency) external;
 
-  /// @notice Sets the release window.
+  /// @notice Sets the release window and window reset threshold.
   /// @dev Only callable by the owner.
   /// @param _releaseWindow The new release window
   /// @param _windowResetBps The new window reset basis points
