@@ -220,7 +220,5 @@ contract FeeDripper is Owned, IFeeDripper {
       releasedAmount += postDripBalance;
       postDripBalance = 0;
     }
-
-    return (postDripBalance, releasedAmount, releaseWindow);
   }
 }
