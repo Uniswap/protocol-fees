@@ -5,13 +5,20 @@ import {Currency} from "v4-core/types/Currency.sol";
 
 /// @title IFeeDripper
 interface IFeeDripper {
-  /// @notice Emitted when a drip is started for a given currency.
+  /// @notice Emitted when a drip schedule is updated for a given currency.
+  /// @param currency The currency address whose drip was updated
+  /// @param fullyReleasedBlock The block number at which the current drip will be fully released
+  /// @param perBlockRate The amount of tokens released per block
   event DripUpdated(
     address indexed currency, uint256 indexed fullyReleasedBlock, uint160 perBlockRate
   );
   /// @notice Emitted when a release to the token jar is completed.
+  /// @param currency The currency address that was released
+  /// @param amount The amount of tokens released
   event Released(address indexed currency, uint256 amount);
   /// @notice Emitted when the release settings are updated by the owner.
+  /// @param releaseWindow The new release window in blocks
+  /// @param windowResetBps The new window reset threshold in basis points
   event ReleaseSettingsSet(uint16 releaseWindow, uint16 windowResetBps);
 
   /// @notice Thrown when the owner address provided in the constructor is zero address.
