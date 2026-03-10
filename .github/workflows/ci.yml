@@ -7,6 +7,8 @@ on:
       - dev
       - audit/*
 
+permissions: {}
+
 jobs:
   forge-tests:
     name: Forge Tests
@@ -31,6 +33,7 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@50d5a8956f2e319df19e6b57539d7e2acb9f8c1e # v1.5
