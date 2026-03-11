@@ -18,7 +18,9 @@ interface IFeeDripper {
   event Released(address indexed currency, uint256 amount);
   /// @notice Emitted when the release settings are updated by the owner.
   /// @param releaseWindow The new release window in blocks
-  /// @param windowResetBps The new window reset threshold in basis points
+  /// @param windowResetBps The new window reset threshold in basis points. If set too low, an
+  ///                        attacker can delay flow by adding enough balance to meet the reset
+  ///                        threshold and repeatedly calling `drip()`.
   event ReleaseSettingsSet(uint16 releaseWindow, uint16 windowResetBps);
 
   /// @notice Thrown when the token jar address provided in the constructor is zero address.
