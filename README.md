@@ -119,12 +119,12 @@ For OP Stack L2 chains (Unichain, Optimism, Base, etc.) where only bridged UNI e
 ┌─────────────────────────────────────────────────────────────────┐
 │                          L2 (Unichain)                          │
 │                                                                 │
-│  Searcher → Pay Bridged UNI → OptimismBridgedResourceFirepit   │
+│  Searcher → Pay Bridged UNI → OptimismBridgedResourceFirepit    │
 │                                      │                          │
 │                              ┌───────┴───────┐                  │
 │                              │               │                  │
 │                        Release Assets   Bridge Withdrawal       │
-│                        to Recipient     (L2→L1)                │
+│                        to Recipient     (L2→L1)                 │
 │                                              │                  │
 └──────────────────────────────────────────────│──────────────────┘
                                                │
@@ -135,7 +135,7 @@ For OP Stack L2 chains (Unichain, Optimism, Base, etc.) where only bridged UNI e
 ┌──────────────────────────────────────────────────────────────────┐
 │                       Ethereum Mainnet (L1)                      │
 │                                                                  │
-│              L1StandardBridge → Transfer UNI → 0xdead (Burn)    │
+│              L1StandardBridge → Transfer UNI → 0xdead (Burn)     │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
