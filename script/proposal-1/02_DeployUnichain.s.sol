@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
-import {UnichainDeployer} from "./deployers/UnichainDeployer.sol";
-import {OptimismBridgedResourceFirepit} from "../src/releasers/OptimismBridgedResourceFirepit.sol";
+import {UnichainDeployer} from "../deployers/UnichainDeployer.sol";
+import {OptimismBridgedResourceFirepit} from "../../src/releasers/OptimismBridgedResourceFirepit.sol";
 
 contract DeployUnichain is Script {
   function setUp() public {}

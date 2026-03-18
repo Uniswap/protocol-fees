@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {DeployOPStackChain} from "./DeployOPStackChain.s.sol";
+import {DeployOPStackChain} from "../shared/DeployOPStackChain.s.sol";
 
 /// @notice Deployment script for World Chain (Chain ID: 480)
 contract DeployWorldchain is DeployOPStackChain {

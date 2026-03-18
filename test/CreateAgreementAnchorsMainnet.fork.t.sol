@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {CreateAgreementAnchors} from "script/03_CreateAgreementAnchorsMainnet.s.sol";
+import {CreateAgreementAnchors} from "script/proposal-1/03_CreateAgreementAnchorsMainnet.s.sol";
 
 contract CreateAgreementAnchorsMainnetForkTest is Test {
   CreateAgreementAnchors public script;
