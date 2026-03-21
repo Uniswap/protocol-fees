@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {ArbitrumDeployer} from "../script/deployers/ArbitrumDeployer.sol";
-import {DeployArbitrum} from "../script/DeployArbitrum.s.sol";
+import {DeployArbitrum} from "../script/proposal-2/DeployArbitrum.s.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";

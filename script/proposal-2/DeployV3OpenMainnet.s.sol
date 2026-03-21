@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import "forge-std/Script.sol";
-import {V3OpenMainnetDeployer} from "./deployers/V3OpenMainnetDeployer.sol";
+import {V3OpenMainnetDeployer} from "../deployers/V3OpenMainnetDeployer.sol";
 
 contract DeployV3OpenMainnet is Script {
   function setUp() public {}

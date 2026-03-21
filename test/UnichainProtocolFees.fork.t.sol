@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {UnichainDeployer} from "../script/deployers/UnichainDeployer.sol";
-import {DeployUnichain} from "../script/02_DeployUnichain.s.sol";
+import {DeployUnichain} from "../script/proposal-1/02_DeployUnichain.s.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";

@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
-import {OPStackDeployer} from "./deployers/OPStackDeployer.sol";
-import {CrossChainAccount, IMessenger} from "../src/CrossChainAccount.sol";
-import {IOwned} from "../src/interfaces/base/IOwned.sol";
-import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
+import {OPStackDeployer} from "../deployers/OPStackDeployer.sol";
+import {CrossChainAccount, IMessenger} from "../../src/CrossChainAccount.sol";
+import {IOwned} from "../../src/interfaces/base/IOwned.sol";
+import {IResourceManager} from "../../src/interfaces/base/IResourceManager.sol";
 
 interface IOptimismMintableERC20Factory {
   function createOptimismMintableERC20(

@@ -5,7 +5,7 @@ import {console2} from "forge-std/console2.sol";
 import {AttestationRequestData, AttestationRequest, IEAS} from "eas-contracts/IEAS.sol";
 import {Script} from "forge-std/Script.sol";
 import {StdAssertions} from "forge-std/StdAssertions.sol";
-import {MainnetDeployer} from "./deployers/MainnetDeployer.sol";
+import {MainnetDeployer} from "../deployers/MainnetDeployer.sol";
 import {IUniswapV2Factory} from "briefcase/protocols/v2-core/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV3Factory} from "briefcase/protocols/v3-core/interfaces/IUniswapV3Factory.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";

@@ -16,7 +16,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IUniswapV2Factory} from "./interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "./interfaces/IUniswapV2Pair.sol";
 import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
-import {UnificationProposal} from "../script/04_UnificationProposal.s.sol";
+import {UnificationProposal} from "../script/proposal-1/04_UnificationProposal.s.sol";
 
 contract ProtocolFeesForkTest is Test {
   using FixedPointMathLib for uint256;

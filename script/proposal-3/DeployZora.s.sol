@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {DeployOPStackChain} from "./DeployOPStackChain.s.sol";
+import {DeployOPStackChain} from "../shared/DeployOPStackChain.s.sol";
 
 /// @notice Deployment script for Zora (Chain ID: 7777777)
 contract DeployZora is DeployOPStackChain {

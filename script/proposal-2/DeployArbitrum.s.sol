@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
-import {ArbitrumDeployer} from "./deployers/ArbitrumDeployer.sol";
-import {IOwned} from "../src/interfaces/base/IOwned.sol";
-import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
-import {IV3OpenFeeAdapter} from "../src/interfaces/IV3OpenFeeAdapter.sol";
+import {ArbitrumDeployer} from "../deployers/ArbitrumDeployer.sol";
+import {IOwned} from "../../src/interfaces/base/IOwned.sol";
+import {IResourceManager} from "../../src/interfaces/base/IResourceManager.sol";
+import {IV3OpenFeeAdapter} from "../../src/interfaces/IV3OpenFeeAdapter.sol";
 
 /// @title DeployArbitrum
 /// @notice Deployment script for Arbitrum One (Chain ID: 42161)

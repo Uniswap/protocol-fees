@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {DeployOPStackChain} from "./DeployOPStackChain.s.sol";
+import {DeployOPStackChain} from "../shared/DeployOPStackChain.s.sol";
 
 /// @title DeployBase
 /// @notice Deployment script for Base (Chain ID: 8453)
