@@ -8,14 +8,17 @@ struct ProposalAction {
   bytes data;
 }
 
-using { toItems } for ProposalAction[];
+using {toItems} for ProposalAction[];
 
-function toItems(ProposalAction[] memory actions) pure returns (
-  address[] memory targets,
-  uint256[] memory values,
-  string[] memory signatures,
-  bytes[] memory datas
-) {
+function toItems(ProposalAction[] memory actions)
+  pure
+  returns (
+    address[] memory targets,
+    uint256[] memory values,
+    string[] memory signatures,
+    bytes[] memory datas
+  )
+{
   uint256 length = actions.length;
 
   targets = new address[](length);

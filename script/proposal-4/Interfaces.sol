@@ -7,25 +7,25 @@ import {IBridgehub} from "./ZkSync.sol";
 /// @title Governor Bravo
 /// @dev For governance call.
 interface IGovernorBravo {
-    function propose(
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas,
-        string memory description
-    ) external returns (uint256);
+  function propose(
+    address[] memory targets,
+    uint256[] memory values,
+    string[] memory signatures,
+    bytes[] memory calldatas,
+    string memory description
+  ) external returns (uint256);
 }
 
 /// @title Optimism L1 -> L2 Portal
 /// @dev For Ethereum -> Celo
 interface IOptimismPortal {
-    function depositTransaction(
-        address target,
-        uint256 value,
-        uint64 gasLimit,
-        bool isCreation,
-        bytes memory data
-    ) external payable;
+  function depositTransaction(
+    address target,
+    uint256 value,
+    uint64 gasLimit,
+    bool isCreation,
+    bytes memory data
+  ) external payable;
 }
 
 /// @title Uni V2 Factory

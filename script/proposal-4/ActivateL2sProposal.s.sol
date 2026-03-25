@@ -3,11 +3,17 @@ pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
 
-import * as Constants from "./Constants.sol";
-import {IOptimismPortal, IUniswapV2Factory, IUniswapV3Factory, IBridgehub, IGovernorBravo} from "./Interfaces.sol";
+import "./Constants.sol" as Constants;
+import {
+  IOptimismPortal,
+  IUniswapV2Factory,
+  IUniswapV3Factory,
+  IBridgehub,
+  IGovernorBravo
+} from "./Interfaces.sol";
 import {L2TransactionRequestDirect} from "./ZkSync.sol";
 import {ProposalAction, toItems} from "./Types.sol";
-using { toItems } for ProposalAction[];
+using {toItems} for ProposalAction[];
 
 import {PolygonSender} from "./PolygonSender.sol";
 
@@ -15,7 +21,6 @@ string constant PROPOSAL_DESCRIPTION = "TODO";
 
 /// @title Activate L2's (Plus Celo Retry)
 contract ActivateL2Proposals is Script {
-
   /// @notice Runs the actions
   function run() public {
     // check addresses are non-zero.
@@ -33,13 +38,8 @@ contract ActivateL2Proposals is Script {
     vm.startBroadcast();
 
     // propose.
-    IGovernorBravo(Constants.L1.GOVERNOR).propose(
-        targets,
-        values,
-        signatures,
-        datas,
-        PROPOSAL_DESCRIPTION
-    );
+    IGovernorBravo(Constants.L1.GOVERNOR)
+      .propose(targets, values, signatures, datas, PROPOSAL_DESCRIPTION);
 
     // stop the broadcast.
     vm.stopBroadcast();
@@ -164,10 +164,10 @@ contract ActivateL2Proposals is Script {
       signature: "",
       data: abi.encodeCall(
         IBridgehub.requestL2TransactionDirect,
-        (
-          L2TransactionRequestDirect({
+        (L2TransactionRequestDirect({
             chainId: Constants.ZkSync.ZK_SYNC_ERA_ID,
-            mintValue: 0x00, // TODO: THIS SHOULD BE DYNAMICALLY CHOSEN (bridgeHub.l2TransactionBaseCost)
+            mintValue: 0x00, // TODO: THIS SHOULD BE DYNAMICALLY CHOSEN
+            // (bridgeHub.l2TransactionBaseCost)
             l2Contract: Constants.ZkSync.V2_FACTORY,
             l2Value: 0,
             l2Calldata: abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.ZkSync.TOKEN_JAR)),
@@ -175,11 +175,10 @@ contract ActivateL2Proposals is Script {
             l2GasPerPubdataByteLimit: 0x00, // TODO: CHECK THIS
             factoryDeps: new bytes[](0),
             refundRecipient: Constants.L1.GOVERNOR // TODO: CHECK THIS
-          })
-        )
+          }))
       )
     });
-    
+
     // ---------------------------------------------------------------------------------------------
     // STEP 10:
     //
@@ -190,10 +189,10 @@ contract ActivateL2Proposals is Script {
       signature: "",
       data: abi.encodeCall(
         IBridgehub.requestL2TransactionDirect,
-        (
-          L2TransactionRequestDirect({
+        (L2TransactionRequestDirect({
             chainId: Constants.ZkSync.ZK_SYNC_ERA_ID,
-            mintValue: 0x00, // TODO: THIS SHOULD BE DYNAMICALLY CHOSEN (bridgeHub.l2TransactionBaseCost)
+            mintValue: 0x00, // TODO: THIS SHOULD BE DYNAMICALLY CHOSEN
+            // (bridgeHub.l2TransactionBaseCost)
             l2Contract: Constants.ZkSync.V3_FACTORY,
             l2Value: 0,
             l2Calldata: abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.TOKEN_JAR)),
@@ -201,8 +200,7 @@ contract ActivateL2Proposals is Script {
             l2GasPerPubdataByteLimit: 0x00, // TODO: CHECK THIS
             factoryDeps: new bytes[](0),
             refundRecipient: Constants.L1.GOVERNOR // TODO: CHECK THIS
-          })
-        )
+          }))
       )
     });
   }
