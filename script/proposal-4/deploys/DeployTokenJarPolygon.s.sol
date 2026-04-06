@@ -10,7 +10,7 @@ import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
 import "../Constants.sol" as Constants;
 
 uint256 constant CHAIN_ID = 0x00;
-address constant OWNER = Constants.Polygon.RECEIVER;
+address constant OWNER = Constants.Polygon.FX_CHILD;
 address constant UNI_TOKEN = address(0x00);
 bytes32 constant SALT = bytes32(uint256(0x67));
 

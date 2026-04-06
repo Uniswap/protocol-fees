@@ -23,7 +23,7 @@ contract ActivateL2Proposals is Script {
   /// @notice Runs the actions
   function run() public {
     // check addresses are non-zero.
-    Constants.vibeCheck();
+    Constants.smokeCheck();
 
     // construct actions & decompose to governor parameters.
     (
@@ -50,7 +50,7 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 1:
     //
-    // Transfer Ownership of V2 Factory, V3 Factory, and V4 Pool Manager to Token Jar
+    // Celo: Transfer Ownership of V2 Factory, V3 Factory, and V4 Pool Manager to Token Jar
     //
     // Context:
     //
@@ -109,7 +109,9 @@ contract ActivateL2Proposals is Script {
     //
     // Wormhole owns the factories and pool manager, so we're calling wormhole to transfer ownership.
     //
-    // TODO: check if token jar is deployed???
+    // note: this is not deployed yet.
+    //
+    // todo: check: https://wormhole.com/docs/products/token-transfers/wrapped-token-transfers/get-started/
     {
       // opening a scope for these temporary variables, as they'll be encoded,
       // actions[0] will be preserved in memory
@@ -207,41 +209,37 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 6:
     //
-    // Avalanche V2 (TODO)
+    // Avalanche V2 (TODO: scrap this, documentation)
     //
-    // owned by layer zero omnichain governance system? 0xeb0BCF27D1Fb4b25e708fBB815c421Aeb51eA9fc
+    // owned by layer zero omnichain governance contract deployment.
     //
-    // layer zero has really bad documentation, no code comments, no natspec on the v1 contracts
-    // layer zero v1 docs do not exist anymore, as v1 is deprecated
-    // layer zero ai is unable to find any record of documentation for this function so i'm putting
-    // placeholders in their place.
+    // layer zero has no v1 documentation, no code comments, no natspec, layer zero llm cannot help,
+    // 
+    // there's a long line of contracts and issues to track for this. for now we are leaving this
+    // unused and undocumented.  we'll add documentation when it is time to migrate off of this
+    // mechanism toward a more modular system.
     //
-    // sigantures here:
-    // ```
-    // send(
-    //   uint16 destChainId,
-    //   bytes calldata dest,
-    //   bytes calldata payload,
-    //   address payable refundAddress,
-    //   address zroPaymentAddress,
-    //   bytes calldata adapterParams
-    // )
-    // ```
-    actions[5] = ProposalAction({
-      target: Constants.L1.LAYER_ZERO_ENDPOINT,
-      value: 0,
-      signature: "",
-      data: abi.encodeCall(
-        ILayerZeroEndpoint.send,
-        (
-          Constants.LayerZero.AVALANCHE_CHAIN_ID,
-          hex"aaaaaaaaaaaa", // no idea what "dest" is or why it's arbitrary bytes
-          hex"aaaaaaaaaaaa", // no idea whether this takes batch actions or not
-          payable(address(0xaaaaaaaaaaaa)),
-          address(0xaaaaaaaaaaaa),
-          hex"aaaaaaaaaaaa" // no idea what adapter params are.
-        )
-      )
-    });
+    // links that will be helpful in the future:
+    //
+    // - l1 lz endpoint v2 (compat w v1): https://etherscan.io/address/0x1a44076050125825900e736c501f859c50fE728c#code
+    // - avax lz omnichain gov: https://avascan.info/blockchain/all/address/0xeb0BCF27D1Fb4b25e708fBB815c421Aeb51eA9fc
+    // - lz omnichain gov src: https://github.com/LayerZero-Labs/omnichain-governance-executor
+    //
+    // actions[5] = ProposalAction({
+    //   target: Constants.L1.LAYER_ZERO_ENDPOINT,
+    //   value: 0,
+    //   signature: "",
+    //   data: abi.encodeCall(
+    //     ILayerZeroEndpoint.send,
+    //     (
+    //       Constants.LayerZero.AVALANCHE_CHAIN_ID,
+    //       hex"aaaaaaaaaaaa", // no idea what "dest" is or why it's arbitrary bytes
+    //       hex"aaaaaaaaaaaa", // no idea whether this takes batch actions or not
+    //       payable(address(0xaaaaaaaaaaaa)),
+    //       address(0xaaaaaaaaaaaa),
+    //       hex"aaaaaaaaaaaa" // no idea what adapter params are.
+    //     )
+    //   )
+    // });
   }
 }

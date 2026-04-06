@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// NOTICE: commenting out layer zero and avalanche for now. this will likely be omitted from this
+// proposal, but until we are certain, everything is commented out.
+
 /// @dev Throws if any address is the zero address.
-function vibeCheck() pure {
+function smokeCheck() pure {
   // l1
   require(L1.GOVERNOR != address(0x00));
   require(L1.CELO_PORTAL != address(0x00));
   require(L1.POLYGON_FX_ROOT != address(0x00));
   require(L1.WORMHOLE_SENDER != address(0x00));
-  require(L1.LAYER_ZERO_ENDPOINT != address(0x00));
+  // require(L1.LAYER_ZERO_ENDPOINT != address(0x00));
 
   // celo
   require(Celo.V2_FACTORY != address(0x00));
@@ -31,12 +34,12 @@ function vibeCheck() pure {
   require(BNB.TOKEN_JAR != address(0x00));
   require(BNB.WORMHOLE_RECEIVER != address(0x00));
 
-  // avalanche
-  require(Avalanche.V2_FACTORY != address(0x00));
-  require(Avalanche.V3_FACTORY != address(0x00));
-  require(Avalanche.V4_POOL_MANAGER != address(0x00));
-  require(Avalanche.TOKEN_JAR != address(0x00));
-  require(Avalanche.OMNICHAIN_GOVERNANCE != address(0x00));
+  // // avalanche
+  // require(Avalanche.V2_FACTORY != address(0x00));
+  // require(Avalanche.V3_FACTORY != address(0x00));
+  // require(Avalanche.V4_POOL_MANAGER != address(0x00));
+  // require(Avalanche.TOKEN_JAR != address(0x00));
+  // require(Avalanche.OMNICHAIN_GOVERNANCE != address(0x00));
 }
 
 library L1 {
@@ -52,25 +55,38 @@ library L1 {
   /// @dev Wormhole Sender.
   address constant WORMHOLE_SENDER = address(0x00);
 
-  /// @dev Layer Zero Endpoint.
-  address constant LAYER_ZERO_ENDPOINT = address(0x00);
+  // /// @dev Layer Zero Endpoint.
+  // address constant LAYER_ZERO_ENDPOINT = address(0x00);
 }
 
 library Celo {
   /// @dev Uni V2 Factory.
-  address constant V2_FACTORY = address(0x00);
+  ///
+  /// source: https://github.com/Uniswap/briefcase/blob/42ce79f148d934ed62523e8cdea18a6886c4f93e/deployments/42220.json#L63
+  address constant V2_FACTORY = 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f;
 
   /// @dev Uni V3 Factory.
-  address constant V3_FACTORY = address(0x00);
+  ///
+  /// source: https://github.com/Uniswap/briefcase/blob/42ce79f148d934ed62523e8cdea18a6886c4f93e/deployments/42220.json#L126
+  address constant V3_FACTORY = 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc;
 
   /// @dev Uni V4 Pool Manager.
-  address constant V4_POOL_MANAGER = address(0x00);
+  ///
+  /// source: https://github.com/Uniswap/briefcase/blob/42ce79f148d934ed62523e8cdea18a6886c4f93e/deployments/42220.json#L39
+  address constant V4_POOL_MANAGER = 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC;
 
   /// @dev Token Jar.
-  address constant TOKEN_JAR = address(0x00);
+  ///
+  /// source: in `script/proposal-03/06_ActivateL2sProposal.s.sol`, otherwise there appears to be no
+  /// record of this contract's address.
+  address constant TOKEN_JAR = 0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B;
 
   /// @dev Wormhole Receiver.
-  address constant WORMHOLE_RECEIVER = address(0x00);
+  /// source: protocol is owned by this at the time of writing.
+  /// V2Factory: `cast call 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f "feeToSetter()"`
+  /// V3Factory: `cast call 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc "owner()"`
+  /// PoolManager: `cast call 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC "owner()"`
+  address constant WORMHOLE_RECEIVER = 0x0Eb863541278308c3A64F8E908BC646e27BFD071;
 }
 
 library Polygon {
@@ -103,26 +119,32 @@ library BNB {
   /// @dev Token Jar.
   address constant TOKEN_JAR = address(0x00);
 
+  /// @dev UNI Wormhole NTT Token.
+  ///
+  /// Wormhole NTT bridge output:
+  /// https://bscscan.com/token/0xb8c9eafe23670f5287034844742d3df497260389
+  address constant UNI = address(0xB8C9eafe23670f5287034844742d3Df497260389);
+
   /// @dev Wormhole Receiver.
   address constant WORMHOLE_RECEIVER = address(0x00);
 }
 
-library Avalanche {
-  /// @dev Uni V2 Factory.
-  address constant V2_FACTORY = address(0x00);
+// library Avalanche {
+//   /// @dev Uni V2 Factory.
+//   address constant V2_FACTORY = address(0x00);
 
-  /// @dev Uni V3 Factory.
-  address constant V3_FACTORY = address(0x00);
+//   /// @dev Uni V3 Factory.
+//   address constant V3_FACTORY = address(0x00);
 
-  /// @dev Uni V4 Pool Manager.
-  address constant V4_POOL_MANAGER = address(0x00);
+//   /// @dev Uni V4 Pool Manager.
+//   address constant V4_POOL_MANAGER = address(0x00);
 
-  /// @dev Token Jar.
-  address constant TOKEN_JAR = address(0x00);
+//   /// @dev Token Jar.
+//   address constant TOKEN_JAR = address(0x00);
 
-  /// @dev Omnichain Governance.
-  address constant OMNICHAIN_GOVERNANCE = address(0x00);
-}
+//   /// @dev Omnichain Governance.
+//   address constant OMNICHAIN_GOVERNANCE = address(0x00);
+// }
 
 library Wormhole {
   uint16 internal constant CELO_CHAIN_ID = 14;
@@ -130,6 +152,6 @@ library Wormhole {
   uint16 internal constant BNB_CHAIN_ID = 4;
 }
 
-library LayerZero {
-  uint16 internal constant AVALANCHE_CHAIN_ID = 30106;
-}
+// library LayerZero {
+//   uint16 internal constant AVALANCHE_CHAIN_ID = 30106;
+// }
