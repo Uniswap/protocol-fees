@@ -1,0 +1,19 @@
+{
+  "adapter.batchTriggerFeeUpdate - two pools": "78027",
+  "adapter.collect - single currency": "58075",
+  "adapter.getFee - pool override hit": "3329",
+  "adapter.setPoolOverride": "48080",
+  "adapter.triggerFeeUpdate - single pool": "57855",
+  "policy.computeFee - classified family default": "10049",
+  "policy.computeFee - classified griefing hook -> defaultFee": "38465",
+  "policy.computeFee - classified pairFee * multiplier": "8317",
+  "policy.computeFee - classified self-report": "13414",
+  "policy.computeFee - classified unclassified -> defaultFee": "6075",
+  "policy.computeFee - static native math baseline curve": "10840",
+  "policy.computeFee - static native math pair fee": "3540",
+  "policy.setBaselineCurve - four breakpoints": "141904",
+  "policy.setFamilyDefault": "47814",
+  "policy.setFamilyMultiplier": "47586",
+  "policy.setHookFamily": "47567",
+  "policy.setPairFee": "48696"
+}
