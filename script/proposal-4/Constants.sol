@@ -33,6 +33,7 @@ function smokeCheck() pure {
   require(BNB.V4_POOL_MANAGER != address(0x00));
   require(BNB.TOKEN_JAR != address(0x00));
   require(BNB.WORMHOLE_RECEIVER != address(0x00));
+  require(BNB.WORMHOLE != address(0x00));
 
   // // avalanche
   // require(Avalanche.V2_FACTORY != address(0x00));
@@ -127,6 +128,9 @@ library BNB {
 
   /// @dev Wormhole Receiver.
   address constant WORMHOLE_RECEIVER = address(0x00);
+
+  /// @dev Wormhole Core Bridge.
+  address constant WORMHOLE = address(0x00);
 }
 
 // library Avalanche {

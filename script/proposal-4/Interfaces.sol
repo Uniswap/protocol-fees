@@ -25,6 +25,12 @@ interface IWormholeSender {
   ) external;
 }
 
+/// @title Wormhole Core
+/// @dev For NttManager configuration.
+interface IWormhole {
+  function messageFee() external view returns (uint256);
+}
+
 /// @title Uni V2 Factory
 /// @dev For V2 fee activation
 interface IUniswapV2Factory {
