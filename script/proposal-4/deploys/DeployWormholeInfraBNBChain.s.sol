@@ -19,12 +19,6 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 // This deployment script necessitates a balance of the native token (Ether's equivalent on BNB)
 // both to pay for gas **and** to pay for a wormhole core message.
 //
-// Get the BNB RPC URL here: https://chainlist.org/chain/56
-//
-// Set the BNB RPC URL
-//
-// Query the message fee here:
-//
 // cast call 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B "messageFee()(uint256)" --rpc-url https://bsc-rpc.publicnode.com
 //
 // Wormhole: https://bscscan.com/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
