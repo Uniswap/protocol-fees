@@ -7,33 +7,33 @@ pragma solidity ^0.8.20;
 /// @dev Throws if any address is the zero address.
 function smokeCheck() pure {
   // l1
-  require(L1.GOVERNOR != address(0x00));
-  require(L1.CELO_PORTAL != address(0x00));
-  require(L1.POLYGON_FX_ROOT != address(0x00));
-  require(L1.WORMHOLE_SENDER != address(0x00));
+  require(L1.GOVERNOR != address(0x00), "L1.GOVERNOR is address(0x00)");
+  require(L1.CELO_PORTAL != address(0x00), "L1.CELO_PORTAL is address(0x00)");
+  require(L1.POLYGON_FX_ROOT != address(0x00), "L1.POLYGON_FX_ROOT is address(0x00)");
+  require(L1.WORMHOLE_SENDER != address(0x00), "L1.WORMHOLE_SENDER is address(0x00)");
   // require(L1.LAYER_ZERO_ENDPOINT != address(0x00));
 
   // celo
-  require(Celo.V2_FACTORY != address(0x00));
-  require(Celo.V3_FACTORY != address(0x00));
-  require(Celo.V4_POOL_MANAGER != address(0x00));
-  require(Celo.TOKEN_JAR != address(0x00));
-  require(Celo.WORMHOLE_RECEIVER != address(0x00));
+  require(Celo.V2_FACTORY != address(0x00), "Celo.V2_FACTORY is address(0x00)");
+  require(Celo.V3_FACTORY != address(0x00), "Celo.V3_FACTORY is address(0x00)");
+  require(Celo.V4_POOL_MANAGER != address(0x00), "Celo.V4_POOL_MANAGER is address(0x00)");
+  require(Celo.TOKEN_JAR != address(0x00), "Celo.TOKEN_JAR is address(0x00)");
+  require(Celo.WORMHOLE_RECEIVER != address(0x00), "Celo.WORMHOLE_RECEIVER is address(0x00)");
 
   // polygon
-  require(Polygon.FX_CHILD != address(0x00));
-  require(Polygon.V2_FACTORY != address(0x00));
-  require(Polygon.V3_FACTORY != address(0x00));
-  require(Polygon.V4_POOL_MANAGER != address(0x00));
-  require(Polygon.TOKEN_JAR != address(0x00));
+  require(Polygon.FX_CHILD != address(0x00), "Polygon.FX_CHILD is address(0x00)");
+  require(Polygon.V2_FACTORY != address(0x00), "Polygon.V2_FACTORY is address(0x00)");
+  require(Polygon.V3_FACTORY != address(0x00), "Polygon.V3_FACTORY is address(0x00)");
+  require(Polygon.V4_POOL_MANAGER != address(0x00), "Polygon.V4_POOL_MANAGER is address(0x00)");
+  require(Polygon.TOKEN_JAR != address(0x00), "Polygon.TOKEN_JAR is address(0x00)");
 
   // bnb
-  require(BNB.V2_FACTORY != address(0x00));
-  require(BNB.V3_FACTORY != address(0x00));
-  require(BNB.V4_POOL_MANAGER != address(0x00));
-  require(BNB.TOKEN_JAR != address(0x00));
-  require(BNB.WORMHOLE_RECEIVER != address(0x00));
-  require(BNB.WORMHOLE != address(0x00));
+  require(BNB.V2_FACTORY != address(0x00), "BNB.V2_FACTORY is address(0x00)");
+  require(BNB.V3_FACTORY != address(0x00), "BNB.V3_FACTORY is address(0x00)");
+  require(BNB.V4_POOL_MANAGER != address(0x00), "BNB.V4_POOL_MANAGER is address(0x00)");
+  require(BNB.TOKEN_JAR != address(0x00), "BNB.TOKEN_JAR is address(0x00)");
+  require(BNB.WORMHOLE_RECEIVER != address(0x00), "BNB.WORMHOLE_RECEIVER is address(0x00)");
+  require(BNB.WORMHOLE != address(0x00), "BNB.WORMHOLE is address(0x00)");
 
   // // avalanche
   // require(Avalanche.V2_FACTORY != address(0x00));

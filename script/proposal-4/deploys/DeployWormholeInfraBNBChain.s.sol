@@ -6,6 +6,7 @@ import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
 import {IWormhole} from "../Interfaces.sol";
+import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
 import {NttManagerNoRateLimiting, Mode} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {WormholeTransceiver} from "lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
@@ -41,7 +42,11 @@ contract DeployWormholeInfraBNBChainScript is Script {
     address internal wormholeTransceiverProxy;
     address internal wormholeTransceiverImplementation;
 
+    address internal syntheticNttUni;
+
     function run() public {
+        Constants.smokeCheck();
+
         vm.startBroadcast();
 
         // -----------------------------------------------------------------------------------------
@@ -176,37 +181,99 @@ contract DeployWormholeInfraBNBChainScript is Script {
             threshold: 1
         });
 
-        // TODO: transfer ownership of things to governance
-        // TODO: check if configuration needs to run before ownership transfer to governance
+        // -----------------------------------------------------------------------------------------
+        // Transaction 09
+        //
+        // Deploy the SyntheticNttUni token.
+        //
+        // Parameters:
+        //
+        // - `initialNtt`: NttManager proxy address.
+        //
+        syntheticNttUni = address(new SyntheticNttUni({
+            initialNtt: nttManagerProxy
+        }));
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 10
+        //
+        // Transfer ownership of SyntheticNttUni to governance.
+        //
+        // Paramters:
+        //
+        // - `newOwner`: Uniswap Wormhole Governance Receiver
+        //
+        SyntheticNttUni(syntheticNttUni).transferOwnership({
+            newOwner: Constants.BNB.WORMHOLE_RECEIVER
+        });
 
         // -----------------------------------------------------------------------------------------
         // Logs
         //
+        NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
+            NttManagerNoRateLimiting(nttManagerProxy).getTransceiverInfo();
+
         console2.log("-- DEPLOYMENTS --");
         console2.log("\n");
+
         console2.log("NttManager (ERC1967 Proxy):  ", nttManagerProxy);
         console2.log("NttManager (Implementation): ", nttManagerImplementation);
         console2.log("WormholeTransceiver (ERC1967Proxy): ", wormholeTransceiverProxy);
         console2.log("WormholeTransceiver (Implementation): ", wormholeTransceiverImplementation);
         console2.log("\n");
+
         console2.log("-- VISUALIZED ASSERTIONS --");
         console2.log("\n");
+
         console2.log("nttManagerProxy.implementation(), nttManagerImplementation:");
-        console2.log("nttManagerProxy.implementation() -> ", NttManagerNoRateLimiting(nttManagerProxy).implementation());
-        console2.log("nttManagerImplementation ---------> ", nttManagerImplementation);
+        console2.log("nttManagerProxy.implementation() : ", NttManagerNoRateLimiting(nttManagerProxy).implementation());
+        console2.log("nttManagerImplementation         : ", nttManagerImplementation);
         console2.log("\n");
-        console2.log("wormholeTransceiverProxy.implementation() -> ", WormholeTransceiver(wormholeTransceiverProxy).implementation());
-        console2.log("wormholeTransceiverImplementation ---------> ", wormholeTransceiverImplementation);
+
+        console2.log("wormholeTransceiverProxy.implementation() : ", WormholeTransceiver(wormholeTransceiverProxy).implementation());
+        console2.log("wormholeTransceiverImplementation         : ", wormholeTransceiverImplementation);
         console2.log("\n");
-        console2.log("wormholeTransceiverProxy.implementation() -> ", WormholeTransceiver(wormholeTransceiverProxy).implementation());
-        console2.log("wormholeTransceiverImplementation ---------> ", wormholeTransceiverImplementation);
-        // TODO: finish this.
+
+        console2.log("syntheticNttUni.ntt() : ", SyntheticNttUni(syntheticNttUni).ntt());
+        console2.log("nttManagerProxy       : ", nttManagerProxy);
+        console2.log("\n");
+
+        console2.log("syntheticNttUni.owner() : ", SyntheticNttUni(syntheticNttUni).owner());
+        console2.log("BNB Wormhole Receiver   : ", Constants.BNB.WORMHOLE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("nttManagerProxy.getThreshold() : ", NttManagerNoRateLimiting(nttManagerProxy).getThreshold());
+        console2.log("NttManager Threshold           : ", 1);
+        console2.log("\n");
+
+        console2.log("nttManagerProxy.getTransceiverInfo().length : ", transceiverInfos.length);
+        console2.log("NttManager Transceiver Count                : ", 1);
+        console2.log("\n");
+
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].registered : ", transceiverInfos[0].registered);
+        console2.log("NttManager Transceiver 0 Registered                : ", true);
+        console2.log("\n");
+
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].enabled : ", transceiverInfos[0].enabled);
+        console2.log("NttManager Transceiver 0 Enabled                : ", true);
+        console2.log("\n");
+
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].index : ", transceiverInfos[0].index);
+        console2.log("NttManager Transceiver 0 Index                : ", 0);
+        console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
         // Assertions
         //
-
-        // TODO: assert what's above.
+        assertEq(nttManagerImplementation, NttManagerNoRateLimiting(nttManagerProxy).implementation());
+        assertEq(wormholeTransceiverImplementation, WormholeTransceiver(wormholeTransceiverProxy).implementation());
+        assertEq(nttManagerProxy, SyntheticNttUni(syntheticNttUni).ntt());
+        assertEq(Constants.BNB.WORMHOLE_RECEIVER, SyntheticNttUni(syntheticNttUni).owner());
+        assertEq(1, NttManagerNoRateLimiting(nttManagerProxy).getThreshold());
+        assertEq(1, transceiverInfos.length);
+        assertEq(true, transceiverInfos[0].registered);
+        assertEq(true, transceiverInfos[0].enabled);
+        assertEq(0, transceiverInfos[0].index);
 
         vm.stopBroadcast();
     }
