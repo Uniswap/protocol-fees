@@ -78,8 +78,8 @@ contract DeployWormholeInfraBNBChainScript is Script {
         // their code and simply avoid any potential mishaps on our end.
         //
         // There is a followup script which configures the NTT system that necessitates the full
-        // authority, though that followup script revokes authorization for upgrade to mitigate
-        // upgrade authority risk.
+        // authority, though that followup script transfer upgrade authority to the governance
+        // receiver contract to mitigate upgrade authority risk.
         //
         // - `implementation`: Implementation contract address.
         // - `data`: Optional call to make during deployment. We dont use this.
