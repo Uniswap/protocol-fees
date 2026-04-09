@@ -20,9 +20,7 @@ contract SyntheticNttUni is Owned, ERC20, INttToken {
     /// @notice Wormhole Native Token Transfer address.
     address public ntt;
 
-    constructor(address initialNtt) Owned(msg.sender) ERC20("Synthetic Ntt Uniswap", "NUNI", 18) {
-        ntt = initialNtt;
-    }
+    constructor() Owned(msg.sender) ERC20("Synthetic Ntt Uniswap", "NUNI", 18) {}
 
     /// @notice Set the Wormhole Native Token Transfer address.
     /// @param newNtt New Wormhole Native Token Transfer address.
@@ -37,7 +35,7 @@ contract SyntheticNttUni is Owned, ERC20, INttToken {
     /// @param receiver Account which receives the mint.
     /// @param amount Amount to mint.
     function mint(address receiver, uint256 amount) external {
-        require(msg.sender == ntt);
+        require(msg.sender == ntt, "Not NTT");
 
         _mint(receiver, amount);
     }
@@ -46,7 +44,7 @@ contract SyntheticNttUni is Owned, ERC20, INttToken {
     /// @dev Caller MUST be Wormhole Native Token Transfer.
     /// @param amount Amount to mint.
     function burn(uint256 amount) external {
-        require(msg.sender == ntt);
+        require(msg.sender == ntt, "Not NTT");
 
         _burn(msg.sender, amount);
     }
