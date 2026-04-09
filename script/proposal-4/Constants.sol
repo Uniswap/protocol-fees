@@ -120,12 +120,6 @@ library BNB {
   /// @dev Token Jar.
   address constant TOKEN_JAR = address(0x00);
 
-  /// @dev UNI Wormhole NTT Token.
-  ///
-  /// Wormhole NTT bridge output:
-  /// https://bscscan.com/token/0xb8c9eafe23670f5287034844742d3df497260389
-  address constant UNI = address(0xB8C9eafe23670f5287034844742d3Df497260389);
-
   /// @dev Wormhole Receiver.
   address constant WORMHOLE_RECEIVER = address(0x00);
 
