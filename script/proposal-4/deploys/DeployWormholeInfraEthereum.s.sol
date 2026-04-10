@@ -6,7 +6,6 @@ import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
 import {IWormhole} from "../Interfaces.sol";
-import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
@@ -16,28 +15,27 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// This deployment script necessitates a balance of the native token (Ether's equivalent on BNB)
-// both to pay for gas **and** to pay for a wormhole core message.
+// This deployment script necessitates a balance of Ether both to pay for gas **and** to pay for a
+// wormhole core message.
 //
-// cast call 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B "messageFee()(uint256)" --rpc-url https://bsc-rpc.publicnode.com
+// ```
+// cast call 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B "messageFee()(uint256)" --rpc-url https://ethereum-rpc.publicnode.com
+// ```
 //
-// Wormhole: https://bscscan.com/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
-// Implementation: https://bscscan.com/address/0xc41172cc37e98bebd12abb39f9124a47e4d072ee
-//
+// Wormhole: https://etherscan.io/address/0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
+// Implementation: https://etherscan.io/address/0x3c3d457f1522d3540ab3325aa5f1864e34cba9d0
 // ---
 //
-// UPDATE: This appears to return `0` on BNB chain, so this may be unnecessry. It's unclear whether
+// UPDATE: This appears to return `0` on Ethereum, so this may be unnecessry. It's unclear whether
 // this is some kind of relayer fee or if it's some kind of protocol fee. Nonetheless, it's worth
 // querying at deploy time to make sure there are no unexpected costs.
 //
-contract DeployWormholeInfraBNBChainScript is Script {
+contract DeployWormholeInfraEthereumScript is Script {
     address internal nttManagerProxy;
     address internal nttManagerImplementation;
 
     address internal wormholeTransceiverProxy;
     address internal wormholeTransceiverImplementation;
-
-    address internal syntheticNttUni;
 
     function run() public {
         Constants.smokeCheck();
@@ -47,29 +45,22 @@ contract DeployWormholeInfraBNBChainScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 00
         //
-        // Deploy the SyntheticNttUni token.
-        //
-        syntheticNttUni = address(new SyntheticNttUni());
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 01
-        //
         // Deploy NttManager implementation with no rate limiting.
         //
-        // - `_token`: BNB deployment of UNI.
-        // - `_mode`: `BURNING` for all foreign chains.
+        // - `_token`: Canonical UNI
+        // - `_mode`: `LOCKING` for all the home chain.
         // - `_chainId`: Wormhole-defined chain ID, not EIP155-defined.
         //
         nttManagerImplementation = address(
             new NttManagerNoRateLimiting({
-                _token: syntheticNttUni,
-                _mode: IManagerBase.Mode.BURNING,
-                _chainId: Constants.Wormhole.BNB_CHAIN_ID
+                _token: Constants.L1.UNI,
+                _mode: IManagerBase.Mode.LOCKING,
+                _chainId: Constants.Wormhole.ETH_CHAIN_ID
             })
         );
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 02
+        // Transaction 01
         //
         // Deploy NttManager proxy and set its implementation.
         //
@@ -90,14 +81,14 @@ contract DeployWormholeInfraBNBChainScript is Script {
         }));
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 03
+        // Transaction 02
         //
         // Initialize NttManager proxy.
         //
         NttManagerNoRateLimiting(nttManagerProxy).initialize();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 04
+        // Transaction 03
         //
         // Deploy WormholeTransceiver implementation.
         //
@@ -118,7 +109,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         wormholeTransceiverImplementation = address(
             new WormholeTransceiver({
                 nttManager: nttManagerProxy,
-                wormholeCoreBridge: Constants.BNB.WORMHOLE,
+                wormholeCoreBridge: Constants.L1.WORMHOLE,
                 _consistencyLevel: 202,
                 _customConsistencyLevel: 0,
                 _additionalBlocks: 0,
@@ -127,7 +118,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         );
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 05
+        // Transaction 04
         //
         // Deploy WormholeTransceiver proxy.
         //
@@ -139,10 +130,10 @@ contract DeployWormholeInfraBNBChainScript is Script {
         // -----------------------------------------------------------------------------------------
         // Query for Wormhole Message Fee.
         //
-        uint256 messageFee = IWormhole(Constants.BNB.WORMHOLE).messageFee();
+        uint256 messageFee = IWormhole(Constants.L1.WORMHOLE).messageFee();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 06
+        // Transaction 05
         //
         // Initialize WormholeTransceiver proxy with a recently queried `messageFee`.
         //
@@ -153,9 +144,9 @@ contract DeployWormholeInfraBNBChainScript is Script {
         WormholeTransceiver(wormholeTransceiverProxy).initialize{value: messageFee}();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 07
+        // Transaction 06
         //
-        // Set NttManager proxy's transceiver to the WormholeTransceiver proxy.
+        // Set the transceiver to the WormholeTransceiver proxy on the NttManager proxy
         //
         // Parameters:
         //
@@ -166,7 +157,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 08
+        // Transaction 07
         //
         // Set the threshold of transceiver attestation redundancy. This gets set to `1` since it's
         // set to this in the wormhole team's deployment script. The wormhole team mentions this is
@@ -186,32 +177,6 @@ contract DeployWormholeInfraBNBChainScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 09
-        //
-        // Set SyntheticNttUni mint authority to NttManager proxy.
-        //
-        // Paramters:
-        //
-        // - `newNtt`: NttManager proxy
-        //
-        SyntheticNttUni(syntheticNttUni).setNtt({
-            newNtt: nttManagerProxy
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 10
-        //
-        // Transfer ownership of SyntheticNttUni to governance.
-        //
-        // Paramters:
-        //
-        // - `newOwner`: Uniswap Wormhole Governance Receiver
-        //
-        SyntheticNttUni(syntheticNttUni).transferOwnership({
-            newOwner: Constants.BNB.WORMHOLE_RECEIVER
-        });
-
-        // -----------------------------------------------------------------------------------------
         // Logs
         //
         NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
@@ -220,7 +185,6 @@ contract DeployWormholeInfraBNBChainScript is Script {
         console2.log("-- DEPLOYMENTS --------------------------------------");
         console2.log("\n");
 
-        console2.log("SyntheticNttUni                                       : ", syntheticNttUni);
         console2.log("NttManager (ERC1967 Proxy)                            : ", nttManagerProxy);
         console2.log("NttManager (Implementation)                           : ", nttManagerImplementation);
         console2.log("WormholeTransceiver (ERC1967Proxy)                    : ", wormholeTransceiverProxy);
@@ -230,88 +194,48 @@ contract DeployWormholeInfraBNBChainScript is Script {
         console2.log("-- VISUALIZED ASSERTIONS -----------------------------");
         console2.log("\n");
 
-        console2.log("syntheticNttUni.ntt()                                     : ", SyntheticNttUni(syntheticNttUni).ntt());
-        console2.log("nttManagerProxy                                           : ", nttManagerProxy);
+        console2.log("nttManagerProxy ERC1967 Implementation                : ", readImplementation(nttManagerProxy));
+        console2.log("nttManagerImplementation                              : ", nttManagerImplementation);
         console2.log("\n");
 
-        console2.log("syntheticNttUni.owner()                                   : ", SyntheticNttUni(syntheticNttUni).owner());
-        console2.log("BNB Wormhole Receiver                                     : ", Constants.BNB.WORMHOLE_RECEIVER);
+        console2.log("nttManagerProxy.getMode()                             : ", NttManagerNoRateLimiting(nttManagerProxy).getMode());
+        console2.log("IManagerBase.MODE.LOCKING                             : ", uint8(IManagerBase.Mode.LOCKING));
         console2.log("\n");
 
-        console2.log("nttManagerProxy ERC1967 Implementation                    : ", readImplementation(nttManagerProxy));
-        console2.log("nttManagerImplementation                                  : ", nttManagerImplementation);
+        console2.log("nttManagerProxy.token()                               : ", NttManagerNoRateLimiting(nttManagerProxy).token());
+        console2.log("UNI                                                   : ", Constants.L1.UNI);
         console2.log("\n");
 
-        console2.log("nttManagerProxy.getMode()                                 : ", NttManagerNoRateLimiting(nttManagerProxy).getMode());
-        console2.log("IManagerBase.MODE.BURNING                                 : ", uint8(IManagerBase.Mode.BURNING));
+        console2.log("nttManagerProxy.getThreshold()                        : ", NttManagerNoRateLimiting(nttManagerProxy).getThreshold());
+        console2.log("NttManager Threshold                                  : ", uint8(1));
         console2.log("\n");
 
-        console2.log("nttManagerProxy.token()                                   : ", NttManagerNoRateLimiting(nttManagerProxy).token());
-        console2.log("SyntheticNttUni                                           : ", syntheticNttUni);
+        console2.log("nttManagerProxy.getTransceiverInfo().length           : ", transceiverInfos.length);
+        console2.log("NttManager Transceiver Count                          : ", uint256(1));
         console2.log("\n");
 
-        console2.log("nttManagerProxy.getThreshold()                            : ", NttManagerNoRateLimiting(nttManagerProxy).getThreshold());
-        console2.log("NttManager Threshold                                      : ", uint8(1));
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].registered    : ", transceiverInfos[0].registered);
+        console2.log("NttManager Transceiver 0 Registered                   : ", true);
         console2.log("\n");
 
-        console2.log("nttManagerProxy.getTransceiverInfo().length               : ", transceiverInfos.length);
-        console2.log("NttManager Transceiver Count                              : ", uint256(1));
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].enabled       : ", transceiverInfos[0].enabled);
+        console2.log("NttManager Transceiver 0 Enabled                      : ", true);
         console2.log("\n");
 
-        console2.log("nttManagerProxy.getTransceiverInfo()[0].registered        : ", transceiverInfos[0].registered);
-        console2.log("NttManager Transceiver 0 Registered                       : ", true);
+        console2.log("nttManagerProxy.getTransceiverInfo()[0].index         : ", transceiverInfos[0].index);
+        console2.log("NttManager Transceiver 0 Index                        : ", uint8(0));
         console2.log("\n");
 
-        console2.log("nttManagerProxy.getTransceiverInfo()[0].enabled           : ", transceiverInfos[0].enabled);
-        console2.log("NttManager Transceiver 0 Enabled                          : ", true);
+        console2.log("wormholeTransceiverProxy ERC1967 Implementation       : ", readImplementation(wormholeTransceiverProxy));
+        console2.log("wormholeTransceiverImplementation                     : ", wormholeTransceiverImplementation);
         console2.log("\n");
-
-        console2.log("nttManagerProxy.getTransceiverInfo()[0].index             : ", transceiverInfos[0].index);
-        console2.log("NttManager Transceiver 0 Index                            : ", uint8(0));
-        console2.log("\n");
-
-        console2.log("wormholeTransceiverProxy ERC1967 Implementation           : ", readImplementation(wormholeTransceiverProxy));
-        console2.log("wormholeTransceiverImplementation                         : ", wormholeTransceiverImplementation);
-        console2.log("\n");
-
-        console2.log("wormholeTransceiverProxy.nttManager()                     : ", WormholeTransceiver(wormholeTransceiverProxy).nttManager());
-        console2.log("NttManager Proxy                                          : ", nttManagerProxy);
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.nttManagerToken()                : ", WormholeTransceiver(wormholeTransceiverProxy).nttManagerToken());
-        console2.log("SyntheticNttUni                                           : ", syntheticNttUni);
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.consistencyLevel()               : ", WormholeTransceiver(wormholeTransceiverProxy).consistencyLevel());
-        console2.log("Consistency Level (Hard coded)                            : ", 202);
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.customConsistencyLevel()         : ", WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevel());
-        console2.log("Custom consistency Level (Hard coded)                     : ", 0);
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.additionalBlocks()               : ", WormholeTransceiver(wormholeTransceiverProxy).additionalBlocks());
-        console2.log("Additional blocks (Hard coded)                            : ", 0);
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.customConsistencyLevelAddress()  : ", WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevelAddress());
-        console2.log("Custom consistency level address                          : ", address(0x00));
-        console2.log("\n");
-    
-        console2.log("wormholeTransceiverProxy.wormhole()                       : ", WormholeTransceiver(wormholeTransceiverProxy).wormhole());
-        console2.log("Wormhole                                                  : ", Constnts.BNB.WORMHOLE);
-        console2.log("\n");
-    
 
         // -----------------------------------------------------------------------------------------
         // Assertions
         //
-        require(SyntheticNttUni(syntheticNttUni).ntt() == nttManagerProxy);
-        require(SyntheticNttUni(syntheticNttUni).owner() == Constants.BNB.WORMHOLE_RECEIVER);
-
         require(readImplementation(nttManagerProxy) == nttManagerImplementation);
-        require(NttManagerNoRateLimiting(nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING));
-        require(NttManagerNoRateLimiting(nttManagerProxy).token() == syntheticNttUni);
+        require(NttManagerNoRateLimiting(nttManagerProxy).getMode() == uint8(IManagerBase.Mode.LOCKING));
+        require(NttManagerNoRateLimiting(nttManagerProxy).token() == Constants.L1.UNI);
         require(NttManagerNoRateLimiting(nttManagerProxy).getThreshold() == 1);
 
         require(transceiverInfos.length == 1);
@@ -320,13 +244,6 @@ contract DeployWormholeInfraBNBChainScript is Script {
         require(transceiverInfos[0].index == 0);
 
         require(readImplementation(wormholeTransceiverProxy) == wormholeTransceiverImplementation);
-        require(WormholeTransceiver(wormholeTransceiverProxy).nttManager() == nttManagerProxy);
-        require(WormholeTransceiver(wormholeTransceiverProxy).nttManagerToken() == syntheticNttUni);
-        require(WormholeTransceiver(wormholeTransceiverProxy).consistencyLevel() == 202);
-        require(WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevel() == 0);
-        require(WormholeTransceiver(wormholeTransceiverProxy).additionalBlocks() == 0);
-        require(WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevelAddress() == address(0x00));
-        require(WormholeTransceiver(wormholeTransceiverProxy).wormhole() == Constants.BNB.Wormhole);
 
         vm.stopBroadcast();
     }
