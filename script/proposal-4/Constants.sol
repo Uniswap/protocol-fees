@@ -8,9 +8,11 @@ pragma solidity ^0.8.20;
 function smokeCheck() pure {
   // l1
   require(L1.GOVERNOR != address(0x00), "L1.GOVERNOR is address(0x00)");
+  require(L1.UNI != address(0x00), "L1.UNI is address(0x00)");
   require(L1.CELO_PORTAL != address(0x00), "L1.CELO_PORTAL is address(0x00)");
   require(L1.POLYGON_FX_ROOT != address(0x00), "L1.POLYGON_FX_ROOT is address(0x00)");
   require(L1.WORMHOLE_SENDER != address(0x00), "L1.WORMHOLE_SENDER is address(0x00)");
+  require(L1.WORMHOLE != address(0x00), "L1.WORMHOLE is address(0x00)");
   // require(L1.LAYER_ZERO_ENDPOINT != address(0x00));
 
   // celo
@@ -47,6 +49,9 @@ library L1 {
   /// @dev Governor.
   address constant GOVERNOR = 0x408ED6354d4973f66138C91495F2f2FCbd8724C3;
 
+  /// @dev UNI Token.
+  address constant UNI = address(0x00);
+
   /// @dev Celo Optimism Portal.
   address constant CELO_PORTAL = address(0x00);
 
@@ -55,6 +60,9 @@ library L1 {
 
   /// @dev Wormhole Sender.
   address constant WORMHOLE_SENDER = address(0x00);
+
+  /// @dev Wormhole.
+  address constant WORMHOLE = address(0x00);
 
   // /// @dev Layer Zero Endpoint.
   // address constant LAYER_ZERO_ENDPOINT = address(0x00);
@@ -145,6 +153,8 @@ library BNB {
 // }
 
 library Wormhole {
+  uint16 internal constant ETH_CHAIN_ID = 2;
+
   uint16 internal constant CELO_CHAIN_ID = 14;
 
   uint16 internal constant BNB_CHAIN_ID = 4;
