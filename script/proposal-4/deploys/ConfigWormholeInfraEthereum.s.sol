@@ -91,6 +91,19 @@ contract ConfigWormholeInfraEthereumScript is Script {
             inboundLimit: 0
         });
 
+        // -----------------------------------------------------------------------------------------
+        // Transaction 02
+        //
+        // Transfer proxy ownership to Timelock.
+        //
+        // Parameters:
+        //
+        // - `newOwner`: Governance-owned Timelock.
+        //
+        NttManagerNoRateLimiting(eth.nttManagerProxy).transferOwnership({
+            newOwner: Constants.L1.TIMELOCK
+        });
+
         // Query Peer data for checks
         //
         address transceiverPeer = address(uint160(uint256(WormholeTransceiver(eth.wormholeTransceiverProxy).getWormholePeer(Constants.Wormhole.BNB_CHAIN_ID))));
@@ -116,13 +129,17 @@ contract ConfigWormholeInfraEthereumScript is Script {
         console2.log("bnb.uni.decimals()                                : ", uint8(18));
         console2.log("\n");
 
+        console2.log("eth.nttManagerProxy.owner()                       : ",  NttManagerNoRateLimiting(eth.nttManagerProxy).owner());
+        console2.log("Constants.L1.TIMELOCK                             : ", Constants.L1.TIMELOCK);
+        console2.log("\n");
+
         // -----------------------------------------------------------------------------------------
         // Assertions
         //
         require(transceiverPeer == bnb.wormholeTransceiverProxy);
-
         require(address(uint160(uint256(nttManagerPeer.peerAddress))) == bnb.nttManagerProxy);
         require(nttManagerPeer.tokenDecimals == 18);
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).owner() == Constants.L1.TIMELOCK);
 
         vm.stopBroadcast();
     }

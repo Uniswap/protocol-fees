@@ -7,7 +7,7 @@ pragma solidity ^0.8.20;
 /// @dev Throws if any address is the zero address.
 function smokeCheck() pure {
   // l1
-  require(L1.GOVERNOR != address(0x00), "L1.GOVERNOR is address(0x00)");
+  require(L1.TIMELOCK != address(0x00), "L1.TIMELOCK is address(0x00)");
   require(L1.UNI != address(0x00), "L1.UNI is address(0x00)");
   require(L1.CELO_PORTAL != address(0x00), "L1.CELO_PORTAL is address(0x00)");
   require(L1.POLYGON_FX_ROOT != address(0x00), "L1.POLYGON_FX_ROOT is address(0x00)");
@@ -34,7 +34,7 @@ function smokeCheck() pure {
   require(BNB.V3_FACTORY != address(0x00), "BNB.V3_FACTORY is address(0x00)");
   require(BNB.V4_POOL_MANAGER != address(0x00), "BNB.V4_POOL_MANAGER is address(0x00)");
   require(BNB.TOKEN_JAR != address(0x00), "BNB.TOKEN_JAR is address(0x00)");
-  require(BNB.WORMHOLE_RECEIVER != address(0x00), "BNB.WORMHOLE_RECEIVER is address(0x00)");
+  require(BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
   require(BNB.WORMHOLE != address(0x00), "BNB.WORMHOLE is address(0x00)");
 
   // // avalanche
@@ -46,8 +46,8 @@ function smokeCheck() pure {
 }
 
 library L1 {
-  /// @dev Governor.
-  address constant GOVERNOR = 0x408ED6354d4973f66138C91495F2f2FCbd8724C3;
+  /// @dev Governance Timelock.
+  address constant TIMELOCK = 0x1a9C8182C09F50C8318d769245beA52c32BE35BC;
 
   /// @dev UNI Token.
   address constant UNI = address(0x00);
@@ -129,7 +129,7 @@ library BNB {
   address constant TOKEN_JAR = address(0x00);
 
   /// @dev Wormhole Receiver.
-  address constant WORMHOLE_RECEIVER = address(0x00);
+  address constant UNISWAP_WORMHOLE_MESSAGE_RECEIVER = address(0x00);
 
   /// @dev Wormhole Core Bridge.
   address constant WORMHOLE = address(0x00);

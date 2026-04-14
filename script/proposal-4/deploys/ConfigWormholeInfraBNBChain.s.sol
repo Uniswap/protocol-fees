@@ -72,7 +72,7 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 01
         //
-        // Sets the NttManager Proxy on Ethereum as a peer.
+        // Set the NttManager Proxy on Ethereum as a peer.
         //
         // Parameters:
         //
@@ -89,6 +89,19 @@ contract ConfigWormholeInfraBNBChainScript is Script {
             peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
             decimals: 18,
             inboundLimit: 0
+        });
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 02
+        //
+        // Transfer proxy ownership to UniswapWormholeMessageReceiver.
+        //
+        // Parameters:
+        //
+        // - `newOwner`: Governance-owned Timelock.
+        //
+        NttManagerNoRateLimiting(bnb.nttManagerProxy).transferOwnership({
+            newOwner: Constants.L1.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
 
         // Query Peer data for checks
@@ -116,13 +129,17 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         console2.log("eth.uni.decimals()                                : ", uint8(18));
         console2.log("\n");
 
+        console2.log("bnb.nttManagerProxy.owner()                       : ",  NttManagerNoRateLimiting(bnb.nttManagerProxy).owner());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER   : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
         // -----------------------------------------------------------------------------------------
         // Assertions
         //
         require(transceiverPeer == eth.wormholeTransceiverProxy);
-
         require(address(uint160(uint256(nttManagerPeer.peerAddress))) == eth.nttManagerProxy);
         require(nttManagerPeer.tokenDecimals == 18);
+        require(NttManagerNoRateLimiting(bnb.nttManagerProxy).owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
 
         vm.stopBroadcast();
     }
