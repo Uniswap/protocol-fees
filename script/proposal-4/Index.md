@@ -82,9 +82,9 @@ authority to the `NttManager` such that it may process mints and burns as approp
 
 ```mermaid
 flowchart LR
-    ETH_WT([WormholeTransceiver])
-    ETH_NTT([NttManager])
-    ETH_UNI([UNI])
+    ETH_WT([WormholeTransceiver]):::eth
+    ETH_NTT([NttManager]):::eth
+    ETH_UNI([UNI]):::eth
     BNB_WT([WormholeTransceiver])
     BNB_NTT([NttManager])
     BNB_UNI([SyntheticNttUni])
@@ -95,13 +95,16 @@ flowchart LR
         ETH_NTT -->|sends msg| ETH_WT
     end
 
-    Ethereum -.->|Wormhole| BNBChain
+    Ethereum:::eth -.->|Wormhole| BNBChain:::bnb
 
     subgraph BNBChain
         direction LR
         BNB_WT -->|forward msg| BNB_NTT
         BNB_NTT -->|mint| BNB_UNI
     end
+
+    classDef bnb fill:#d7b67e88,color:#fff
+    classDef eth fill:#008ab688,color:#fff
 ```
 
 ### Transfer SyntheticNttUni to Ethereum Flow
@@ -121,13 +124,16 @@ flowchart RL
         ETH_NTT -->|unlocked from| ETH_UNI
     end
 
+    BNBChain:::bnb -.->|Wormhole| Ethereum:::eth
+
     subgraph BNBChain
         direction RL
         BNB_UNI -->|burn to| BNB_NTT
         BNB_NTT -->|send msg| BNB_WT
     end
 
-    BNBChain -.->|Wormhole| Ethereum
+    classDef bnb fill:#d7b67e88,color:#fff
+    classDef eth fill:#008ab688,color:#fff
 ```
 
 ### Burn UNI via Releaser from BNBChain Flow
@@ -152,6 +158,8 @@ flowchart RL
         ETH_NTT -->|burn to 0xDEAD| ETH_UNI
     end
 
+    BNBChain:::bnb -.->|Wormhole| Ethereum:::eth
+
     subgraph BNBChain
         direction RL
         BNB_V2 -->|sends fees| BNB_TJ
@@ -163,7 +171,8 @@ flowchart RL
         BNB_NTT -->|send msg| BNB_WT
     end
 
-    BNBChain -.->|Wormhole| Ethereum
+    classDef bnb fill:#d7b67e88,color:#fff
+    classDef eth fill:#008ab688,color:#fff
 ```
 
 ## Prerequisite Actions
