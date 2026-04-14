@@ -206,35 +206,6 @@ Transactions:
 | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
 | 10    | Transfer ownership of SyntheticNttUni to governance.                 |
 
-#### Deploy SyntheticNttUni
-
-Deploys [`src/wormhole/SyntheticNttUni.sol`](../../src/wormhole/SyntheticNttUni.sol).
-
-Initial ownership is granted to the deployer for ease of configuration, this will be transferred to
-governance later in the script.
-
-#### Deploy NttManager implementation
-
-TODO: from here.
-
-#### Deploy NttManager proxy
-
-#### Initialize NttManager proxy
-
-#### Deploy WormholeTransceiver implementation
-
-#### Deploy WormholeTransceiver proxy
-
-#### Initialize WormholeTransceiver proxy
-
-#### Set NttManager proxy's transceiver to the WormholeTransceiver proxy
-
-#### Set the threshold of transceiver attestation redundancy
-
-#### Set SyntheticNttUniNtt mint authority to NttManager proxy
-
-#### Transfer ownership of SyntheticNttUni to governance
-
 ### Deploy Wormhole Infra Ethereum
 
 ### Configure Wormhole Infra Ethereum
