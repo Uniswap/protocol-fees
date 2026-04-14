@@ -6,8 +6,8 @@ import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
 import {IWormhole} from "../Interfaces.sol";
-import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
+import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
 import {WormholeTransceiver} from "lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
@@ -37,7 +37,7 @@ struct Deployment {
     address wormholeTransceiverProxy;
 }
 
-contract ConfigWormholeInfraBNBChainScript is Script {
+contract ConfigWormholeInfraEthereumScript is Script {
     Deployment bnb;
     Deployment eth;
 
@@ -52,51 +52,51 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         // -----------------------------------------------------------------------------------------
         // Query for Wormhole Message Fee.
         //
-        uint256 messageFee = IWormhole(Constants.BNB.WORMHOLE).messageFee();
+        uint256 messageFee = IWormhole(Constants.L1.WORMHOLE).messageFee();
 
         // -----------------------------------------------------------------------------------------
         // Transaction 00
         //
-        // Set Ethereum WormholeTransceiver proxy as a peer on the Ethereum Chain Id.
+        // Set BNBChain WormholeTransceiver proxy as a peer on the BNBChain Chain Id.
         //
         // Parameters:
         //
-        // - `peerChainId`: Wormhole-defined Ethereum Chain Id.
-        // - `peerContract`: Ethereum WormholeTransceiver proxy.
+        // - `peerChainId`: Wormhole-defined BNBChain Chain Id.
+        // - `peerContract`: BNBChain WormholeTransceiver proxy.
         //
-        WormholeTransceiver(bnb.wormholeTransceiverProxy).setWormholePeer{value: messageFee}({
-            peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
-            peerContract: bytes32(uint256(uint160(eth.wormholeTransceiverProxy)))
+        WormholeTransceiver(eth.wormholeTransceiverProxy).setWormholePeer{value: messageFee}({
+            peerChainId: Constants.Wormhole.BNB_CHAIN_ID,
+            peerContract: bytes32(uint256(uint160(bnb.wormholeTransceiverProxy)))
         });
 
         // -----------------------------------------------------------------------------------------
         // Transaction 01
         //
-        // Sets the NttManager Proxy on Ethereum as a peer.
+        // Sets the NttManager Proxy on BNBChain as a peer.
         //
         // Parameters:
         //
-        // - `peerChainId`: Womrhole-defined Ethereum Chain Id.
-        // - `peerContract: Ethereum NttManager proxy.
-        // - `decimals`: UNI decimals on Ethereum.
+        // - `peerChainId`: Womrhole-defined BNBChain Chain Id.
+        // - `peerContract: BNBChain NttManager proxy.
+        // - `decimals`: SyntheticNttUni decimals on BNBChain.
         // - `inboundLimit`: Set to zero when rate limiter is disabled [1].
         //
         // Sources:
         //
         // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
-        NttManagerNoRateLimiting(bnb.nttManagerProxy).setPeer({
-            peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
-            peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
+        NttManagerNoRateLimiting(eth.nttManagerProxy).setPeer({
+            peerChainId: Constants.Wormhole.BNB_CHAIN_ID,
+            peerContract: bytes32(uint256(uint160(bnb.nttManagerProxy))),
             decimals: 18,
             inboundLimit: 0
         });
 
         // Query Peer data for checks
         //
-        address transceiverPeer = address(uint160(uint256(WormholeTransceiver(bnb.wormholeTransceiverProxy).getWormholePeer(Constants.Wormhole.ETH_CHAIN_ID))));
+        address transceiverPeer = address(uint160(uint256(WormholeTransceiver(eth.wormholeTransceiverProxy).getWormholePeer(Constants.Wormhole.BNB_CHAIN_ID))));
 
         NttManagerNoRateLimiting.NttManagerPeer memory nttManagerPeer =
-            NttManagerNoRateLimiting(bnb.nttManagerProxy).getPeer(Constants.Wormhole.ETH_CHAIN_ID);
+            NttManagerNoRateLimiting(eth.nttManagerProxy).getPeer(Constants.Wormhole.BNB_CHAIN_ID);
 
         // -----------------------------------------------------------------------------------------
         // Logs
@@ -104,24 +104,24 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         console2.log("-- VISUALIZED ASSERTIONS -----------------------------");
         console2.log("\n");
 
-        console2.log("bnb.wormholeTransceiverProxy.getWormholePeer()    : ",  transceiverPeer);
-        console2.log("eth.wormholeTransceiverProxy                      : ", eth.wormholeTransceiverProxy);
+        console2.log("eth.wormholeTransceiverProxy.getWormholePeer()    : ",  transceiverPeer);
+        console2.log("bnb.wormholeTransceiverProxy                      : ", bnb.wormholeTransceiverProxy);
         console2.log("\n");
 
-        console2.log("bnb.nttManagerProxy.getPeer().peerAddress         : ",  address(uint160(uint256(nttManagerPeer.peerAddress))));
-        console2.log("eth.nttManagerProxy                               : ", eth.nttManagerProxy);
+        console2.log("eth.nttManagerProxy.getPeer().peerAddress         : ",  address(uint160(uint256(nttManagerPeer.peerAddress))));
+        console2.log("bnb.nttManagerProxy                               : ", bnb.nttManagerProxy);
         console2.log("\n");
 
-        console2.log("bnb.nttManagerProxy.getPeer().tokenDecimals       : ",  nttManagerPeer.tokenDecimals);
-        console2.log("eth.uni.decimals()                                : ", uint8(18));
+        console2.log("eth.nttManagerProxy.getPeer().tokenDecimals       : ",  nttManagerPeer.tokenDecimals);
+        console2.log("bnb.uni.decimals()                                : ", uint8(18));
         console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
         // Assertions
         //
-        require(transceiverPeer == eth.wormholeTransceiverProxy);
+        require(transceiverPeer == bnb.wormholeTransceiverProxy);
 
-        require(address(uint160(uint256(nttManagerPeer.peerAddress))) == eth.nttManagerProxy);
+        require(address(uint160(uint256(nttManagerPeer.peerAddress))) == bnb.nttManagerProxy);
         require(nttManagerPeer.tokenDecimals == 18);
 
         vm.stopBroadcast();
@@ -184,36 +184,36 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Run basic smoke checks on BNBChain.
+        // Run basic smoke checks on Ethereum.
         //
-        // Calls against Ethereum deployments are not possible, given this script targets BNBChain.
+        // Calls against BNBChain deployments are not possible, given this script targets Ethereum.
         //
 
         // Check contracts have non-zero code length.
         //
-        require(bnb.uni.code.length != 0, "SyntheticNttUni has no code.");
-        require(bnb.nttManagerImplementation.code.length != 0, "NttManager implementation has no code.");
-        require(bnb.nttManagerProxy.code.length != 0, "NttManager proxy has no code.");
-        require(bnb.wormholeTransceiverImplementation.code.length != 0, "WormholeTransceiver implementation has no code.");
-        require(bnb.wormholeTransceiverProxy.code.length != 0, "WormholeTransceiver proxy has no code.");
+        require(eth.uni.code.length != 0, "UNI has no code.");
+        require(eth.nttManagerImplementation.code.length != 0, "NttManager implementation has no code.");
+        require(eth.nttManagerProxy.code.length != 0, "NttManager proxy has no code.");
+        require(eth.wormholeTransceiverImplementation.code.length != 0, "WormholeTransceiver implementation has no code.");
+        require(eth.wormholeTransceiverProxy.code.length != 0, "WormholeTransceiver proxy has no code.");
 
         // Check UNI metadata.
         //
-        require(keccak256(bytes(SyntheticNttUni(bnb.uni).name())) == keccak256("Synthetic Ntt Uniswap"), "bnb.uni.name() mismatch");
-        require(keccak256(bytes(SyntheticNttUni(bnb.uni).symbol())) == keccak256("NUNI"), "bnb.uni.symbol() mismatch");
-        require(SyntheticNttUni(bnb.uni).decimals() == 18, "bnb.uni.decimals() mismatch");
-        require(SyntheticNttUni(bnb.uni).ntt() == bnb.nttManagerProxy, "bnb.uni.ntt() mismatch");
-        require(SyntheticNttUni(bnb.uni).owner() == Constants.BNB.WORMHOLE_RECEIVER, "bnb.uni.owner() mismatch");
+        require(keccak256(bytes(ERC20(eth.uni).name())) == keccak256("Uniswap"), "eth.uni.name() mismatch");
+        require(keccak256(bytes(ERC20(eth.uni).symbol())) == keccak256("UNI"), "eth.uni.symbol() mismatch");
+        require(SyntheticNttUni(eth.uni).decimals() == 18, "eth.uni.decimals() mismatch");
+        require(SyntheticNttUni(eth.uni).ntt() == eth.nttManagerProxy, "eth.uni.ntt() mismatch");
+        require(SyntheticNttUni(eth.uni).owner() == Constants.L1.WORMHOLE_RECEIVER, "eth.uni.owner() mismatch");
 
         // Check NttManager proxy.
         //
         NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
-            NttManagerNoRateLimiting(bnb.nttManagerProxy).getTransceiverInfo();
+            NttManagerNoRateLimiting(eth.nttManagerProxy).getTransceiverInfo();
 
-        require(readImplementation(bnb.nttManagerProxy) == bnb.nttManagerImplementation, "bnb.nttManagerProxy.implementation() mismatch");
-        require(NttManagerNoRateLimiting(bnb.nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING), "bnb.nttManagerProxy.mode() mismatch");
-        require(NttManagerNoRateLimiting(bnb.nttManagerProxy).token() == bnb.uni, "bnb.nttManagerProxy.token() mismatch");
-        require(NttManagerNoRateLimiting(bnb.nttManagerProxy).getThreshold() == 1, "bnb.nttManagerProxy.getThreshold() mismatch");
+        require(readImplementation(eth.nttManagerProxy) == eth.nttManagerImplementation, "eth.nttManagerProxy.implementation() mismatch");
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING), "eth.nttManagerProxy.mode() mismatch");
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).token() == eth.uni, "eth.nttManagerProxy.token() mismatch");
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).getThreshold() == 1, "eth.nttManagerProxy.getThreshold() mismatch");
         require(transceiverInfos.length == 1, "nttManagerProxy.getTransceiverInfo().length mismatch");
         require(transceiverInfos[0].registered == true, "nttManagerProxy.getTransceiverInfo()[0].registered mismatch");
         require(transceiverInfos[0].enabled == true, "nttManagerProxy.getTransceiverInfo()[0].enabled mismatch");
@@ -221,14 +221,14 @@ contract ConfigWormholeInfraBNBChainScript is Script {
 
         // Check WormholeTransceiver proxy.
         //
-        require(readImplementation(bnb.wormholeTransceiverProxy) == bnb.wormholeTransceiverImplementation, "bnb.nttManagerProxy.implementation() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).nttManager() == bnb.nttManagerProxy, "wormholeTransceiverProxy.nttManager() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).nttManagerToken() == bnb.uni, "wormholeTransceiverProxy.nttManagerToken() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).consistencyLevel() == 202, "wormholeTransceiverProxy.consistencyLevel() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).customConsistencyLevel() == 0, "wormholeTransceiverProxy.customConsistencyLevel() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).additionalBlocks() == 0, "wormholeTransceiverProxy.additionalBlocks() mismatch");
-        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).customConsistencyLevelAddress() == address(0x00), "wormholeTransceiverProxy.customConsistencyLevelAddress() mismatch");
-        require(address(WormholeTransceiver(bnb.wormholeTransceiverProxy).wormhole()) == Constants.BNB.WORMHOLE, "wormholeTransceiverProxy.wormhole() mismatch");
+        require(readImplementation(eth.wormholeTransceiverProxy) == eth.wormholeTransceiverImplementation, "eth.nttManagerProxy.implementation() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).nttManager() == eth.nttManagerProxy, "wormholeTransceiverProxy.nttManager() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).nttManagerToken() == eth.uni, "wormholeTransceiverProxy.nttManagerToken() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).consistencyLevel() == 202, "wormholeTransceiverProxy.consistencyLevel() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).customConsistencyLevel() == 0, "wormholeTransceiverProxy.customConsistencyLevel() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).additionalBlocks() == 0, "wormholeTransceiverProxy.additionalBlocks() mismatch");
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).customConsistencyLevelAddress() == address(0x00), "wormholeTransceiverProxy.customConsistencyLevelAddress() mismatch");
+        require(address(WormholeTransceiver(eth.wormholeTransceiverProxy).wormhole()) == Constants.L1.WORMHOLE, "wormholeTransceiverProxy.wormhole() mismatch");
     }
 
     function readImplementation(address proxy) internal view returns (address) {

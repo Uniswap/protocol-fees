@@ -283,25 +283,24 @@ contract DeployWormholeInfraBNBChainScript is Script {
         console2.log("\n");
     
         console2.log("wormholeTransceiverProxy.consistencyLevel()               : ", WormholeTransceiver(wormholeTransceiverProxy).consistencyLevel());
-        console2.log("Consistency Level (Hard coded)                            : ", 202);
+        console2.log("Consistency Level (Hard coded)                            : ", uint8(202));
         console2.log("\n");
     
         console2.log("wormholeTransceiverProxy.customConsistencyLevel()         : ", WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevel());
-        console2.log("Custom consistency Level (Hard coded)                     : ", 0);
+        console2.log("Custom consistency Level (Hard coded)                     : ", uint8(0));
         console2.log("\n");
     
         console2.log("wormholeTransceiverProxy.additionalBlocks()               : ", WormholeTransceiver(wormholeTransceiverProxy).additionalBlocks());
-        console2.log("Additional blocks (Hard coded)                            : ", 0);
+        console2.log("Additional blocks (Hard coded)                            : ", uint16(0));
         console2.log("\n");
     
         console2.log("wormholeTransceiverProxy.customConsistencyLevelAddress()  : ", WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevelAddress());
         console2.log("Custom consistency level address                          : ", address(0x00));
         console2.log("\n");
     
-        console2.log("wormholeTransceiverProxy.wormhole()                       : ", WormholeTransceiver(wormholeTransceiverProxy).wormhole());
-        console2.log("Wormhole                                                  : ", Constnts.BNB.WORMHOLE);
+        console2.log("wormholeTransceiverProxy.wormhole()                       : ", address(WormholeTransceiver(wormholeTransceiverProxy).wormhole()));
+        console2.log("Wormhole                                                  : ", Constants.BNB.WORMHOLE);
         console2.log("\n");
-    
 
         // -----------------------------------------------------------------------------------------
         // Assertions
@@ -326,7 +325,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         require(WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevel() == 0);
         require(WormholeTransceiver(wormholeTransceiverProxy).additionalBlocks() == 0);
         require(WormholeTransceiver(wormholeTransceiverProxy).customConsistencyLevelAddress() == address(0x00));
-        require(WormholeTransceiver(wormholeTransceiverProxy).wormhole() == Constants.BNB.Wormhole);
+        require(address(WormholeTransceiver(wormholeTransceiverProxy).wormhole()) == Constants.BNB.WORMHOLE);
 
         vm.stopBroadcast();
     }
