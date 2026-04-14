@@ -82,9 +82,9 @@ authority to the `NttManager` such that it may process mints and burns as approp
 
 ```mermaid
 flowchart LR
-    ETH_WT([WormholeTransceiver]):::eth
-    ETH_NTT([NttManager]):::eth
-    ETH_UNI([UNI]):::eth
+    ETH_WT([WormholeTransceiver])
+    ETH_NTT([NttManager])
+    ETH_UNI([UNI])
     BNB_WT([WormholeTransceiver])
     BNB_NTT([NttManager])
     BNB_UNI([SyntheticNttUni])
