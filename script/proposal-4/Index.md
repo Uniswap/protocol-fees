@@ -450,24 +450,68 @@ operations.
 
 ### Celo Actions
 
+---
+
 **OVERVIEW**:
+
+<!-- This action transfers ownership of the  -->
 
 This action transfers ownership of the protocol to `TokenJar`, which is then owned by a
 `CrossChainAccount`. The `CrossChainAccount` is owned on the home chain by the governance-owned
 `Timelock`. This means we are migrating off of Wormhole for Celo and onto the Optimism Canonical
 bridge.
 
-- `TokenJar` (Celo): https://celoscan.io/address/0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B
-- `CrossChainAccount` (Celo): https://celoscan.io/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7
-- `Timelock` (Ethereum): https://etherscan.io/address/0x1a9C8182C09F50C8318d769245beA52c32BE35BC
+```mermaid
+flowchart LR
+    subgraph after
+        direction LR
+
+        A_V2F(UniswapV2Factory)
+        A_V3F(UniswapV3Factory)
+        A_PM(PoolManager)
+        A_TJ(TokenJar)
+        A_CCA(CrossChainAccount)
+        A_OB((OptimismBridge))
+
+        A_V2F -->|feeToSetter| A_TJ
+        A_V3F -->|owner| A_TJ
+        A_PM -->|owner| A_TJ
+        A_TJ -->|owner| A_CCA
+        A_CCA -->|messenger| A_OB
+    end
+
+    subgraph before
+        direction LR
+
+        B_V2F(UniswapV2Factory)
+        B_V3F(UniswapV3Factory)
+        B_PM(PoolManager)
+        B_WR(WormholeReceiver)
+        B_WB((WormholeBridge))
+
+        B_WR -->|wormhole| B_WB
+        B_V2F -->|feeToSetter| B_WR
+        B_V3F -->|owner| B_WR
+        B_PM -->|owner| B_WR
+    end
+
+    before:::before
+    after:::after
+
+    classDef before fill:#59213f,color:#fff
+    classDef after fill:#3d7d69,color:#fff
+```
 
 **ACTIONS**:
 
-- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
+- call `UniswapV2Factory.setFeeTo` through `UniswapWormholeMessageReceiver`; new `feeTo` is `TokenJar`
+- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `CrossChainAccount`
 - call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
 - call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
 
 ### BNB Chain Actions
+
+---
 
 **OVERVIEW**:
 
@@ -476,11 +520,57 @@ This action transfers ownership of the protocol to `TokenJar`, which is then own
 the governance-owned `Timelock`. This means we are continuing to use Wormhole for the time-being on
 BNB Chain.
 
+
+```mermaid
+flowchart LR
+    subgraph after
+        direction LR
+
+        A_V2F(UniswapV2Factory)
+        A_V3F(UniswapV3Factory)
+        A_PM(PoolManager)
+        A_TJ(TokenJar)
+        A_WR(WormholeReceiver)
+        A_WB((WormholeBridge))
+
+        A_V2F -->|feeToSetter| A_TJ
+        A_V3F -->|owner| A_TJ
+        A_PM -->|owner| A_TJ
+        A_TJ -->|owner| A_WR
+        A_WR -->|wormhole| A_WB
+    end
+
+    subgraph before
+        direction LR
+
+        B_V2F(UniswapV2Factory)
+        B_V3F(UniswapV3Factory)
+        B_PM(PoolManager)
+        B_WR(WormholeReceiver)
+        B_WB((WormholeBridge))
+
+        B_WR -->|wormhole| B_WB
+        B_V2F -->|feeToSetter| B_WR
+        B_V3F -->|owner| B_WR
+        B_PM -->|owner| B_WR
+    end
+
+    before:::before
+    after:::after
+
+    classDef before fill:#59213f,color:#fff
+    classDef after fill:#3d7d69,color:#fff
+```
+
+**ACTIONS**:
+
 - call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
 - call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
 - call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
 
 ### Polygon Actions
+
+---
 
 **OVERVIEW**:
 

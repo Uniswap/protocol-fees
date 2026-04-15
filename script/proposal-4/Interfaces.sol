@@ -35,6 +35,7 @@ interface IWormhole {
 /// @dev For V2 fee activation
 interface IUniswapV2Factory {
   function setFeeToSetter(address) external;
+  function setFeeTo(address) external;
 }
 
 /// @title Uni V3 Factory

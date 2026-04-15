@@ -20,7 +20,9 @@ function smokeCheck() pure {
   require(Celo.V3_FACTORY != address(0x00), "Celo.V3_FACTORY is address(0x00)");
   require(Celo.V4_POOL_MANAGER != address(0x00), "Celo.V4_POOL_MANAGER is address(0x00)");
   require(Celo.TOKEN_JAR != address(0x00), "Celo.TOKEN_JAR is address(0x00)");
+  require(Celo.V3_OPEN_FEE_ADAPTER != address(0x00), "Celo.V3_OPEN_FEE_ADAPTER is address(0x00)");
   require(Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
+  require(Celo.CROSS_CHAIN_ACCOUNT != address(0x00), "Celo.CROSS_CHAIN_ACCOUNT is address(0x00)");
 
   // polygon
   require(Polygon.FX_CHILD != address(0x00), "Polygon.FX_CHILD is address(0x00)");
@@ -35,6 +37,7 @@ function smokeCheck() pure {
   require(BNB.V3_FACTORY != address(0x00), "BNB.V3_FACTORY is address(0x00)");
   require(BNB.V4_POOL_MANAGER != address(0x00), "BNB.V4_POOL_MANAGER is address(0x00)");
   require(BNB.TOKEN_JAR != address(0x00), "BNB.TOKEN_JAR is address(0x00)");
+  require(BNB.V3_OPEN_FEE_ADAPTER != address(0x00), "BNB.V3_OPEN_FEE_ADAPTER is address(0x00)");
   require(BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
   require(BNB.WORMHOLE != address(0x00), "BNB.WORMHOLE is address(0x00)");
 
@@ -91,12 +94,18 @@ library Celo {
   /// record of this contract's address.
   address constant TOKEN_JAR = 0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B;
 
+  /// @dev Fee adapter.
+  address constant V3_OPEN_FEE_ADAPTER = address(0x00);
+
   /// @dev Wormhole Receiver.
   /// source: protocol is owned by this at the time of writing.
   /// V2Factory: `cast call 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f "feeToSetter()"`
   /// V3Factory: `cast call 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc "owner()"`
   /// PoolManager: `cast call 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC "owner()"`
   address constant UNISWAP_WORMHOLE_MESSAGE_RECEIVER = 0x0Eb863541278308c3A64F8E908BC646e27BFD071;
+
+  /// @dev Optimism Bridge Cross Chain Account
+  address constant CROSS_CHAIN_ACCOUNT = address(0x00);
 }
 
 library Polygon {
@@ -130,6 +139,9 @@ library BNB {
 
   /// @dev Token Jar.
   address constant TOKEN_JAR = address(0x00);
+
+  /// @dev Fee adapter.
+  address constant V3_OPEN_FEE_ADAPTER = address(0x00);
 
   /// @dev Wormhole Receiver.
   address constant UNISWAP_WORMHOLE_MESSAGE_RECEIVER = address(0x00);

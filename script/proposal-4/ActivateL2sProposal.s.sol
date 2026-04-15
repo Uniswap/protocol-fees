@@ -66,24 +66,30 @@ contract ActivateL2Proposals is Script {
     // So we're going to call wormhole to transfer ownership of the factories and pool manager to the token jar.
     // Since optimism bridge owns the token jar, we'll be routing future messages through the optimism bridge to the
     // token jar for fee activation.
+    //
+    // TODO: Fix docs here, v2 owner goes to op cca, v2 feeTo goes to token jar
     {
       // opening a scope for these temporary variables, as they'll be encoded,
       // actions[0] will be preserved in memory
-      address[] memory targets = new address[](3);
-      uint256[] memory values = new uint256[](3);
-      bytes[] memory datas = new bytes[](3);
+      address[] memory targets = new address[](4);
+      uint256[] memory values = new uint256[](4);
+      bytes[] memory datas = new bytes[](4);
 
       targets[0] = Constants.Celo.V2_FACTORY;
       values[0] = 0;
-      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.Celo.TOKEN_JAR));
+      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.Celo.TOKEN_JAR));
 
-      targets[1] = Constants.Celo.V3_FACTORY;
+      targets[1] = Constants.Celo.V2_FACTORY;
       values[1] = 0;
-      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Celo.TOKEN_JAR));
+      datas[1] = abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
 
-      targets[2] = Constants.Celo.V4_POOL_MANAGER;
+      targets[2] = Constants.Celo.V3_FACTORY;
       values[2] = 0;
-      datas[2] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.TOKEN_JAR));
+      datas[2] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Celo.V3_OPEN_FEE_ADAPTER));
+
+      targets[3] = Constants.Celo.V4_POOL_MANAGER;
+      values[3] = 0;
+      datas[3] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.TOKEN_JAR));
 
       actions[0] = ProposalAction({
         target: Constants.L1.WORMHOLE_SENDER,
