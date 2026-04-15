@@ -1,5 +1,26 @@
 # Proposal-4
 
+- [Proposal-4](#proposal-4)
+  - [Definitions](#definitions)
+  - [Abstract](#abstract)
+  - [Action Ordering](#action-ordering)
+  - [Wormhole Context](#wormhole-context)
+    - [On Wormhole ERC1967 Proxies](#on-wormhole-erc1967-proxies)
+    - [Transfer UNI to BNBChain Flow](#transfer-uni-to-bnbchain-flow)
+    - [Transfer SyntheticNttUni to Ethereum Flow](#transfer-syntheticnttuni-to-ethereum-flow)
+    - [Burn UNI via Releaser from BNBChain Flow](#burn-uni-via-releaser-from-bnbchain-flow)
+  - [Prerequisite Actions](#prerequisite-actions)
+    - [1. Deploy Wormhole Infra BNB Chain](#1-deploy-wormhole-infra-bnb-chain)
+    - [2. Deploy Wormhole Infra Ethereum](#2-deploy-wormhole-infra-ethereum)
+    - [3. Configure Wormhole Infra BNB Chain](#3-configure-wormhole-infra-bnb-chain)
+    - [4. Configure Wormhole Infra Ethereum](#4-configure-wormhole-infra-ethereum)
+    - [5. Deploy and Configure Fee Infra BNB Chain](#5-deploy-and-configure-fee-infra-bnb-chain)
+    - [TODO: Polygon](#todo-polygon)
+  - [Governance Actions](#governance-actions)
+    - [Celo Actions](#celo-actions)
+    - [BNB Chain Actions](#bnb-chain-actions)
+    - [Polygon Actions](#polygon-actions)
+
 ## Definitions
 
 - Home chain: Ethereum L1
@@ -28,15 +49,15 @@ be taken before governance can enact the ownership transition.
 
 Actions must be taken in this order.
 
+1. Deploy Wormhole Infra BNB Chain
+2. Deploy Wormhole Infra Ethereum
+3. Configure Wormhole Infra BNB Chain
+4. Configure Wormhole Infra Ethereum
+5. Deploy and Configure Fee Infra BNB Chain
+6. Governance Proposal
+
 For members of governance, the prerequisite action sections are unnecessary, as they can be handled
 permissionlessly. See [Governance Actions](#governance-actions).
-
-1. [Deploy Wormhole Infra (BNB)](#deploy-wormhole-infra-bnb-chain)
-2. [Deploy Wormhole Infra (ETH)](#deploy-wormhole-infra-ethereum)
-3. [Deploy Wormhole Infra (BNB)](#configure-wormhole-infra-bnb-chain)
-4. [Configure Wormhole Infra (ETH)](#configure-wormhole-infra-ethereum)
-5. [Deploy/Config Fee Infra (BNB)](#deploy-and-configure-fee-infra-bnb-chain)
-6. [Governance Actions](#governance-actions)
 
 Dependency graph:
 
@@ -49,7 +70,9 @@ flowchart BT
     DCFIB(["Deploy/Config Fee Infra (BNB)"]):::on_bnb
     GA(["Governance Actions"]):::on_bnb
 
-    GA   -->|requires| DCFIB -->|requires| CWIB
+    GA   -->|requires| DCFIB
+    DCFIB -->|requires| CWIB
+    DCFIB -->|requires| CWIE
     CWIB -->|requires| DWIB
     CWIB -->|requires| DWIE
     CWIE -->|requires| DWIB
@@ -205,7 +228,7 @@ flowchart RL
 
 ## Prerequisite Actions
 
-### Deploy Wormhole Infra BNB Chain
+### 1. Deploy Wormhole Infra BNB Chain
 
 **Overview**:
 
@@ -217,7 +240,7 @@ transceiver registry, set the `SyntheticNttUni`'s minting authority to `NttManag
 and transfer ownership of `SyntheticNttUni` to `UniswapWormholeMessageReceiver`.
 
 > Note: The addresses deployed are needed in subsequent prerequisite scripts, so ownership of the
-> proxy is transferred in the [`ConfigWormholeInfraBNBChain`](#configure-wormhole-infra-bnb-chain)
+> proxy is transferred in the [`ConfigWormholeInfraBNBChain`](#3-configure-wormhole-infra-bnb-chain)
 
 **Foundry Script**:
 
@@ -246,7 +269,7 @@ forge script script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployW
 | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
 | 10    | Transfer ownership of SyntheticNttUni to governance.                 |
 
-### Deploy Wormhole Infra Ethereum
+### 2. Deploy Wormhole Infra Ethereum
 
 **Overview**:
 
@@ -257,7 +280,7 @@ to the `NttManagerNoRateLimiting` transceiver registry, then point the `NttManag
 the canonical UNI. 
 
 > Note: The addresses deployed are needed in subsequent prerequisite scripts, so ownership of the
-> proxy is transferred in the [`ConfigWormholeInfraEthereum`](#configure-wormhole-infra-ethereum)
+> proxy is transferred in the [`ConfigWormholeInfraEthereum`](#4-configure-wormhole-infra-ethereum)
 
 **Foundry Script**:
 
@@ -283,7 +306,7 @@ forge script script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployW
 | 06    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
 | 07    | Set the threshold of transceiver attestation redundancy.             |
 
-### Configure Wormhole Infra BNB Chain
+### 3. Configure Wormhole Infra BNB Chain
 
 **Overview**:
 
@@ -296,10 +319,12 @@ string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1
 ```
 
 We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
-incorrect data. From here, we set the `WormholeTransceiver` proxy deployed on BNB Chain as a
-"Wormhole peer" on the `WormholeTransceiver` proxy deployed on Ethereum, then we set the
-`NttManagerNoRateLimiting` proxy deployed on BNB Chain as a "peer" on the `NttManagerNoRateLimiting`
-proxy deployed on Ethereum. Finally we transfer proxy ownership to `UniswapWormholeMessageReceiver`.
+incorrect data.
+
+From here, we set the `WormholeTransceiver` proxy deployed on Ethereum as a "Wormhole peer" on the
+`WormholeTransceiver` proxy deployed on BNB Chain, then we set the `NttManagerNoRateLimiting` proxy
+deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on BNB Chain.
+Finally we transfer proxy ownership to `Timelock`.
 
 **Foundry Script**:
 
@@ -321,7 +346,7 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraBNBChain.s.sol:ConfigW
 | 02    | Transfer proxy ownership to Timelock.                                      |
 
 
-### Configure Wormhole Infra Ethereum
+### 4. Configure Wormhole Infra Ethereum
 
 **Overview**:
 
@@ -334,10 +359,12 @@ string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1
 ```
 
 We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
-incorrect data. From here, we set the `WormholeTransceiver` proxy deployed on Ethereum as a
-"Wormhole peer" on the `WormholeTransceiver` proxy deployed on BNB Chain, then we set the
-`NttManagerNoRateLimiting` proxy deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting`
-proxy deployed on BNB Chain. Finally we transfer proxy ownership to `Timelock`.
+incorrect data.
+
+From here, we set the `WormholeTransceiver` proxy deployed on BNB Chain as a "Wormhole peer" on the
+`WormholeTransceiver` proxy deployed on Ethereum, then we set the `NttManagerNoRateLimiting` proxy
+deployed on BNB Chain as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on Ethereum.
+Finally we transfer proxy ownership to `UniswapWormholeMessageReceiver`.
 
 **Foundry Script**:
 
@@ -358,7 +385,109 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraEthereum.s.sol:ConfigW
 | 01    | Set the NttManager Proxy on Ethereum as a peer.                            |
 | 02    | Transfer proxy ownership to UniswapWormholeMessageReceiver.                |
 
-### Deploy and Configure Fee Infra BNB Chain
+### 5. Deploy and Configure Fee Infra BNB Chain
 
-### Governance Actions
+**Overview**:
 
+We load the addresses from the `broadcast/` directory, which is where the prerequisite deployment
+script outputs should be writen. Default files are as follows:
+
+```solidity
+string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+```
+
+We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
+incorrect data.
+
+From here, we deploy the `TokenJar` and `WormholeReleaser`, set the `WormholeReleaser` to be the
+releaser for `TokenJar`, transfer ownership of each to governance, threshold setting permission to
+governance, delpoy the `V3OpenFeeAdapter` and set default fee tiers, then transfer the fee setting
+permission and ownership to governance.
+
+**Foundry Script**:
+
+[`./deploys/DeployAndConfigureFeeInfraBNBChain.s.sol`](./deploys/DeployAndConfigureFeeInfraBNBChain.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraBNBChain.s.sol:DeployAndConfigureFeeInfraBNBChainScript
+```
+
+**Transactions**:
+
+| Index | Action                                                                                 |
+| ----- | -------------------------------------------------------------------------------------- |
+| 00    | Deploy `TokenJar`.                                                                     |
+| 01    | Deploy `WormholeReleaser`.                                                             |
+| 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
+| 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
+| 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
+| 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
+| 06    | Deploy `V3OpenFeeAdapter`.                                                             |
+| 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
+| 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
+| 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
+| 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
+
+
+### TODO: Polygon
+
+## Governance Actions
+
+Governance takes five actions; one for Celo, one for BNB Chain, and three for Polygon. The actions
+on Celo and BNB Chain contain multiple batched operations but Polygon cannot handled batched
+operations.
+
+### Celo Actions
+
+**OVERVIEW**:
+
+This action transfers ownership of the protocol to `TokenJar`, which is then owned by a
+`CrossChainAccount`. The `CrossChainAccount` is owned on the home chain by the governance-owned
+`Timelock`. This means we are migrating off of Wormhole for Celo and onto the Optimism Canonical
+bridge.
+
+- `TokenJar` (Celo): https://celoscan.io/address/0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B
+- `CrossChainAccount` (Celo): https://celoscan.io/address/0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7
+- `Timelock` (Ethereum): https://etherscan.io/address/0x1a9C8182C09F50C8318d769245beA52c32BE35BC
+
+**ACTIONS**:
+
+- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
+- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
+- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
+
+### BNB Chain Actions
+
+**OVERVIEW**:
+
+This action transfers ownership of the protocol to `TokenJar`, which is then owned by
+`UniswapWormholeMessageReceiver`. The `UniswapWormholeMessageReceiver` is owned on the home chain by
+the governance-owned `Timelock`. This means we are continuing to use Wormhole for the time-being on
+BNB Chain.
+
+- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
+- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
+- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
+
+### Polygon Actions
+
+**OVERVIEW**:
+
+TODO
+
+**ACTIONS**:
+
+- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
+- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
+- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
