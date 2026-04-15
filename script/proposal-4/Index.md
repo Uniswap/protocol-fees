@@ -5,10 +5,10 @@
   - [Abstract](#abstract)
   - [Action Ordering](#action-ordering)
   - [Wormhole Context](#wormhole-context)
-    - [On Wormhole ERC1967 Proxies](#on-wormhole-erc1967-proxies)
     - [Transfer UNI to BNBChain Flow](#transfer-uni-to-bnbchain-flow)
     - [Transfer SyntheticNttUni to Ethereum Flow](#transfer-syntheticnttuni-to-ethereum-flow)
     - [Burn UNI via Releaser from BNBChain Flow](#burn-uni-via-releaser-from-bnbchain-flow)
+    - [On Wormhole ERC1967 Proxies](#on-wormhole-erc1967-proxies)
   - [Prerequisite Actions](#prerequisite-actions)
     - [1. Deploy Wormhole Infra BNB Chain](#1-deploy-wormhole-infra-bnb-chain)
     - [2. Deploy Wormhole Infra Ethereum](#2-deploy-wormhole-infra-ethereum)
@@ -103,25 +103,6 @@ local `WormholeTransceiver` deployment in its own registry.
 
 Finally, for BNB Chain, there must be a `SyntheticNttUni` deployment which allows mint and burn
 authority to the `NttManager` such that it may process mints and burns as appropriate.
-
-### On Wormhole ERC1967 Proxies
-
-We generally avoid upgradeable proxies as they pose a substantial risk to both the users and to the
-upgrade authorities to these contracts.
-
-Unfortunately, Wormhole only provides `NttManagerNoRateLimiting` and `WormholeTransceiver` instances
-which are programmed to be used as implementations for a proxy. Additionally, Wormhole has
-intertwined the authority to upgrade the proxy with the authority to perform maintenance, migration,
-and registry updates which may be necessary in time.
-
-**To avoid a substantial refactoring of the wormhole logic and opening new security risks, we use**
-**their implementations for now.**
-
-To mitigate the risks of this, however, the proxy ownership is granted to the deployer account
-during the prerequisite transactions and then transferred to governance BEFORE the governance
-proposal. On Ethereum, the proxy ownership is transferred to `Timelock`, which is owned by
-governance. On BNB Chain the proxy ownership is transferred to `UniswapWormholeMessageReceiver`,
-which is guarded such that only governance can send it messages through wormhole.
 
 ### Transfer UNI to BNBChain Flow
 
@@ -225,6 +206,25 @@ flowchart RL
     classDef eth fill:#008ab688,color:#fff
     classDef on_eth fill:#008ab6,color:#fff
 ```
+
+### On Wormhole ERC1967 Proxies
+
+We generally avoid upgradeable proxies as they pose a substantial risk to both the users and to the
+upgrade authorities to these contracts.
+
+Unfortunately, Wormhole only provides `NttManagerNoRateLimiting` and `WormholeTransceiver` instances
+which are programmed to be used as implementations for a proxy. Additionally, Wormhole has
+intertwined the authority to upgrade the proxy with the authority to perform maintenance, migration,
+and registry updates which may be necessary in time.
+
+**To avoid a substantial refactoring of the wormhole logic and opening new security risks, we use**
+**their implementations for now.**
+
+To mitigate the risks of this, however, the proxy ownership is granted to the deployer account
+during the prerequisite transactions and then transferred to governance BEFORE the governance
+proposal. On Ethereum, the proxy ownership is transferred to `Timelock`, which is owned by
+governance. On BNB Chain the proxy ownership is transferred to `UniswapWormholeMessageReceiver`,
+which is guarded such that only governance can send it messages through wormhole.
 
 ## Prerequisite Actions
 
