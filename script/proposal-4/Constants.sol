@@ -20,7 +20,7 @@ function smokeCheck() pure {
   require(Celo.V3_FACTORY != address(0x00), "Celo.V3_FACTORY is address(0x00)");
   require(Celo.V4_POOL_MANAGER != address(0x00), "Celo.V4_POOL_MANAGER is address(0x00)");
   require(Celo.TOKEN_JAR != address(0x00), "Celo.TOKEN_JAR is address(0x00)");
-  require(Celo.WORMHOLE_RECEIVER != address(0x00), "Celo.WORMHOLE_RECEIVER is address(0x00)");
+  require(Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
 
   // polygon
   require(Polygon.FX_CHILD != address(0x00), "Polygon.FX_CHILD is address(0x00)");
@@ -30,6 +30,7 @@ function smokeCheck() pure {
   require(Polygon.TOKEN_JAR != address(0x00), "Polygon.TOKEN_JAR is address(0x00)");
 
   // bnb
+  require(BNB.RELEASER_THRESHOLD != 0, "BNB.RELEASER_THRESHOLD is 0");
   require(BNB.V2_FACTORY != address(0x00), "BNB.V2_FACTORY is address(0x00)");
   require(BNB.V3_FACTORY != address(0x00), "BNB.V3_FACTORY is address(0x00)");
   require(BNB.V4_POOL_MANAGER != address(0x00), "BNB.V4_POOL_MANAGER is address(0x00)");
@@ -95,7 +96,7 @@ library Celo {
   /// V2Factory: `cast call 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f "feeToSetter()"`
   /// V3Factory: `cast call 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc "owner()"`
   /// PoolManager: `cast call 0x288dc841A52FCA2707c6947B3A777c5E56cd87BC "owner()"`
-  address constant WORMHOLE_RECEIVER = 0x0Eb863541278308c3A64F8E908BC646e27BFD071;
+  address constant UNISWAP_WORMHOLE_MESSAGE_RECEIVER = 0x0Eb863541278308c3A64F8E908BC646e27BFD071;
 }
 
 library Polygon {
@@ -116,6 +117,8 @@ library Polygon {
 }
 
 library BNB {
+  uint256 constant RELEASER_THRESHOLD = 0;
+
   /// @dev Uni V2 Factory.
   address constant V2_FACTORY = address(0x00);
 

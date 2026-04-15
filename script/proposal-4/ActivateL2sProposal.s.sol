@@ -37,7 +37,7 @@ contract ActivateL2Proposals is Script {
     vm.startBroadcast();
 
     // propose.
-    IGovernorBravo(Constants.L1.GOVERNOR)
+    IGovernorBravo(Constants.L1.TIMELOCK)
       .propose(targets, values, signatures, datas, PROPOSAL_DESCRIPTION);
 
     // stop the broadcast.
@@ -95,7 +95,7 @@ contract ActivateL2Proposals is Script {
             targets,
             values,
             datas,
-            Constants.Celo.WORMHOLE_RECEIVER,
+            Constants.Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER,
             Constants.Wormhole.CELO_CHAIN_ID
           )
         )
@@ -141,7 +141,7 @@ contract ActivateL2Proposals is Script {
             targets,
             values,
             datas,
-            Constants.BNB.WORMHOLE_RECEIVER,
+            Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER,
             Constants.Wormhole.BNB_CHAIN_ID
           )
         )
