@@ -538,16 +538,67 @@ flowchart LR
 
 **OVERVIEW**:
 
-This action transfers ownership of the protocol to `TokenJar`, which is then owned by
-`UniswapWormholeMessageReceiver`. The `UniswapWormholeMessageReceiver` is owned on the home chain by
-the governance-owned `Timelock`. This means we are continuing to use Wormhole for the time-being on
-BNB Chain.
+This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+`UniswapV3Factory` to `V3OpenFeeAdapter`.
 
-TODO:
+```mermaid
+flowchart LR
+    subgraph after
+        direction LR
+
+        A_UniswapV2Factory(UniswapV2Factory)
+        A_UniswapV3Factory(UniswapV3Factory)
+        A_PoolManager(PoolManager)
+        A_TokenJar(TokenJar)
+        A_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        A_WormholeReceiver(WormholeReceiver)
+        A_WormholeBridge((WormholeBridge))
+
+        A_UniswapV2Factory -->|feeTo| A_TokenJar
+        A_UniswapV2Factory -->|feeToSetter| A_WormholeReceiver
+        A_UniswapV3Factory -->|owner| A_V3OpenFeeAdapter
+        A_TokenJar -->|owner| A_WormholeReceiver
+        A_V3OpenFeeAdapter -->|owner| A_WormholeReceiver
+        A_PoolManager -->|owner| A_WormholeReceiver
+
+        A_WormholeReceiver -.-> A_WormholeBridge
+
+    end
+
+    subgraph before
+        direction LR
+
+        B_UniswapV2Factory(UniswapV2Factory)
+        B_UniswapV3Factory(UniswapV3Factory)
+        B_PoolManager(PoolManager)
+        B_TokenJar(TokenJar)
+        B_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        B_WormholeReceiver(WormholeReceiver)
+        B_WormholeBridge((WormholeBridge))
+        B_Z(0x00..00)
+
+        B_UniswapV2Factory -->|feeTo| B_Z
+        B_UniswapV2Factory -->|feeToSetter| B_WormholeReceiver
+        B_UniswapV3Factory -->|owner| B_WormholeReceiver
+        B_PoolManager -->|owner| B_WormholeReceiver
+        B_TokenJar -->|owner| B_WormholeReceiver
+        B_V3OpenFeeAdapter -->|owner| B_WormholeReceiver
+
+        B_WormholeReceiver -.-> B_WormholeBridge
+    end
+
+    before:::before
+    after:::after
+
+    classDef before fill:#59213f,color:#fff
+    classDef after fill:#3d7d69,color:#fff
+```
 
 **ACTIONS**:
 
-TODO
+- From `UniswapWormholeMesageReceiver`:
+    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
 
 ### Polygon Actions
 

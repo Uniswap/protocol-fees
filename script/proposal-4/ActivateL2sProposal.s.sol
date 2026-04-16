@@ -53,7 +53,9 @@ contract ActivateL2Proposals is Script {
     // Celo: Sets fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
     // `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, transfers ownerhsip of
     // `UniswapV3Factory` to `V3OpenFeeAdapter`.
-    // 
+    //
+    // DOES NOT activate V4 fees, only V2 and V3.
+    //
     // Context:
     // ---
     //
@@ -89,7 +91,7 @@ contract ActivateL2Proposals is Script {
     // - `TokenJar.owner` is `CrossChainAccout`.
     // - `V3OpenFeeAdapter.owner` is `CrossChainAccout`.
     //
-    // Our actions are:
+    // Actions:
     // ---
     //
     // - From `UniswapWormholeMesageReceiver`:
@@ -139,31 +141,37 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 2:
     //
-    // BNB Chain
+    // BNB Chain: Sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+    // `UniswapV3Factory` to `V3OpenFeeAdapter`.
     //
-    // Wormhole owns the factories and pool manager, so we're calling wormhole to transfer ownership.
+    // DOES NOT activate V4 fees, only V2 and V3.
     //
-    // note: this is not deployed yet.
+    // Context:
+    // ---
     //
-    // todo: check: https://wormhole.com/docs/products/token-transfers/wrapped-token-transfers/get-started/
+    // The `UniswapWormholeMessageReceiver` owns `UniswapV2Factory`, `UniswapV3Factory`, and
+    // `PoolManager`. Since we continue to use Wormhole for now, we only set the `UniswapV2Factory`
+    // fee collector and transfer ownership of `UniswapV3Factory` to the `V3OpenFeeAdapter` because
+    // V3 sends fees to the factory owner.
+    //
+    // Actions:
+    // ---
+    //
+    // - From `UniswapWormholeMesageReceiver`:
+    //   - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    //   - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
     {
-      // opening a scope for these temporary variables, as they'll be encoded,
-      // actions[0] will be preserved in memory
-      address[] memory targets = new address[](3);
-      uint256[] memory values = new uint256[](3);
-      bytes[] memory datas = new bytes[](3);
+      address[] memory targets = new address[](2);
+      uint256[] memory values = new uint256[](2);
+      bytes[] memory datas = new bytes[](2);
 
       targets[0] = Constants.BNB.V2_FACTORY;
       values[0] = 0;
-      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.BNB.TOKEN_JAR));
+      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.BNB.TOKEN_JAR));
 
       targets[1] = Constants.BNB.V3_FACTORY;
       values[1] = 0;
-      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.BNB.TOKEN_JAR));
-
-      targets[2] = Constants.BNB.V4_POOL_MANAGER;
-      values[2] = 0;
-      datas[2] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.BNB.TOKEN_JAR));
+      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.BNB.V3_OPEN_FEE_ADAPTER));
 
       actions[1] = ProposalAction({
         target: Constants.L1.WORMHOLE_SENDER,
@@ -185,7 +193,7 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 3:
     //
-    // Polygon Uniswap V2
+    // Polygon Uniswap V2 TODO
     //
     // owner is: 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
     // looks to be some kind of native polygon receiver
@@ -209,7 +217,7 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 4:
     //
-    // Polygon Uniswap V3
+    // Polygon Uniswap V3 TODO
     actions[3] = ProposalAction({
       target: Constants.L1.POLYGON_FX_ROOT,
       value: 0,
@@ -226,7 +234,7 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 5:
     //
-    // Polygon Uniswap V3
+    // Polygon Uniswap V3 TODO
     actions[4] = ProposalAction({
       target: Constants.L1.POLYGON_FX_ROOT,
       value: 0,
