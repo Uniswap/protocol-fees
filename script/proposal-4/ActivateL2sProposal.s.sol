@@ -45,32 +45,60 @@ contract ActivateL2Proposals is Script {
   }
 
   function _getActions() internal pure returns (ProposalAction[] memory actions) {
-    actions = new ProposalAction[](6);
+    actions = new ProposalAction[](5);
 
     // ---------------------------------------------------------------------------------------------
     // STEP 1:
     //
-    // Celo: Transfer Ownership of V2 Factory, V3 Factory, and V4 Pool Manager to Token Jar
-    //
+    // Celo: Sets fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+    // `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, transfers ownerhsip of
+    // `UniswapV3Factory` to `V3OpenFeeAdapter`.
+    // 
     // Context:
+    // ---
     //
     // The original flow was:
-    // - proposal 2 would use wormhole to transfer ownership of the factories and pool manager to the optimism bridge
-    // - proposal 3 would use the optimism bridge to transfer ownership of the factories and pool manager to the token jar
     //
-    // Since both failed:
-    // - wormhole owns the factories and pool manager
-    // - token jar has since been deployed
-    // - optimism bridge owns the token jar
+    // Proposal 2 would:
     //
-    // So we're going to call wormhole to transfer ownership of the factories and pool manager to the token jar.
-    // Since optimism bridge owns the token jar, we'll be routing future messages through the optimism bridge to the
-    // token jar for fee activation.
+    // - From `UniswapWormholeMesageReceiver`:
+    //   - On `UniswapV3Factory` set owner to `CrossChainAccout`.
+    //   - On `UniswapV2Factory` set fee collector setter to `CrossChainAccout`.
+    //   - On `PoolManager` set owner to `CrossChainAccout`.
     //
-    // TODO: Fix docs here, v2 owner goes to op cca, v2 feeTo goes to token jar
+    // Proposal 3 would:
+    //
+    // - From `CrossChainAccout`:
+    //   - On `UniswapV3Factory` set owner to `V3OpenFeeAdapter`.
+    //   - On `UniswapV2Factory` set fee collector to `TokenJar`.
+    //
+    // However, these failed.
+    //
+    // The following were deployed and configured permissionlessly:
+    //
+    // - `TokenJar`
+    // - `OptimismBridgedResourceFirepit`
+    // - `V3OpenFeeAdapter`
+    //
+    // So the state of the system before this proposal is:
+    //
+    // - `UniswapV2Factory.feeTo` is `address(0x00)`.
+    // - `UniswapV2Factory.feeToSetter` is `UniswapWormholeMesageReceiver`.
+    // - `UniswapV3Factory.owner` is `UniswapWormholeMesageReceiver`.
+    // - `PoolManager.owner` is `UniswapWormholeMesageReceiver`.
+    // - `TokenJar.owner` is `CrossChainAccout`.
+    // - `V3OpenFeeAdapter.owner` is `CrossChainAccout`.
+    //
+    // Our actions are:
+    // ---
+    //
+    // - From `UniswapWormholeMesageReceiver`:
+    //   - Set`UniswapV2Factory.feeTo` to `TokenJar`.
+    //   - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
+    //   - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    //   - Set`PoolManager.owner` to `CrossChainAccout`.
+    //
     {
-      // opening a scope for these temporary variables, as they'll be encoded,
-      // actions[0] will be preserved in memory
       address[] memory targets = new address[](4);
       uint256[] memory values = new uint256[](4);
       bytes[] memory datas = new bytes[](4);
@@ -89,7 +117,7 @@ contract ActivateL2Proposals is Script {
 
       targets[3] = Constants.Celo.V4_POOL_MANAGER;
       values[3] = 0;
-      datas[3] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.TOKEN_JAR));
+      datas[3] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
 
       actions[0] = ProposalAction({
         target: Constants.L1.WORMHOLE_SENDER,

@@ -21,6 +21,16 @@
     - [BNB Chain Actions](#bnb-chain-actions)
     - [Polygon Actions](#polygon-actions)
 
+TODO: THIS IS INCORRECT
+
+overview of where things are so i know where to pick up:
+
+- ownerhsip is not transferred to token jar
+  - v2 has to be owned by new other account
+  - v2 fees should go to token jar
+  - v3 has an adapter in between itself & token jar
+  - v4 is unknown
+
 ## Definitions
 
 - Home chain: Ethereum L1
@@ -454,45 +464,57 @@ operations.
 
 **OVERVIEW**:
 
-<!-- This action transfers ownership of the  -->
-
-This action transfers ownership of the protocol to `TokenJar`, which is then owned by a
-`CrossChainAccount`. The `CrossChainAccount` is owned on the home chain by the governance-owned
-`Timelock`. This means we are migrating off of Wormhole for Celo and onto the Optimism Canonical
-bridge.
+This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+`UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, and transfers ownerhsip of
+`UniswapV3Factory` to `V3OpenFeeAdapter`.
 
 ```mermaid
 flowchart LR
     subgraph after
         direction LR
 
-        A_V2F(UniswapV2Factory)
-        A_V3F(UniswapV3Factory)
-        A_PM(PoolManager)
-        A_TJ(TokenJar)
-        A_CCA(CrossChainAccount)
-        A_OB((OptimismBridge))
+        A_UniswapV2Factory(UniswapV2Factory)
+        A_UniswapV3Factory(UniswapV3Factory)
+        A_PoolManager(PoolManager)
+        A_TokenJar(TokenJar)
+        A_CrossChainAccount(CrossChainAccount)
+        A_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        A_OptimismBridge((OptimismBridge))
 
-        A_V2F -->|feeToSetter| A_TJ
-        A_V3F -->|owner| A_TJ
-        A_PM -->|owner| A_TJ
-        A_TJ -->|owner| A_CCA
-        A_CCA -->|messenger| A_OB
+        A_UniswapV2Factory -->|feeTo| A_TokenJar
+        A_UniswapV2Factory -->|feeToSetter| A_CrossChainAccount
+        A_UniswapV3Factory -->|owner| A_V3OpenFeeAdapter
+        A_TokenJar -->|owner| A_CrossChainAccount
+        A_V3OpenFeeAdapter -->|owner| A_CrossChainAccount
+        A_PoolManager -->|owner| A_CrossChainAccount
+
+        A_CrossChainAccount -.-> A_OptimismBridge
+
     end
 
     subgraph before
         direction LR
 
-        B_V2F(UniswapV2Factory)
-        B_V3F(UniswapV3Factory)
-        B_PM(PoolManager)
-        B_WR(WormholeReceiver)
-        B_WB((WormholeBridge))
+        B_UniswapV2Factory(UniswapV2Factory)
+        B_UniswapV3Factory(UniswapV3Factory)
+        B_PoolManager(PoolManager)
+        B_TokenJar(TokenJar)
+        B_CrossChainAccount(CrossChainAccount)
+        B_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        B_WormholeReceiver(WormholeReceiver)
+        B_WormholeBridge((WormholeBridge))
+        B_OptimismBridge((OptimismBridge))
+        B_Z(0x00..00)
 
-        B_WR -->|wormhole| B_WB
-        B_V2F -->|feeToSetter| B_WR
-        B_V3F -->|owner| B_WR
-        B_PM -->|owner| B_WR
+        B_UniswapV2Factory -->|feeTo| B_Z
+        B_UniswapV2Factory -->|feeToSetter| B_WormholeReceiver
+        B_UniswapV3Factory -->|owner| B_WormholeReceiver
+        B_PoolManager -->|owner| B_WormholeReceiver
+        B_TokenJar -->|owner| B_CrossChainAccount
+        B_V3OpenFeeAdapter -->|owner| B_CrossChainAccount
+
+        B_WormholeReceiver -.-> B_WormholeBridge
+        B_CrossChainAccount -.-> B_OptimismBridge
     end
 
     before:::before
@@ -504,10 +526,11 @@ flowchart LR
 
 **ACTIONS**:
 
-- call `UniswapV2Factory.setFeeTo` through `UniswapWormholeMessageReceiver`; new `feeTo` is `TokenJar`
-- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `CrossChainAccount`
-- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
-- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new owner is `TokenJar`
+- From `UniswapWormholeMesageReceiver`:
+    - Set`UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
+    - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    - Set`PoolManager.owner` to `CrossChainAccout`.
 
 ### BNB Chain Actions
 
@@ -520,53 +543,11 @@ This action transfers ownership of the protocol to `TokenJar`, which is then own
 the governance-owned `Timelock`. This means we are continuing to use Wormhole for the time-being on
 BNB Chain.
 
-
-```mermaid
-flowchart LR
-    subgraph after
-        direction LR
-
-        A_V2F(UniswapV2Factory)
-        A_V3F(UniswapV3Factory)
-        A_PM(PoolManager)
-        A_TJ(TokenJar)
-        A_WR(WormholeReceiver)
-        A_WB((WormholeBridge))
-
-        A_V2F -->|feeToSetter| A_TJ
-        A_V3F -->|owner| A_TJ
-        A_PM -->|owner| A_TJ
-        A_TJ -->|owner| A_WR
-        A_WR -->|wormhole| A_WB
-    end
-
-    subgraph before
-        direction LR
-
-        B_V2F(UniswapV2Factory)
-        B_V3F(UniswapV3Factory)
-        B_PM(PoolManager)
-        B_WR(WormholeReceiver)
-        B_WB((WormholeBridge))
-
-        B_WR -->|wormhole| B_WB
-        B_V2F -->|feeToSetter| B_WR
-        B_V3F -->|owner| B_WR
-        B_PM -->|owner| B_WR
-    end
-
-    before:::before
-    after:::after
-
-    classDef before fill:#59213f,color:#fff
-    classDef after fill:#3d7d69,color:#fff
-```
+TODO:
 
 **ACTIONS**:
 
-- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
-- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
-- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
+TODO
 
 ### Polygon Actions
 
@@ -578,6 +559,4 @@ TODO
 
 **ACTIONS**:
 
-- call `UniswapV2Factory.setFeeToSetter` through `UniswapWormholeMessageReceiver`; new `feeToSetter` is `TokenJar`
-- call `UniswapV3Factory.setOwner` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
-- call `PoolManager.transferOwnership` through `UniswapWormholeMessageReceiver`; new `owner` is `TokenJar`
+TODO

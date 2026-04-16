@@ -90,14 +90,18 @@ library Celo {
 
   /// @dev Token Jar.
   ///
-  /// source: in `script/proposal-03/06_ActivateL2sProposal.s.sol`, otherwise there appears to be no
+  /// source: in `script/proposal-3/06_ActivateL2sProposal.s.sol`, otherwise there appears to be no
   /// record of this contract's address.
   address constant TOKEN_JAR = 0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B;
 
   /// @dev Fee adapter.
-  address constant V3_OPEN_FEE_ADAPTER = address(0x00);
+  ///
+  /// source: in `script/proposal-2/05_ActivateOPBaseArbProposal.s.sol`, otherwise there appears to
+  /// be no record of this contract's address.
+  address constant V3_OPEN_FEE_ADAPTER = address(0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4);
 
   /// @dev Wormhole Receiver.
+  ///
   /// source: protocol is owned by this at the time of writing.
   /// V2Factory: `cast call 0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f "feeToSetter()"`
   /// V3Factory: `cast call 0xAfE208a311B21f13EF87E33A90049fC17A7acDEc "owner()"`
