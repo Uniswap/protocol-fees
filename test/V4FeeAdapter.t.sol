@@ -13,7 +13,8 @@ import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {CurveBreakpoint} from "../src/interfaces/IV4FeePolicy.sol";
+import {CurveBreakpoint, FlagRule} from "../src/interfaces/IV4FeePolicy.sol";
+import {HookFeeFlags} from "../src/libraries/HookFeeFlags.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
   MockFeeClassifiedHook,
@@ -127,15 +128,13 @@ contract V4FeeAdapterTest is Test {
     );
   }
 
-  /// @dev Deploy a mock hook at a specific address using CREATE2.
+  /// @dev Deploy a mock hook at a specific address using vm.etch.
   /// The lowest 14 bits of the address encode hook permissions.
-  function _deployHookAt(uint160 flags, uint8 selfReportFamily) internal returns (address) {
-    // Deploy mock at an address with the desired flags via vm.etch
-    address hookAddr = address(flags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(selfReportFamily);
+  function _deployHookAt(uint160 addrFlags, uint256 feeFlags) internal returns (address) {
+    address hookAddr = address(addrFlags);
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
     vm.etch(hookAddr, address(impl).code);
-    // Overwrite the immutable familyId in the etched bytecode's storage
-    vm.store(hookAddr, bytes32(0), bytes32(uint256(selfReportFamily)));
+    vm.store(hookAddr, bytes32(0), bytes32(feeFlags));
     return hookAddr;
   }
 
@@ -630,9 +629,10 @@ contract V4FeeAdapterTest is Test {
 
   function test_computeFee_selfReport_usedWhenNoGovernanceOverride() public {
     // Deploy a self-reporting hook at an address with custom accounting flags
-    uint160 flags = (1 << 7) | (1 << 2); // beforeSwap + afterSwapReturnsDelta
-    address hookAddr = address(flags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(3);
+    uint160 addrFlags = (1 << 7) | (1 << 2); // beforeSwap + afterSwapReturnsDelta
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
     vm.etch(hookAddr, address(impl).code);
 
     PoolKey memory selfReportKey = PoolKey({
@@ -644,19 +644,25 @@ contract V4FeeAdapterTest is Test {
     });
     poolManager.mockInitialize(selfReportKey);
 
-    // Set family 3's default fee
-    vm.prank(feeSetter);
-    policy.setFamilyDefault(3, FEE_200);
+    // Configure flag rule: TAKES_SWAP_SURPLUS -> family 3
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3});
 
-    // Hook self-reports family 3, policy should use it
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(3, FEE_200);
+    vm.stopPrank();
+
+    // Hook self-reports TAKES_SWAP_SURPLUS, rule maps to family 3
     assertEq(policy.computeFee(selfReportKey), FEE_200);
-    vm.snapshotGasLastCall("policy.computeFee - classified self-report");
+    vm.snapshotGasLastCall("policy.computeFee - classified flag-rule self-report");
   }
 
   function test_computeFee_selfReport_governanceOverrideWins() public {
-    uint160 flags = (1 << 7) | (1 << 2);
-    address hookAddr = address(flags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(3);
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
     vm.etch(hookAddr, address(impl).code);
 
     PoolKey memory key = PoolKey({
@@ -668,8 +674,12 @@ contract V4FeeAdapterTest is Test {
     });
     poolManager.mockInitialize(key);
 
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3});
+
     vm.startPrank(feeSetter);
-    policy.setFamilyDefault(3, FEE_200); // self-report family
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(3, FEE_200); // flag-rule family
     policy.setFamilyDefault(5, FEE_500); // governance family
     policy.setHookFamily(hookAddr, 5); // governance override
     vm.stopPrank();
@@ -1011,5 +1021,389 @@ contract V4FeeAdapterTest is Test {
 
     // New policy has no curve -> 0
     assertEq(adapter.getFee(standardKey), 0);
+  }
+
+  // ============ Policy: Flag Rules Configuration ============
+
+  function test_setFlagRules_success() public {
+    FlagRule[] memory rules = new FlagRule[](2);
+    rules[0] = FlagRule({
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
+      familyId: 3
+    });
+    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.FlagRulesUpdated(2);
+    vm.prank(feeSetter);
+    policy.setFlagRules(rules);
+    vm.snapshotGasLastCall("policy.setFlagRules - two rules");
+
+    assertEq(policy.flagRulesLength(), 2);
+    (uint256 flags0, uint8 fam0) = policy.flagRules(0);
+    assertEq(flags0, HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS);
+    assertEq(fam0, 3);
+    (uint256 flags1, uint8 fam1) = policy.flagRules(1);
+    assertEq(flags1, HookFeeFlags.TAKES_SWAP_SURPLUS);
+    assertEq(fam1, 2);
+  }
+
+  function test_setFlagRules_replacesExisting() public {
+    FlagRule[] memory rules1 = new FlagRule[](2);
+    rules1[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
+    rules1[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    FlagRule[] memory rules2 = new FlagRule[](1);
+    rules2[0] = FlagRule({requiredFlags: HookFeeFlags.ORACLE_BASED, familyId: 5});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules1);
+    assertEq(policy.flagRulesLength(), 2);
+    policy.setFlagRules(rules2);
+    assertEq(policy.flagRulesLength(), 1);
+    vm.stopPrank();
+
+    (uint256 flags, uint8 fam) = policy.flagRules(0);
+    assertEq(flags, HookFeeFlags.ORACLE_BASED);
+    assertEq(fam, 5);
+  }
+
+  function test_setFlagRules_revertsUnauthorized() public {
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.setFlagRules(rules);
+  }
+
+  function test_setFlagRules_revertsZeroRequiredFlags() public {
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: 0, familyId: 1});
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFlagRule.selector);
+    policy.setFlagRules(rules);
+  }
+
+  function test_setFlagRules_revertsZeroFamilyId() public {
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 0});
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFlagRule.selector);
+    policy.setFlagRules(rules);
+  }
+
+  function test_setFlagRules_revertsTooManyRules() public {
+    FlagRule[] memory rules = new FlagRule[](33);
+    for (uint256 i; i < 33; ++i) {
+      rules[i] = FlagRule({requiredFlags: 1 << i, familyId: uint8(i + 1)});
+    }
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.TooManyFlagRules.selector);
+    policy.setFlagRules(rules);
+  }
+
+  function test_clearFlagRules() public {
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    assertEq(policy.flagRulesLength(), 1);
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.FlagRulesUpdated(0);
+    policy.clearFlagRules();
+    assertEq(policy.flagRulesLength(), 0);
+    vm.stopPrank();
+  }
+
+  function test_clearFlagRules_revertsUnauthorized() public {
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.clearFlagRules();
+  }
+
+  // ============ Policy: Flag-Based Classification ============
+
+  function test_flagRule_singleFlagMatch() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2); // custom accounting
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(2, FEE_300);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(key), FEE_300);
+    vm.snapshotGasLastCall("policy.computeFee - flag-rule single flag match");
+  }
+
+  function test_flagRule_multiFlagMatch() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS | HookFeeFlags.STABLE_PAIR;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](2);
+    // More specific rule first: both flags required
+    rules[0] = FlagRule({
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
+      familyId: 3
+    });
+    // Less specific: only one flag
+    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(2, FEE_200);
+    policy.setFamilyDefault(3, FEE_500);
+    vm.stopPrank();
+
+    // Hook has both flags -> matches rule 0 (family 3) first
+    assertEq(policy.computeFee(key), FEE_500);
+    vm.snapshotGasLastCall("policy.computeFee - flag-rule multi-flag match");
+  }
+
+  function test_flagRule_priorityOrdering() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    // Hook only has TAKES_SWAP_SURPLUS (not STABLE_PAIR)
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](2);
+    rules[0] = FlagRule({
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
+      familyId: 3
+    });
+    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(2, FEE_200);
+    policy.setFamilyDefault(3, FEE_500);
+    vm.stopPrank();
+
+    // Hook lacks STABLE_PAIR -> skips rule 0, matches rule 1 (family 2)
+    assertEq(policy.computeFee(key), FEE_200);
+  }
+
+  function test_flagRule_noMatchFallsToDefault() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    // Hook reports ORACLE_BASED but no rules match that
+    uint256 feeFlags = HookFeeFlags.ORACLE_BASED;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    // No rule matches ORACLE_BASED -> falls through to defaultFee
+    assertEq(policy.computeFee(key), FEE_100);
+  }
+
+  function test_flagRule_hookReportsZeroFlagsFallsToDefault() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    // Hook reports zero flags
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(0);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(1, FEE_500);
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    // Zero flags -> skips rule matching entirely -> defaultFee
+    assertEq(policy.computeFee(key), FEE_100);
+  }
+
+  function test_flagRule_noRulesConfiguredFallsToDefault() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    vm.prank(feeSetter);
+    policy.setDefaultFee(FEE_100);
+
+    // No flag rules configured -> skips staticcall entirely -> defaultFee
+    assertEq(policy.computeFee(key), FEE_100);
+  }
+
+  function test_flagRule_superset_matchesSubsetRule() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    // Hook reports many flags
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS | HookFeeFlags.STABLE_PAIR
+      | HookFeeFlags.ORACLE_BASED | HookFeeFlags.YIELD_BEARING;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    // Rule only requires STABLE_PAIR
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 4});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(4, FEE_200);
+    vm.stopPrank();
+
+    // Hook has STABLE_PAIR among other flags -> matches
+    assertEq(policy.computeFee(key), FEE_200);
+  }
+
+  function test_flagRule_withPairFeeAndMultiplier() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
+      familyId: 3
+    });
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setPairFee(key.currency0, key.currency1, FEE_200);
+    policy.setFamilyMultiplier(3, 5000); // 50%
+    vm.stopPrank();
+
+    // FEE_200 (200|200) * 50% = (100|100) = FEE_100
+    assertEq(policy.computeFee(key), FEE_100);
+  }
+
+  function test_flagRule_governanceOverrideTakesPriorityOverFlags() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(2, FEE_200); // flag-rule would give this
+    policy.setHookFamily(hookAddr, 5); // governance override
+    policy.setFamilyDefault(5, FEE_500); // governance family fee
+    vm.stopPrank();
+
+    // Governance override (family 5) wins over flag-rule match (family 2)
+    assertEq(policy.computeFee(key), FEE_500);
+  }
+
+  function test_flagRule_max32Rules() public {
+    FlagRule[] memory rules = new FlagRule[](32);
+    for (uint256 i; i < 32; ++i) {
+      rules[i] = FlagRule({requiredFlags: 1 << i, familyId: uint8(i + 1)});
+    }
+    vm.prank(feeSetter);
+    policy.setFlagRules(rules);
+    vm.snapshotGasLastCall("policy.setFlagRules - 32 rules (max)");
+    assertEq(policy.flagRulesLength(), 32);
   }
 }

@@ -3,30 +3,30 @@ pragma solidity ^0.8.26;
 
 import {IFeeClassifiedHook} from "../../src/interfaces/IFeeClassifiedHook.sol";
 
-/// @notice Mock hook that self-reports its protocol fee family via IFeeClassifiedHook.
+/// @notice Mock hook that self-reports behavioral flags via IFeeClassifiedHook.
 contract MockFeeClassifiedHook is IFeeClassifiedHook {
-  uint8 public immutable familyId;
+  uint256 public immutable flags;
 
-  constructor(uint8 _familyId) {
-    familyId = _familyId;
+  constructor(uint256 _flags) {
+    flags = _flags;
   }
 
-  function protocolFeeFamily() external view returns (uint8) {
-    return familyId;
+  function protocolFeeFlags() external view returns (uint256) {
+    return flags;
   }
 }
 
-/// @notice Mock hook that wastes all gas on protocolFeeFamily() to test griefing protection.
+/// @notice Mock hook that wastes all gas on protocolFeeFlags() to test griefing protection.
 contract GriefingHook is IFeeClassifiedHook {
-  function protocolFeeFamily() external pure returns (uint8) {
-    while (true) {} // infinite loop — will consume all gas
+  function protocolFeeFlags() external pure returns (uint256) {
+    while (true) {}
     return 1; // unreachable
   }
 }
 
-/// @notice Mock hook that reverts on protocolFeeFamily().
+/// @notice Mock hook that reverts on protocolFeeFlags().
 contract RevertingHook {
-  function protocolFeeFamily() external pure returns (uint8) {
+  function protocolFeeFlags() external pure returns (uint256) {
     revert("not classified");
   }
 }
