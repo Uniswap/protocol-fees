@@ -8,7 +8,7 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
-import {IV4FeePolicy, CurveBreakpoint} from "../interfaces/IV4FeePolicy.sol";
+import {IV4FeePolicy, CurveBreakpoint, FlagRule} from "../interfaces/IV4FeePolicy.sol";
 import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 
 /// @title V4FeePolicy
@@ -19,8 +19,9 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// - Classified: custom accounting or dynamic fee → family multiplier × pair fee, family
 ///   default, or global default fee.
 /// Hook classification is automated from address bits 0-3 (RETURNS_DELTA flags).
-/// Hooks can also self-report their family via IFeeClassifiedHook.protocolFeeFamily().
-/// Priority: governance override → hook self-report → defaultFee.
+/// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags().
+/// Governance-configured flag rules map flag patterns to families automatically.
+/// Priority: governance override → flag-rule match on self-reported flags → defaultFee.
 /// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
@@ -61,6 +62,13 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// StaticNativeMath pools to map key.fee to a protocol fee.
   CurveBreakpoint[] internal _baselineCurve;
 
+  /// @dev Maximum number of flag rules to bound gas in _resolveFamily.
+  uint256 internal constant MAX_FLAG_RULES = 32;
+
+  /// @dev Ordered flag rules for mapping self-reported hook flags to family IDs.
+  /// First matching rule wins. Set atomically via setFlagRules().
+  FlagRule[] internal _flagRules;
+
   /// @notice Restricts access to the fee setter address.
   modifier onlyFeeSetter() {
     if (msg.sender != feeSetter) revert Unauthorized();
@@ -94,7 +102,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     }
 
     // Classified: custom accounting OR dynamic fee
-    // Priority: governance override → hook self-report → unclassified
+    // Priority: governance override → flag-rule match → unclassified
     uint8 family = _resolveFamily(hook);
     if (family != 0) {
       uint24 pairFee = pairFees[ph];
@@ -128,6 +136,23 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     return (bp.lpFeeFloor, bp.protocolFee);
   }
 
+  // ─── Flag Rules Getters ───
+
+  /// @inheritdoc IV4FeePolicy
+  function flagRulesLength() external view returns (uint256) {
+    return _flagRules.length;
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function flagRules(uint256 index)
+    external
+    view
+    returns (uint256 requiredFlags, uint8 familyId)
+  {
+    FlagRule storage rule = _flagRules[index];
+    return (rule.requiredFlags, rule.familyId);
+  }
+
   // ─── Admin ───
 
   /// @inheritdoc IV4FeePolicy
@@ -142,6 +167,27 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   function setHookFamily(address hook, uint8 familyId) external onlyFeeSetter {
     hookFamilyId[hook] = familyId;
     emit HookFamilySet(hook, familyId);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function setFlagRules(FlagRule[] calldata rules) external onlyFeeSetter {
+    if (rules.length > MAX_FLAG_RULES) revert TooManyFlagRules();
+
+    delete _flagRules;
+
+    for (uint256 i; i < rules.length; ++i) {
+      FlagRule calldata rule = rules[i];
+      if (rule.requiredFlags == 0 || rule.familyId == 0) revert InvalidFlagRule();
+      _flagRules.push(rule);
+    }
+
+    emit FlagRulesUpdated(rules.length);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function clearFlagRules() external onlyFeeSetter {
+    delete _flagRules;
+    emit FlagRulesUpdated(0);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -238,8 +284,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Resolves the family ID for a hook using a priority chain:
   /// 1. Governance override (hookFamilyId[hook]) — always wins if non-zero.
-  /// 2. Hook self-report via IFeeClassifiedHook.protocolFeeFamily() — gas-capped
-  ///    staticcall at SELF_REPORT_GAS_LIMIT. Trusted if call succeeds and returns non-zero.
+  /// 2. Flag-rule match: gas-capped staticcall to protocolFeeFlags(), then walk
+  ///    _flagRules in order. First rule whose requiredFlags are all present wins.
   /// 3. Returns 0 (unclassified) if neither source provides a family.
   /// @param hook The hook contract address to resolve.
   /// @return The resolved family ID, or 0 if unclassified.
@@ -247,13 +293,22 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint8 gov = hookFamilyId[hook];
     if (gov != 0) return gov;
 
-    // Ask the hook if it self-reports a family (gas-capped to prevent griefing)
+    uint256 rulesLen = _flagRules.length;
+    if (rulesLen == 0) return 0;
+
     (bool ok, bytes memory ret) = hook.staticcall{gas: SELF_REPORT_GAS_LIMIT}(
-      abi.encodeCall(IFeeClassifiedHook.protocolFeeFamily, ())
+      abi.encodeCall(IFeeClassifiedHook.protocolFeeFlags, ())
     );
     if (ok && ret.length >= 32) {
-      uint8 reported = abi.decode(ret, (uint8));
-      if (reported != 0) return reported;
+      uint256 flags = abi.decode(ret, (uint256));
+      if (flags != 0) {
+        for (uint256 i; i < rulesLen; ++i) {
+          FlagRule storage rule = _flagRules[i];
+          if (flags & rule.requiredFlags == rule.requiredFlags) {
+            return rule.familyId;
+          }
+        }
+      }
     }
 
     return 0;

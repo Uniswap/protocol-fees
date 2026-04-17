@@ -16,13 +16,26 @@ struct CurveBreakpoint {
   uint24 protocolFee;
 }
 
+/// @dev A flag-to-family mapping rule. The policy walks rules in order; the first rule
+/// whose requiredFlags are all present in the hook's self-reported flags wins.
+struct FlagRule {
+  /// @dev Bitmask of flags that must ALL be set in the hook's protocolFeeFlags() return
+  /// value for this rule to match. Use OR'd constants from HookFeeFlags.
+  uint256 requiredFlags;
+  /// @dev The family ID assigned when this rule matches. Must be > 0.
+  uint8 familyId;
+}
+
 /// @title IV4FeePolicy
 /// @notice Interface for the V4 fee policy contract that computes protocol fees based on
 /// automated hook classification and governance-configured parameters.
 /// @dev Hook family IDs are governance-assigned uint8 values (1-255). 0 = unclassified.
 /// Family IDs have no hardcoded semantic meaning — labels live in offchain documentation.
+/// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags();
+/// governance-configured flag rules map flag patterns to families automatically.
 /// Static NativeMath pools bypass classification and use the baseline curve directly.
-/// Custom-accounting hooks and dynamic fee pools require a governance-assigned familyId.
+/// Custom-accounting hooks and dynamic fee pools require classification (governance
+/// override, flag rule match, or defaultFee fallback).
 /// @custom:security-contact security@uniswap.org
 interface IV4FeePolicy {
   // --- Errors ---
@@ -44,6 +57,12 @@ interface IV4FeePolicy {
 
   /// @notice Thrown when currency0 >= currency1 in setPairFee.
   error CurrenciesOutOfOrder();
+
+  /// @notice Thrown when a flag rule has requiredFlags == 0 or familyId == 0.
+  error InvalidFlagRule();
+
+  /// @notice Thrown when flag rules exceed the maximum allowed count.
+  error TooManyFlagRules();
 
   // --- Events ---
 
@@ -79,6 +98,10 @@ interface IV4FeePolicy {
   /// @notice Emitted when the default classified fee is updated.
   /// @param feeValue The new default fee (0 = removed).
   event DefaultFeeUpdated(uint24 feeValue);
+
+  /// @notice Emitted when the flag rules array is replaced.
+  /// @param ruleCount The number of rules in the new array.
+  event FlagRulesUpdated(uint256 ruleCount);
 
   // --- Constants ---
 
@@ -142,6 +165,19 @@ interface IV4FeePolicy {
     view
     returns (uint24 lpFeeFloor, uint24 protocolFee);
 
+  /// @notice Returns the number of flag rules configured.
+  /// @return The count of flag rules.
+  function flagRulesLength() external view returns (uint256);
+
+  /// @notice Returns the flag rule at the given index.
+  /// @param index The zero-based index into the rules array.
+  /// @return requiredFlags The flags that must all be present for a match.
+  /// @return familyId The family ID assigned on match.
+  function flagRules(uint256 index)
+    external
+    view
+    returns (uint256 requiredFlags, uint8 familyId);
+
   // --- Pure Classification ---
 
   /// @notice Returns true if the hook has any RETURNS_DELTA flag set (bits 0-3).
@@ -176,6 +212,18 @@ interface IV4FeePolicy {
   /// @param hook The hook address to classify.
   /// @param familyId The family ID to assign (0 = unclassify).
   function setHookFamily(address hook, uint8 familyId) external;
+
+  // --- Flag Rules (onlyFeeSetter) ---
+
+  /// @notice Replaces the entire flag rules array atomically.
+  /// @dev Rules are checked in order; the first rule whose requiredFlags are all present
+  /// in the hook's self-reported flags wins. More specific patterns should come first.
+  /// Each rule must have requiredFlags != 0 and familyId > 0. Max 32 rules.
+  /// @param rules The new flag rules, ordered by match priority (first match wins).
+  function setFlagRules(FlagRule[] calldata rules) external;
+
+  /// @notice Removes all flag rules.
+  function clearFlagRules() external;
 
   // --- Default Fee (onlyFeeSetter) ---
 
