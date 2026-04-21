@@ -22,14 +22,6 @@
     - [BNB Chain Actions](#bnb-chain-actions)
     - [Polygon Actions](#polygon-actions)
 
-overview of where things are so i know where to pick up:
-
-- ownerhsip is not transferred to token jar
-  - v2 has to be owned by new other account
-  - v2 fees should go to token jar
-  - v3 has an adapter in between itself & token jar
-  - v4 is unknown
-
 ## Definitions
 
 - Home chain: Ethereum L1
