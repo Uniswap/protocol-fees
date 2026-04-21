@@ -24,13 +24,6 @@ function smokeCheck() pure {
   require(Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
   require(Celo.CROSS_CHAIN_ACCOUNT != address(0x00), "Celo.CROSS_CHAIN_ACCOUNT is address(0x00)");
 
-  // polygon
-  require(Polygon.FX_CHILD != address(0x00), "Polygon.FX_CHILD is address(0x00)");
-  require(Polygon.V2_FACTORY != address(0x00), "Polygon.V2_FACTORY is address(0x00)");
-  require(Polygon.V3_FACTORY != address(0x00), "Polygon.V3_FACTORY is address(0x00)");
-  require(Polygon.V4_POOL_MANAGER != address(0x00), "Polygon.V4_POOL_MANAGER is address(0x00)");
-  require(Polygon.TOKEN_JAR != address(0x00), "Polygon.TOKEN_JAR is address(0x00)");
-
   // bnb
   require(BNB.RELEASER_THRESHOLD != 0, "BNB.RELEASER_THRESHOLD is 0");
   require(BNB.V2_FACTORY != address(0x00), "BNB.V2_FACTORY is address(0x00)");
@@ -41,12 +34,13 @@ function smokeCheck() pure {
   require(BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER != address(0x00), "BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER is address(0x00)");
   require(BNB.WORMHOLE != address(0x00), "BNB.WORMHOLE is address(0x00)");
 
-  // // avalanche
-  // require(Avalanche.V2_FACTORY != address(0x00));
-  // require(Avalanche.V3_FACTORY != address(0x00));
-  // require(Avalanche.V4_POOL_MANAGER != address(0x00));
-  // require(Avalanche.TOKEN_JAR != address(0x00));
-  // require(Avalanche.OMNICHAIN_GOVERNANCE != address(0x00));
+  // polygon
+  require(Polygon.FX_MESSAGE_PROCESSOR != address(0x00), "Polygon.FX_MESSAGE_PROCESSOR is address(0x00)");
+  require(Polygon.V2_FACTORY != address(0x00), "Polygon.V2_FACTORY is address(0x00)");
+  require(Polygon.V3_FACTORY != address(0x00), "Polygon.V3_FACTORY is address(0x00)");
+  require(Polygon.V4_POOL_MANAGER != address(0x00), "Polygon.V4_POOL_MANAGER is address(0x00)");
+  require(Polygon.TOKEN_JAR != address(0x00), "Polygon.TOKEN_JAR is address(0x00)");
+  require(Polygon.V3_OPEN_FEE_ADAPTER != address(0x00), "Polygon.V3_OPEN_FEE_ADAPTER is address(0x00)");
 }
 
 library L1 {
@@ -112,23 +106,6 @@ library Celo {
   address constant CROSS_CHAIN_ACCOUNT = address(0x00);
 }
 
-library Polygon {
-  /// @dev Polygon FX Child.
-  address constant FX_CHILD = address(0x00);
-
-  /// @dev Uni V2 Factory.
-  address constant V2_FACTORY = address(0x00);
-
-  /// @dev Uni V3 Factory.
-  address constant V3_FACTORY = address(0x00);
-
-  /// @dev Uni V4 Pool Manager.
-  address constant V4_POOL_MANAGER = address(0x00);
-
-  /// @dev Token Jar.
-  address constant TOKEN_JAR = address(0x00);
-}
-
 library BNB {
   uint256 constant RELEASER_THRESHOLD = 0;
 
@@ -154,23 +131,27 @@ library BNB {
   address constant WORMHOLE = address(0x00);
 }
 
-// library Avalanche {
-//   /// @dev Uni V2 Factory.
-//   address constant V2_FACTORY = address(0x00);
+library Polygon {
+  /// @dev Polygon FX Message Processor.
+  address constant FX_MESSAGE_PROCESSOR = address(0x00);
 
-//   /// @dev Uni V3 Factory.
-//   address constant V3_FACTORY = address(0x00);
+  /// @dev Uni V2 Factory.
+  address constant V2_FACTORY = address(0x00);
 
-//   /// @dev Uni V4 Pool Manager.
-//   address constant V4_POOL_MANAGER = address(0x00);
+  /// @dev Uni V3 Factory.
+  address constant V3_FACTORY = address(0x00);
 
-//   /// @dev Token Jar.
-//   address constant TOKEN_JAR = address(0x00);
+  /// @dev Uni V4 Pool Manager.
+  address constant V4_POOL_MANAGER = address(0x00);
 
-//   /// @dev Omnichain Governance.
-//   address constant OMNICHAIN_GOVERNANCE = address(0x00);
-// }
+  /// @dev Token Jar.
+  address constant TOKEN_JAR = address(0x00);
 
+  /// @dev Fee adapter.
+  address constant V3_OPEN_FEE_ADAPTER = address(0x00);
+}
+
+/// @dev Wormhole-defined chain Id's. Different from real chain Id's.
 library Wormhole {
   uint16 internal constant ETH_CHAIN_ID = 2;
 
@@ -178,7 +159,3 @@ library Wormhole {
 
   uint16 internal constant BNB_CHAIN_ID = 4;
 }
-
-// library LayerZero {
-//   uint16 internal constant AVALANCHE_CHAIN_ID = 30106;
-// }

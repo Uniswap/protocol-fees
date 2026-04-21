@@ -10,7 +10,7 @@ import {
   IUniswapV3Factory,
   IUniswapV4PoolManager,
   IGovernorBravo,
-  IPolygonFXRoot,
+  IPolygonStateSync,
   ILayerZeroEndpoint
 } from "./Interfaces.sol";
 import {ProposalAction, toItems} from "./Types.sol";
@@ -195,93 +195,45 @@ contract ActivateL2Proposals is Script {
     //
     // Polygon Uniswap V2 TODO
     //
-    // owner is: 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
+    // on polygon:
+    //
+    // owner is:
+    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
+    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
+    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
+    //
+    // TODO: THIS CAN USE MULTIPLE ACTIONS IN ONE
+    //
     // looks to be some kind of native polygon receiver
     // building calldata according to these independent docs:
     // https://github.com/ScopeLift/uniswap-docs-fork/blob/l2-proposals/docs/concepts/governance/05-multichain-proposals.md#polygon
     //
     // only one action can be taken over the polygon bridge at a time, so we'll need 3 actions.
-    actions[2] = ProposalAction({
-      target: Constants.L1.POLYGON_FX_ROOT,
-      value: 0,
-      signature: "",
-      data: abi.encodeCall(
-        IPolygonFXRoot.sendMessageToChild,
-        (
-          Constants.Polygon.V2_FACTORY,
-          abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.Polygon.TOKEN_JAR))
-        )
-      )
-    });
+    {
+      address[] memory targets = new address[](2);
+      uint256[] memory values = new uint256[](2);
+      bytes[] memory datas = new bytes[](2);
 
-    // ---------------------------------------------------------------------------------------------
-    // STEP 4:
-    //
-    // Polygon Uniswap V3 TODO
-    actions[3] = ProposalAction({
-      target: Constants.L1.POLYGON_FX_ROOT,
-      value: 0,
-      signature: "",
-      data: abi.encodeCall(
-        IPolygonFXRoot.sendMessageToChild,
-        (
-          Constants.Polygon.V3_FACTORY,
-          abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.TOKEN_JAR))
-        )
-      )
-    });
+      targets[0] = Constants.BNB.V2_FACTORY;
+      values[0] = 0;
+      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.Polygon.TOKEN_JAR));
 
-    // ---------------------------------------------------------------------------------------------
-    // STEP 5:
-    //
-    // Polygon Uniswap V3 TODO
-    actions[4] = ProposalAction({
-      target: Constants.L1.POLYGON_FX_ROOT,
-      value: 0,
-      signature: "",
-      data: abi.encodeCall(
-        IPolygonFXRoot.sendMessageToChild,
-        (
-          Constants.Polygon.V4_POOL_MANAGER,
-          abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Polygon.TOKEN_JAR))
-        )
-      )
-    });
+      targets[1] = Constants.BNB.V3_FACTORY;
+      values[1] = 0;
+      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.V3_OPEN_FEE_ADAPTER));
 
-    // ---------------------------------------------------------------------------------------------
-    // STEP 6:
-    //
-    // Avalanche V2 (TODO: scrap this, documentation)
-    //
-    // owned by layer zero omnichain governance contract deployment.
-    //
-    // layer zero has no v1 documentation, no code comments, no natspec, layer zero llm cannot help,
-    // 
-    // there's a long line of contracts and issues to track for this. for now we are leaving this
-    // unused and undocumented.  we'll add documentation when it is time to migrate off of this
-    // mechanism toward a more modular system.
-    //
-    // links that will be helpful in the future:
-    //
-    // - l1 lz endpoint v2 (compat w v1): https://etherscan.io/address/0x1a44076050125825900e736c501f859c50fE728c#code
-    // - avax lz omnichain gov: https://avascan.info/blockchain/all/address/0xeb0BCF27D1Fb4b25e708fBB815c421Aeb51eA9fc
-    // - lz omnichain gov src: https://github.com/LayerZero-Labs/omnichain-governance-executor
-    //
-    // actions[5] = ProposalAction({
-    //   target: Constants.L1.LAYER_ZERO_ENDPOINT,
-    //   value: 0,
-    //   signature: "",
-    //   data: abi.encodeCall(
-    //     ILayerZeroEndpoint.send,
-    //     (
-    //       Constants.LayerZero.AVALANCHE_CHAIN_ID,
-    //       hex"aaaaaaaaaaaa", // no idea what "dest" is or why it's arbitrary bytes
-    //       hex"aaaaaaaaaaaa", // no idea whether this takes batch actions or not
-    //       payable(address(0xaaaaaaaaaaaa)),
-    //       address(0xaaaaaaaaaaaa),
-    //       hex"aaaaaaaaaaaa" // no idea what adapter params are.
-    //     )
-    //   )
-    // });
+      actions[2] = ProposalAction({
+        target: Constants.L1.POLYGON_FX_ROOT,
+        value: 0,
+        signature: "",
+        data: abi.encodeCall(
+          IPolygonStateSync.syncState,
+          (
+            Constants.Polygon.FX_MESSAGE_PROCESSOR,
+            abi.encode(targets, values, datas)
+          )
+        )
+      });
+    }
   }
 }

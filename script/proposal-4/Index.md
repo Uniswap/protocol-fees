@@ -9,6 +9,7 @@
     - [Transfer SyntheticNttUni to Ethereum Flow](#transfer-syntheticnttuni-to-ethereum-flow)
     - [Burn UNI via Releaser from BNBChain Flow](#burn-uni-via-releaser-from-bnbchain-flow)
     - [On Wormhole ERC1967 Proxies](#on-wormhole-erc1967-proxies)
+  - [Polygon Context](#polygon-context)
   - [Prerequisite Actions](#prerequisite-actions)
     - [1. Deploy Wormhole Infra BNB Chain](#1-deploy-wormhole-infra-bnb-chain)
     - [2. Deploy Wormhole Infra Ethereum](#2-deploy-wormhole-infra-ethereum)
@@ -20,8 +21,6 @@
     - [Celo Actions](#celo-actions)
     - [BNB Chain Actions](#bnb-chain-actions)
     - [Polygon Actions](#polygon-actions)
-
-TODO: THIS IS INCORRECT
 
 overview of where things are so i know where to pick up:
 
@@ -75,21 +74,24 @@ Dependency graph:
 flowchart BT
     DWIB(["Deploy Wormhole Infra (BNB)"]):::on_bnb
     DWIE(["Deploy Wormhole Infra (ETH)"]):::on_eth
-    CWIB(["Configure Wormhole Infra (BNB)"]):::on_bnb
-    CWIE(["Configure Wormhole Infra (ETH)"]):::on_eth
-    DCFIB(["Deploy/Config Fee Infra (BNB)"]):::on_bnb
+    CWIB(["Conf Wormhole Infra (BNB)"]):::on_bnb
+    CWIE(["Conf Wormhole Infra (ETH)"]):::on_eth
+    DCFIB(["Deploy/Conf Fee Infra (BNB)"]):::on_bnb
+    DCFIP(["Deploy/Conf Fee Infra (POL)"]):::on_pol
     GA(["Governance Actions"]):::on_bnb
 
-    GA   -->|requires| DCFIB
-    DCFIB -->|requires| CWIB
-    DCFIB -->|requires| CWIE
-    CWIB -->|requires| DWIB
-    CWIB -->|requires| DWIE
-    CWIE -->|requires| DWIB
-    CWIE -->|requires| DWIE
+    GA      -->|requires| DCFIB
+    GA      -->|requires| DCFIP
+    DCFIB   -->|requires| CWIB
+    DCFIB   -->|requires| CWIE
+    CWIB    -->|requires| DWIB
+    CWIB    -->|requires| DWIE
+    CWIE    -->|requires| DWIB
+    CWIE    -->|requires| DWIE
 
     classDef on_bnb fill:#d7b67e,color:#fff
     classDef on_eth fill:#008ab6,color:#fff
+    classDef on_pol fill:#84608c,color:#fff
 ```
 
 ## Wormhole Context
@@ -235,6 +237,113 @@ during the prerequisite transactions and then transferred to governance BEFORE t
 proposal. On Ethereum, the proxy ownership is transferred to `Timelock`, which is owned by
 governance. On BNB Chain the proxy ownership is transferred to `UniswapWormholeMessageReceiver`,
 which is guarded such that only governance can send it messages through wormhole.
+
+## Polygon Context
+
+**NOTICE: Polygon documentation is incorrect. Notes are kept here for now.**
+
+Polygon maintains a whitelist of allowed state senders and receivers. Listing
+addresses here for now so we know what exists where.
+
+Ethereum:
+
+- `StateSender`: `0x28e4F3a7f651294B9564800b2D01f35189A5bFbE`
+- `DepositManagerProxy`: `0x401F6c983eA34274ec46f84D70b31C151321188b`
+  - `DepositManager`: `0xb00aa68b87256e2f22058fb2ba3246eec54a44fc` (implemenation)
+- `RootChainManagerProxy`: `0xA0c68C638235ee32657e8f720a23ceC1bFc77C77`
+  - `RootChainManager`: `0xf0235dca8fb0d3999685724dcbb9dd00c5d62dfa` (implemenation)
+- `FxRoot`: `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2`
+
+Polygon:
+
+- `System`: `0x0000000000000000000000000000000000001001`
+- `ChildChain`: `0xD9c7C4ED4B66858301D0cb28Cc88bf655Fe34861`
+- `ChildChainManagerProxy`: `0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa`
+  - `ChainChildManager`: `0xa40fc0782bee28dd2cf8cb4ac2ecdb05c537f1b5` (implementation)
+- `EthereumProxy`: `0x8a1B966aC46F42275860f905dbC75EfBfDC12374`
+  - this is not actually a proxy, unsure why this is named as such
+- `FxChild`: `0x8397259c983751DAf40400790063935a11afa28a`
+
+
+`System` whitelists sender/receiver pairs:
+
+- `FxRoot` -> `FxChild`: message bridge for governance
+- `DepositManagerProxy` -> `ChildChain`: token bridging (5yrs old, may be outdated)
+- `RootChainManagerProxy` -> `ChildChainManagerProxy`: uncertain
+- (~7 other whitelisted items, TODO: add these)
+
+Governance order of ops:
+
+- `Timelock` (owned by gov) calls `FxRoot`
+- `FxRoot` calls `StateSender`
+- `StateSender` logs `StateSynced` event
+- polygon node calls on behalf of `System`
+- `System` calls `FxChild`
+- `FxChild` calls `EthereumProxy` (owned by gov)
+- `EthereumProxy` decodes info and multicalls to protocol
+
+Interfaces:
+
+```solidity
+// -- ethereum
+interface FxRoot {
+    function sendMessageToChild(address _receiver, bytes calldata _data) external;
+}
+
+interface StateSender {
+    function syncState(address receiver, bytes calldata data) external;
+}
+
+// -- polygon
+interface FxChild {
+    function onStateReceive(uint256 stateId, bytes calldata _data) external;
+}
+
+interface EthereumProxy {
+    function processMessageFromRoot(uint256,address sender,bytes memory message) external;
+}
+```
+
+Flow:
+
+```mermaid
+flowchart LR
+    Bridge{Bridge}
+    subgraph pol
+        direction LR
+        System([System])
+        FxChild([FxChild])
+        EthereumProxy([EthereumProxy])
+        V2Factory([V2Factory])
+        V3Factory([V3Factory])
+        PoolManager([PoolManager])
+
+        System -->|onStateReceive| FxChild
+        FxChild -->|processMessageFromRoot| EthereumProxy
+        EthereumProxy -->|call| V2Factory
+        EthereumProxy -->|call| V3Factory
+        EthereumProxy -->|call| PoolManager
+    end
+
+    subgraph eth
+        direction LR
+        Governance([Governance])
+        FxRoot([FxRoot])
+        StateSender([StateSender])
+
+        Governance -->|sendMessageToChild| FxRoot
+        FxRoot -->|syncState| StateSender
+    end
+
+    StateSender -.-> Bridge
+    Bridge -.-> System
+
+    eth:::eth
+    pol:::pol
+
+    classDef eth fill:#008ab6,color:#fff
+    classDef pol fill:#84608c,color:#fff
+```
 
 ## Prerequisite Actions
 
@@ -468,6 +577,16 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfer
 `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, and transfers ownerhsip of
 `UniswapV3Factory` to `V3OpenFeeAdapter`.
 
+**ACTIONS**:
+
+- From `UniswapWormholeMesageReceiver`:
+    - Set`UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
+    - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    - Set`PoolManager.owner` to `CrossChainAccout`.
+
+**BEFORE AND AFTER**:
+
 ```mermaid
 flowchart LR
     subgraph after
@@ -524,14 +643,6 @@ flowchart LR
     classDef after fill:#3d7d69,color:#fff
 ```
 
-**ACTIONS**:
-
-- From `UniswapWormholeMesageReceiver`:
-    - Set`UniswapV2Factory.feeTo` to `TokenJar`.
-    - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
-    - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
-    - Set`PoolManager.owner` to `CrossChainAccout`.
-
 ### BNB Chain Actions
 
 ---
@@ -540,6 +651,14 @@ flowchart LR
 
 This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
 `UniswapV3Factory` to `V3OpenFeeAdapter`.
+
+**ACTIONS**:
+
+- From `UniswapWormholeMesageReceiver`:
+    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+
+**BEFORE AND AFTER**:
 
 ```mermaid
 flowchart LR
@@ -593,12 +712,6 @@ flowchart LR
     classDef before fill:#59213f,color:#fff
     classDef after fill:#3d7d69,color:#fff
 ```
-
-**ACTIONS**:
-
-- From `UniswapWormholeMesageReceiver`:
-    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
-    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
 
 ### Polygon Actions
 
