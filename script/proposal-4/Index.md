@@ -70,7 +70,7 @@ flowchart BT
     CWIE(["Conf Wormhole Infra (ETH)"]):::on_eth
     DCFIB(["Deploy/Conf Fee Infra (BNB)"]):::on_bnb
     DCFIP(["Deploy/Conf Fee Infra (POL)"]):::on_pol
-    GA(["Governance Actions"]):::on_bnb
+    GA(["Governance Actions"]):::on_eth
 
     GA      -->|requires| DCFIB
     GA      -->|requires| DCFIP
@@ -81,9 +81,11 @@ flowchart BT
     CWIE    -->|requires| DWIB
     CWIE    -->|requires| DWIE
 
-    classDef on_bnb fill:#d7b67e,color:#fff
-    classDef on_eth fill:#008ab6,color:#fff
-    classDef on_pol fill:#84608c,color:#fff
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+
+    linkStyle 0,1,2,3,4,5,6,7 stroke:#fff,stroke-width:4px
 ```
 
 ## Wormhole Context
@@ -112,12 +114,12 @@ authority to the `NttManager` such that it may process mints and burns as approp
 
 ```mermaid
 flowchart LR
-    ETH_WT([WormholeTransceiver]):::on_eth
-    ETH_NTT([NttManager]):::on_eth
-    ETH_UNI([UNI]):::on_eth
-    BNB_WT([WormholeTransceiver]):::on_bnb
-    BNB_NTT([NttManager]):::on_bnb
-    BNB_UNI([SyntheticNttUni]):::on_bnb
+    ETH_WT([WormholeTransceiver])
+    ETH_NTT([NttManager])
+    ETH_UNI([UNI])
+    BNB_WT([WormholeTransceiver])
+    BNB_NTT([NttManager])
+    BNB_UNI([SyntheticNttUni])
 
     subgraph Ethereum
         direction LR
@@ -125,7 +127,7 @@ flowchart LR
         ETH_NTT -->|sends msg| ETH_WT
     end
 
-    Ethereum:::eth -.->|Wormhole| BNBChain:::bnb
+    Ethereum -.->|Wormhole| BNBChain
 
     subgraph BNBChain
         direction LR
@@ -133,22 +135,25 @@ flowchart LR
         BNB_NTT -->|mint| BNB_UNI
     end
 
-    classDef bnb fill:#d7b67e88,color:#fff
-    classDef on_bnb fill:#d7b67e,color:#fff
-    classDef eth fill:#008ab688,color:#fff
-    classDef on_eth fill:#008ab6,color:#fff
+    Ethereum:::on_eth
+    BNBChain:::on_bnb
+
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#498fb6,color:#fff
 ```
 
 ### Transfer SyntheticNttUni to Ethereum Flow
 
 ```mermaid
 flowchart RL
-    ETH_WT([WormholeTransceiver]):::on_eth
-    ETH_NTT([NttManager]):::on_eth
-    ETH_UNI([UNI]):::on_eth
-    BNB_WT([WormholeTransceiver]):::on_bnb
-    BNB_NTT([NttManager]):::on_bnb
-    BNB_UNI([SyntheticNttUni]):::on_bnb
+    ETH_WT([WormholeTransceiver])
+    ETH_NTT([NttManager])
+    ETH_UNI([UNI])
+    BNB_WT([WormholeTransceiver])
+    BNB_NTT([NttManager])
+    BNB_UNI([SyntheticNttUni])
 
     subgraph Ethereum
         direction RL
@@ -156,7 +161,7 @@ flowchart RL
         ETH_NTT -->|unlocked from| ETH_UNI
     end
 
-    BNBChain:::bnb -.->|Wormhole| Ethereum:::eth
+    BNBChain -.->|Wormhole| Ethereum
 
     subgraph BNBChain
         direction RL
@@ -164,27 +169,30 @@ flowchart RL
         BNB_NTT -->|send msg| BNB_WT
     end
 
-    classDef bnb fill:#d7b67e88,color:#fff
-    classDef on_bnb fill:#d7b67e,color:#fff
-    classDef eth fill:#008ab688,color:#fff
-    classDef on_eth fill:#008ab6,color:#fff
+    Ethereum:::on_eth
+    BNBChain:::on_bnb
+
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#498fb6,color:#fff
 ```
 
 ### Burn UNI via Releaser from BNBChain Flow
 
 ```mermaid
 flowchart RL
-    ETH_WT([WormholeTransceiver]):::on_eth
-    ETH_NTT([NttManager]):::on_eth
-    ETH_UNI([UNI]):::on_eth
-    BNB_WT([WormholeTransceiver]):::on_bnb
-    BNB_NTT([NttManager]):::on_bnb
-    BNB_UNI([SyntheticNttUni]):::on_bnb
-    BNB_R([Releaser]):::on_bnb
-    BNB_TJ([TokenJar]):::on_bnb
-    BNB_V2([Uniswap V2]):::on_bnb
-    BNB_V3([Uniswap V3]):::on_bnb
-    BNB_V4([Uniswap V4]):::on_bnb
+    ETH_WT([WormholeTransceiver])
+    ETH_NTT([NttManager])
+    ETH_UNI([UNI])
+    BNB_WT([WormholeTransceiver])
+    BNB_NTT([NttManager])
+    BNB_UNI([SyntheticNttUni])
+    BNB_R([Releaser])
+    BNB_TJ([TokenJar])
+    BNB_V2([Uniswap V2])
+    BNB_V3([Uniswap V3])
+    BNB_V4([Uniswap V4])
 
     subgraph Ethereum
         direction RL
@@ -192,7 +200,7 @@ flowchart RL
         ETH_NTT -->|burn to 0xDEAD| ETH_UNI
     end
 
-    BNBChain:::bnb -.->|Wormhole| Ethereum:::eth
+    BNBChain -.->|Wormhole| Ethereum
 
     subgraph BNBChain
         direction RL
@@ -205,10 +213,13 @@ flowchart RL
         BNB_NTT -->|send msg| BNB_WT
     end
 
-    classDef bnb fill:#d7b67e88,color:#fff
-    classDef on_bnb fill:#d7b67e,color:#fff
-    classDef eth fill:#008ab688,color:#fff
-    classDef on_eth fill:#008ab6,color:#fff
+    Ethereum:::on_eth
+    BNBChain:::on_bnb
+
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#498fb6,color:#fff
 ```
 
 ### On Wormhole ERC1967 Proxies
@@ -250,12 +261,12 @@ Polygon:
 
 - `System`: `0x0000000000000000000000000000000000001001`
 - `ChildChain`: `0xD9c7C4ED4B66858301D0cb28Cc88bf655Fe34861`
+  - `SafeProxy`: `0x3a635c48836E7c0B9aEB378640B0BfD516985cF5` (owner)
 - `ChildChainManagerProxy`: `0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa`
   - `ChainChildManager`: `0xa40fc0782bee28dd2cf8cb4ac2ecdb05c537f1b5` (implementation)
 - `EthereumProxy`: `0x8a1B966aC46F42275860f905dbC75EfBfDC12374`
   - this is not actually a proxy, unsure why this is named as such
 - `FxChild`: `0x8397259c983751DAf40400790063935a11afa28a`
-
 
 `System` whitelists sender/receiver pairs:
 
@@ -301,7 +312,7 @@ Flow:
 ```mermaid
 flowchart LR
     Bridge{Bridge}
-    subgraph pol
+    subgraph Polygon
         direction LR
         System([System])
         FxChild([FxChild])
@@ -317,7 +328,7 @@ flowchart LR
         EthereumProxy -->|call| PoolManager
     end
 
-    subgraph eth
+    subgraph Ethereum
         direction LR
         Governance([Governance])
         FxRoot([FxRoot])
@@ -330,11 +341,13 @@ flowchart LR
     StateSender -.-> Bridge
     Bridge -.-> System
 
-    eth:::eth
-    pol:::pol
+    Ethereum:::on_eth
+    Polygon:::on_pol
 
-    classDef eth fill:#008ab6,color:#fff
-    classDef pol fill:#84608c,color:#fff
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
+    classDef on_pol fill:#84608c,color:#fff
+    classDef on_eth fill:#498fb6,color:#fff
 ```
 
 ## Prerequisite Actions
@@ -631,6 +644,8 @@ flowchart LR
     before:::before
     after:::after
 
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
     classDef before fill:#59213f,color:#fff
     classDef after fill:#3d7d69,color:#fff
 ```
@@ -701,6 +716,8 @@ flowchart LR
     before:::before
     after:::after
 
+    linkStyle default stroke:#fff,stroke-width:4px
+    classDef default fill:#202020,color:#fff
     classDef before fill:#59213f,color:#fff
     classDef after fill:#3d7d69,color:#fff
 ```
