@@ -72,20 +72,25 @@ flowchart BT
     DCFIP(["Deploy/Conf Fee Infra (POL)"]):::on_pol
     GA(["Governance Actions"]):::on_eth
 
-    GA      -->|requires| DCFIB
-    GA      -->|requires| DCFIP
-    DCFIB   -->|requires| CWIB
-    DCFIB   -->|requires| CWIE
-    CWIB    -->|requires| DWIB
-    CWIB    -->|requires| DWIE
-    CWIE    -->|requires| DWIB
-    CWIE    -->|requires| DWIE
+    subgraph dg[Dependency Graph]
+        direction BT
+        GA      -->|requires| DCFIB
+        GA      -->|requires| DCFIP
+        DCFIB   -->|requires| CWIB
+        DCFIB   -->|requires| CWIE
+        CWIB    -->|requires| DWIB
+        CWIB    -->|requires| DWIE
+        CWIE    -->|requires| DWIB
+        CWIE    -->|requires| DWIE
+    end
+    dg:::dg
 
     classDef on_bnb fill:#a0814a,color:#fff
     classDef on_eth fill:#00567b,color:#fff
     classDef on_pol fill:#603e68,color:#fff
+    classDef dg fill:#202020,color:#fff
 
-    linkStyle 0,1,2,3,4,5,6,7 stroke:#fff,stroke-width:4px
+    linkStyle default stroke:#fff,stroke-width:4px
 ```
 
 ## Wormhole Context
