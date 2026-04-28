@@ -50,10 +50,10 @@ interface IUniswapV4PoolManager {
   function transferOwnership(address) external;
 }
 
-/// @title Polygon State Sync
+/// @title Polygon Fx Root
 /// @dev For Ethereum -> Polygon
-interface IPolygonStateSync {
-  function syncState(address target, bytes calldata data) external;
+interface IPolygonFxRoot {
+  function sendMessageToChild(address receiver, bytes calldata data) external;
 }
 
 /// @title Layer Zero Endpoint
