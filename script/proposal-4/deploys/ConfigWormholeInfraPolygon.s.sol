@@ -21,7 +21,7 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 // 1. `script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWormholeInfraPolygonScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
 //
-// The output of those runs are written by Foundry into the following file paths. If the latest is
+// The output of those runs are written by Foundry into the following file path. If the latest is
 // incorrect and we need to use it against another deployment, change this path:
 string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
@@ -37,221 +37,109 @@ struct Deployment {
     address wormholeTransceiverProxy;
 }
 
-contract DeployAndConfigureFeeInfraPolygonScript is Script {
-    Deployment internal polygon;
-
-    TokenJar internal tokenJar;
-    V3OpenFeeAdapter internal v3OpenFeeAdapter;
-    WormholeReleaser internal releaser;
+contract ConfigWormholeInfraPolygonScript is Script {
+    Deployment polygon;
+    Deployment eth;
 
     function run() public {
         Constants.smokeCheck();
 
+        // loads json files of Polygon and ETH deployments and stores them locally in this script.
         loadDeployments();
 
         vm.startBroadcast();
 
         // -----------------------------------------------------------------------------------------
+        // Query for Wormhole Message Fee.
+        //
+        uint256 messageFee = IWormhole(Constants.Polygon.WORMHOLE).messageFee();
+
+        // -----------------------------------------------------------------------------------------
         // Transaction 00
         //
-        // Deploy `TokenJar`.
+        // Set Ethereum WormholeTransceiver proxy as a peer on the Ethereum Chain Id.
         //
-        tokenJar = new TokenJar{salt: TOKEN_JAR_SALT}();
+        // Parameters:
+        //
+        // - `peerChainId`: Wormhole-defined Ethereum Chain Id.
+        // - `peerContract`: Ethereum WormholeTransceiver proxy.
+        //
+        WormholeTransceiver(polygon.wormholeTransceiverProxy).setWormholePeer{value: messageFee}({
+            peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
+            peerContract: bytes32(uint256(uint160(eth.wormholeTransceiverProxy)))
+        });
 
         // -----------------------------------------------------------------------------------------
         // Transaction 01
         //
-        // Deploy `WormholeReleaser`.
+        // Set the NttManager Proxy on Ethereum as a peer.
         //
         // Parameters:
         //
-        // - `_nttManager`: Polygon NttManager proxy.
-        // - `_resource`: Polygon SyntheticNttUni.
-        // - `_threshold`: Minimum amount of `SyntheticNttUni` required to release.
-        // - `_tokenJar`: `TokenJar`.
+        // - `peerChainId`: Womrhole-defined Ethereum Chain Id.
+        // - `peerContract: Ethereum NttManager proxy.
+        // - `decimals`: UNI decimals on Ethereum.
+        // - `inboundLimit`: Set to zero when rate limiter is disabled [1].
         //
-        releaser = new WormholeReleaser{salt: RELEASER_SALT}({
-            _nttManager: polygon.nttManagerProxy,
-            _resource: polygon.uni,
-            _threshold: Constants.Polygon.RELEASER_THRESHOLD,
-            _tokenJar: address(tokenJar)
+        // Sources:
+        //
+        // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
+        NttManagerNoRateLimiting(polygon.nttManagerProxy).setPeer({
+            peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
+            peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
+            decimals: 18,
+            inboundLimit: 0
         });
 
         // -----------------------------------------------------------------------------------------
         // Transaction 02
         //
-        // Set `WormholeReleaser` as the releaser on `TokenJar`.
+        // Transfer proxy ownership to UniswapWormholeMessageReceiver.
         //
         // Parameters:
         //
-        // - `_releaser`: `WormholeReleaser`.
+        // - `newOwner`: Governance-owned Timelock.
         //
-        tokenJar.setReleaser({
-            _releaser: address(releaser)
+        NttManagerNoRateLimiting(polygon.nttManagerProxy).transferOwnership({
+            newOwner: Constants.Ethereum.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
+
+        // Query Peer data for checks
+        //
+        address transceiverPeer = address(uint160(uint256(WormholeTransceiver(polygon.wormholeTransceiverProxy).getWormholePeer(Constants.Wormhole.ETH_CHAIN_ID))));
+
+        NttManagerNoRateLimiting.NttManagerPeer memory nttManagerPeer =
+            NttManagerNoRateLimiting(polygon.nttManagerProxy).getPeer(Constants.Wormhole.ETH_CHAIN_ID);
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 03
+        // Logs
         //
-        // Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-        //
-        // Parameters:
-        //
-        // - `newOwner`: Governance-owned Wormhole message receiver.
-        //
-        tokenJar.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
-        });
+        console2.log("-- VISUALIZED ASSERTIONS -----------------------------");
+        console2.log("\n");
+
+        console2.log("polygon.wormholeTransceiverProxy.getWormholePeer()  : ",  transceiverPeer);
+        console2.log("eth.wormholeTransceiverProxy                        : ", eth.wormholeTransceiverProxy);
+        console2.log("\n");
+
+        console2.log("polygon.nttManagerProxy.getPeer().peerAddress       : ",  address(uint160(uint256(nttManagerPeer.peerAddress))));
+        console2.log("eth.nttManagerProxy                                 : ", eth.nttManagerProxy);
+        console2.log("\n");
+
+        console2.log("polygon.nttManagerProxy.getPeer().tokenDecimals     : ",  nttManagerPeer.tokenDecimals);
+        console2.log("eth.uni.decimals()                                  : ", uint8(18));
+        console2.log("\n");
+
+        console2.log("polygon.nttManagerProxy.owner()                     : ",  NttManagerNoRateLimiting(polygon.nttManagerProxy).owner());
+        console2.log("Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER : ", Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 04
+        // Assertions
         //
-        // Set `WormholeReleaser` threshold-setter to `UniswapWormholeMessageReceiver`.
-        //
-        // Parameters:
-        //
-        // - `_thresholdSetter`: Governance-owned Wormhole message receiver.
-        //
-        releaser.setThresholdSetter({
-            _thresholdSetter: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 05
-        //
-        // Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-        //
-        // Parameters:
-        //
-        // - `newOwner`: Governance-owned Wormhole message receiver.
-        //
-        releaser.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 06
-        //
-        // Deploy `V3OpenFeeAdapter`.
-        //
-        // Parameters:
-        //
-        // - `_factory`: Polygon Uniswap V3 Factory.
-        // - `_tokenJar: `TokenJar`.
-        //
-        v3OpenFeeAdapter = new V3OpenFeeAdapter{salt: FEE_ADAPTER_SALT}({
-            _factory: Constants.Polygon.V3_FACTORY,
-            _tokenJar: address(tokenJar)
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 07
-        //
-        // Set `V3OpenFeeAdapter` fee-setter to the deployer for configuration.
-        //
-        // Paramters:
-        //
-        // - `newFeeSetter`: Deployer of the contract (owner).
-        //
-        // > Note: Foundry is not particularly clear about how to access the address of the EOA
-        // > executing this script, but the `v3OpenFeeAdapter` assigns the `owner` to be the EOA
-        // > which deployed it, so we query the fee adapter's owner to sidestep the issue.
-        //
-        v3OpenFeeAdapter.setFeeSetter({
-            newFeeSetter: v3OpenFeeAdapter.owner()
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 08
-        //
-        // Set `V3OpenFeeAdapter` default fee.
-        //
-        // Parameters:
-        //
-        // - `feeValue`: Default fee value.
-        //
-        v3OpenFeeAdapter.setDefaultFee({
-            feeValue: DEFAULT_FEE_100
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 09, 10, 11, 12
-        //
-        // Set `V3OpenFeeAdapter` fee tier defaults.
-        //
-        // Parameters:
-        //
-        // - `feeTier`: Fee tier to set.
-        // - `feeValue`: Default fee value for the tier.
-        //
-        v3OpenFeeAdapter.setFeeTierDefault({
-            feeTier: 100,
-            feeValue: DEFAULT_FEE_100
-        });
-
-        v3OpenFeeAdapter.setFeeTierDefault({
-            feeTier: 500,
-            feeValue: DEFAULT_FEE_500
-        });
-
-        v3OpenFeeAdapter.setFeeTierDefault({
-            feeTier: 3000,
-            feeValue: DEFAULT_FEE_3000
-        });
-
-        v3OpenFeeAdapter.setFeeTierDefault({
-            feeTier: 10_000,
-            feeValue: DEFAULT_FEE_10000
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 13, 14, 15, 16
-        //
-        // Store `V3OpenFeeAdapter` fee tiers.
-        //
-        // - `feeTier`: Fee tiers which can be triggered for update.
-        //
-        v3OpenFeeAdapter.storeFeeTier({
-            feeTier: 100
-        });
-
-        v3OpenFeeAdapter.storeFeeTier({
-            feeTier: 500
-        });
-
-        v3OpenFeeAdapter.storeFeeTier({
-            feeTier: 3000
-        });
-
-        v3OpenFeeAdapter.storeFeeTier({
-            feeTier: 10_000
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 17
-        //
-        // Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
-        //
-        // Parameters:
-        //
-        // - `newFeeSetter`: Governance-owned Wormhole message receiver.
-        //
-        v3OpenFeeAdapter.setFeeSetter({
-            newFeeSetter: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
-        });
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 18
-        //
-        // Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-        //
-        // Parameters:
-        //
-        // - `newOwner`: Governance-owned Wormhole message receiver.
-        //
-        v3OpenFeeAdapter.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
-        });
+        require(transceiverPeer == eth.wormholeTransceiverProxy);
+        require(address(uint160(uint256(nttManagerPeer.peerAddress))) == eth.nttManagerProxy);
+        require(nttManagerPeer.tokenDecimals == 18);
+        require(NttManagerNoRateLimiting(polygon.nttManagerProxy).owner() == Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
 
         vm.stopBroadcast();
     }
@@ -285,6 +173,31 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
             nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[2].contractAddress"),
             wormholeTransceiverImplementation: vm.parseJsonAddress(polygonDeployJson, ".transactions[4].contractAddress"),
             wormholeTransceiverProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[5].contractAddress")
+        });
+
+        // -----------------------------------------------------------------------------------------
+        // Load ETH addresses.
+        //
+        // ETH Deployment Transaction Index Recap:
+        //
+        // | Index | Action                                                              |
+        // | ----- | ------------------------------------------------------------------- |
+        // | 00    | Deploy NttManager implementation.                                   |
+        // | 01    | Deploy NttManager proxy.                                            |
+        // | 02    | Initialize NttManager proxy.                                        |
+        // | 03    | Deploy WormholeTransceiver implementation.                          |
+        // | 04    | Deploy WormholeTransceiver proxy                                    |
+        // | 05    | Initialize WormholeTransceiver proxy                                |
+        // | 06    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
+        // | 07    | Set the threshold of transceiver attestation redundancy             |
+        //
+        string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
+        eth = Deployment({
+            uni: Constants.Ethereum.UNI,
+            nttManagerImplementation: vm.parseJsonAddress(ethDeployJson, ".transactions[0].contractAddress"),
+            nttManagerProxy: vm.parseJsonAddress(ethDeployJson, ".transactions[1].contractAddress"),
+            wormholeTransceiverImplementation: vm.parseJsonAddress(ethDeployJson, ".transactions[3].contractAddress"),
+            wormholeTransceiverProxy: vm.parseJsonAddress(ethDeployJson, ".transactions[4].contractAddress")
         });
 
         // -----------------------------------------------------------------------------------------
