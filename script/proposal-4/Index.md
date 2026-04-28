@@ -332,7 +332,7 @@ flowchart RL
 
     subgraph Polygon
         direction RL
-        UNIPOL -->|mint| NttManagerPOL
+        UNIPOL -->|burn to| NttManagerPOL
         NttManagerPOL -->|forward msg| WormholeTransceiverPOL
     end
 
@@ -498,7 +498,7 @@ forge script script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployW
 | 06    | Initialize WormholeTransceiver proxy.                                |
 | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
 | 08    | Set the threshold of transceiver attestation redundancy.             |
-| 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
+| 09    | Set SyntheticNttUni mint authority to NttManager proxy.           |
 | 10    | Transfer ownership of SyntheticNttUni to governance.                 |
 
 ### 2. Deploy Wormhole Infra Polygon
@@ -539,7 +539,7 @@ forge script script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWo
 | 06    | Initialize WormholeTransceiver proxy.                                |
 | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
 | 08    | Set the threshold of transceiver attestation redundancy.             |
-| 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
+| 09    | Set SyntheticNttUni mint authority to NttManager proxy.           |
 | 10    | Transfer ownership of SyntheticNttUni to governance.                 |
 
 ### 3. Deploy Wormhole Infra Ethereum
@@ -587,7 +587,7 @@ We load the addresses from the `broadcast/` directory, which is where the prereq
 script outputs should be writen. Default files are as follows:
 
 ```solidity
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 ```
 
@@ -679,8 +679,8 @@ We load the addresses from the `broadcast/` directory, which is where the prereq
 script outputs should be writen. Default files are as follows:
 
 ```solidity
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
-string constant POLYGON_DEPLOY_PATH = "broadcast/DepoyWormholeInfraPolygon.s.sol/137/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 ```
 
@@ -728,7 +728,7 @@ We load the addresses from the `broadcast/` directory, which is where the prereq
 script outputs should be writen. Default files are as follows:
 
 ```solidity
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
 ```
 
 We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
@@ -782,7 +782,7 @@ We load the addresses from the `broadcast/` directory, which is where the prereq
 script outputs should be writen. Default files are as follows:
 
 ```solidity
-string constant POLYGON_DEPLOY_PATH = "broadcast/DepoyWormholeInfraPolygon.s.sol/137/run-latest.json";
+string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
 ```
 
 We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
@@ -830,6 +830,31 @@ forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraPolygon.s.sol:D
 
 ### 9. Propose Governance Actions
 
+**Overview**:
+
+Submits the governance proposal to `GovernorBravo`. The proposal bundles three actions, one per
+chain (Celo, BNB Chain, Polygon), each of which dispatches a cross-chain message to the appropriate
+foreign-chain governance receiver. Celo and BNB Chain use Wormhole's message bridge via
+`WORMHOLE_SENDER`; Polygon uses the native PoS message bridge via `POLYGON_FX_ROOT`. See
+[Governance Actions](#governance-actions) for the per-chain action details.
+
+**Foundry Script**:
+
+[`./ActivateL2sProposal.s.sol`](./ActivateL2sProposal.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-4/ActivateL2sProposal.s.sol:ActivateL2Proposals
+```
+
+**Transactions**:
+
+| Index | Action                                                                                       |
+| ----- | -------------------------------------------------------------------------------------------- |
+| 00    | `GovernorBravo.propose(targets, values, signatures, datas, description)` bundling 3 actions. |
+
 ## Governance Actions
 
 Governance takes three actions, one for each chain: Celo, BNB Chain, and Polygon. Each action
@@ -848,22 +873,22 @@ Polygon actions are to turn on fee collection for the V2 and V3 factories.
 **Fee activation for V4 is beyond the scrope of this proposal.**
 
 - Action 0 (Celo):
-  - `Wormhole.sendMessage(targets, values, datas, UniswapMessageReceiver, CeloChainID)`
+  - `WORMHOLE_SENDER.sendMessage(targets, values, datas, UNISWAP_WORMHOLE_MESSAGE_RECEIVER, CELO_CHAIN_ID)`
   - encodes:
-    - `V2Factory.setFeeTo(TokenJar)`
-    - `V2Factory.setFeeToSetter(CrossChainAccount)`
-    - `V3Factory.setOwner(V3OpenFeeAdapter)`
-    - `PoolManager.setFeeTo(CrossChainAccount)`
+    - `V2_FACTORY.setFeeTo(TOKEN_JAR)`
+    - `V2_FACTORY.setFeeToSetter(CROSS_CHAIN_ACCOUNT)`
+    - `V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)`
+    - `V4_POOL_MANAGER.transferOwnership(CROSS_CHAIN_ACCOUNT)`
 - Action 1 (BNB):
-  - `Wormhole.sendMessage(targets, values, datas, UniswapMessageReceiver, BNBChainID) `
+  - `WORMHOLE_SENDER.sendMessage(targets, values, datas, UNISWAP_WORMHOLE_MESSAGE_RECEIVER, BNB_CHAIN_ID)`
   - encodes:
-    - `V2Factory.setFeeTo(TokenJar)`
-    - `V3Factory.setOwner(V3OpenFeeAdapter)`
+    - `V2_FACTORY.setFeeTo(TOKEN_JAR)`
+    - `V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)`
 - Action 2 (Polygon):
-  - `PolygonFxRoot.sendMessageToChild(receiver, targets, values, datas)`
+  - `POLYGON_FX_ROOT.sendMessageToChild(ETHEREUM_PROXY, abi.encode(targets, values, datas))`
   - encodes:
-    - `V2Factory.setFeeTo(TokenJar)`
-    - `V3Factory.setOwner(V3OpenFeeAdapter)`
+    - `V2_FACTORY.setFeeTo(TOKEN_JAR)`
+    - `V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)`
 
 ### Celo
 
@@ -872,7 +897,7 @@ Polygon actions are to turn on fee collection for the V2 and V3 factories.
 **OVERVIEW**:
 
 This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
-`UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, and transfers ownerhsip of
+`UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, and transfers ownership of
 `UniswapV3Factory` to `V3OpenFeeAdapter`.
 
 **RELEVANT ADDRESSES**:
@@ -890,11 +915,11 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfer
 
 **ACTIONS**:
 
-- From `UniswapWormholeMesageReceiver`:
-    - Set`UniswapV2Factory.feeTo` to `TokenJar`.
-    - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
-    - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
-    - Set`PoolManager.owner` to `CrossChainAccout`.
+- From `UniswapWormholeMessageReceiver`:
+    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set `UniswapV2Factory.feeToSetter` to `CrossChainAccount`.
+    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    - Transfer `PoolManager` ownership to `CrossChainAccount`.
 
 **BEFORE AND AFTER**:
 
@@ -1100,12 +1125,12 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and trans
 | `V4_POOL_MANAGER`      | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V4 Pool Manager            |
 | `TOKEN_JAR`            | Polygon  | `0x0000000000000000000000000000000000000000` | Fee Collector                      |
 | `V3_OPEN_FEE_ADAPTER`  | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V3 Fee Adapter             |
-| `FX_MESSAGE_PROCESSOR` | Polygon  | `0x0000000000000000000000000000000000000000` | Governance Owned FxChild Receiver  |
+| `ETHEREUM_PROXY`       | Polygon  | `0x0000000000000000000000000000000000000000` | Governance Owned FxChild Receiver  |
 | `POLYGON_FX_ROOT`      | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)     |
 
 **ACTIONS**:
 
-- From `FX_MESSAGE_PROCESSOR`:
+- From `ETHEREUM_PROXY`:
     - Set `UniswapV2Factory.feeTo` to `TokenJar`.
     - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
 

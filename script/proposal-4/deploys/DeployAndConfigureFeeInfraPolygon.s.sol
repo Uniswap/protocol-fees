@@ -4,32 +4,40 @@ pragma solidity 0.8.29;
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 
-import "../Constants.sol" as Constants;
-import {IWormhole} from "../Interfaces.sol";
-import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
-
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
-import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
 import {WormholeTransceiver} from "lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
+
+import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
+import {TokenJar} from "../../../src/TokenJar.sol";
+import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
+import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
+import "../Constants.sol" as Constants;
+
+bytes32 constant TOKEN_JAR_SALT = bytes32(uint256(67));
+bytes32 constant RELEASER_SALT = bytes32(uint256(67));
+bytes32 constant FEE_ADAPTER_SALT = bytes32(uint256(67));
+
+// Protocol fee defaults — same as mainnet
+uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
+uint8 constant DEFAULT_FEE_500 = (4 << 4) | 4; // 1/4 for 0.05% tier
+uint8 constant DEFAULT_FEE_3000 = (6 << 4) | 6; // 1/6 for 0.30% tier
+uint8 constant DEFAULT_FEE_10000 = (6 << 4) | 6; // 1/6 for 1.00% tier
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// This configuration script depends on the following:
+// This script depends on the following scripts to have been run:
 //
 // 1. `script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWormholeInfraPolygonScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
 //
-// The output of those runs are written by Foundry into the following file paths. If the latest is
-// incorrect and we need to use it against another deployment, change this path:
+// The output of the Polygon deployment run is written by Foundry into the following file path. If
+// the latest is incorrect and we need to use it against another deployment, change this path:
 string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
-string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 
-/// @dev Deployment script outputs.
 struct Deployment {
-    // On Polygon, this is SyntheticNttUni.
-    // On Ethereum, this is the canonical UNI.
+    // This is SyntheticNttUni.
     address uni;
     address nttManagerImplementation;
     address nttManagerProxy;
@@ -100,7 +108,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `newOwner`: Governance-owned Wormhole message receiver.
         //
         tokenJar.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.Polygon.ETHEREUM_PROXY
         });
 
         // -----------------------------------------------------------------------------------------
@@ -113,7 +121,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `_thresholdSetter`: Governance-owned Wormhole message receiver.
         //
         releaser.setThresholdSetter({
-            _thresholdSetter: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            _thresholdSetter: Constants.Polygon.ETHEREUM_PROXY
         });
 
         // -----------------------------------------------------------------------------------------
@@ -126,7 +134,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `newOwner`: Governance-owned Wormhole message receiver.
         //
         releaser.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.Polygon.ETHEREUM_PROXY
         });
 
         // -----------------------------------------------------------------------------------------
@@ -237,7 +245,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `newFeeSetter`: Governance-owned Wormhole message receiver.
         //
         v3OpenFeeAdapter.setFeeSetter({
-            newFeeSetter: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newFeeSetter: Constants.Polygon.ETHEREUM_PROXY
         });
 
         // -----------------------------------------------------------------------------------------
@@ -250,8 +258,63 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `newOwner`: Governance-owned Wormhole message receiver.
         //
         v3OpenFeeAdapter.transferOwnership({
-            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.Polygon.ETHEREUM_PROXY
         });
+
+        // -----------------------------------------------------------------------------------------
+        // Logs
+        //
+        console2.log("-- DEPLOYMENTS --------------------------------------------");
+        console2.log("\n");
+
+        console2.log("TokenJar                                                  : ", address(tokenJar));
+        console2.log("WormholeReleaser                                          : ", address(releaser));
+        console2.log("V3OpenFeeAdapter                                          : ", address(v3OpenFeeAdapter));
+        console2.log("\n");
+
+        console2.log("-- VISUALIZED ASSERTIONS ----------------------------------");
+        console2.log("\n");
+
+        console2.log("tokenJar.releaser()                                       : ", tokenJar.releaser());
+        console2.log("WormholeReleaser                                          : ", address(releaser));
+        console2.log("\n");
+
+        console2.log("tokenJar.owner()                                          : ", tokenJar.owner());
+        console2.log("Constants.Polygon.ETHEREUM_PROXY                          : ", Constants.Polygon.ETHEREUM_PROXY);
+        console2.log("\n");
+
+        console2.log("releaser.thresholdSetter()                                : ", releaser.thresholdSetter());
+        console2.log("Constants.Polygon.ETHEREUM_PROXY                          : ", Constants.Polygon.ETHEREUM_PROXY);
+        console2.log("\n");
+
+        console2.log("releaser.owner()                                          : ", releaser.owner());
+        console2.log("Constants.Polygon.ETHEREUM_PROXY                          : ", Constants.Polygon.ETHEREUM_PROXY);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.feeSetter()                              : ", v3OpenFeeAdapter.feeSetter());
+        console2.log("Constants.Polygon.ETHEREUM_PROXY                          : ", Constants.Polygon.ETHEREUM_PROXY);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.owner()                                  : ", v3OpenFeeAdapter.owner());
+        console2.log("Constants.Polygon.ETHEREUM_PROXY                          : ", Constants.Polygon.ETHEREUM_PROXY);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.TOKEN_JAR()                              : ", v3OpenFeeAdapter.TOKEN_JAR());
+        console2.log("TokenJar                                                  : ", address(tokenJar));
+        console2.log("\n");
+
+        // -----------------------------------------------------------------------------------------
+        // Assertions
+        //
+        require(tokenJar.releaser() == address(releaser));
+        require(tokenJar.owner() == Constants.Polygon.ETHEREUM_PROXY);
+
+        require(releaser.thresholdSetter() == Constants.Polygon.ETHEREUM_PROXY);
+        require(releaser.owner() == Constants.Polygon.ETHEREUM_PROXY);
+
+        require(v3OpenFeeAdapter.feeSetter() == Constants.Polygon.ETHEREUM_PROXY);
+        require(v3OpenFeeAdapter.owner() == Constants.Polygon.ETHEREUM_PROXY);
+        require(v3OpenFeeAdapter.TOKEN_JAR() == address(tokenJar));
 
         vm.stopBroadcast();
     }
@@ -275,7 +338,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // | 06    | Initialize WormholeTransceiver proxy                                |
         // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy           |
+        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
@@ -307,7 +370,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         require(keccak256(bytes(SyntheticNttUni(polygon.uni).symbol())) == keccak256("NUNI"), "polygon.uni.symbol() mismatch");
         require(SyntheticNttUni(polygon.uni).decimals() == 18, "polygon.uni.decimals() mismatch");
         require(SyntheticNttUni(polygon.uni).ntt() == polygon.nttManagerProxy, "polygon.uni.ntt() mismatch");
-        require(SyntheticNttUni(polygon.uni).owner() == Constants.Polygon.WORMHOLE_RECEIVER, "polygon.uni.owner() mismatch");
+        require(SyntheticNttUni(polygon.uni).owner() == Constants.Polygon.ETHEREUM_PROXY, "polygon.uni.owner() mismatch");
 
         // Check NttManager proxy.
         //

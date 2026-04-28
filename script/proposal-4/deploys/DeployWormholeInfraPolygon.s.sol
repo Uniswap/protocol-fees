@@ -205,10 +205,10 @@ contract DeployWormholeInfraPolygonScript is Script {
         //
         // Paramters:
         //
-        // - `newOwner`: Uniswap Wormhole Governance Receiver
+        // - `newOwner`: Polygon governance receiver (FxChild-side `EthereumProxy`).
         //
         SyntheticNttUni(syntheticNttUni).transferOwnership({
-            newOwner: Constants.Polygon.WORMHOLE_RECEIVER
+            newOwner: Constants.Polygon.ETHEREUM_PROXY
         });
 
         // -----------------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         console2.log("\n");
 
         console2.log("syntheticNttUni.owner()                                   : ", SyntheticNttUni(syntheticNttUni).owner());
-        console2.log("Polygon Wormhole Receiver                                 : ", Constants.Polygon.WORMHOLE_RECEIVER);
+        console2.log("Polygon EthereumProxy                                     : ", Constants.Polygon.ETHEREUM_PROXY);
         console2.log("\n");
 
         console2.log("nttManagerProxy ERC1967 Implementation                    : ", readImplementation(nttManagerProxy));
@@ -306,7 +306,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         // Assertions
         //
         require(SyntheticNttUni(syntheticNttUni).ntt() == nttManagerProxy);
-        require(SyntheticNttUni(syntheticNttUni).owner() == Constants.Polygon.WORMHOLE_RECEIVER);
+        require(SyntheticNttUni(syntheticNttUni).owner() == Constants.Polygon.ETHEREUM_PROXY);
 
         require(readImplementation(nttManagerProxy) == nttManagerImplementation);
         require(NttManagerNoRateLimiting(nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING));

@@ -18,12 +18,12 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 //
 // This configuration script depends on the following:
 //
-// 1. `script/proposal-4/deploys/DepoyWormholeInfraBNBChain.s.sol:DepoyWormholeInfraBNBChainScript`
+// 1. `script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployWormholeInfraBNBChainScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
 //
 // The output of those runs are written by Foundry into the following file path. If the latest is
 // incorrect and we need to use it against another deployment, change this path:
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 
 /// @dev Deployment script outputs.
@@ -200,7 +200,7 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         // | 06    | Initialize WormholeTransceiver proxy                                |
         // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy           |
+        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
         string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);

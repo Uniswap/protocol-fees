@@ -29,14 +29,12 @@ uint8 constant DEFAULT_FEE_10000 = (6 << 4) | 6; // 1/6 for 1.00% tier
 //
 // This script depends on the following scripts to have been run:
 //
-// 1. `script/proposal-4/deploys/DepoyWormholeInfraBNBChain.s.sol:DepoyWormholeInfraBNBChainScript`
+// 1. `script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployWormholeInfraBNBChainScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
-// 3. `script/proposal-4/deploys/ConfigWormholeInfraBNBChain.s.sol:ConfigWormholeInfraBNBChainScript`
-// 4. `script/proposal-4/deploys/ConfigWormholeInfraEthereum.s.sol:ConfigWormholeInfraEthereumScript`
 //
 // The output of the BNB Chain deployment run is written by Foundry into the following file path. If
 // the latest is incorrect and we need to use it against another deployment, change this path:
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
 
 struct Deployment {
     // This is SyntheticNttUni.
@@ -263,6 +261,61 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
             newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
 
+        // -----------------------------------------------------------------------------------------
+        // Logs
+        //
+        console2.log("-- DEPLOYMENTS --------------------------------------------");
+        console2.log("\n");
+
+        console2.log("TokenJar                                                  : ", address(tokenJar));
+        console2.log("WormholeReleaser                                          : ", address(releaser));
+        console2.log("V3OpenFeeAdapter                                          : ", address(v3OpenFeeAdapter));
+        console2.log("\n");
+
+        console2.log("-- VISUALIZED ASSERTIONS ----------------------------------");
+        console2.log("\n");
+
+        console2.log("tokenJar.releaser()                                       : ", tokenJar.releaser());
+        console2.log("WormholeReleaser                                          : ", address(releaser));
+        console2.log("\n");
+
+        console2.log("tokenJar.owner()                                          : ", tokenJar.owner());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER           : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("releaser.thresholdSetter()                                : ", releaser.thresholdSetter());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER           : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("releaser.owner()                                          : ", releaser.owner());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER           : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.feeSetter()                              : ", v3OpenFeeAdapter.feeSetter());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER           : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.owner()                                  : ", v3OpenFeeAdapter.owner());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER           : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("v3OpenFeeAdapter.TOKEN_JAR()                              : ", v3OpenFeeAdapter.TOKEN_JAR());
+        console2.log("TokenJar                                                  : ", address(tokenJar));
+        console2.log("\n");
+
+        // -----------------------------------------------------------------------------------------
+        // Assertions
+        //
+        require(tokenJar.releaser() == address(releaser));
+        require(tokenJar.owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+
+        require(releaser.thresholdSetter() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        require(releaser.owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+
+        require(v3OpenFeeAdapter.feeSetter() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        require(v3OpenFeeAdapter.owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        require(v3OpenFeeAdapter.TOKEN_JAR() == address(tokenJar));
+
         vm.stopBroadcast();
     }
 
@@ -285,7 +338,7 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
         // | 06    | Initialize WormholeTransceiver proxy                                |
         // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy           |
+        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
         string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);

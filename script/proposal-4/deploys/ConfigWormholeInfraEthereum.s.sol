@@ -18,14 +18,14 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 //
 // This configuration script depends on the following:
 //
-// 1. `script/proposal-4/deploys/DepoyWormholeInfraBNBChain.s.sol:DepoyWormholeInfraBNBChainScript`
-// 2. `script/proposal-4/deploys/DepoyWormholeInfraPolygon.s.sol:DepoyWormholeInfraPolygonScript`
+// 1. `script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployWormholeInfraBNBChainScript`
+// 2. `script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWormholeInfraPolygonScript`
 // 3. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
 //
 // The output of those runs are written by Foundry into the following file path. If the latest is
 // incorrect and we need to use it against another deployment, change this path:
-string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
-string constant POLYGON_DEPLOY_PATH = "broadcast/DepoyWormholeInfraPolygon.s.sol/137/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 
 /// @dev Deployment script outputs.
@@ -263,7 +263,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // | 06    | Initialize WormholeTransceiver proxy                                |
         // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy           |
+        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
         string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
@@ -291,7 +291,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // | 06    | Initialize WormholeTransceiver proxy                                |
         // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy           |
+        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
@@ -346,9 +346,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         //
         require(keccak256(bytes(ERC20(eth.uni).name())) == keccak256("Uniswap"), "eth.uni.name() mismatch");
         require(keccak256(bytes(ERC20(eth.uni).symbol())) == keccak256("UNI"), "eth.uni.symbol() mismatch");
-        require(SyntheticNttUni(eth.uni).decimals() == 18, "eth.uni.decimals() mismatch");
-        require(SyntheticNttUni(eth.uni).ntt() == eth.nttManagerProxy, "eth.uni.ntt() mismatch");
-        require(SyntheticNttUni(eth.uni).owner() == Constants.Ethereum.WORMHOLE_RECEIVER, "eth.uni.owner() mismatch");
+        require(ERC20(eth.uni).decimals() == 18, "eth.uni.decimals() mismatch");
 
         // Check NttManager proxy.
         //

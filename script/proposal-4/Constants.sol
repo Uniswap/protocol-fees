@@ -8,6 +8,7 @@ pragma solidity ^0.8.20;
 function smokeCheck() pure {
   // l1
   require(Ethereum.TIMELOCK != address(0x00), "Ethereum.TIMELOCK is address(0x00)");
+  require(Ethereum.GOVERNOR_BRAVO != address(0x00), "Ethereum.GOVERNOR_BRAVO is address(0x00)");
   require(Ethereum.UNI != address(0x00), "Ethereum.UNI is address(0x00)");
   require(Ethereum.CELO_PORTAL != address(0x00), "Ethereum.CELO_PORTAL is address(0x00)");
   require(Ethereum.POLYGON_FX_ROOT != address(0x00), "Ethereum.POLYGON_FX_ROOT is address(0x00)");
@@ -34,17 +35,23 @@ function smokeCheck() pure {
   require(BNB.WORMHOLE != address(0x00), "BNB.WORMHOLE is address(0x00)");
 
   // polygon
-  require(Polygon.FX_MESSAGE_PROCESSOR != address(0x00), "Polygon.FX_MESSAGE_PROCESSOR is address(0x00)");
+  require(Polygon.RELEASER_THRESHOLD != 0, "Polygon.RELEASER_THRESHOLD is 0");
+  require(Polygon.ETHEREUM_PROXY != address(0x00), "Polygon.ETHEREUM_PROXY is address(0x00)");
   require(Polygon.V2_FACTORY != address(0x00), "Polygon.V2_FACTORY is address(0x00)");
   require(Polygon.V3_FACTORY != address(0x00), "Polygon.V3_FACTORY is address(0x00)");
   require(Polygon.V4_POOL_MANAGER != address(0x00), "Polygon.V4_POOL_MANAGER is address(0x00)");
   require(Polygon.TOKEN_JAR != address(0x00), "Polygon.TOKEN_JAR is address(0x00)");
   require(Polygon.V3_OPEN_FEE_ADAPTER != address(0x00), "Polygon.V3_OPEN_FEE_ADAPTER is address(0x00)");
+  require(Polygon.WORMHOLE != address(0x00), "Polygon.WORMHOLE is address(0x00)");
 }
 
 library Ethereum {
   /// @dev Governance Timelock.
   address constant TIMELOCK = 0x1a9C8182C09F50C8318d769245beA52c32BE35BC;
+
+  /// @dev Governor Bravo. Receives proposals via `propose`; the Timelock executes them after the
+  /// queued delay.
+  address constant GOVERNOR_BRAVO = address(0x00);
 
   /// @dev UNI Token.
   address constant UNI = address(0x00);
@@ -132,8 +139,12 @@ library BNB {
 }
 
 library Polygon {
-  /// @dev Polygon FX Message Processor.
-  address constant FX_MESSAGE_PROCESSOR = address(0x00);
+  uint256 constant RELEASER_THRESHOLD = 0;
+
+  /// @dev Polygon-side governance receiver: relays messages from Ethereum's `FxRoot` through the
+  /// Polygon `FxChild`. Owned by Uniswap governance via `propose -> Timelock -> FxRoot -> FxChild
+  /// -> EthereumProxy`.
+  address constant ETHEREUM_PROXY = address(0x00);
 
   /// @dev Uni V2 Factory.
   address constant V2_FACTORY = address(0x00);

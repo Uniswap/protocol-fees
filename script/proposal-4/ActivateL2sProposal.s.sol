@@ -61,7 +61,7 @@ contract ActivateL2Proposals is Script {
     vm.startBroadcast();
 
     // propose.
-    IGovernorBravo(Constants.Ethereum.TIMELOCK)
+    IGovernorBravo(Constants.Ethereum.GOVERNOR_BRAVO)
       .propose(targets, values, signatures, datas, PROPOSAL_DESCRIPTION);
 
     // stop the broadcast.
@@ -75,7 +75,7 @@ contract ActivateL2Proposals is Script {
     // STEP 1:
     //
     // Celo: Sets fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
-    // `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, transfers ownerhsip of
+    // `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, transfers ownership of
     // `UniswapV3Factory` to `V3OpenFeeAdapter`.
     //
     // DOES NOT activate V4 fees, only V2 and V3.
@@ -87,14 +87,14 @@ contract ActivateL2Proposals is Script {
     //
     // Proposal 2 would:
     //
-    // - From `UniswapWormholeMesageReceiver`:
-    //   - On `UniswapV3Factory` set owner to `CrossChainAccout`.
-    //   - On `UniswapV2Factory` set fee collector setter to `CrossChainAccout`.
-    //   - On `PoolManager` set owner to `CrossChainAccout`.
+    // - From `UniswapWormholeMessageReceiver`:
+    //   - On `UniswapV3Factory` set owner to `CrossChainAccount`.
+    //   - On `UniswapV2Factory` set fee collector setter to `CrossChainAccount`.
+    //   - On `PoolManager` set owner to `CrossChainAccount`.
     //
     // Proposal 3 would:
     //
-    // - From `CrossChainAccout`:
+    // - From `CrossChainAccount`:
     //   - On `UniswapV3Factory` set owner to `V3OpenFeeAdapter`.
     //   - On `UniswapV2Factory` set fee collector to `TokenJar`.
     //
@@ -109,20 +109,20 @@ contract ActivateL2Proposals is Script {
     // So the state of the system before this proposal is:
     //
     // - `UniswapV2Factory.feeTo` is `address(0x00)`.
-    // - `UniswapV2Factory.feeToSetter` is `UniswapWormholeMesageReceiver`.
-    // - `UniswapV3Factory.owner` is `UniswapWormholeMesageReceiver`.
-    // - `PoolManager.owner` is `UniswapWormholeMesageReceiver`.
-    // - `TokenJar.owner` is `CrossChainAccout`.
-    // - `V3OpenFeeAdapter.owner` is `CrossChainAccout`.
+    // - `UniswapV2Factory.feeToSetter` is `UniswapWormholeMessageReceiver`.
+    // - `UniswapV3Factory.owner` is `UniswapWormholeMessageReceiver`.
+    // - `PoolManager.owner` is `UniswapWormholeMessageReceiver`.
+    // - `TokenJar.owner` is `CrossChainAccount`.
+    // - `V3OpenFeeAdapter.owner` is `CrossChainAccount`.
     //
     // Actions:
     // ---
     //
-    // - From `UniswapWormholeMesageReceiver`:
+    // - From `UniswapWormholeMessageReceiver`:
     //   - Set`UniswapV2Factory.feeTo` to `TokenJar`.
-    //   - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccout`.
+    //   - Set`UniswapV2Factory.feeToSetter` to `CrossChainAccount`.
     //   - Set`UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
-    //   - Set`PoolManager.owner` to `CrossChainAccout`.
+    //   - Set`PoolManager.owner` to `CrossChainAccount`.
     //
     {
       address[] memory targets = new address[](4);
@@ -181,7 +181,7 @@ contract ActivateL2Proposals is Script {
     // Actions:
     // ---
     //
-    // - From `UniswapWormholeMesageReceiver`:
+    // - From `UniswapWormholeMessageReceiver`:
     //   - Set `UniswapV2Factory.feeTo` to `TokenJar`.
     //   - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
     {
@@ -243,11 +243,11 @@ contract ActivateL2Proposals is Script {
       uint256[] memory values = new uint256[](2);
       bytes[] memory datas = new bytes[](2);
 
-      targets[0] = Constants.BNB.V2_FACTORY;
+      targets[0] = Constants.Polygon.V2_FACTORY;
       values[0] = 0;
       datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.Polygon.TOKEN_JAR));
 
-      targets[1] = Constants.BNB.V3_FACTORY;
+      targets[1] = Constants.Polygon.V3_FACTORY;
       values[1] = 0;
       datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.V3_OPEN_FEE_ADAPTER));
 
@@ -258,7 +258,7 @@ contract ActivateL2Proposals is Script {
         data: abi.encodeCall(
           IPolygonFxRoot.sendMessageToChild,
           (
-            Constants.Polygon.FX_MESSAGE_PROCESSOR,
+            Constants.Polygon.ETHEREUM_PROXY,
             abi.encode(targets, values, datas)
           )
         )
