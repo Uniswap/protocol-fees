@@ -16,20 +16,20 @@ import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/E
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// This configuration script MUST be run after both deployment scripts:
+// This configuration script depends on the following:
 //
 // 1. `script/proposal-4/deploys/DepoyWormholeInfraBNBChain.s.sol:DepoyWormholeInfraBNBChainScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
 //
-// The output of that run is written by Foundry into the following file path. If the latest is
+// The output of those runs are written by Foundry into the following file path. If the latest is
 // incorrect and we need to use it against another deployment, change this path:
 string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 
 /// @dev Deployment script outputs.
 struct Deployment {
-    // On BNB, this is SyntheticNttUni.
-    // On ETH, this is the canonical UNI.
+    // On BNB Chain, this is SyntheticNttUni.
+    // On Ethereum, this is the canonical UNI.
     address uni;
     address nttManagerImplementation;
     address nttManagerProxy;
@@ -101,7 +101,7 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         // - `newOwner`: Governance-owned Timelock.
         //
         NttManagerNoRateLimiting(bnb.nttManagerProxy).transferOwnership({
-            newOwner: Constants.L1.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.Ethereum.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
 
         // Query Peer data for checks
@@ -193,7 +193,7 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         //
         string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
         eth = Deployment({
-            uni: Constants.L1.UNI,
+            uni: Constants.Ethereum.UNI,
             nttManagerImplementation: vm.parseJsonAddress(ethDeployJson, ".transactions[0].contractAddress"),
             nttManagerProxy: vm.parseJsonAddress(ethDeployJson, ".transactions[1].contractAddress"),
             wormholeTransceiverImplementation: vm.parseJsonAddress(ethDeployJson, ".transactions[3].contractAddress"),
@@ -201,9 +201,9 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Run basic smoke checks on BNBChain.
+        // Run basic smoke checks on BNB Chain.
         //
-        // Calls against Ethereum deployments are not possible, given this script targets BNBChain.
+        // Calls against Ethereum deployments are not possible, given this script targets BNB Chain.
         //
 
         // Check contracts have non-zero code length.

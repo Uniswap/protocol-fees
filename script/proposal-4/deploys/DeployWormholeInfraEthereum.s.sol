@@ -53,7 +53,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         //
         nttManagerImplementation = address(
             new NttManagerNoRateLimiting({
-                _token: Constants.L1.UNI,
+                _token: Constants.Ethereum.UNI,
                 _mode: IManagerBase.Mode.LOCKING,
                 _chainId: Constants.Wormhole.ETH_CHAIN_ID
             })
@@ -109,7 +109,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         wormholeTransceiverImplementation = address(
             new WormholeTransceiver({
                 nttManager: nttManagerProxy,
-                wormholeCoreBridge: Constants.L1.WORMHOLE,
+                wormholeCoreBridge: Constants.Ethereum.WORMHOLE,
                 _consistencyLevel: 202,
                 _customConsistencyLevel: 0,
                 _additionalBlocks: 0,
@@ -130,7 +130,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         // -----------------------------------------------------------------------------------------
         // Query for Wormhole Message Fee.
         //
-        uint256 messageFee = IWormhole(Constants.L1.WORMHOLE).messageFee();
+        uint256 messageFee = IWormhole(Constants.Ethereum.WORMHOLE).messageFee();
 
         // -----------------------------------------------------------------------------------------
         // Transaction 05
@@ -203,7 +203,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         console2.log("\n");
 
         console2.log("nttManagerProxy.token()                               : ", NttManagerNoRateLimiting(nttManagerProxy).token());
-        console2.log("UNI                                                   : ", Constants.L1.UNI);
+        console2.log("UNI                                                   : ", Constants.Ethereum.UNI);
         console2.log("\n");
 
         console2.log("nttManagerProxy.getThreshold()                        : ", NttManagerNoRateLimiting(nttManagerProxy).getThreshold());
@@ -235,7 +235,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         //
         require(readImplementation(nttManagerProxy) == nttManagerImplementation);
         require(NttManagerNoRateLimiting(nttManagerProxy).getMode() == uint8(IManagerBase.Mode.LOCKING));
-        require(NttManagerNoRateLimiting(nttManagerProxy).token() == Constants.L1.UNI);
+        require(NttManagerNoRateLimiting(nttManagerProxy).token() == Constants.Ethereum.UNI);
         require(NttManagerNoRateLimiting(nttManagerProxy).getThreshold() == 1);
 
         require(transceiverInfos.length == 1);

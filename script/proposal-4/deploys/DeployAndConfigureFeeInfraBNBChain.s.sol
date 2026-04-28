@@ -27,7 +27,7 @@ uint8 constant DEFAULT_FEE_10000 = (6 << 4) | 6; // 1/6 for 1.00% tier
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// This script MUST be run after all other prerequisite deployment and configuration scripts.
+// This script depends on the following scripts to have been run:
 //
 // 1. `script/proposal-4/deploys/DepoyWormholeInfraBNBChain.s.sol:DepoyWormholeInfraBNBChainScript`
 // 2. `script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployWormholeInfraEthereumScript`
