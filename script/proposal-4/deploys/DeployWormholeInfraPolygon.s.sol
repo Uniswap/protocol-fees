@@ -99,13 +99,6 @@ contract DeployWormholeInfraPolygonScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 04
         //
-        // Renounce pausing authority on NttManager proxy.
-        //
-        NttManagerNoRateLimiting(nttManagerProxy).transferPauserCapability(address(0x00));
-
-        // -----------------------------------------------------------------------------------------
-        // Transaction 05
-        //
         // Deploy WormholeTransceiver implementation.
         //
         // Parameters:
@@ -134,7 +127,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         );
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 06
+        // Transaction 05
         //
         // Deploy WormholeTransceiver proxy.
         //
@@ -149,7 +142,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         uint256 messageFee = IWormhole(Constants.Polygon.WORMHOLE).messageFee();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 07
+        // Transaction 06
         //
         // Initialize WormholeTransceiver proxy with a recently queried `messageFee`.
         //
@@ -160,7 +153,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         WormholeTransceiver(wormholeTransceiverProxy).initialize{value: messageFee}();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 08
+        // Transaction 07
         //
         // Set NttManager proxy's transceiver to the WormholeTransceiver proxy.
         //
@@ -173,7 +166,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 09
+        // Transaction 08
         //
         // Set the threshold of transceiver attestation redundancy. This gets set to `1` since it's
         // set to this in the wormhole team's deployment script. The wormhole team mentions this is
@@ -193,7 +186,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 10
+        // Transaction 09
         //
         // Set SyntheticNttUni mint authority to NttManager proxy.
         //
@@ -206,7 +199,7 @@ contract DeployWormholeInfraPolygonScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 11
+        // Transaction 10
         //
         // Transfer ownership of SyntheticNttUni to governance.
         //

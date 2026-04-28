@@ -94,15 +94,37 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 02
         //
-        // Transfer proxy ownership to UniswapWormholeMessageReceiver.
+        // Transfer NttManager proxy ownership to UniswapWormholeMessageReceiver. This call also
+        // iterates registered transceivers and forwards the ownership transfer to each via
+        // `transferTransceiverOwnership` (`onlyNttManager`), so the WormholeTransceiver proxy ends
+        // up owned by the same address without an explicit second transfer.
         //
         // Parameters:
         //
-        // - `newOwner`: Governance-owned Timelock.
+        // - `newOwner`: Uniswap Wormhole Message Receiver (governance-owned).
         //
         NttManagerNoRateLimiting(bnb.nttManagerProxy).transferOwnership({
-            newOwner: Constants.Ethereum.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 03
+        //
+        // Renounce pauser capability on the WormholeTransceiver proxy.
+        //
+        // The deployer is set as the pauser during proxy initialization and is independent of
+        // ownership. Even after ownership transfer, the deployer remains the pauser unless the
+        // capability is transferred (or renounced). We renounce by setting the pauser to the zero
+        // address so no party can pause the transceiver going forward.
+        //
+        WormholeTransceiver(bnb.wormholeTransceiverProxy).transferPauserCapability(address(0));
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 04
+        //
+        // Renounce pauser capability on the NttManager proxy. Same rationale as the transceiver.
+        //
+        NttManagerNoRateLimiting(bnb.nttManagerProxy).transferPauserCapability(address(0));
 
         // Query Peer data for checks
         //
@@ -129,8 +151,20 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         console2.log("eth.uni.decimals()                                : ", uint8(18));
         console2.log("\n");
 
+        console2.log("bnb.wormholeTransceiverProxy.owner()              : ",  WormholeTransceiver(bnb.wormholeTransceiverProxy).owner());
+        console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER   : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
         console2.log("bnb.nttManagerProxy.owner()                       : ",  NttManagerNoRateLimiting(bnb.nttManagerProxy).owner());
         console2.log("Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER   : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("bnb.wormholeTransceiverProxy.pauser()             : ", WormholeTransceiver(bnb.wormholeTransceiverProxy).pauser());
+        console2.log("address(0)                                        : ", address(0));
+        console2.log("\n");
+
+        console2.log("bnb.nttManagerProxy.pauser()                      : ", NttManagerNoRateLimiting(bnb.nttManagerProxy).pauser());
+        console2.log("address(0)                                        : ", address(0));
         console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
@@ -139,7 +173,10 @@ contract ConfigWormholeInfraBNBChainScript is Script {
         require(transceiverPeer == eth.wormholeTransceiverProxy);
         require(address(uint160(uint256(nttManagerPeer.peerAddress))) == eth.nttManagerProxy);
         require(nttManagerPeer.tokenDecimals == 18);
+        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
         require(NttManagerNoRateLimiting(bnb.nttManagerProxy).owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        require(WormholeTransceiver(bnb.wormholeTransceiverProxy).pauser() == address(0));
+        require(NttManagerNoRateLimiting(bnb.nttManagerProxy).pauser() == address(0));
 
         vm.stopBroadcast();
     }

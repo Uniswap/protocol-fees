@@ -217,17 +217,17 @@ contract DeployWormholeInfraBNBChainScript is Script {
         NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
             NttManagerNoRateLimiting(nttManagerProxy).getTransceiverInfo();
 
-        console2.log("-- DEPLOYMENTS --------------------------------------");
+        console2.log("-- DEPLOYMENTS --------------------------------------------");
         console2.log("\n");
 
-        console2.log("SyntheticNttUni                                       : ", syntheticNttUni);
-        console2.log("NttManager (ERC1967 Proxy)                            : ", nttManagerProxy);
-        console2.log("NttManager (Implementation)                           : ", nttManagerImplementation);
-        console2.log("WormholeTransceiver (ERC1967Proxy)                    : ", wormholeTransceiverProxy);
-        console2.log("WormholeTransceiver (Implementation)                  : ", wormholeTransceiverImplementation);
+        console2.log("SyntheticNttUni                                           : ", syntheticNttUni);
+        console2.log("NttManager (ERC1967 Proxy)                                : ", nttManagerProxy);
+        console2.log("NttManager (Implementation)                               : ", nttManagerImplementation);
+        console2.log("WormholeTransceiver (ERC1967Proxy)                        : ", wormholeTransceiverProxy);
+        console2.log("WormholeTransceiver (Implementation)                      : ", wormholeTransceiverImplementation);
         console2.log("\n");
 
-        console2.log("-- VISUALIZED ASSERTIONS -----------------------------");
+        console2.log("-- VISUALIZED ASSERTIONS ----------------------------------");
         console2.log("\n");
 
         console2.log("syntheticNttUni.ntt()                                     : ", SyntheticNttUni(syntheticNttUni).ntt());

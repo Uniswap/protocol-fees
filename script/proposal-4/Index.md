@@ -25,16 +25,6 @@
     - [BNB Chain Actions](#bnb-chain-actions)
     - [Polygon Actions](#polygon-actions)
 
-TODO:
-
-- add pause-renounce transaction to:
-  - bnb
-  - ethereum
-- update transaction counts in docs for:
-  - bnb
-  - ethereum
-  - polygon
-
 ## Definitions
 
 - Home chain: Ethereum L1
@@ -606,8 +596,13 @@ incorrect data.
 
 From here, we set the `WormholeTransceiver` proxy deployed on Ethereum as a "Wormhole peer" on the
 `WormholeTransceiver` proxy deployed on BNB Chain, then we set the `NttManagerNoRateLimiting` proxy
-deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on BNB Chain.
-Finally we transfer proxy ownership to `Timelock`.
+deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on BNB Chain. We
+then transfer `NttManagerNoRateLimiting` proxy ownership to `UniswapWormholeMessageReceiver`; this
+call iterates registered transceivers and forwards ownership transfer to each via
+`transferTransceiverOwnership` (`onlyNttManager`), so the `WormholeTransceiver` proxy is transferred
+in the same transaction without a separate explicit call. Finally we renounce the pauser capability
+on both proxies (the deployer is initialized as the pauser and the role is independent of
+ownership) by transferring it to `address(0)`.
 
 **Foundry Script**:
 
@@ -622,11 +617,13 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraBNBChain.s.sol:ConfigW
 
 **Transactions**:
 
-| Index | Action                                                                     |
-| ----- | -------------------------------------------------------------------------- |
-| 00    | Set BNBChain WormholeTransceiver proxy as a peer on the BNBChain Chain Id. |
-| 01    | Set the NttManager Proxy on Ethereum as a peer.                            |
-| 02    | Transfer proxy ownership to Timelock.                                      |
+| Index | Action                                                                                            |
+| ----- | ------------------------------------------------------------------------------------------------- |
+| 00    | Set Ethereum WormholeTransceiver proxy as a peer on Ethereum Chain Id (on BNB Chain).             |
+| 01    | Set Ethereum NttManager proxy as a peer (on BNB Chain).                                           |
+| 02    | Transfer NttManager proxy ownership to UniswapWormholeMessageReceiver (cascades to transceivers). |
+| 03    | Renounce pauser on WormholeTransceiver proxy (transfer to `address(0)`).                          |
+| 04    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                                   |
 
 
 ### 5. Configure Wormhole Infra Polygon
@@ -646,8 +643,13 @@ incorrect data.
 
 From here, we set the `WormholeTransceiver` proxy deployed on Ethereum as a "Wormhole peer" on the
 `WormholeTransceiver` proxy deployed on Polygon, then we set the `NttManagerNoRateLimiting` proxy
-deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on Polygon.
-Finally we transfer proxy ownership to `Timelock`.
+deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on Polygon. We
+then transfer `NttManagerNoRateLimiting` proxy ownership to the Polygon governance receiver; this
+call iterates registered transceivers and forwards ownership transfer to each via
+`transferTransceiverOwnership` (`onlyNttManager`), so the `WormholeTransceiver` proxy is transferred
+in the same transaction without a separate explicit call. Finally we renounce the pauser capability
+on the `NttManagerNoRateLimiting` proxy (the deployer is initialized as the pauser and the role is
+independent of ownership) by transferring it to `address(0)`.
 
 **Foundry Script**:
 
@@ -662,11 +664,12 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraPolygon.s.sol:ConfigWo
 
 **Transactions**:
 
-| Index | Action                                                                   |
-| ----- | ------------------------------------------------------------------------ |
-| 00    | Set Polygon WormholeTransceiver proxy as a peer on the Polygon Chain Id. |
-| 01    | Set the NttManager Proxy on Ethereum as a peer.                          |
-| 02    | Transfer proxy ownership to Timelock.                                    |
+| Index | Action                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| 00    | Set Ethereum WormholeTransceiver proxy as a peer on Ethereum Chain Id (on Polygon).             |
+| 01    | Set Ethereum NttManager proxy as a peer (on Polygon).                                           |
+| 02    | Transfer NttManager proxy ownership to Polygon governance receiver (cascades to transceivers).  |
+| 03    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                                 |
 
 ### 6. Configure Wormhole Infra Ethereum
 
@@ -687,8 +690,12 @@ incorrect data.
 From here, we set the `WormholeTransceiver` proxies deployed on BNB Chain and Polygon as "Wormhole
 peers" on the `WormholeTransceiver` proxy deployed on Ethereum, then we set the
 `NttManagerNoRateLimiting` proxies deployed on BNB Chain and Polygon as "peers" on the
-`NttManagerNoRateLimiting` proxy deployed on Ethereum. Finally we transfer proxy ownership to
-`UniswapWormholeMessageReceiver`.
+`NttManagerNoRateLimiting` proxy deployed on Ethereum. We then transfer `NttManagerNoRateLimiting`
+proxy ownership to `Timelock`; this call iterates registered transceivers and forwards ownership
+transfer to each via `transferTransceiverOwnership` (`onlyNttManager`), so the `WormholeTransceiver`
+proxy is transferred in the same transaction without a separate explicit call. Finally we renounce
+the pauser capability on both proxies (the deployer is initialized as the pauser and the role is
+independent of ownership) by transferring it to `address(0)`.
 
 **Foundry Script**:
 
@@ -709,7 +716,9 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraEthereum.s.sol:ConfigW
 | 01    | Set Polygon WormholeTransceiver proxy as a peer to the Ethereum WormholeTransceiver Proxy.  |
 | 02    | Set BNBChain NttManager proxy as a peer to the Ethereum NttManager Proxy.                   |
 | 03    | Set Polygon NttManager proxy as a peer to the Ethereum NttManager Proxy.                    |
-| 04    | Transfer proxy ownership to UniswapWormholeMessageReceiver.                                 |
+| 04    | Transfer NttManager proxy ownership to Timelock (cascades to transceivers).                 |
+| 05    | Renounce pauser on WormholeTransceiver proxy (transfer to `address(0)`).                    |
+| 06    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                             |
 
 ### 7. Deploy and Configure Fee Infra BNB Chain
 
@@ -972,16 +981,26 @@ flowchart LR
 
 ---
 
-TODO: rework this section to match celo
-
 **OVERVIEW**:
 
-This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and transfers ownership of
 `UniswapV3Factory` to `V3OpenFeeAdapter`.
+
+**RELEVANT ADDRESSES**:
+
+| Name                                | Network   | Address                                      | Description                        |
+| ----------------------------------- | --------- | -------------------------------------------- | ---------------------------------- |
+| `V2_FACTORY`                        | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V2 Factory                 |
+| `V3_FACTORY`                        | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V3 Factory                 |
+| `V4_POOL_MANAGER`                   | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V4 Pool Manager            |
+| `TOKEN_JAR`                         | BNB Chain | `0x0000000000000000000000000000000000000000` | Fee Collector                      |
+| `V3_OPEN_FEE_ADAPTER`               | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V3 Fee Adapter             |
+| `UNISWAP_WORMHOLE_MESSAGE_RECEIVER` | BNB Chain | `0x0000000000000000000000000000000000000000` | Governance Owned Wormhole Receiver |
+| `WORMHOLE_SENDER`                   | Ethereum  | `0x0000000000000000000000000000000000000000` | Wormhole Sender                    |
 
 **ACTIONS**:
 
-- From `UniswapWormholeMesageReceiver`:
+- From `UniswapWormholeMessageReceiver`:
     - Set `UniswapV2Factory.feeTo` to `TokenJar`.
     - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
 
@@ -1069,11 +1088,28 @@ flowchart LR
 
 **OVERVIEW**:
 
-TODO
+This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and transfers ownership of
+`UniswapV3Factory` to `V3OpenFeeAdapter`.
+
+**RELEVANT ADDRESSES**:
+
+| Name                   | Network  | Address                                      | Description                        |
+| ---------------------- | -------- | -------------------------------------------- | ---------------------------------- |
+| `V2_FACTORY`           | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V2 Factory                 |
+| `V3_FACTORY`           | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V3 Factory                 |
+| `V4_POOL_MANAGER`      | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V4 Pool Manager            |
+| `TOKEN_JAR`            | Polygon  | `0x0000000000000000000000000000000000000000` | Fee Collector                      |
+| `V3_OPEN_FEE_ADAPTER`  | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V3 Fee Adapter             |
+| `FX_MESSAGE_PROCESSOR` | Polygon  | `0x0000000000000000000000000000000000000000` | Governance Owned FxChild Receiver  |
+| `POLYGON_FX_ROOT`      | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)     |
 
 **ACTIONS**:
 
-TODO
+- From `FX_MESSAGE_PROCESSOR`:
+    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+
+**BEFORE AND AFTER**:
 
 ```mermaid
 ---

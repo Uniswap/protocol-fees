@@ -135,7 +135,10 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 04
         //
-        // Transfer proxy ownership to Timelock.
+        // Transfer NttManager proxy ownership to Timelock. This call also iterates registered
+        // transceivers and forwards the ownership transfer to each via
+        // `transferTransceiverOwnership` (`onlyNttManager`), so the WormholeTransceiver proxy ends
+        // up owned by the same address without an explicit second transfer.
         //
         // Parameters:
         //
@@ -144,6 +147,25 @@ contract ConfigWormholeInfraEthereumScript is Script {
         NttManagerNoRateLimiting(eth.nttManagerProxy).transferOwnership({
             newOwner: Constants.Ethereum.TIMELOCK
         });
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 05
+        //
+        // Renounce pauser capability on the WormholeTransceiver proxy.
+        //
+        // The deployer is set as the pauser during proxy initialization and is independent of
+        // ownership. Even after ownership transfer, the deployer remains the pauser unless the
+        // capability is transferred (or renounced). We renounce by setting the pauser to the zero
+        // address so no party can pause the transceiver going forward.
+        //
+        WormholeTransceiver(eth.wormholeTransceiverProxy).transferPauserCapability(address(0));
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 06
+        //
+        // Renounce pauser capability on the NttManager proxy. Same rationale as the transceiver.
+        //
+        NttManagerNoRateLimiting(eth.nttManagerProxy).transferPauserCapability(address(0));
 
         // Query Peer data for checks
         //
@@ -182,12 +204,24 @@ contract ConfigWormholeInfraEthereumScript is Script {
         console2.log("bnb.uni.decimals()                                    : ", uint8(18));
         console2.log("\n");
 
-        console2.log("eth.nttManagerProxy.getPeer(polygon).tokenDecimals    : ",  polygonNttManager.tokenDecimals);
+        console2.log("eth.nttManagerProxy.getPeer(polygon).tokenDecimals    : ",  polygonNttManagerPeer.tokenDecimals);
         console2.log("polygon.uni.decimals()                                : ", uint8(18));
+        console2.log("\n");
+
+        console2.log("eth.wormholeTransceiverProxy.owner()                  : ",  WormholeTransceiver(eth.wormholeTransceiverProxy).owner());
+        console2.log("Constants.Ethereum.TIMELOCK                           : ", Constants.Ethereum.TIMELOCK);
         console2.log("\n");
 
         console2.log("eth.nttManagerProxy.owner()                           : ",  NttManagerNoRateLimiting(eth.nttManagerProxy).owner());
         console2.log("Constants.Ethereum.TIMELOCK                           : ", Constants.Ethereum.TIMELOCK);
+        console2.log("\n");
+
+        console2.log("eth.wormholeTransceiverProxy.pauser()                 : ", WormholeTransceiver(eth.wormholeTransceiverProxy).pauser());
+        console2.log("address(0)                                            : ", address(0));
+        console2.log("\n");
+
+        console2.log("eth.nttManagerProxy.pauser()                          : ", NttManagerNoRateLimiting(eth.nttManagerProxy).pauser());
+        console2.log("address(0)                                            : ", address(0));
         console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
@@ -202,7 +236,10 @@ contract ConfigWormholeInfraEthereumScript is Script {
         require(bnbNttManagerPeer.tokenDecimals == 18);
         require(polygonNttManagerPeer.tokenDecimals == 18);
 
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).owner() == Constants.Ethereum.TIMELOCK);
         require(NttManagerNoRateLimiting(eth.nttManagerProxy).owner() == Constants.Ethereum.TIMELOCK);
+        require(WormholeTransceiver(eth.wormholeTransceiverProxy).pauser() == address(0));
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).pauser() == address(0));
 
         vm.stopBroadcast();
     }

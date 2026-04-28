@@ -94,15 +94,31 @@ contract ConfigWormholeInfraPolygonScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 02
         //
-        // Transfer proxy ownership to UniswapWormholeMessageReceiver.
+        // Transfer NttManager proxy ownership to the Polygon governance receiver. This call also
+        // iterates registered transceivers and forwards the ownership transfer to each via
+        // `transferTransceiverOwnership` (`onlyNttManager`), so the WormholeTransceiver proxy ends
+        // up owned by the same address without an explicit second transfer.
         //
         // Parameters:
         //
-        // - `newOwner`: Governance-owned Timelock.
+        // - `newOwner`: Polygon governance receiver.
         //
         NttManagerNoRateLimiting(polygon.nttManagerProxy).transferOwnership({
-            newOwner: Constants.Ethereum.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+            newOwner: Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 03
+        //
+        // Renounce pauser capability on the NttManager proxy.
+        //
+        // The deployer is set as the pauser when the proxy is initialized in the deploy script and
+        // is independent of ownership. We deliberately defer the renounce until after the ownership
+        // transfer above so that the renounce lives alongside the rest of the authority handoff in
+        // this configuration script. The deployer is still the pauser at this point, so
+        // `transferPauserCapability` succeeds under `onlyOwnerOrPauser`.
+        //
+        NttManagerNoRateLimiting(polygon.nttManagerProxy).transferPauserCapability(address(0));
 
         // Query Peer data for checks
         //
@@ -129,8 +145,16 @@ contract ConfigWormholeInfraPolygonScript is Script {
         console2.log("eth.uni.decimals()                                  : ", uint8(18));
         console2.log("\n");
 
+        console2.log("polygon.wormholeTransceiverProxy.owner()            : ",  WormholeTransceiver(polygon.wormholeTransceiverProxy).owner());
+        console2.log("Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER : ", Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
         console2.log("polygon.nttManagerProxy.owner()                     : ",  NttManagerNoRateLimiting(polygon.nttManagerProxy).owner());
         console2.log("Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER : ", Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        console2.log("\n");
+
+        console2.log("polygon.nttManagerProxy.pauser()                    : ", NttManagerNoRateLimiting(polygon.nttManagerProxy).pauser());
+        console2.log("address(0)                                          : ", address(0));
         console2.log("\n");
 
         // -----------------------------------------------------------------------------------------
@@ -139,7 +163,9 @@ contract ConfigWormholeInfraPolygonScript is Script {
         require(transceiverPeer == eth.wormholeTransceiverProxy);
         require(address(uint160(uint256(nttManagerPeer.peerAddress))) == eth.nttManagerProxy);
         require(nttManagerPeer.tokenDecimals == 18);
+        require(WormholeTransceiver(polygon.wormholeTransceiverProxy).owner() == Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
         require(NttManagerNoRateLimiting(polygon.nttManagerProxy).owner() == Constants.Polygon.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+        require(NttManagerNoRateLimiting(polygon.nttManagerProxy).pauser() == address(0));
 
         vm.stopBroadcast();
     }
