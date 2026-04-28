@@ -10,42 +10,66 @@ import {
   IUniswapV3Factory,
   IUniswapV4PoolManager,
   IGovernorBravo,
-  IPolygonStateSync,
+  IPolygonFxRoot,
   ILayerZeroEndpoint
 } from "./Interfaces.sol";
-import {ProposalAction, toItems} from "./Types.sol";
-using {toItems} for ProposalAction[];
 
 string constant PROPOSAL_DESCRIPTION = "TODO";
 
 /// @title Activate L2's (Plus Celo Retry)
 contract ActivateL2Proposals is Script {
+
+  /// @notice Proposal Action Data Type.
+  struct ProposalAction {
+    address target;
+    uint256 value;
+    string signature;
+    bytes data;
+  }
+
   /// @notice Runs the actions
   function run() public {
     // check addresses are non-zero.
+    //
     Constants.smokeCheck();
 
-    // construct actions & decompose to governor parameters.
-    (
-      address[] memory targets,
-      uint256[] memory values,
-      string[] memory signatures,
-      bytes[] memory datas
-    ) = _getActions().toItems();
+    // three actions get taken here.
+    //
+    uint256 actionCount = 3;
+
+    // construct actions for governance.
+    //
+    ProposalAction[] memory actions = _getActions(actionCount);
+
+    // split actions into arrays of targets, values, signatures, and datas:
+    //
+    // (address, uint256, string, bytes)[] --> (address[], uint256[], string[], bytes[])
+    //
+    address[] memory targets = new address[](actionCount);
+    uint256[] memory values = new uint256[](actionCount);
+    string[] memory signatures = new string[](actionCount);
+    bytes[] memory datas = new bytes[](actionCount);
+
+    for (uint256 i; i < actionCount; i++) {
+      targets[i] = actions[i].target;
+      values[i] = actions[i].value;
+      signatures[i] = actions[i].signature;
+      datas[i] = actions[i].data;
+    }
 
     // initiate the broadcast.
     vm.startBroadcast();
 
     // propose.
-    IGovernorBravo(Constants.L1.TIMELOCK)
+    IGovernorBravo(Constants.Ethereum.TIMELOCK)
       .propose(targets, values, signatures, datas, PROPOSAL_DESCRIPTION);
 
     // stop the broadcast.
     vm.stopBroadcast();
   }
 
-  function _getActions() internal pure returns (ProposalAction[] memory actions) {
-    actions = new ProposalAction[](5);
+  function _getActions(uint256 actionCount) internal pure returns (ProposalAction[] memory actions) {
+    actions = new ProposalAction[](actionCount);
 
     // ---------------------------------------------------------------------------------------------
     // STEP 1:
@@ -122,7 +146,7 @@ contract ActivateL2Proposals is Script {
       datas[3] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
 
       actions[0] = ProposalAction({
-        target: Constants.L1.WORMHOLE_SENDER,
+        target: Constants.Ethereum.WORMHOLE_SENDER,
         value: 0,
         signature: "",
         data: abi.encodeCall(
@@ -174,7 +198,7 @@ contract ActivateL2Proposals is Script {
       datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.BNB.V3_OPEN_FEE_ADAPTER));
 
       actions[1] = ProposalAction({
-        target: Constants.L1.WORMHOLE_SENDER,
+        target: Constants.Ethereum.WORMHOLE_SENDER,
         value: 0,
         signature: "",
         data: abi.encodeCall(
@@ -193,22 +217,27 @@ contract ActivateL2Proposals is Script {
     // ---------------------------------------------------------------------------------------------
     // STEP 3:
     //
-    // Polygon Uniswap V2 TODO
+    // Polygon: Sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
+    // `UniswapV3Factory` to `V3OpenFeeAdapter`.
     //
-    // on polygon:
+    // DOES NOT activate V4 fees, only V2 and V3.
     //
-    // owner is:
-    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
-    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
-    // 0x8a1B966aC46F42275860f905dbC75EfBfDC12374
+    // Context:
+    // ---
     //
-    // TODO: THIS CAN USE MULTIPLE ACTIONS IN ONE
+    // The `EthereumProxy` owns `UniswapV2Factory`, `UniswapV3Factory`, and `PoolManager`. This is
+    // the receiver for the Polygon message bridge `FxRoot(Ethereum) -> FxChild(Polygon)`. Since we
+    // continue to use Polygon's native bridge for now, we only set the `UniswapV2Factory` fee
+    // collector and transfer ownership of `UniswapV3Factory` to the `V3OpenFeeAdapter` because V3
+    // sends fees to the factory owner. 
     //
-    // looks to be some kind of native polygon receiver
-    // building calldata according to these independent docs:
-    // https://github.com/ScopeLift/uniswap-docs-fork/blob/l2-proposals/docs/concepts/governance/05-multichain-proposals.md#polygon
+    // Actions:
+    // ---
     //
-    // only one action can be taken over the polygon bridge at a time, so we'll need 3 actions.
+    // - From `EthereumProxy`:
+    //   - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    //   - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    //
     {
       address[] memory targets = new address[](2);
       uint256[] memory values = new uint256[](2);
@@ -223,11 +252,11 @@ contract ActivateL2Proposals is Script {
       datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.V3_OPEN_FEE_ADAPTER));
 
       actions[2] = ProposalAction({
-        target: Constants.L1.POLYGON_FX_ROOT,
+        target: Constants.Ethereum.POLYGON_FX_ROOT,
         value: 0,
         signature: "",
         data: abi.encodeCall(
-          IPolygonStateSync.syncState,
+          IPolygonFxRoot.sendMessageToChild,
           (
             Constants.Polygon.FX_MESSAGE_PROCESSOR,
             abi.encode(targets, values, datas)

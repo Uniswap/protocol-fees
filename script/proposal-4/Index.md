@@ -3,24 +3,37 @@
 - [Proposal-4](#proposal-4)
   - [Definitions](#definitions)
   - [Abstract](#abstract)
-  - [Action Ordering](#action-ordering)
+  - [Prerequsite Action Ordering](#prerequsite-action-ordering)
   - [Wormhole Context](#wormhole-context)
-    - [Transfer UNI to BNBChain Flow](#transfer-uni-to-bnbchain-flow)
-    - [Transfer SyntheticNttUni to Ethereum Flow](#transfer-syntheticnttuni-to-ethereum-flow)
-    - [Burn UNI via Releaser from BNBChain Flow](#burn-uni-via-releaser-from-bnbchain-flow)
+    - [Send UNI from Etherum to Foreign Chain](#send-uni-from-etherum-to-foreign-chain)
+    - [Receive UNI to Ethereum from Foreign Chain](#receive-uni-to-ethereum-from-foreign-chain)
+    - [Burn UNI via Releaser over Wormhole](#burn-uni-via-releaser-over-wormhole)
     - [On Wormhole ERC1967 Proxies](#on-wormhole-erc1967-proxies)
   - [Polygon Context](#polygon-context)
   - [Prerequisite Actions](#prerequisite-actions)
     - [1. Deploy Wormhole Infra BNB Chain](#1-deploy-wormhole-infra-bnb-chain)
-    - [2. Deploy Wormhole Infra Ethereum](#2-deploy-wormhole-infra-ethereum)
-    - [3. Configure Wormhole Infra BNB Chain](#3-configure-wormhole-infra-bnb-chain)
-    - [4. Configure Wormhole Infra Ethereum](#4-configure-wormhole-infra-ethereum)
-    - [5. Deploy and Configure Fee Infra BNB Chain](#5-deploy-and-configure-fee-infra-bnb-chain)
-    - [TODO: Polygon](#todo-polygon)
+    - [2. Deploy Wormhole Infra Polygon](#2-deploy-wormhole-infra-polygon)
+    - [3. Deploy Wormhole Infra Ethereum](#3-deploy-wormhole-infra-ethereum)
+    - [4. Configure Wormhole Infra BNB Chain](#4-configure-wormhole-infra-bnb-chain)
+    - [5. Configure Wormhole Infra Polygon](#5-configure-wormhole-infra-polygon)
+    - [6. Configure Wormhole Infra Ethereum](#6-configure-wormhole-infra-ethereum)
+    - [7. Deploy and Configure Fee Infra BNB Chain](#7-deploy-and-configure-fee-infra-bnb-chain)
+    - [8. Deploy and Configure Fee Infra Polygon](#8-deploy-and-configure-fee-infra-polygon)
+    - [9. Propose Governance Actions](#9-propose-governance-actions)
   - [Governance Actions](#governance-actions)
-    - [Celo Actions](#celo-actions)
+    - [Celo](#celo)
     - [BNB Chain Actions](#bnb-chain-actions)
     - [Polygon Actions](#polygon-actions)
+
+TODO:
+
+- add pause-renounce transaction to:
+  - bnb
+  - ethereum
+- update transaction counts in docs for:
+  - bnb
+  - ethereum
+  - polygon
 
 ## Definitions
 
@@ -46,51 +59,118 @@ prerequisite actions which must be taken before governance can enact the ownersh
 Polygon also does not have fee collection infrastructure, there are prerequsite actions which must
 be taken before governance can enact the ownership transition.
 
-## Action Ordering
+## Prerequsite Action Ordering
 
-Actions must be taken in this order.
+**For members of governance**, the prerequisite action sections are not necessary to read about in
+depth, as they can be handled permissionlessly. See [Governance Actions](#governance-actions) for
+governance-specific information.
 
-1. Deploy Wormhole Infra BNB Chain
-2. Deploy Wormhole Infra Ethereum
-3. Configure Wormhole Infra BNB Chain
-4. Configure Wormhole Infra Ethereum
-5. Deploy and Configure Fee Infra BNB Chain
-6. Governance Proposal
+These prerequisite actions must be taken before governance can act. The final action here is to
+propose governance-required actions.
 
-For members of governance, the prerequisite action sections are unnecessary, as they can be handled
-permissionlessly. See [Governance Actions](#governance-actions).
+<!--
+the next comment is required to keep the markdown extensions for vs code from treating this like a
+table of contents and auto-forcing the rest of the sections to live here.
+-->
+<!-- no toc -->
+- [1. Deploy Wormhole Infra BNB Chain](#1-deploy-wormhole-infra-bnb-chain)
+- [2. Deploy Wormhole Infra Polygon](#2-deploy-wormhole-infra-polygon)
+- [3. Deploy Wormhole Infra Ethereum](#3-deploy-wormhole-infra-ethereum)
+- [4. Configure Wormhole Infra BNB Chain](#4-configure-wormhole-infra-bnb-chain)
+- [5. Configure Wormhole Infra Polygon](#5-configure-wormhole-infra-polygon)
+- [6. Configure Wormhole Infra Ethereum](#6-configure-wormhole-infra-ethereum)
+- [7. Deploy and Configure Fee Infra BNB Chain](#7-deploy-and-configure-fee-infra-bnb-chain)
+- [8. Deploy and Configure Fee Infra Polygon](#8-deploy-and-configure-fee-infra-polygon)
+- [9. Propose Governance Actions](#9-propose-governance-actions)
 
 Dependency graph:
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart BT
     DWIB(["Deploy Wormhole Infra (BNB)"]):::on_bnb
     DWIE(["Deploy Wormhole Infra (ETH)"]):::on_eth
     CWIB(["Conf Wormhole Infra (BNB)"]):::on_bnb
     CWIE(["Conf Wormhole Infra (ETH)"]):::on_eth
     DCFIB(["Deploy/Conf Fee Infra (BNB)"]):::on_bnb
+    DWIP(["Deploy Wormhole Infra (POL)"]):::on_pol
+    CWIP(["Conf Wormhole Infra (POL)"]):::on_pol
     DCFIP(["Deploy/Conf Fee Infra (POL)"]):::on_pol
-    GA(["Governance Actions"]):::on_eth
+    PG(["Propose Governance"]):::on_eth
 
     subgraph dg[Dependency Graph]
-        direction BT
-        GA      -->|requires| DCFIB
-        GA      -->|requires| DCFIP
+        direction RL
+        PG      -->|requires| DCFIB
+        PG      -->|requires| DCFIP
         DCFIB   -->|requires| CWIB
         DCFIB   -->|requires| CWIE
+        DCFIP   -->|requires| CWIP
+        DCFIP   -->|requires| CWIE
         CWIB    -->|requires| DWIB
         CWIB    -->|requires| DWIE
         CWIE    -->|requires| DWIB
         CWIE    -->|requires| DWIE
+        CWIE    -->|requires| DWIP
+        CWIP    -->|requires| DWIP
+        CWIP    -->|requires| DWIE
     end
-    dg:::dg
+
+     subgraph key[Key]
+        direction LR
+        AB(["Actions taken on BNB"]):::on_bnb
+        AE(["Actions taken on ETH"]):::on_eth
+        AP(["Actions taken on POL"]):::on_pol
+     end
+
+    dg:::sub
+    key:::sub
 
     classDef on_bnb fill:#a0814a,color:#fff
     classDef on_eth fill:#00567b,color:#fff
     classDef on_pol fill:#603e68,color:#fff
-    classDef dg fill:#202020,color:#fff
+    classDef sub fill:#202020,color:#fff
 
-    linkStyle default stroke:#fff,stroke-width:4px
+```
+
+Order of Prerequisite Actions:
+
+```mermaid
+---
+config:
+    theme: 'dark'
+---
+flowchart LR
+    DWIB(["Deploy Wormhole Infra (BNB)"]):::on_bnb
+    DWIE(["Deploy Wormhole Infra (ETH)"]):::on_eth
+    CWIB(["Conf Wormhole Infra (BNB)"]):::on_bnb
+    CWIE(["Conf Wormhole Infra (ETH)"]):::on_eth
+    DCFIB(["Deploy/Conf Fee Infra (BNB)"]):::on_bnb
+    DWIP(["Deploy Wormhole Infra (POL)"]):::on_pol
+    CWIP(["Conf Wormhole Infra (POL)"]):::on_pol
+    DCFIP(["Deploy/Conf Fee Infra (POL)"]):::on_pol
+    PG(["Propose Governance"]):::on_eth
+
+    subgraph oa[Order of Actions]
+        direction TB
+        DWIB -->|then| DWIP
+        DWIP -->|then| DWIE
+        DWIE -->|then| CWIB
+        CWIB -->|then| CWIP
+        CWIP -->|then| CWIE
+        CWIE -->|then| DCFIB
+        DCFIB -->|then| DCFIP
+        DCFIP -->|then| PG
+    end
+
+    oa:::oa
+
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+    classDef oa fill:#202020,color:#fff
 ```
 
 ## Wormhole Context
@@ -104,127 +184,248 @@ foreign chain deployments of a synthetic UNI (`SyntheticNttUni`) are the "Spokes
 > In simple terms, this is a "lock, mint, and burn" system where canonical UNI is locked on Ethereum
 > so a synthetic UNI can be minted on a foreign chain.
 
-This system requires integrators (us) to deploy on Ethereum and BNB Chain a
+This system requires integrators (us) to deploy on Ethereum, BNB Chain, and Polygon a
 `WormholeTransceiver` to process messages and a Wormhole `NttManager` to manage transceivers and
 handle other peripheral logic such as message attestation and rate limiting (although we eschew rate
-limiting for simplicity of deployment and authority management). The `WormholeTransceiver`
-deployments on Ethereum and BNB Chain be mutually aware of one another, as do the `NttManager`
-deployments on Etheruem and BNB Chain. Additionally, for each chain, the `NttManager` must store the
-local `WormholeTransceiver` deployment in its own registry.
+limiting for simplicity of deployment and authority management). The `WormholeTransceiver` on
+Ethereum must be made aware of the `WormholeTransceiver` on BNB Chain and Polygon, also the
+`WormholeTransceiver` on BNB Chain and Polygon must be made aware of the one on Ethereum. The
+same applies to `NttManager`. Additionally, for each chain, the `NttManager` must be made aware of
+its local `WormholeTransceiver` deployment in its own registry.
 
-Finally, for BNB Chain, there must be a `SyntheticNttUni` deployment which allows mint and burn
-authority to the `NttManager` such that it may process mints and burns as appropriate.
-
-### Transfer UNI to BNBChain Flow
+Finally, for BNB Chain and Polygon, there must be a `SyntheticNttUni` deployment which allows mint
+and burn authority to the `NttManager` such that it may process mints and burns as appropriate.
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
+flowchart TB
+       WormholeTransceiverETH([Wormhole Transceiver]):::on_eth
+       NttManagerETH([Ntt Manager]):::on_eth
+       UNI([UNI]):::on_eth
+       WormholeTransceiverBNB([Wormhole Transceiver]):::on_bnb
+       NttManagerBNB([Ntt Manager]):::on_bnb
+       SyntheticNttUNIBNB([SyntheticNttUniBNB]):::on_bnb
+       WormholeTransceiverPOL([Wormhole Transceiver]):::on_pol
+       NttManagerPOL([Ntt Manager]):::on_pol
+       SyntheticNttUNIPOL([SyntheticNttUniPOL]):::on_pol
+
+    subgraph Ethereum
+       WormholeTransceiverETH
+       NttManagerETH
+       UNI
+    end
+    subgraph BNBChain
+       WormholeTransceiverBNB
+       NttManagerBNB
+       SyntheticNttUNIBNB
+    end
+    subgraph Polygon
+       WormholeTransceiverPOL
+       NttManagerPOL
+       SyntheticNttUNIPOL
+    end
+
+    WormholeTransceiverETH -.-|peer| WormholeTransceiverBNB
+
+    NttManagerETH -.-|peer| NttManagerBNB
+    NttManagerETH -.-|peer| NttManagerPOL
+
+    NttManagerETH -->|"transceiver()"| WormholeTransceiverETH
+    NttManagerBNB -->|"transceiver()"| WormholeTransceiverBNB
+    NttManagerPOL -->|"transceiver()"| WormholeTransceiverPOL
+
+    WormholeTransceiverETH -.-|peer| WormholeTransceiverPOL
+
+    SyntheticNttUNIPOL -->|"nttManager()"| NttManagerPOL
+    SyntheticNttUNIBNB -->|"nttManager()"| NttManagerBNB
+
+    Ethereum:::sub
+    BNBChain:::sub
+    Polygon:::sub
+
+    classDef on_bnb fill:#a0814a,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+    classDef sub fill:#202020,color:#fff
+```
+
+### Send UNI from Etherum to Foreign Chain
+
+---
+
+```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart LR
-    ETH_WT([WormholeTransceiver])
-    ETH_NTT([NttManager])
-    ETH_UNI([UNI])
-    BNB_WT([WormholeTransceiver])
-    BNB_NTT([NttManager])
-    BNB_UNI([SyntheticNttUni])
+    WormholeTransceiverETH([WormholeTransceiver]):::on_eth
+    NttManagerETH([NttManager]):::on_eth
+    UNIETH([UNI]):::on_eth
+    WormholeTransceiverBNB([WormholeTransceiver]):::on_bnb
+    NttManagerBNB([NttManager]):::on_bnb
+    UNIBNB([SyntheticNttUni]):::on_bnb
+    WormholeTransceiverPOL([Wormhole Transceiver]):::on_pol
+    NttManagerPOL([Ntt Manager]):::on_pol
+    UNIPOL([SyntheticNttUni]):::on_pol
 
     subgraph Ethereum
         direction LR
-        ETH_UNI -->|locked to| ETH_NTT
-        ETH_NTT -->|sends msg| ETH_WT
+        UNIETH -->|locked to| NttManagerETH
+        NttManagerETH -->|sends msg| WormholeTransceiverETH
     end
 
     Ethereum -.->|Wormhole| BNBChain
 
     subgraph BNBChain
         direction LR
-        BNB_WT -->|forward msg| BNB_NTT
-        BNB_NTT -->|mint| BNB_UNI
+        WormholeTransceiverBNB -->|forward msg| NttManagerBNB
+        NttManagerBNB -->|mint| UNIBNB
     end
 
-    Ethereum:::on_eth
-    BNBChain:::on_bnb
+    Ethereum -.->|Wormhole| Polygon
 
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
+    subgraph Polygon
+        direction LR
+        WormholeTransceiverPOL -->|forward msg| NttManagerPOL
+        NttManagerPOL -->|mint| UNIPOL
+    end
+
+    Ethereum:::sub
+    BNBChain:::sub
+    Polygon:::sub
+
     classDef on_bnb fill:#a0814a,color:#fff
-    classDef on_eth fill:#498fb6,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+    classDef sub fill:#202020,color:#fff
 ```
 
-### Transfer SyntheticNttUni to Ethereum Flow
+### Receive UNI to Ethereum from Foreign Chain
+
+---
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart RL
-    ETH_WT([WormholeTransceiver])
-    ETH_NTT([NttManager])
-    ETH_UNI([UNI])
-    BNB_WT([WormholeTransceiver])
-    BNB_NTT([NttManager])
-    BNB_UNI([SyntheticNttUni])
+    WormholeTransceiverETH([WormholeTransceiver]):::on_eth
+    NttManagerETH([NttManager]):::on_eth
+    UNIETH([UNI]):::on_eth
+    WormholeTransceiverBNB([WormholeTransceiver]):::on_bnb
+    NttManagerBNB([NttManager]):::on_bnb
+    UNIBNB([SyntheticNttUni]):::on_bnb
+    WormholeTransceiverPOL([Wormhole Transceiver]):::on_pol
+    NttManagerPOL([Ntt Manager]):::on_pol
+    UNIPOL([SyntheticNttUni]):::on_pol
 
     subgraph Ethereum
         direction RL
-        ETH_WT -->|forward msg| ETH_NTT
-        ETH_NTT -->|unlocked from| ETH_UNI
+        WormholeTransceiverETH -->|forward msg| NttManagerETH
+        NttManagerETH -->|unlocked from| UNIETH
     end
 
     BNBChain -.->|Wormhole| Ethereum
 
     subgraph BNBChain
         direction RL
-        BNB_UNI -->|burn to| BNB_NTT
-        BNB_NTT -->|send msg| BNB_WT
+        UNIBNB -->|burn to| NttManagerBNB
+        NttManagerBNB -->|send msg| WormholeTransceiverBNB
     end
 
-    Ethereum:::on_eth
-    BNBChain:::on_bnb
+    Polygon -.->|Wormhole| Ethereum
 
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
+    subgraph Polygon
+        direction RL
+        UNIPOL -->|mint| NttManagerPOL
+        NttManagerPOL -->|forward msg| WormholeTransceiverPOL
+    end
+
+    Ethereum:::sub
+    BNBChain:::sub
+    Polygon:::sub
+
     classDef on_bnb fill:#a0814a,color:#fff
-    classDef on_eth fill:#498fb6,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+    classDef sub fill:#202020,color:#fff
 ```
 
-### Burn UNI via Releaser from BNBChain Flow
+### Burn UNI via Releaser over Wormhole
+
+---
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart RL
-    ETH_WT([WormholeTransceiver])
-    ETH_NTT([NttManager])
-    ETH_UNI([UNI])
-    BNB_WT([WormholeTransceiver])
-    BNB_NTT([NttManager])
-    BNB_UNI([SyntheticNttUni])
-    BNB_R([Releaser])
-    BNB_TJ([TokenJar])
-    BNB_V2([Uniswap V2])
-    BNB_V3([Uniswap V3])
-    BNB_V4([Uniswap V4])
+    WormholeTransceiverETH([WormholeTransceiver]):::on_eth
+    NttManagerETH([NttManager]):::on_eth
+    UNIETH([UNI]):::on_eth
+    WormholeTransceiverBNB([WormholeTransceiver]):::on_bnb
+    NttManagerBNB([NttManager]):::on_bnb
+    UNIBNB([SyntheticNttUni]):::on_bnb
+    ReleaserBNB([Releaser]):::on_bnb
+    TokenJarBNB([TokenJar]):::on_bnb
+    V2BNB([Uniswap V2]):::on_bnb
+    V3BNB([Uniswap V3]):::on_bnb
+    V4BNB([Uniswap V4]):::on_bnb
+    WormholeTransceiverPOL([WormholeTransceiver]):::on_pol
+    NttManagerPOL([NttManager]):::on_pol
+    UNIPOL([SyntheticNttUni]):::on_pol
+    ReleaserPOL([Releaser]):::on_pol
+    TokenJarPOL([TokenJar]):::on_pol
+    V2POL([Uniswap V2]):::on_pol
+    V3POL([Uniswap V3]):::on_pol
+    V4POL([Uniswap V4]):::on_pol
 
     subgraph Ethereum
         direction RL
-        ETH_WT -->|forward msg| ETH_NTT
-        ETH_NTT -->|burn to 0xDEAD| ETH_UNI
+        WormholeTransceiverETH -->|forward msg| NttManagerETH
+        NttManagerETH -->|burn to 0xDEAD| UNIETH
     end
 
     BNBChain -.->|Wormhole| Ethereum
 
     subgraph BNBChain
         direction RL
-        BNB_V2 -->|sends fees| BNB_TJ
-        BNB_V3 -->|sends fees| BNB_TJ
-        BNB_V4 -->|sends fees| BNB_TJ
-        BNB_TJ -->|releases to| BNB_R
-        BNB_R -->|"bridge to 0xDEAD"| BNB_UNI
-        BNB_UNI -->|burn to| BNB_NTT
-        BNB_NTT -->|send msg| BNB_WT
+        V2BNB -->|sends fees| TokenJarBNB
+        V3BNB -->|sends fees| TokenJarBNB
+        V4BNB -->|sends fees| TokenJarBNB
+        TokenJarBNB -->|releases to| ReleaserBNB
+        ReleaserBNB -->|"bridge to 0xDEAD"| UNIBNB
+        UNIBNB -->|burn to| NttManagerBNB
+        NttManagerBNB -->|send msg| WormholeTransceiverBNB
     end
 
-    Ethereum:::on_eth
-    BNBChain:::on_bnb
+    Polygon -.->|Wormhole| Ethereum
 
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
+    subgraph Polygon
+        direction RL
+        V2POL -->|sends fees| TokenJarPOL
+        V3POL -->|sends fees| TokenJarPOL
+        V4POL -->|sends fees| TokenJarPOL
+        TokenJarPOL -->|releases to| ReleaserPOL
+        ReleaserPOL -->|"bridge to 0xDEAD"| UNIPOL
+        UNIPOL -->|burn to| NttManagerPOL
+        NttManagerPOL -->|send msg| WormholeTransceiverPOL
+    end
+
+    Ethereum:::sub
+    BNBChain:::sub
+    Polygon:::sub
+
     classDef on_bnb fill:#a0814a,color:#fff
-    classDef on_eth fill:#498fb6,color:#fff
+    classDef on_eth fill:#00567b,color:#fff
+    classDef on_pol fill:#603e68,color:#fff
+    classDef sub fill:#202020,color:#fff
 ```
 
 ### On Wormhole ERC1967 Proxies
@@ -248,112 +449,24 @@ which is guarded such that only governance can send it messages through wormhole
 
 ## Polygon Context
 
-**NOTICE: Polygon documentation is incorrect. Notes are kept here for now.**
+The Polygon team maintains an allow-listed set of sender-receiver pairs for moving data between
+Ethereum and Polygon.
 
-Polygon maintains a whitelist of allowed state senders and receivers. Listing
-addresses here for now so we know what exists where.
+Our system uses an existing pair called `FxRoot` (deployed on Ethereum) and `FxChild` (deployed on
+Polygon). This appears to be the Polygon team's preferred way of moving data between chains.
+Respective deployments are as follows:
 
-Ethereum:
+| Contract Title  | Address                                      | Description                                |
+| --------------- | -------------------------------------------- | ------------------------------------------ |
+| `FxRoot`        | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)             |
+| `FxChild`       | `0x8397259c983751DAf40400790063935a11afa28a` | Polygon's Receiver (on Polygon)            |
+| `EthereumProxy` | `0x8a1B966aC46F42275860f905dbC75EfBfDC12374` | Uniswap Governance's Receiver (on Polygon) |
 
-- `StateSender`: `0x28e4F3a7f651294B9564800b2D01f35189A5bFbE`
-- `DepositManagerProxy`: `0x401F6c983eA34274ec46f84D70b31C151321188b`
-  - `DepositManager`: `0xb00aa68b87256e2f22058fb2ba3246eec54a44fc` (implemenation)
-- `RootChainManagerProxy`: `0xA0c68C638235ee32657e8f720a23ceC1bFc77C77`
-  - `RootChainManager`: `0xf0235dca8fb0d3999685724dcbb9dd00c5d62dfa` (implemenation)
-- `FxRoot`: `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2`
+However, moving tokens between chains is complex with the existing `FxRoot`/`FxChild` pair and the
+other allow-listed pairs are not suitable for our use case.
 
-Polygon:
-
-- `System`: `0x0000000000000000000000000000000000001001`
-- `ChildChain`: `0xD9c7C4ED4B66858301D0cb28Cc88bf655Fe34861`
-  - `SafeProxy`: `0x3a635c48836E7c0B9aEB378640B0BfD516985cF5` (owner)
-- `ChildChainManagerProxy`: `0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa`
-  - `ChainChildManager`: `0xa40fc0782bee28dd2cf8cb4ac2ecdb05c537f1b5` (implementation)
-- `EthereumProxy`: `0x8a1B966aC46F42275860f905dbC75EfBfDC12374`
-  - this is not actually a proxy, unsure why this is named as such
-- `FxChild`: `0x8397259c983751DAf40400790063935a11afa28a`
-
-`System` whitelists sender/receiver pairs:
-
-- `FxRoot` -> `FxChild`: message bridge for governance
-- `DepositManagerProxy` -> `ChildChain`: token bridging (5yrs old, may be outdated)
-- `RootChainManagerProxy` -> `ChildChainManagerProxy`: uncertain
-- (~7 other whitelisted items, TODO: add these)
-
-Governance order of ops:
-
-- `Timelock` (owned by gov) calls `FxRoot`
-- `FxRoot` calls `StateSender`
-- `StateSender` logs `StateSynced` event
-- polygon node calls on behalf of `System`
-- `System` calls `FxChild`
-- `FxChild` calls `EthereumProxy` (owned by gov)
-- `EthereumProxy` decodes info and multicalls to protocol
-
-Interfaces:
-
-```solidity
-// -- ethereum
-interface FxRoot {
-    function sendMessageToChild(address _receiver, bytes calldata _data) external;
-}
-
-interface StateSender {
-    function syncState(address receiver, bytes calldata data) external;
-}
-
-// -- polygon
-interface FxChild {
-    function onStateReceive(uint256 stateId, bytes calldata _data) external;
-}
-
-interface EthereumProxy {
-    function processMessageFromRoot(uint256,address sender,bytes memory message) external;
-}
-```
-
-Flow:
-
-```mermaid
-flowchart LR
-    Bridge{Bridge}
-    subgraph Polygon
-        direction LR
-        System([System])
-        FxChild([FxChild])
-        EthereumProxy([EthereumProxy])
-        V2Factory([V2Factory])
-        V3Factory([V3Factory])
-        PoolManager([PoolManager])
-
-        System -->|onStateReceive| FxChild
-        FxChild -->|processMessageFromRoot| EthereumProxy
-        EthereumProxy -->|call| V2Factory
-        EthereumProxy -->|call| V3Factory
-        EthereumProxy -->|call| PoolManager
-    end
-
-    subgraph Ethereum
-        direction LR
-        Governance([Governance])
-        FxRoot([FxRoot])
-        StateSender([StateSender])
-
-        Governance -->|sendMessageToChild| FxRoot
-        FxRoot -->|syncState| StateSender
-    end
-
-    StateSender -.-> Bridge
-    Bridge -.-> System
-
-    Ethereum:::on_eth
-    Polygon:::on_pol
-
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
-    classDef on_pol fill:#84608c,color:#fff
-    classDef on_eth fill:#498fb6,color:#fff
-```
+So we use the Wormhole Native Token Transfer system for users to transfer UNI between chains and we
+use the Polygon bridge as-is for governance actions (as it is now).
 
 ## Prerequisite Actions
 
@@ -369,7 +482,7 @@ transceiver registry, set the `SyntheticNttUni`'s minting authority to `NttManag
 and transfer ownership of `SyntheticNttUni` to `UniswapWormholeMessageReceiver`.
 
 > Note: The addresses deployed are needed in subsequent prerequisite scripts, so ownership of the
-> proxy is transferred in the [`ConfigWormholeInfraBNBChain`](#3-configure-wormhole-infra-bnb-chain)
+> proxy is transferred in the [`ConfigWormholeInfraBNBChain`](#4-configure-wormhole-infra-bnb-chain)
 
 **Foundry Script**:
 
@@ -398,7 +511,48 @@ forge script script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployW
 | 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
 | 10    | Transfer ownership of SyntheticNttUni to governance.                 |
 
-### 2. Deploy Wormhole Infra Ethereum
+### 2. Deploy Wormhole Infra Polygon
+
+**Overview**:
+
+On Polygon we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and two
+`ERC1967Proxy` contracts. We set the implementations of the proxies to be `NttManagerNoRateLimiting`
+and `WormholeTransceiver`, but we do not use a proxy for `SyntheticNttUni`. From here we initialize
+the proxies, register the `WormholeTransceiver` proxy to the `NttManagerNoRateLimiting` proxy's
+transceiver registry, set the `SyntheticNttUni`'s minting authority to `NttManagerNoRateLimiting`,
+and transfer ownership of `SyntheticNttUni` to `UniswapWormholeMessageReceiver`.
+
+> Note: The addresses deployed are needed in subsequent prerequisite scripts, so ownership of the
+> proxy is transferred in the [`ConfigWormholeInfraPolygon`](#5-configure-wormhole-infra-polygon)
+
+**Foundry Script**:
+
+[`./deploys/DeployWormholeInfraPolygon.s.sol`](./deploys/DeployWormholeInfraPolygon.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWormholeInfraPolygonScript
+```
+
+**Transactions**:
+
+| Index | Action                                                               |
+| ----- | -------------------------------------------------------------------- |
+| 00    | Deploy SyntheticNttUni.                                              |
+| 01    | Deploy NttManager implementation.                                    |
+| 02    | Deploy NttManager proxy.                                             |
+| 03    | Initialize NttManager proxy.                                         |
+| 04    | Deploy WormholeTransceiver implementation.                           |
+| 05    | Deploy WormholeTransceiver proxy.                                    |
+| 06    | Initialize WormholeTransceiver proxy.                                |
+| 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
+| 08    | Set the threshold of transceiver attestation redundancy.             |
+| 09    | Set SyntheticNttUniNtt mint authority to NttManager proxy.           |
+| 10    | Transfer ownership of SyntheticNttUni to governance.                 |
+
+### 3. Deploy Wormhole Infra Ethereum
 
 **Overview**:
 
@@ -435,7 +589,7 @@ forge script script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployW
 | 06    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
 | 07    | Set the threshold of transceiver attestation redundancy.             |
 
-### 3. Configure Wormhole Infra BNB Chain
+### 4. Configure Wormhole Infra BNB Chain
 
 **Overview**:
 
@@ -475,7 +629,46 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraBNBChain.s.sol:ConfigW
 | 02    | Transfer proxy ownership to Timelock.                                      |
 
 
-### 4. Configure Wormhole Infra Ethereum
+### 5. Configure Wormhole Infra Polygon
+
+**Overview**:
+
+We load the addresses from the `broadcast/` directory, which is where the prerequisite deployment
+script outputs should be writen. Default files are as follows:
+
+```solidity
+string constant POLYGON_DEPLOY_PATH = "broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json";
+string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
+```
+
+We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
+incorrect data.
+
+From here, we set the `WormholeTransceiver` proxy deployed on Ethereum as a "Wormhole peer" on the
+`WormholeTransceiver` proxy deployed on Polygon, then we set the `NttManagerNoRateLimiting` proxy
+deployed on Ethereum as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on Polygon.
+Finally we transfer proxy ownership to `Timelock`.
+
+**Foundry Script**:
+
+[`./deploys/ConfigWormholeInfraPolygon.s.sol`](./deploys/ConfigWormholeInfraPolygon.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-4/deploys/ConfigWormholeInfraPolygon.s.sol:ConfigWormholeInfraPolygon
+```
+
+**Transactions**:
+
+| Index | Action                                                                   |
+| ----- | ------------------------------------------------------------------------ |
+| 00    | Set Polygon WormholeTransceiver proxy as a peer on the Polygon Chain Id. |
+| 01    | Set the NttManager Proxy on Ethereum as a peer.                          |
+| 02    | Transfer proxy ownership to Timelock.                                    |
+
+### 6. Configure Wormhole Infra Ethereum
 
 **Overview**:
 
@@ -484,16 +677,18 @@ script outputs should be writen. Default files are as follows:
 
 ```solidity
 string constant BNB_DEPLOY_PATH = "broadcast/DepoyWormholeInfraBNBChain.s.sol/56/run-latest.json";
+string constant POLYGON_DEPLOY_PATH = "broadcast/DepoyWormholeInfraPolygon.s.sol/137/run-latest.json";
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 ```
 
 We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
 incorrect data.
 
-From here, we set the `WormholeTransceiver` proxy deployed on BNB Chain as a "Wormhole peer" on the
-`WormholeTransceiver` proxy deployed on Ethereum, then we set the `NttManagerNoRateLimiting` proxy
-deployed on BNB Chain as a "peer" on the `NttManagerNoRateLimiting` proxy deployed on Ethereum.
-Finally we transfer proxy ownership to `UniswapWormholeMessageReceiver`.
+From here, we set the `WormholeTransceiver` proxies deployed on BNB Chain and Polygon as "Wormhole
+peers" on the `WormholeTransceiver` proxy deployed on Ethereum, then we set the
+`NttManagerNoRateLimiting` proxies deployed on BNB Chain and Polygon as "peers" on the
+`NttManagerNoRateLimiting` proxy deployed on Ethereum. Finally we transfer proxy ownership to
+`UniswapWormholeMessageReceiver`.
 
 **Foundry Script**:
 
@@ -508,13 +703,15 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraEthereum.s.sol:ConfigW
 
 **Transactions**:
 
-| Index | Action                                                                     |
-| ----- | -------------------------------------------------------------------------- |
-| 00    | Set BNBChain WormholeTransceiver proxy as a peer on the BNBChain Chain Id. |
-| 01    | Set the NttManager Proxy on Ethereum as a peer.                            |
-| 02    | Transfer proxy ownership to UniswapWormholeMessageReceiver.                |
+| Index | Action                                                                                      |
+| ----- | ------------------------------------------------------------------------------------------- |
+| 00    | Set BNBChain WormholeTransceiver proxy as a peer to the Ethereum WormholeTransceiver Proxy. |
+| 01    | Set Polygon WormholeTransceiver proxy as a peer to the Ethereum WormholeTransceiver Proxy.  |
+| 02    | Set BNBChain NttManager proxy as a peer to the Ethereum NttManager Proxy.                   |
+| 03    | Set Polygon NttManager proxy as a peer to the Ethereum NttManager Proxy.                    |
+| 04    | Transfer proxy ownership to UniswapWormholeMessageReceiver.                                 |
 
-### 5. Deploy and Configure Fee Infra BNB Chain
+### 7. Deploy and Configure Fee Infra BNB Chain
 
 **Overview**:
 
@@ -568,16 +765,98 @@ forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraBNBChain.s.sol:
 | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
 | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
 
+### 8. Deploy and Configure Fee Infra Polygon
 
-### TODO: Polygon
+**Overview**:
+
+We load the addresses from the `broadcast/` directory, which is where the prerequisite deployment
+script outputs should be writen. Default files are as follows:
+
+```solidity
+string constant POLYGON_DEPLOY_PATH = "broadcast/DepoyWormholeInfraPolygon.s.sol/137/run-latest.json";
+```
+
+We perform a myriad of contract and state checks before proceeding to minimize risks of malformed or
+incorrect data.
+
+From here, we deploy the `TokenJar` and `WormholeReleaser`, set the `WormholeReleaser` to be the
+releaser for `TokenJar`, transfer ownership of each to governance, threshold setting permission to
+governance, delpoy the `V3OpenFeeAdapter` and set default fee tiers, then transfer the fee setting
+permission and ownership to governance.
+
+**Foundry Script**:
+
+[`./deploys/DeployAndConfigureFeeInfraPolygon.s.sol`](./deploys/DeployAndConfigureFeeInfraPolygon.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraPolygon.s.sol:DeployAndConfigureFeeInfraPolygonScript
+```
+
+**Transactions**:
+
+| Index | Action                                                                                 |
+| ----- | -------------------------------------------------------------------------------------- |
+| 00    | Deploy `TokenJar`.                                                                     |
+| 01    | Deploy `WormholeReleaser`.                                                             |
+| 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
+| 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
+| 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
+| 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
+| 06    | Deploy `V3OpenFeeAdapter`.                                                             |
+| 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
+| 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
+| 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+| 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+| 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
+| 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
+
+### 9. Propose Governance Actions
 
 ## Governance Actions
 
-Governance takes five actions; one for Celo, one for BNB Chain, and three for Polygon. The actions
-on Celo and BNB Chain contain multiple batched operations but Polygon cannot handled batched
-operations.
+Governance takes three actions, one for each chain: Celo, BNB Chain, and Polygon. Each action
+contains multiple inner calls to take appropriate action for each chain.
 
-### Celo Actions
+In short:
+
+Celo actions are to turn on fee collection for the V2 and V3 factories and to transfer ownership of
+the protocol from the `UniswapWormholeReceiver` (governance-owned wormhole receiver contract on
+Celo) to the `CrossChainAccount` (governance-owned optimism bridge receiver contract on Celo).
+
+BNB Chain actions are to turn on fee collection for the V2 and V3 factories.
+
+Polygon actions are to turn on fee collection for the V2 and V3 factories.
+
+**Fee activation for V4 is beyond the scrope of this proposal.**
+
+- Action 0 (Celo):
+  - `Wormhole.sendMessage(targets, values, datas, UniswapMessageReceiver, CeloChainID)`
+  - encodes:
+    - `V2Factory.setFeeTo(TokenJar)`
+    - `V2Factory.setFeeToSetter(CrossChainAccount)`
+    - `V3Factory.setOwner(V3OpenFeeAdapter)`
+    - `PoolManager.setFeeTo(CrossChainAccount)`
+- Action 1 (BNB):
+  - `Wormhole.sendMessage(targets, values, datas, UniswapMessageReceiver, BNBChainID) `
+  - encodes:
+    - `V2Factory.setFeeTo(TokenJar)`
+    - `V3Factory.setOwner(V3OpenFeeAdapter)`
+- Action 2 (Polygon):
+  - `PolygonFxRoot.sendMessageToChild(receiver, targets, values, datas)`
+  - encodes:
+    - `V2Factory.setFeeTo(TokenJar)`
+    - `V3Factory.setOwner(V3OpenFeeAdapter)`
+
+### Celo
 
 ---
 
@@ -586,6 +865,19 @@ operations.
 This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfers ownership of
 `UniswapV2Factory` and `PoolManager` to Optimism `CrossChainAccount`, and transfers ownerhsip of
 `UniswapV3Factory` to `V3OpenFeeAdapter`.
+
+**RELEVANT ADDRESSES**:
+
+| Name                                | Network  | Address                                      | Description                         |
+| ----------------------------------- | -------- | -------------------------------------------- | ----------------------------------- |
+| `V2_FACTORY`                        | Celo     | `0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f` | Uniswap V2 Factory                  |
+| `V3_FACTORY`                        | Celo     | `0xAfE208a311B21f13EF87E33A90049fC17A7acDEc` | Uniswap V3 Factory                  |
+| `V4_POOL_MANAGER`                   | Celo     | `0x288dc841A52FCA2707c6947B3A777c5E56cd87BC` | Uniswap V4 Pool Manager             |
+| `TOKEN_JAR`                         | Celo     | `0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B` | Fee Collector                       |
+| `CROSS_CHAIN_ACCOUNT`               | Celo     | `0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7` | Governance Owned OP Bridge Receiver |
+| `V3_OPEN_FEE_ADAPTER`               | Celo     | `0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4` | Uniswap V3 Fee Adapter              |
+| `UNISWAP_WORMHOLE_MESSAGE_RECEIVER` | Celo     | `0x0Eb863541278308c3A64F8E908BC646e27BFD071` | Governance Owned Wormhole Receiver  |
+| `WORMHOLE_SENDER`                   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a` | Wormhole Sender                     |
 
 **ACTIONS**:
 
@@ -598,8 +890,12 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfer
 **BEFORE AND AFTER**:
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart LR
-    subgraph after
+    subgraph after[After Action]
         direction LR
 
         A_UniswapV2Factory(UniswapV2Factory)
@@ -610,18 +906,28 @@ flowchart LR
         A_V3OpenFeeAdapter(V3OpenFeeAdapter)
         A_OptimismBridge((OptimismBridge))
 
-        A_UniswapV2Factory -->|feeTo| A_TokenJar
-        A_UniswapV2Factory -->|feeToSetter| A_CrossChainAccount
-        A_UniswapV3Factory -->|owner| A_V3OpenFeeAdapter
-        A_TokenJar -->|owner| A_CrossChainAccount
-        A_V3OpenFeeAdapter -->|owner| A_CrossChainAccount
-        A_PoolManager -->|owner| A_CrossChainAccount
+        subgraph A_Core[Uniswap Core]
+            A_UniswapV2Factory
+            A_UniswapV3Factory
+            A_PoolManager
+        end
 
-        A_CrossChainAccount -.-> A_OptimismBridge
+        A_UniswapV2Factory -->|"feeTo()"| A_TokenJar
+        A_UniswapV2Factory -->|"feeToSetter()"| A_CrossChainAccount
+
+        A_UniswapV3Factory -->|"owner()"| A_V3OpenFeeAdapter
+        A_V3OpenFeeAdapter -->|"owner()"| A_CrossChainAccount
+        A_V3OpenFeeAdapter -->|"tokenJar()"| A_TokenJar
+
+        A_PoolManager -->|"owner()"| A_CrossChainAccount
+
+        A_TokenJar -->|"owner()"| A_CrossChainAccount
+
+        A_CrossChainAccount -.->|"bridge"| A_OptimismBridge
 
     end
 
-    subgraph before
+    subgraph before[Before Action]
         direction LR
 
         B_UniswapV2Factory(UniswapV2Factory)
@@ -631,33 +937,42 @@ flowchart LR
         B_CrossChainAccount(CrossChainAccount)
         B_V3OpenFeeAdapter(V3OpenFeeAdapter)
         B_WormholeReceiver(WormholeReceiver)
+        B_Z(0x00..00)
         B_WormholeBridge((WormholeBridge))
         B_OptimismBridge((OptimismBridge))
-        B_Z(0x00..00)
 
-        B_UniswapV2Factory -->|feeTo| B_Z
-        B_UniswapV2Factory -->|feeToSetter| B_WormholeReceiver
-        B_UniswapV3Factory -->|owner| B_WormholeReceiver
-        B_PoolManager -->|owner| B_WormholeReceiver
-        B_TokenJar -->|owner| B_CrossChainAccount
-        B_V3OpenFeeAdapter -->|owner| B_CrossChainAccount
+        subgraph B_Core[Uniswap Core]
+            B_UniswapV2Factory
+            B_UniswapV3Factory
+            B_PoolManager
+        end
 
-        B_WormholeReceiver -.-> B_WormholeBridge
-        B_CrossChainAccount -.-> B_OptimismBridge
+        B_UniswapV2Factory -->|"feeTo()"| B_Z
+        B_UniswapV2Factory -->|"feeToSetter()"| B_WormholeReceiver
+        B_UniswapV3Factory -->|"owner()"| B_WormholeReceiver
+        B_PoolManager -->|"owner()"| B_WormholeReceiver
+        B_TokenJar -->|"owner()"| B_CrossChainAccount
+        B_V3OpenFeeAdapter -->|"owner()"| B_CrossChainAccount
+
+        B_WormholeReceiver -.->|"bridge"| B_WormholeBridge
+        B_CrossChainAccount -.->|"bridge"| B_OptimismBridge
     end
 
     before:::before
     after:::after
+    A_Core:::core
+    B_Core:::core
 
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
-    classDef before fill:#59213f,color:#fff
-    classDef after fill:#3d7d69,color:#fff
+    classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
+    classDef after fill:#202020,color:#fff,stroke:#3d7d69,stroke-width:4
+    classDef core fill:#202020,color:#fff,stroke:#f50db4,stroke-width:4
 ```
 
 ### BNB Chain Actions
 
 ---
+
+TODO: rework this section to match celo
 
 **OVERVIEW**:
 
@@ -673,8 +988,12 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfer
 **BEFORE AND AFTER**:
 
 ```mermaid
+---
+config:
+    theme: 'dark'
+---
 flowchart LR
-    subgraph after
+    subgraph after[After Action]
         direction LR
 
         A_UniswapV2Factory(UniswapV2Factory)
@@ -683,48 +1002,65 @@ flowchart LR
         A_TokenJar(TokenJar)
         A_V3OpenFeeAdapter(V3OpenFeeAdapter)
         A_WormholeReceiver(WormholeReceiver)
+        A_WormhleNTTManager(WormholeNTTManager)
+        A_WormholeReleaser(WormholeReleaser)
         A_WormholeBridge((WormholeBridge))
 
-        A_UniswapV2Factory -->|feeTo| A_TokenJar
-        A_UniswapV2Factory -->|feeToSetter| A_WormholeReceiver
-        A_UniswapV3Factory -->|owner| A_V3OpenFeeAdapter
-        A_TokenJar -->|owner| A_WormholeReceiver
-        A_V3OpenFeeAdapter -->|owner| A_WormholeReceiver
-        A_PoolManager -->|owner| A_WormholeReceiver
+        subgraph A_Core[Uniswap Core]
+            A_UniswapV2Factory
+            A_UniswapV3Factory
+            A_PoolManager
+        end
 
-        A_WormholeReceiver -.-> A_WormholeBridge
+        A_WormhleNTTManager -->|"owner()"| A_WormholeReceiver
+        A_WormhleNTTManager -.->|"bridge"| A_WormholeBridge
+        A_WormholeReleaser -->|"owner()"| A_WormholeReceiver
+        A_TokenJar -->|"owner()"| A_WormholeReceiver
 
+        A_UniswapV2Factory -->|"feeTo()"| A_TokenJar
+        A_UniswapV2Factory -->|"feeToSetter()"| A_WormholeReceiver
+
+        A_UniswapV3Factory -->|"owner()"| A_V3OpenFeeAdapter
+        A_V3OpenFeeAdapter -->|"owner()"| A_WormholeReceiver
+        A_V3OpenFeeAdapter -->|"tokenJar()"| A_TokenJar
+
+        A_PoolManager -->|"owner()"| A_WormholeReceiver
+
+        A_WormholeReceiver -.->|"bridge"| A_WormholeBridge
     end
 
-    subgraph before
+    subgraph before[Before Action]
         direction LR
 
         B_UniswapV2Factory(UniswapV2Factory)
         B_UniswapV3Factory(UniswapV3Factory)
         B_PoolManager(PoolManager)
-        B_TokenJar(TokenJar)
-        B_V3OpenFeeAdapter(V3OpenFeeAdapter)
         B_WormholeReceiver(WormholeReceiver)
         B_WormholeBridge((WormholeBridge))
-        B_Z(0x00..00)
+        B_Z(0x00...00)
 
-        B_UniswapV2Factory -->|feeTo| B_Z
-        B_UniswapV2Factory -->|feeToSetter| B_WormholeReceiver
-        B_UniswapV3Factory -->|owner| B_WormholeReceiver
-        B_PoolManager -->|owner| B_WormholeReceiver
-        B_TokenJar -->|owner| B_WormholeReceiver
-        B_V3OpenFeeAdapter -->|owner| B_WormholeReceiver
+        subgraph B_Core[Uniswap Core]
+            B_UniswapV2Factory
+            B_UniswapV3Factory
+            B_PoolManager
+        end
+
+        B_UniswapV2Factory -->|"feeTo()"| B_Z
+        B_UniswapV2Factory -->|"feeToSetter()"| B_WormholeReceiver
+        B_UniswapV3Factory -->|"owner()"| B_WormholeReceiver
+        B_PoolManager -->|"owner()"| B_WormholeReceiver
 
         B_WormholeReceiver -.-> B_WormholeBridge
     end
 
     before:::before
     after:::after
+    A_Core:::core
+    B_Core:::core
 
-    linkStyle default stroke:#fff,stroke-width:4px
-    classDef default fill:#202020,color:#fff
-    classDef before fill:#59213f,color:#fff
-    classDef after fill:#3d7d69,color:#fff
+    classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
+    classDef after fill:#202020,color:#fff,stroke:#3d7d69,stroke-width:4
+    classDef core fill:#202020,color:#fff,stroke:#f50db4,stroke-width:4
 ```
 
 ### Polygon Actions
@@ -738,3 +1074,80 @@ TODO
 **ACTIONS**:
 
 TODO
+
+```mermaid
+---
+config:
+    theme: 'dark'
+---
+flowchart LR
+    subgraph after[After Action]
+        direction LR
+
+        A_UniswapV2Factory(UniswapV2Factory)
+        A_UniswapV3Factory(UniswapV3Factory)
+        A_PoolManager(PoolManager)
+        A_TokenJar(TokenJar)
+        A_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        A_EthereumProxy(EthereumProxy)
+        A_WormhleNTTManager(WormholeNTTManager)
+        A_WormholeReleaser(WormholeReleaser)
+        A_WormholeBridge((WormholeBridge))
+        A_FxReceiver((PolygonBridge))
+
+        subgraph A_Core[Uniswap Core]
+            A_UniswapV2Factory
+            A_UniswapV3Factory
+            A_PoolManager
+        end
+
+        A_WormhleNTTManager -->|"owner()"| A_EthereumProxy
+        A_WormhleNTTManager -.->|"bridge"| A_WormholeBridge
+        A_WormholeReleaser -->|"owner()"| A_EthereumProxy
+        A_TokenJar -->|"owner()"| A_EthereumProxy
+
+        A_UniswapV2Factory -->|"feeTo()"| A_TokenJar
+        A_UniswapV2Factory -->|"feeToSetter()"| A_EthereumProxy
+
+        A_UniswapV3Factory -->|"owner()"| A_V3OpenFeeAdapter
+        A_V3OpenFeeAdapter -->|"owner()"| A_EthereumProxy
+        A_V3OpenFeeAdapter -->|"tokenJar()"| A_TokenJar
+
+        A_PoolManager -->|"owner()"| A_EthereumProxy
+
+        A_EthereumProxy -.->|"bridge"| A_FxReceiver
+    end
+
+    subgraph before[Before Action]
+        direction LR
+
+        B_UniswapV2Factory(UniswapV2Factory)
+        B_UniswapV3Factory(UniswapV3Factory)
+        B_PoolManager(PoolManager)
+        B_EthereumProxy(EthereumProxy)
+        B_Z(0x00...00)
+        B_FxReceiver((PolygonBridge))
+
+        subgraph B_Core[Uniswap Core]
+            B_UniswapV2Factory
+            B_UniswapV3Factory
+            B_PoolManager
+        end
+
+        B_UniswapV2Factory -->|"feeTo()"| B_Z
+        B_UniswapV2Factory -->|"feeToSetter()"| B_EthereumProxy
+        B_UniswapV3Factory -->|"owner()"| B_EthereumProxy
+        B_PoolManager -->|"owner()"| B_EthereumProxy
+
+        B_EthereumProxy -.->|"bridge"| B_FxReceiver
+    end
+
+    before:::before
+    after:::after
+    A_Core:::core
+    B_Core:::core
+
+    classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
+    classDef after fill:#202020,color:#fff,stroke:#3d7d69,stroke-width:4
+    classDef core fill:#202020,color:#fff,stroke:#f50db4,stroke-width:4
+```
