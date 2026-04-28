@@ -7,13 +7,12 @@ pragma solidity ^0.8.20;
 /// @dev Throws if any address is the zero address.
 function smokeCheck() pure {
   // l1
-  require(L1.TIMELOCK != address(0x00), "L1.TIMELOCK is address(0x00)");
-  require(L1.UNI != address(0x00), "L1.UNI is address(0x00)");
-  require(L1.CELO_PORTAL != address(0x00), "L1.CELO_PORTAL is address(0x00)");
-  require(L1.POLYGON_FX_ROOT != address(0x00), "L1.POLYGON_FX_ROOT is address(0x00)");
-  require(L1.WORMHOLE_SENDER != address(0x00), "L1.WORMHOLE_SENDER is address(0x00)");
-  require(L1.WORMHOLE != address(0x00), "L1.WORMHOLE is address(0x00)");
-  // require(L1.LAYER_ZERO_ENDPOINT != address(0x00));
+  require(Ethereum.TIMELOCK != address(0x00), "Ethereum.TIMELOCK is address(0x00)");
+  require(Ethereum.UNI != address(0x00), "Ethereum.UNI is address(0x00)");
+  require(Ethereum.CELO_PORTAL != address(0x00), "Ethereum.CELO_PORTAL is address(0x00)");
+  require(Ethereum.POLYGON_FX_ROOT != address(0x00), "Ethereum.POLYGON_FX_ROOT is address(0x00)");
+  require(Ethereum.WORMHOLE_SENDER != address(0x00), "Ethereum.WORMHOLE_SENDER is address(0x00)");
+  require(Ethereum.WORMHOLE != address(0x00), "Ethereum.WORMHOLE is address(0x00)");
 
   // celo
   require(Celo.V2_FACTORY != address(0x00), "Celo.V2_FACTORY is address(0x00)");
@@ -43,7 +42,7 @@ function smokeCheck() pure {
   require(Polygon.V3_OPEN_FEE_ADAPTER != address(0x00), "Polygon.V3_OPEN_FEE_ADAPTER is address(0x00)");
 }
 
-library L1 {
+library Ethereum {
   /// @dev Governance Timelock.
   address constant TIMELOCK = 0x1a9C8182C09F50C8318d769245beA52c32BE35BC;
 
@@ -61,9 +60,6 @@ library L1 {
 
   /// @dev Wormhole.
   address constant WORMHOLE = address(0x00);
-
-  // /// @dev Layer Zero Endpoint.
-  // address constant LAYER_ZERO_ENDPOINT = address(0x00);
 }
 
 library Celo {
@@ -103,7 +99,11 @@ library Celo {
   address constant UNISWAP_WORMHOLE_MESSAGE_RECEIVER = 0x0Eb863541278308c3A64F8E908BC646e27BFD071;
 
   /// @dev Optimism Bridge Cross Chain Account
-  address constant CROSS_CHAIN_ACCOUNT = address(0x00);
+  ///
+  /// source: referenced in last two proposals for ownership handoff:
+  /// - `script/proposal-2/05_ActivateL2sProposal.s.sol`
+  /// - `script/proposal-3/06_ActivateL2sProposal.s.sol`
+  address constant CROSS_CHAIN_ACCOUNT = address(0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7);
 }
 
 library BNB {
@@ -149,6 +149,9 @@ library Polygon {
 
   /// @dev Fee adapter.
   address constant V3_OPEN_FEE_ADAPTER = address(0x00);
+
+  /// @dev Wormhole Core Bridge.
+  address constant WORMHOLE = address(0x00);
 }
 
 /// @dev Wormhole-defined chain Id's. Different from real chain Id's.
@@ -158,4 +161,6 @@ library Wormhole {
   uint16 internal constant CELO_CHAIN_ID = 14;
 
   uint16 internal constant BNB_CHAIN_ID = 4;
+
+  uint16 internal constant POLYGON_CHAIN_ID = 5;
 }
