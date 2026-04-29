@@ -4,7 +4,8 @@ pragma solidity ^0.8.29;
 import {Currency} from "v4-core/types/Currency.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
-import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
+import {IWormhole} from "../interfaces/wormhole/IWormhole.sol";
+import {INttManager} from "../interfaces/wormhole/INttManager.sol";
 
 /// @title WormholeReleaser
 /// @notice A releaser that triggers a Wormhole Native Token Transfer message sent back to Ethereum.
@@ -17,33 +18,58 @@ import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttMa
 ///    b. The `NTT_MANAGER` passes a message on to Ethereum to burn UNI via `transfer(0xdead, threshold)`.
 ///    c. The NTT Manager on Ethereum facilitates the final burn to `0xdead`.
 contract WormholeReleaser is ExchangeReleaser {
+  /// @dev Thrown when the `release` function refunds Ether in this contract after sending a message
+  /// to Wormhole.
+  error SenderRefundFailed();
+
   /// @dev Wormhole defines a custom chain id for each chain, they set Ethereum chain ID to 2.
   uint16 public constant WORMHOLE_DEFINED_ETH_CHAIN_ID = 2;
 
   /// @dev Final burn address for the `transfer` message forwarded by the `NTT_MANAGER`.
-  bytes32 internal constant BURN_ADDRESS = bytes32(uint256(uint160(address(0xdead))));
+  bytes32 public immutable BURN_ADDRESS = bytes32(uint256(uint160(address(0xdead))));
 
   /// @dev Wormhole Native Token Transfer manager, manages the mint/burn mechanism for crosschain
   /// UNI interactions, forwards the message to Ethereum for the final burn.
-  NttManagerNoRateLimiting public immutable NTT_MANAGER;
+  INttManager public immutable NTT_MANAGER;
+
+  /// @dev Wormhole Core Bridge, queries the message fee required for sending messages.
+  IWormhole public immutable WORMHOLE;
 
   /// @notice Creates the Wormhole Releaser.
+  /// @param _wormhole Wormhole contract.
   /// @param _nttManager NTT Manager contract.
   /// @param _resource Local UNI deployment (`SyntheticNttUni`).
   /// @param _threshold The minimum amount of resource tokens required for exchange.
   /// @param _tokenJar The address of the TokenJar contract holding accumulated fees.
-  constructor(address _nttManager, address _resource, uint256 _threshold, address _tokenJar)
+  constructor(address _wormhole, address _nttManager, address _resource, uint256 _threshold, address _tokenJar)
     ExchangeReleaser(_resource, _threshold, _tokenJar, address(this))
   {
-    NTT_MANAGER = NttManagerNoRateLimiting(_nttManager);
+    NTT_MANAGER = INttManager(_nttManager);
+    WORMHOLE = IWormhole(_wormhole);
   }
 
   /// @notice Hook called after assets are released - initiates transfer message for final burn.
+  /// @dev Wormhole has an optional fee parameter, this contract MUST have at least that much ether
+  /// to send the burn message to Wormhole through NttManager. Caller MUST implement a means to
+  /// receive ether from this contract.
   function _afterRelease(Currency[] calldata, address) internal override {
-    NTT_MANAGER.transfer({
+    uint256 messageFee = WORMHOLE.messageFee();
+
+    RESOURCE.approve(address(NTT_MANAGER), threshold);
+
+    NTT_MANAGER.transfer{value: messageFee}({
         amount: threshold,
         recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID,
         recipient: BURN_ADDRESS
     });
+
+    if (address(this).balance > 0) {
+      (bool success, ) = msg.sender.call{value: address(this).balance}(new bytes(0));
+      require(success, SenderRefundFailed());
+    }
   }
+
+  /// @dev Receives Ether ahead of a `release` call. WARNING: if `release` is not called atomically
+  /// with Ether being sent to this function means the caller can lose their Ether.
+  receive() external payable {}
 }

@@ -73,12 +73,14 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
         //
         // Parameters:
         //
+        // - `_wormhole`: Wormhole core contract.
         // - `_nttManager`: BNBChain NttManager proxy.
         // - `_resource`: BNBChain SyntheticNttUni.
         // - `_threshold`: Minimum amount of `SyntheticNttUni` required to release.
         // - `_tokenJar`: `TokenJar`.
         //
         releaser = new WormholeReleaser{salt: RELEASER_SALT}({
+            _wormhole: Constants.BNB.WORMHOLE,
             _nttManager: bnb.nttManagerProxy,
             _resource: bnb.uni,
             _threshold: Constants.BNB.RELEASER_THRESHOLD,
