@@ -341,6 +341,7 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
         // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
         bnb = Deployment({
             uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[0].contractAddress"),
@@ -370,7 +371,7 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
         require(keccak256(bytes(SyntheticNttUni(bnb.uni).symbol())) == keccak256("NUNI"), "bnb.uni.symbol() mismatch");
         require(SyntheticNttUni(bnb.uni).decimals() == 18, "bnb.uni.decimals() mismatch");
         require(SyntheticNttUni(bnb.uni).ntt() == bnb.nttManagerProxy, "bnb.uni.ntt() mismatch");
-        require(SyntheticNttUni(bnb.uni).owner() == Constants.BNB.WORMHOLE_RECEIVER, "bnb.uni.owner() mismatch");
+        require(SyntheticNttUni(bnb.uni).owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER, "bnb.uni.owner() mismatch");
 
         // Check NttManager proxy.
         //

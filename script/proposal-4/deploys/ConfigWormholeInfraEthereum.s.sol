@@ -11,7 +11,6 @@ import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
 import {WormholeTransceiver} from "lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
@@ -266,6 +265,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
         bnb = Deployment({
             uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[0].contractAddress"),
@@ -294,6 +294,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
         polygon = Deployment({
             uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress"),
@@ -319,6 +320,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
         // | 06    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
         // | 07    | Set the threshold of transceiver attestation redundancy             |
         //
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
         eth = Deployment({
             uni: Constants.Ethereum.UNI,

@@ -55,16 +55,3 @@ interface IUniswapV4PoolManager {
 interface IPolygonFxRoot {
   function sendMessageToChild(address receiver, bytes calldata data) external;
 }
-
-/// @title Layer Zero Endpoint
-/// @dev For Ethereum -> Avalanche
-interface ILayerZeroEndpoint {
-  function send(
-    uint16 destChainId,
-    bytes calldata dest,
-    bytes calldata payload,
-    address payable refundAddress,
-    address zroPaymentAddress,
-    bytes calldata adapterParams
-  ) external;
-}

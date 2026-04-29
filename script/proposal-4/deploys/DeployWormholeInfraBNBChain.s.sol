@@ -208,7 +208,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         // - `newOwner`: Uniswap Wormhole Governance Receiver
         //
         SyntheticNttUni(syntheticNttUni).transferOwnership({
-            newOwner: Constants.BNB.WORMHOLE_RECEIVER
+            newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
         });
 
         // -----------------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         console2.log("\n");
 
         console2.log("syntheticNttUni.owner()                                   : ", SyntheticNttUni(syntheticNttUni).owner());
-        console2.log("BNB Wormhole Receiver                                     : ", Constants.BNB.WORMHOLE_RECEIVER);
+        console2.log("BNB Wormhole Receiver                                     : ", Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
         console2.log("\n");
 
         console2.log("nttManagerProxy ERC1967 Implementation                    : ", readImplementation(nttManagerProxy));
@@ -306,7 +306,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
         // Assertions
         //
         require(SyntheticNttUni(syntheticNttUni).ntt() == nttManagerProxy);
-        require(SyntheticNttUni(syntheticNttUni).owner() == Constants.BNB.WORMHOLE_RECEIVER);
+        require(SyntheticNttUni(syntheticNttUni).owner() == Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
 
         require(readImplementation(nttManagerProxy) == nttManagerImplementation);
         require(NttManagerNoRateLimiting(nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING));

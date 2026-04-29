@@ -341,6 +341,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
         // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
         //
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
         polygon = Deployment({
             uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress"),
