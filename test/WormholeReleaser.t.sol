@@ -220,6 +220,7 @@ contract WormholeReleaserTest is Test {
         ShouldThrow calldata shouldThrow
     ) external {
         uint256 nonce = releaser.nonce();
+        uint256 trimmed = releaser.wormholeTrim(threshold);
 
         wormhole.mockSetMessageFee(wormholeFee);
         releaserCaller.mockSetShouldThrow(shouldThrow.releaserCaller);
@@ -251,6 +252,10 @@ contract WormholeReleaserTest is Test {
         shouldSucceed = shouldSucceed && assets.length <= 20;
 
         if (shouldSucceed) {
+            // note how the amount transferred to the releaser is `threshold`
+            // but the amount approved and sent to the nttManager is `trimmed`
+            //
+            // this is bc we implicitly trim the decimals bc wormhole requires it of us.
             vm.expectEmit(true, true, true, true, address(uni));
             emit MockEmptyERC20.MockTransfer(address(releaserCaller), address(releaser), threshold);
 
@@ -261,11 +266,11 @@ contract WormholeReleaserTest is Test {
             emit IReleaser.Released(nonce, recipient, assets);
 
             vm.expectEmit(true, true, true, true, address(uni));
-            emit MockEmptyERC20.MockApproval(address(releaser), address(nttManager), threshold);
+            emit MockEmptyERC20.MockApproval(address(releaser), address(nttManager), trimmed);
 
             vm.expectEmit(true, true, true, true, address(nttManager));
             emit MockNttManager.MockTransfer(
-                threshold,
+                trimmed,
                 releaser.WORMHOLE_DEFINED_ETH_CHAIN_ID(),
                 releaser.BURN_ADDRESS(),
                 address(releaser),
