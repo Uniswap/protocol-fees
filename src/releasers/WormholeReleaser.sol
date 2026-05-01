@@ -2,6 +2,9 @@
 pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
+
+import {IResourceManager} from "../interfaces/base/IResourceManager.sol";
+import {ResourceManager} from "../base/ResourceManager.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 import {IWormhole} from "../interfaces/wormhole/IWormhole.sol";
@@ -18,8 +21,9 @@ import {INttManager} from "../interfaces/wormhole/INttManager.sol";
 ///    b. The `NTT_MANAGER` passes a message on to Ethereum to burn UNI via `transfer(0xdead, threshold)`.
 ///    c. The NTT Manager on Ethereum facilitates the final burn to `0xdead`.
 contract WormholeReleaser is ExchangeReleaser {
-  /// @dev Thrown when the `release` function refunds Ether in this contract after sending a message
-  /// to Wormhole.
+  /// @dev Thrown when the `release` function fails to refund Ether to the caller after sending a 
+  /// message to Wormhole. Note that any nonzero Ether balance in this releaser after an NttManager
+  /// call implies a refund will be attempted.
   error SenderRefundFailed();
 
   /// @dev Wormhole defines a custom chain id for each chain, they set Ethereum chain ID to 2.
@@ -52,13 +56,19 @@ contract WormholeReleaser is ExchangeReleaser {
   /// @dev Wormhole has an optional fee parameter, this contract MUST have at least that much ether
   /// to send the burn message to Wormhole through NttManager. Caller MUST implement a means to
   /// receive ether from this contract.
+  /// @dev Wormhole clips the decimals down to 8 to accommodate Solana chains. Since forcing the
+  /// trim at `setThreshold` time would require changes up the contract inheritance tree, divergeing
+  /// inheritance tree across deployments, instead we clip at `release` time.
+  /// @dev NOTICE: If governance sets a non-multiple of 1e8, dust will accumulate here. 
   function _afterRelease(Currency[] calldata, address) internal override {
     uint256 messageFee = WORMHOLE.messageFee();
 
-    RESOURCE.approve(address(NTT_MANAGER), threshold);
+    uint256 amount = wormholeTrim(threshold);
+
+    RESOURCE.approve(address(NTT_MANAGER), amount);
 
     NTT_MANAGER.transfer{value: messageFee}({
-        amount: threshold,
+        amount: amount,
         recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID,
         recipient: BURN_ADDRESS
     });
@@ -67,6 +77,12 @@ contract WormholeReleaser is ExchangeReleaser {
       (bool success, ) = msg.sender.call{value: address(this).balance}(new bytes(0));
       require(success, SenderRefundFailed());
     }
+  }
+
+  /// @notice Helper function for trimming decimals. Publicly exposed for clarity's sake.
+  /// @dev All UNI tokens use 18 decimals, all Wormhole Ntt transfers use 8 deciamls. So we clip 10.
+  function wormholeTrim(uint256 amount) public pure returns (uint256) {
+    return amount / 1e10 * 1e10;
   }
 
   /// @dev Receives Ether ahead of a `release` call. WARNING: if `release` is not called atomically
