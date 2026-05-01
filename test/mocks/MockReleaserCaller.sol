@@ -3,10 +3,18 @@ pragma solidity ^0.8.29;
 
 import {IReleaser, Currency} from "../../src/interfaces/IReleaser.sol";
 
+interface IERC20 {
+    function approve(address,uint256) external returns (bool);
+}
+
 contract MockReleaserCaller {
     event MockReceive(address indexed caller, uint256 indexed amount);
 
     bool public mockShouldThrow;
+
+    function doApproval(address uni, address spender, uint256 amount) external {
+        IERC20(uni).approve(spender, amount);
+    }
 
     function doReleaserCall(
         IReleaser releaser,
