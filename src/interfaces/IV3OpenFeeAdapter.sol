@@ -23,6 +23,11 @@ interface IV3OpenFeeAdapter {
   /// requirements.
   error InvalidFeeValue();
 
+  /// @notice Emitted when a token is added to or removed from the excluded-token set
+  /// @param token The token address that was updated
+  /// @param excluded True if the token was added to the set, false if removed
+  event ExcludedTokenUpdated(address indexed token, bool excluded);
+
   /// @notice Emitted when a fee update is triggered for a pool
   /// @param caller The address that triggered the update
   /// @param pool The pool that was updated
@@ -113,6 +118,21 @@ interface IV3OpenFeeAdapter {
   /// @param pool The pool address to query
   /// @return feeValue The encoded fee value for the pool (0 if not set)
   function poolOverrides(address pool) external view returns (uint8 feeValue);
+
+  /// @notice Returns whether a token is in the excluded-token set
+  /// @dev If a token is excluded, the corresponding fee side (feeProtocol0 or feeProtocol1)
+  ///      is forced to zero when applying protocol fees to any pool containing that token.
+  /// @param token The token address to query
+  /// @return True if the token is excluded from fee collection
+  function excludedTokens(address token) external view returns (bool);
+
+  /// @notice Adds or removes a token from the excluded-token set
+  /// @dev Only callable by `owner`. When a pool contains an excluded token (as token0 or token1),
+  ///      the corresponding feeProtocol side is zeroed out before calling setFeeProtocol on the
+  ///      pool, preventing protocol fee collection in that direction.
+  /// @param token The token address to update
+  /// @param excluded True to exclude the token, false to remove the exclusion
+  function setExcludedToken(address token, bool excluded) external;
 
   /// @notice Legacy getter for backwards compatibility - returns effective fee for a tier
   /// @dev Applies waterfall resolution: fee tier default → global default.

@@ -49,6 +49,11 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   /// @inheritdoc IV3OpenFeeAdapter
   mapping(address pool => uint8 feeValue) public poolOverrides;
 
+  /// @inheritdoc IV3OpenFeeAdapter
+  /// @dev Tokens in this set have their corresponding fee side zeroed before setFeeProtocol is
+  ///      called. E.g. if USDC is token0, feeProtocol0 is forced to 0.
+  mapping(address token => bool excluded) public excludedTokens;
+
   /// @return The fee tiers that are enabled on the factory. Iterable so that the protocol fee for
   /// pools of the same pair can be activated with the same call.
   /// @dev Returns four enabled fee tiers: 100, 500, 3000, 10000. May return more if more are
@@ -169,6 +174,12 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
   }
 
   /// @inheritdoc IV3OpenFeeAdapter
+  function setExcludedToken(address token, bool excluded) external onlyOwner {
+    excludedTokens[token] = excluded;
+    emit ExcludedTokenUpdated(token, excluded);
+  }
+
+  /// @inheritdoc IV3OpenFeeAdapter
   function triggerFeeUpdate(address pool) external {
     _setProtocolFee(pool);
   }
@@ -245,7 +256,10 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
 
   /// @notice Sets the protocol fee for a specific pool using waterfall resolution
   /// @dev Only sets the fee for initialized pools (sqrtPriceX96 != 0).
-  ///      Resolution order: pool override → fee tier default → global default
+  ///      Resolution order: pool override → fee tier default → global default.
+  ///      If either pool token is in the excluded-token set, the corresponding fee side
+  ///      (feeProtocol0 for token0, feeProtocol1 for token1) is forced to zero before
+  ///      the call to setFeeProtocol, preventing protocol fee collection on that side.
   /// @param pool The address of the Uniswap V3 pool
   function _setProtocolFee(address pool) internal {
     // Gas optimization: Check pool exists before expensive slot0 read
@@ -261,7 +275,18 @@ contract V3OpenFeeAdapter is IV3OpenFeeAdapter, Owned {
 
     uint8 feeValue = getFee(pool);
 
-    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >> 4);
+    // Unpack the two independent fee sides (each is a 4-bit value)
+    uint8 feeProtocol0 = feeValue % 16;
+    uint8 feeProtocol1 = feeValue >> 4;
+
+    // Apply excluded-token overrides: if a pool token is excluded, zero out that fee side
+    // so the protocol never accumulates fees in the excluded token's denomination.
+    // Example: if USDC is token0, feeProtocol0 is set to 0 regardless of configured defaults.
+    IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
+    if (excludedTokens[v3Pool.token0()]) feeProtocol0 = 0;
+    if (excludedTokens[v3Pool.token1()]) feeProtocol1 = 0;
+
+    IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeProtocol0, feeProtocol1);
 
     emit FeeUpdateTriggered(msg.sender, pool, feeValue);
   }
