@@ -34,6 +34,8 @@ interface IWormhole {
 /// @title Uni V2 Factory
 /// @dev For V2 fee activation
 interface IUniswapV2Factory {
+  function feeToSetter() external view returns (address);
+  function feeTo() external view returns (address);
   function setFeeToSetter(address) external;
   function setFeeTo(address) external;
 }
@@ -41,12 +43,14 @@ interface IUniswapV2Factory {
 /// @title Uni V3 Factory
 /// @dev For V3 fee activation
 interface IUniswapV3Factory {
+  function owner() external view returns (address);
   function setOwner(address) external;
 }
 
 /// @title Uni V4 Pool Manager
 /// @dev For ownership transfer
 interface IUniswapV4PoolManager {
+  function owner() external view returns (address);
   function transferOwnership(address) external;
 }
 
@@ -54,4 +58,8 @@ interface IUniswapV4PoolManager {
 /// @dev For Ethereum -> Polygon
 interface IPolygonFxRoot {
   function sendMessageToChild(address receiver, bytes calldata data) external;
+}
+
+interface IOwned {
+  function owner() external view returns (address);
 }

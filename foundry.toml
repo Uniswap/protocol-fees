@@ -13,6 +13,9 @@ unichain = "${UNICHAIN_RPC_URL}"
 base = "${BASE_RPC_URL}"
 optimism = "${OPTIMISM_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"
+bnb_chain = "${BNB_CHAIN_RPC_URL}"
+polygon = "${POLYGON_RPC_URL}"
+celo = "${CELO_RPC_URL}"
 
 [profile.ci]
 fuzz = { runs = 5000 }
