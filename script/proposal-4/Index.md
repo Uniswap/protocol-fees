@@ -487,19 +487,19 @@ forge script script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployW
 
 **Transactions**:
 
-| Index | Action                                                               |
-| ----- | -------------------------------------------------------------------- |
-| 00    | Deploy SyntheticNttUni.                                              |
-| 01    | Deploy NttManager implementation.                                    |
-| 02    | Deploy NttManager proxy.                                             |
-| 03    | Initialize NttManager proxy.                                         |
-| 04    | Deploy WormholeTransceiver implementation.                           |
-| 05    | Deploy WormholeTransceiver proxy.                                    |
-| 06    | Initialize WormholeTransceiver proxy.                                |
-| 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
-| 08    | Set the threshold of transceiver attestation redundancy.             |
-| 09    | Set SyntheticNttUni mint authority to NttManager proxy.           |
-| 10    | Transfer ownership of SyntheticNttUni to governance.                 |
+| Index | Action                                                                   |
+| ----- | ------------------------------------------------------------------------ |
+| 00    | Deploy `SyntheticNttUni`.                                                |
+| 01    | Deploy `NttManager` implementation.                                      |
+| 02    | Deploy `NttManager` proxy.                                               |
+| 03    | Initialize `NttManager` proxy.                                           |
+| 04    | Deploy `WormholeTransceiver` implementation.                             |
+| 05    | Deploy `WormholeTransceiver` proxy.                                      |
+| 06    | Initialize `WormholeTransceiver` proxy.                                  |
+| 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
+| 08    | Set the threshold of transceiver attestation redundancy.                 |
+| 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
+| 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
 
 ### 2. Deploy Wormhole Infra Polygon
 
@@ -528,19 +528,19 @@ forge script script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWo
 
 **Transactions**:
 
-| Index | Action                                                               |
-| ----- | -------------------------------------------------------------------- |
-| 00    | Deploy SyntheticNttUni.                                              |
-| 01    | Deploy NttManager implementation.                                    |
-| 02    | Deploy NttManager proxy.                                             |
-| 03    | Initialize NttManager proxy.                                         |
-| 04    | Deploy WormholeTransceiver implementation.                           |
-| 05    | Deploy WormholeTransceiver proxy.                                    |
-| 06    | Initialize WormholeTransceiver proxy.                                |
-| 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
-| 08    | Set the threshold of transceiver attestation redundancy.             |
-| 09    | Set SyntheticNttUni mint authority to NttManager proxy.           |
-| 10    | Transfer ownership of SyntheticNttUni to governance.                 |
+| Index | Action                                                                   |
+| ----- | ------------------------------------------------------------------------ |
+| 00    | Deploy `SyntheticNttUni`.                                                |
+| 01    | Deploy `NttManager` implementation.                                      |
+| 02    | Deploy `NttManager` proxy.                                               |
+| 03    | Initialize `NttManager` proxy.                                           |
+| 04    | Deploy `WormholeTransceiver` implementation.                             |
+| 05    | Deploy `WormholeTransceiver` proxy.                                      |
+| 06    | Initialize `WormholeTransceiver` proxy.                                  |
+| 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
+| 08    | Set the threshold of transceiver attestation redundancy.                 |
+| 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
+| 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
 
 ### 3. Deploy Wormhole Infra Ethereum
 
@@ -568,16 +568,16 @@ forge script script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployW
 
 **Transactions**:
 
-| Index | Action                                                               |
-| ----- | -------------------------------------------------------------------- |
-| 00    | Deploy NttManager implementation.                                    |
-| 01    | Deploy NttManager proxy.                                             |
-| 02    | Initialize NttManager proxy.                                         |
-| 03    | Deploy WormholeTransceiver implementation.                           |
-| 04    | Deploy WormholeTransceiver proxy.                                    |
-| 05    | Initialize WormholeTransceiver proxy.                                |
-| 06    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy. |
-| 07    | Set the threshold of transceiver attestation redundancy.             |
+| Index | Action                                                                   |
+| ----- | ------------------------------------------------------------------------ |
+| 00    | Deploy `NttManager` implementation.                                      |
+| 01    | Deploy `NttManager` proxy.                                               |
+| 02    | Initialize `NttManager` proxy.                                           |
+| 03    | Deploy `WormholeTransceiver` implementation.                             |
+| 04    | Deploy `WormholeTransceiver` proxy.                                      |
+| 05    | Initialize `WormholeTransceiver` proxy.                                  |
+| 06    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
+| 07    | Set the threshold of transceiver attestation redundancy.                 |
 
 ### 4. Configure Wormhole Infra BNB Chain
 
@@ -617,13 +617,13 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraBNBChain.s.sol:ConfigW
 
 **Transactions**:
 
-| Index | Action                                                                                            |
-| ----- | ------------------------------------------------------------------------------------------------- |
-| 00    | Set Ethereum WormholeTransceiver proxy as a peer on Ethereum Chain Id (on BNB Chain).             |
-| 01    | Set Ethereum NttManager proxy as a peer (on BNB Chain).                                           |
-| 02    | Transfer NttManager proxy ownership to UniswapWormholeMessageReceiver (cascades to transceivers). |
-| 03    | Renounce pauser on WormholeTransceiver proxy (transfer to `address(0)`).                          |
-| 04    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                                   |
+| Index | Action                                                                                                |
+| ----- | ----------------------------------------------------------------------------------------------------- |
+| 00    | Set Ethereum `WormholeTransceiver` proxy as a peer on Ethereum Chain Id (on BNB Chain).               |
+| 01    | Set Ethereum `NttManager` proxy as a peer (on BNB Chain).                                             |
+| 02    | Transfer `NttManager` proxy ownership to `UniswapWormholeMessageReceiver` (cascades to transceivers). |
+| 03    | Renounce pauser on `WormholeTransceiver` proxy (transfer to `address(0)`).                            |
+| 04    | Renounce pauser on `NttManager` proxy (transfer to `address(0)`).                                     |
 
 
 ### 5. Configure Wormhole Infra Polygon
@@ -664,12 +664,12 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraPolygon.s.sol:ConfigWo
 
 **Transactions**:
 
-| Index | Action                                                                                          |
-| ----- | ----------------------------------------------------------------------------------------------- |
-| 00    | Set Ethereum WormholeTransceiver proxy as a peer on Ethereum Chain Id (on Polygon).             |
-| 01    | Set Ethereum NttManager proxy as a peer (on Polygon).                                           |
-| 02    | Transfer NttManager proxy ownership to Polygon governance receiver (cascades to transceivers).  |
-| 03    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                                 |
+| Index | Action                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------------ |
+| 00    | Set Ethereum `WormholeTransceiver` proxy as a peer on Ethereum Chain Id (on Polygon).            |
+| 01    | Set Ethereum `NttManager` proxy as a peer (on Polygon).                                          |
+| 02    | Transfer `NttManager` proxy ownership to Polygon governance receiver (cascades to transceivers). |
+| 03    | Renounce pauser on `NttManager` proxy (transfer to `address(0)`).                                |
 
 ### 6. Configure Wormhole Infra Ethereum
 
@@ -710,15 +710,15 @@ forge script script/proposal-4/deploys/ConfigWormholeInfraEthereum.s.sol:ConfigW
 
 **Transactions**:
 
-| Index | Action                                                                                      |
-| ----- | ------------------------------------------------------------------------------------------- |
-| 00    | Set BNBChain WormholeTransceiver proxy as a peer to the Ethereum WormholeTransceiver Proxy. |
-| 01    | Set Polygon WormholeTransceiver proxy as a peer to the Ethereum WormholeTransceiver Proxy.  |
-| 02    | Set BNBChain NttManager proxy as a peer to the Ethereum NttManager Proxy.                   |
-| 03    | Set Polygon NttManager proxy as a peer to the Ethereum NttManager Proxy.                    |
-| 04    | Transfer NttManager proxy ownership to Timelock (cascades to transceivers).                 |
-| 05    | Renounce pauser on WormholeTransceiver proxy (transfer to `address(0)`).                    |
-| 06    | Renounce pauser on NttManager proxy (transfer to `address(0)`).                             |
+| Index | Action                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| 00    | Set BNBChain `WormholeTransceiver` proxy as a peer to the Ethereum `WormholeTransceiver` Proxy. |
+| 01    | Set Polygon `WormholeTransceiver` proxy as a peer to the Ethereum `WormholeTransceiver` Proxy.  |
+| 02    | Set BNBChain `NttManager` proxy as a peer to the Ethereum `NttManager` Proxy.                   |
+| 03    | Set Polygon `NttManager` proxy as a peer to the Ethereum `NttManager` Proxy.                    |
+| 04    | Transfer `NttManager` proxy ownership to `Timelock` (cascades to transceivers).                 |
+| 05    | Renounce pauser on `WormholeTransceiver` proxy (transfer to `address(0)`).                      |
+| 06    | Renounce pauser on `NttManager` proxy (transfer to `address(0)`).                               |
 
 ### 7. Deploy and Configure Fee Infra BNB Chain
 
@@ -904,13 +904,13 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar`, transfer
 
 | Name                                | Network  | Address                                      | Description                         |
 | ----------------------------------- | -------- | -------------------------------------------- | ----------------------------------- |
-| `V2_FACTORY`                        | Celo     | `0x79a530c8e2fA8748B7B40dd3629C0520c2cCf03f` | Uniswap V2 Factory                  |
+| `V2_FACTORY`                        | Celo     | `0x114A43DF6C5f54EBB8A9d70Cd1951D3dD68004c7` | Uniswap V2 Factory                  |
 | `V3_FACTORY`                        | Celo     | `0xAfE208a311B21f13EF87E33A90049fC17A7acDEc` | Uniswap V3 Factory                  |
 | `V4_POOL_MANAGER`                   | Celo     | `0x288dc841A52FCA2707c6947B3A777c5E56cd87BC` | Uniswap V4 Pool Manager             |
 | `TOKEN_JAR`                         | Celo     | `0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B` | Fee Collector                       |
-| `CROSS_CHAIN_ACCOUNT`               | Celo     | `0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7` | Governance Owned OP Bridge Receiver |
-| `V3_OPEN_FEE_ADAPTER`               | Celo     | `0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4` | Uniswap V3 Fee Adapter              |
+| `V3_OPEN_FEE_ADAPTER`               | Celo     | `0xB9952C01830306ea2fAAe1505f6539BD260Bfc48` | Uniswap V3 Fee Adapter              |
 | `UNISWAP_WORMHOLE_MESSAGE_RECEIVER` | Celo     | `0x0Eb863541278308c3A64F8E908BC646e27BFD071` | Governance Owned Wormhole Receiver  |
+| `CROSS_CHAIN_ACCOUNT`               | Celo     | `0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7` | Governance Owned OP Bridge Receiver |
 | `WORMHOLE_SENDER`                   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a` | Wormhole Sender                     |
 
 **ACTIONS**:
@@ -1015,13 +1015,11 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and trans
 
 | Name                                | Network   | Address                                      | Description                        |
 | ----------------------------------- | --------- | -------------------------------------------- | ---------------------------------- |
-| `V2_FACTORY`                        | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V2 Factory                 |
-| `V3_FACTORY`                        | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V3 Factory                 |
-| `V4_POOL_MANAGER`                   | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V4 Pool Manager            |
-| `TOKEN_JAR`                         | BNB Chain | `0x0000000000000000000000000000000000000000` | Fee Collector                      |
-| `V3_OPEN_FEE_ADAPTER`               | BNB Chain | `0x0000000000000000000000000000000000000000` | Uniswap V3 Fee Adapter             |
-| `UNISWAP_WORMHOLE_MESSAGE_RECEIVER` | BNB Chain | `0x0000000000000000000000000000000000000000` | Governance Owned Wormhole Receiver |
-| `WORMHOLE_SENDER`                   | Ethereum  | `0x0000000000000000000000000000000000000000` | Wormhole Sender                    |
+| `V2_FACTORY`                        | BNB Chain | `0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6` | Uniswap V2 Factory                 |
+| `V3_FACTORY`                        | BNB Chain | `0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7` | Uniswap V3 Factory                 |
+| `V4_POOL_MANAGER`                   | BNB Chain | `0x28e2Ea090877bF75740558f6BFB36A5ffeE9e9dF` | Uniswap V4 Pool Manager            |
+| `UNISWAP_WORMHOLE_MESSAGE_RECEIVER` | BNB Chain | `0x341c1511141022cf8eE20824Ae0fFA3491F1302b` | Governance Owned Wormhole Receiver |
+| `WORMHOLE_SENDER`                   | Ethereum  | `0xf5F4496219F31CDCBa6130B5402873624585615a` | Wormhole Sender                    |
 
 **ACTIONS**:
 
@@ -1118,15 +1116,13 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and trans
 
 **RELEVANT ADDRESSES**:
 
-| Name                   | Network  | Address                                      | Description                        |
-| ---------------------- | -------- | -------------------------------------------- | ---------------------------------- |
-| `V2_FACTORY`           | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V2 Factory                 |
-| `V3_FACTORY`           | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V3 Factory                 |
-| `V4_POOL_MANAGER`      | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V4 Pool Manager            |
-| `TOKEN_JAR`            | Polygon  | `0x0000000000000000000000000000000000000000` | Fee Collector                      |
-| `V3_OPEN_FEE_ADAPTER`  | Polygon  | `0x0000000000000000000000000000000000000000` | Uniswap V3 Fee Adapter             |
-| `ETHEREUM_PROXY`       | Polygon  | `0x0000000000000000000000000000000000000000` | Governance Owned FxChild Receiver  |
-| `POLYGON_FX_ROOT`      | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)     |
+| Name                  | Network  | Address                                      | Description                       |
+| --------------------- | -------- | -------------------------------------------- | --------------------------------- |
+| `V2_FACTORY`          | Polygon  | `0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C` | Uniswap V2 Factory                |
+| `V3_FACTORY`          | Polygon  | `0x1F98431c8aD98523631AE4a59f267346ea31F984` | Uniswap V3 Factory                |
+| `V4_POOL_MANAGER`     | Polygon  | `0x67366782805870060151383F4BbFF9daB53e5cD6` | Uniswap V4 Pool Manager           |
+| `ETHEREUM_PROXY`      | Polygon  | `0x8a1B966aC46F42275860f905dbC75EfBfDC12374` | Governance Owned FxChild Receiver |
+| `POLYGON_FX_ROOT`     | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)    |
 
 **ACTIONS**:
 
