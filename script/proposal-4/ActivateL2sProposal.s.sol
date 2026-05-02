@@ -15,6 +15,13 @@ import {
 
 string constant PROPOSAL_DESCRIPTION = "TODO";
 
+// deployment paths from the latest contract run
+//
+// sine we can't know the bnb chain & polygon deployment addresses until scripts are run, we should
+// load them here instead, running some checks before proposing.
+string constant POLYGON_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
+string constant BNB_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
+
 /// @title Activate L2's (Plus Celo Retry)
 contract ActivateL2Proposals is Script {
 
@@ -67,8 +74,15 @@ contract ActivateL2Proposals is Script {
     vm.stopBroadcast();
   }
 
-  function _getActions(uint256 actionCount) internal pure returns (ProposalAction[] memory actions) {
+  function _getActions(uint256 actionCount) internal view returns (ProposalAction[] memory actions) {
     actions = new ProposalAction[](actionCount);
+
+    (
+      address bnbChainTokenJar,
+      address bnbChainOpenV3FeeAdapter,
+      address polygonTokenJar,
+      address polygonOpenV3FeeAdapter
+    ) = _loadDeployments();
 
     // ---------------------------------------------------------------------------------------------
     // STEP 1:
@@ -190,11 +204,11 @@ contract ActivateL2Proposals is Script {
 
       targets[0] = Constants.BNB.V2_FACTORY;
       values[0] = 0;
-      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.BNB.TOKEN_JAR));
+      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (bnbChainTokenJar));
 
       targets[1] = Constants.BNB.V3_FACTORY;
       values[1] = 0;
-      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.BNB.V3_OPEN_FEE_ADAPTER));
+      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (bnbChainOpenV3FeeAdapter));
 
       actions[1] = ProposalAction({
         target: Constants.Ethereum.WORMHOLE_SENDER,
@@ -244,11 +258,11 @@ contract ActivateL2Proposals is Script {
 
       targets[0] = Constants.Polygon.V2_FACTORY;
       values[0] = 0;
-      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (Constants.Polygon.TOKEN_JAR));
+      datas[0] = abi.encodeCall(IUniswapV2Factory.setFeeTo, (polygonTokenJar));
 
       targets[1] = Constants.Polygon.V3_FACTORY;
       values[1] = 0;
-      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (Constants.Polygon.V3_OPEN_FEE_ADAPTER));
+      datas[1] = abi.encodeCall(IUniswapV3Factory.setOwner, (polygonOpenV3FeeAdapter));
 
       actions[2] = ProposalAction({
         target: Constants.Ethereum.POLYGON_FX_ROOT,
@@ -263,5 +277,72 @@ contract ActivateL2Proposals is Script {
         )
       });
     }
+  }
+
+  function _loadDeployments() internal view returns (
+    address bnbChainTokenJar,
+    address bnbChainOpenV3FeeAdapter,
+    address polygonTokenJar,
+    address polygonOpenV3FeeAdapter
+  ) {
+    // | Index | Action                                                                                 |
+    // | ----- | -------------------------------------------------------------------------------------- |
+    // | 00    | Deploy `TokenJar`.                                                                     |
+    // | 01    | Deploy `WormholeReleaser`.                                                             |
+    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
+    // | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
+    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
+    // | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
+    // | 06    | Deploy `V3OpenFeeAdapter`.                                                             |
+    // | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
+    // | 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
+    // | 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
+    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
+    /// forge-lint: disable-next-line(unsafe-cheatcode)
+    string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
+
+    bnbChainTokenJar = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[0].contractAddress");
+    bnbChainOpenV3FeeAdapter = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
+
+
+    // | Index | Action                                                                                 |
+    // | ----- | -------------------------------------------------------------------------------------- |
+    // | 00    | Deploy `TokenJar`.                                                                     |
+    // | 01    | Deploy `WormholeReleaser`.                                                             |
+    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
+    // | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
+    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
+    // | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
+    // | 06    | Deploy `V3OpenFeeAdapter`.                                                             |
+    // | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
+    // | 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
+    // | 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
+    // | 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
+    // | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
+    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
+    /// forge-lint: disable-next-line(unsafe-cheatcode)
+    string memory polygonDeployJson = vm.readFile(BNB_DEPLOY_PATH);
+
+    polygonTokenJar = vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress");
+    polygonOpenV3FeeAdapter = vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
+
+    require(bnbChainTokenJar != address(0x00), "bnbChainTokenJar is address(0x00)");
+    require(bnbChainOpenV3FeeAdapter != address(0x00), "bnbChainOpenV3FeeAdapter is address(0x00)");
+    require(polygonTokenJar != address(0x00), "polygonTokenJar is address(0x00)");
+    require(polygonOpenV3FeeAdapter != address(0x00), "polygonOpenV3FeeAdapter is address(0x00)");
   }
 }
