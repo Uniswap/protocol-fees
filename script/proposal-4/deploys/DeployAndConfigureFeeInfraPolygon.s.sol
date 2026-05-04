@@ -329,28 +329,29 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         //
         // Polygon Deployment Transaction Index Recap:
         //
-        // | Index | Action                                                              |
-        // | ----- | ------------------------------------------------------------------- |
-        // | 00    | Deploy SyntheticNttUni.                                             |
-        // | 01    | Deploy NttManager implementation.                                   |
-        // | 02    | Deploy NttManager proxy.                                            |
-        // | 03    | Initialize NttManager proxy.                                        |
-        // | 04    | Deploy WormholeTransceiver implementation.                          |
-        // | 05    | Deploy WormholeTransceiver proxy                                    |
-        // | 06    | Initialize WormholeTransceiver proxy                                |
-        // | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy |
-        // | 08    | Set the threshold of transceiver attestation redundancy             |
-        // | 09    | Set SyntheticNttUni mint authority to NttManager proxy           |
-        // | 10    | Transfer ownership of SyntheticNttUni to governance                 |
+        // | Index | Action                                                                              |
+        // | ----- | ----------------------------------------------------------------------------------- |
+        // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+        // | 01    | Deploy SyntheticNttUni.                                                             |
+        // | 02    | Deploy NttManager implementation.                                                   |
+        // | 03    | Deploy NttManager proxy.                                                            |
+        // | 04    | Initialize NttManager proxy.                                                        |
+        // | 05    | Deploy WormholeTransceiver implementation.                                          |
+        // | 06    | Deploy WormholeTransceiver proxy                                                    |
+        // | 07    | Initialize WormholeTransceiver proxy                                                |
+        // | 08    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy                 |
+        // | 09    | Set the threshold of transceiver attestation redundancy                             |
+        // | 10    | Set SyntheticNttUni mint authority to NttManager proxy                              |
+        // | 11    | Transfer ownership of SyntheticNttUni to governance                                 |
         //
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
         polygon = Deployment({
-            uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress"),
-            nttManagerImplementation: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
-            nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[2].contractAddress"),
-            wormholeTransceiverImplementation: vm.parseJsonAddress(polygonDeployJson, ".transactions[4].contractAddress"),
-            wormholeTransceiverProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[5].contractAddress")
+            uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
+            nttManagerImplementation: vm.parseJsonAddress(polygonDeployJson, ".transactions[2].contractAddress"),
+            nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress"),
+            wormholeTransceiverImplementation: vm.parseJsonAddress(polygonDeployJson, ".transactions[5].contractAddress"),
+            wormholeTransceiverProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress")
         });
 
         // -----------------------------------------------------------------------------------------

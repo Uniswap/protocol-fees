@@ -15,13 +15,13 @@ import {
 } from "../../../script/proposal-4/Interfaces.sol";
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";
 
-contract PreScriptCheckTest is Test {
+contract PreflightCheckTest is Test {
     function testProtocolState() public {
 
         // -----------------------------------------------------------------------------------------
         // -- celo protocol state check
         //
-        vm.createSelectFork("celo");
+        vm.createSelectFork("fork_celo");
 
         // Core
         //
@@ -59,7 +59,7 @@ contract PreScriptCheckTest is Test {
         // -----------------------------------------------------------------------------------------
         // -- bnb chain protocol state check
         //
-        vm.createSelectFork("bnb_chain");
+        vm.createSelectFork("fork_bnb_chain");
 
         // Core
         //
@@ -79,7 +79,7 @@ contract PreScriptCheckTest is Test {
         // -----------------------------------------------------------------------------------------
         // -- polygon protocol state check
         //
-        vm.createSelectFork("polygon");
+        vm.createSelectFork("fork_polygon");
 
         // Core
         //

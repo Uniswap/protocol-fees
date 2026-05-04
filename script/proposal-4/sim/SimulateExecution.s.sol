@@ -19,6 +19,7 @@ string constant BNB_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraBNBChain.
 /// @title Impersonates bridges to simulate proposal run.
 contract SimulateExecution is Script {
     function run() external {
+        vm.startBroadcast();
         (
             address bnbChainTokenJar,
             address bnbChainOpenV3FeeAdapter,
@@ -51,13 +52,13 @@ contract SimulateExecution is Script {
         // -----------------------------------------------------------------------------------------
         // -- polygon sim
         //
-
         vm.createSelectFork("polygon");
         vm.startPrank(Constants.Polygon.ETHEREUM_PROXY);
         IUniswapV2Factory(Constants.Polygon.V2_FACTORY).setFeeTo(polygonTokenJar);
         IUniswapV3Factory(Constants.Polygon.V3_FACTORY).setOwner(polygonOpenV3FeeAdapter);
         vm.stopPrank();
 
+        vm.stopBroadcast();
     }
 
     function _loadDeployments()

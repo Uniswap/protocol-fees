@@ -14,6 +14,8 @@ import {
     IOwned
 } from "../../../script/proposal-4/Interfaces.sol";
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";
+import {ITokenJar} from "../../../src/interfaces/ITokenJar.sol";
+import {IReleaser} from "../../../src/interfaces/IReleaser.sol";
 
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
@@ -79,7 +81,7 @@ contract PostflightCheckTest is Test {
         // -----------------------------------------------------------------------------------------
         // -- celo protocol state check
         //
-        vm.createSelectFork("celo");
+        vm.createSelectFork("fork_celo");
 
         // Core
         //
@@ -117,7 +119,7 @@ contract PostflightCheckTest is Test {
         // -----------------------------------------------------------------------------------------
         // -- bnb chain protocol state check
         //
-        vm.createSelectFork("bnb_chain");
+        vm.createSelectFork("fork_bnb_chain");
 
         // Core
         assertEq(
@@ -138,50 +140,144 @@ contract PostflightCheckTest is Test {
         );
 
         // Wormhole Infrastructure
-        NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
-            NttManagerNoRateLimiting(state.bnbChain.nttManager).getTransceiverInfo();
-        assertEq(transceiverInfos.length, 1);
-        assertEq(transceiverInfos[0].registered, true);
-        assertEq(transceiverInfos[0].enabled, true);
-        assertEq(transceiverInfos[0].index, 0);
+        {
+            NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
+                NttManagerNoRateLimiting(state.bnbChain.nttManager).getTransceiverInfo();
+            assertEq(transceiverInfos.length, 1);
+            assertEq(transceiverInfos[0].registered, true);
+            assertEq(transceiverInfos[0].enabled, true);
+            assertEq(transceiverInfos[0].index, 0);
 
-        require(NttManagerNoRateLimiting(state.bnbChain.nttManager).getMode() == uint8(IManagerBase.Mode.BURNING));
-        require(NttManagerNoRateLimiting(state.bnbChain.nttManager).token() == state.bnbChain.syntheticNttUni);
-        require(NttManagerNoRateLimiting(state.bnbChain.nttManager).getThreshold() == 1);
+            assertEq(NttManagerNoRateLimiting(state.bnbChain.nttManager).getMode(), uint8(IManagerBase.Mode.BURNING));
+            assertEq(NttManagerNoRateLimiting(state.bnbChain.nttManager).token(), state.bnbChain.syntheticNttUni);
+            assertEq(NttManagerNoRateLimiting(state.bnbChain.nttManager).getThreshold(), 1);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).nttManager(), state.bnbChain.nttManager);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).nttManagerToken(), state.bnbChain.syntheticNttUni);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).consistencyLevel(), 202);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).customConsistencyLevel(), 0);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).additionalBlocks(), 0);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).customConsistencyLevelAddress(), address(0x00));
+            assertEq(address(WormholeTransceiver(state.bnbChain.wormholeTransceiver).wormhole()), Constants.BNB.WORMHOLE);
 
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).nttManager() == state.bnbChain.nttManager);
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).nttManagerToken() == state.bnbChain.syntheticNttUni);
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).consistencyLevel() == 202);
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).customConsistencyLevel() == 0);
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).additionalBlocks() == 0);
-        require(WormholeTransceiver(state.bnbChain.wormholeTransceiver).customConsistencyLevelAddress() == address(0x00));
-        require(address(WormholeTransceiver(state.bnbChain.wormholeTransceiver).wormhole()) == Constants.BNB.WORMHOLE);
+            address bnbChainTransceiverPeer = b32Addr(
+                WormholeTransceiver(state.bnbChain.wormholeTransceiver).getWormholePeer(Constants.Wormhole.ETH_CHAIN_ID)
+            );
+            NttManagerNoRateLimiting.NttManagerPeer memory bnbChainNttManagerPeer =
+                NttManagerNoRateLimiting(state.bnbChain.nttManager).getPeer(Constants.Wormhole.ETH_CHAIN_ID);
+
+            assertEq(bnbChainTransceiverPeer, state.ethereum.wormholeTransceiver);
+            assertEq(b32Addr(bnbChainNttManagerPeer.peerAddress), state.ethereum.nttManager);
+            assertEq(bnbChainNttManagerPeer.tokenDecimals, 18);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).owner(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(WormholeTransceiver(state.bnbChain.wormholeTransceiver).pauser(), address(0x00));
+            assertEq(NttManagerNoRateLimiting(state.bnbChain.nttManager).owner(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(NttManagerNoRateLimiting(state.bnbChain.nttManager).pauser(), address(0x00));
+        }
 
         // Fee Infrastructure
+        {
+            assertEq(ITokenJar(state.bnbChain.tokenJar).releaser(), state.bnbChain.wormholeReleaser);
+            assertEq(IOwned(state.bnbChain.tokenJar).owner(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(IReleaser(state.bnbChain.wormholeReleaser).thresholdSetter(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(IOwned(state.bnbChain.wormholeReleaser).owner(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(IV3OpenFeeAdapter(state.bnbChain.v3OpenFeeAdapter).feeSetter(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(IOwned(state.bnbChain.v3OpenFeeAdapter).owner(), Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+            assertEq(IV3OpenFeeAdapter(state.bnbChain.v3OpenFeeAdapter).TOKEN_JAR(), state.bnbChain.tokenJar);
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // -- polygon protocol state check
+        //
+        vm.createSelectFork("fork_polygon");
+
+        // Core
+        assertEq(
+            IUniswapV2Factory(Constants.Polygon.V2_FACTORY).feeTo(),
+            state.polygon.tokenJar
+        );
+        assertEq(
+            IUniswapV2Factory(Constants.Polygon.V2_FACTORY).feeToSetter(),
+            Constants.Polygon.ETHEREUM_PROXY
+        );
+        assertEq(
+            IUniswapV3Factory(Constants.Polygon.V3_FACTORY).owner(),
+            state.polygon.v3OpenFeeAdapter
+        );
+        assertEq(
+            IUniswapV4PoolManager(Constants.Polygon.V4_POOL_MANAGER).owner(),
+            Constants.Polygon.ETHEREUM_PROXY
+        );
+
+        // Wormhole Infrastructure
+        {
+            NttManagerNoRateLimiting.TransceiverInfo[] memory transceiverInfos =
+                NttManagerNoRateLimiting(state.polygon.nttManager).getTransceiverInfo();
+            assertEq(transceiverInfos.length, 1);
+            assertEq(transceiverInfos[0].registered, true);
+            assertEq(transceiverInfos[0].enabled, true);
+            assertEq(transceiverInfos[0].index, 0);
+
+            assertEq(NttManagerNoRateLimiting(state.polygon.nttManager).getMode(), uint8(IManagerBase.Mode.BURNING));
+            assertEq(NttManagerNoRateLimiting(state.polygon.nttManager).token(), state.polygon.syntheticNttUni);
+            assertEq(NttManagerNoRateLimiting(state.polygon.nttManager).getThreshold(), 1);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).nttManager(), state.polygon.nttManager);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).nttManagerToken(), state.polygon.syntheticNttUni);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).consistencyLevel(), 202);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).customConsistencyLevel(), 0);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).additionalBlocks(), 0);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).customConsistencyLevelAddress(), address(0x00));
+            assertEq(address(WormholeTransceiver(state.polygon.wormholeTransceiver).wormhole()), Constants.Polygon.WORMHOLE);
+
+            address polygonChainTransceiverPeer = b32Addr(
+                WormholeTransceiver(state.polygon.wormholeTransceiver).getWormholePeer(Constants.Wormhole.ETH_CHAIN_ID)
+            );
+            NttManagerNoRateLimiting.NttManagerPeer memory polygonChainNttManagerPeer =
+                NttManagerNoRateLimiting(state.polygon.nttManager).getPeer(Constants.Wormhole.ETH_CHAIN_ID);
+
+            assertEq(polygonChainTransceiverPeer, state.ethereum.wormholeTransceiver);
+            assertEq(b32Addr(polygonChainNttManagerPeer.peerAddress), state.ethereum.nttManager);
+            assertEq(polygonChainNttManagerPeer.tokenDecimals, 18);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).owner(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(WormholeTransceiver(state.polygon.wormholeTransceiver).pauser(), address(0x00));
+            assertEq(NttManagerNoRateLimiting(state.polygon.nttManager).owner(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(NttManagerNoRateLimiting(state.polygon.nttManager).pauser(), address(0x00));
+        }
+
+        // Fee Infrastructure
+        {
+            assertEq(ITokenJar(state.polygon.tokenJar).releaser(), state.polygon.wormholeReleaser);
+            assertEq(IOwned(state.polygon.tokenJar).owner(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(IReleaser(state.polygon.wormholeReleaser).thresholdSetter(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(IOwned(state.polygon.wormholeReleaser).owner(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(IV3OpenFeeAdapter(state.polygon.v3OpenFeeAdapter).feeSetter(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(IOwned(state.polygon.v3OpenFeeAdapter).owner(), Constants.Polygon.ETHEREUM_PROXY);
+            assertEq(IV3OpenFeeAdapter(state.polygon.v3OpenFeeAdapter).TOKEN_JAR(), state.polygon.tokenJar);
+        }
     }
 
     function _loadDeployments() internal view returns (State memory state) {
         // Transactions: (`BNB_DEPLOY_PATH`)
         //
-        // | Index | Action                                                                   |
-        // | ----- | ------------------------------------------------------------------------ |
-        // | 00    | Deploy `SyntheticNttUni`.                                                |
-        // | 01    | Deploy `NttManager` implementation.                                      |
-        // | 02    | Deploy `NttManager` proxy.                                               |
-        // | 03    | Initialize `NttManager` proxy.                                           |
-        // | 04    | Deploy `WormholeTransceiver` implementation.                             |
-        // | 05    | Deploy `WormholeTransceiver` proxy.                                      |
-        // | 06    | Initialize `WormholeTransceiver` proxy.                                  |
-        // | 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-        // | 08    | Set the threshold of transceiver attestation redundancy.                 |
-        // | 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
-        // | 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
+        // | Index | Action                                                                              |
+        // | ----- | ----------------------------------------------------------------------------------- |
+        // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+        // | 01    | Deploy `SyntheticNttUni`.                                                           |
+        // | 02    | Deploy `NttManager` implementation.                                                 |
+        // | 03    | Deploy `NttManager` proxy.                                                          |
+        // | 04    | Initialize `NttManager` proxy.                                                      |
+        // | 05    | Deploy `WormholeTransceiver` implementation.                                        |
+        // | 06    | Deploy `WormholeTransceiver` proxy.                                                 |
+        // | 07    | Initialize `WormholeTransceiver` proxy.                                             |
+        // | 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+        // | 09    | Set the threshold of transceiver attestation redundancy.                            |
+        // | 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+        // | 11    | Transfer ownership of `SyntheticNttUni` to governance.                              |
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
-        state.bnbChain.syntheticNttUni = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[0].contractAddress");
-        state.bnbChain.nttManager = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[2].contractAddress");
-        state.bnbChain.wormholeTransceiver = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[5].contractAddress");
+        state.bnbChain.syntheticNttUni = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[1].contractAddress");
+        state.bnbChain.nttManager = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[3].contractAddress");
+        state.bnbChain.wormholeTransceiver = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
 
         // Transactions: (`BNB_DEPLOY_FEE_INFRA_PATH`)
         //
@@ -215,25 +311,26 @@ contract PostflightCheckTest is Test {
 
         // Transactions (`POLYGON_DEPLOY_PATH`)
         //
-        // | Index | Action                                                                   |
-        // | ----- | ------------------------------------------------------------------------ |
-        // | 00    | Deploy `SyntheticNttUni`.                                                |
-        // | 01    | Deploy `NttManager` implementation.                                      |
-        // | 02    | Deploy `NttManager` proxy.                                               |
-        // | 03    | Initialize `NttManager` proxy.                                           |
-        // | 04    | Deploy `WormholeTransceiver` implementation.                             |
-        // | 05    | Deploy `WormholeTransceiver` proxy.                                      |
-        // | 06    | Initialize `WormholeTransceiver` proxy.                                  |
-        // | 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-        // | 08    | Set the threshold of transceiver attestation redundancy.                 |
-        // | 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
-        // | 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
+        // | Index | Action                                                                              |
+        // | ----- | ----------------------------------------------------------------------------------- |
+        // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+        // | 01    | Deploy `SyntheticNttUni`.                                                           |
+        // | 02    | Deploy `NttManager` implementation.                                                 |
+        // | 03    | Deploy `NttManager` proxy.                                                          |
+        // | 04    | Initialize `NttManager` proxy.                                                      |
+        // | 05    | Deploy `WormholeTransceiver` implementation.                                        |
+        // | 06    | Deploy `WormholeTransceiver` proxy.                                                 |
+        // | 07    | Initialize `WormholeTransceiver` proxy.                                             |
+        // | 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+        // | 09    | Set the threshold of transceiver attestation redundancy.                            |
+        // | 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+        // | 11    | Transfer ownership of `SyntheticNttUni` to governance.                              |
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
 
-        state.polygon.syntheticNttUni = vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress");
-        state.polygon.nttManager = vm.parseJsonAddress(polygonDeployJson, ".transactions[2].contractAddress");
-        state.polygon.wormholeTransceiver = vm.parseJsonAddress(polygonDeployJson, ".transactions[5].contractAddress");
+        state.polygon.syntheticNttUni = vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress");
+        state.polygon.nttManager = vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress");
+        state.polygon.wormholeTransceiver = vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
 
         // Transactions (`POLYGON_DEPLOY_FEE_INFRA_PATH`)
         //
@@ -265,24 +362,24 @@ contract PostflightCheckTest is Test {
         state.polygon.wormholeReleaser = vm.parseJsonAddress(polygonDeployFeeInfraJson, ".transactions[1].contractAddress");
         state.polygon.v3OpenFeeAdapter = vm.parseJsonAddress(polygonDeployFeeInfraJson, ".transactions[6].contractAddress");
 
-
         // Transactions (`ETH_DEPLOY_PATH`)
         //
-        // | Index | Action                                                                   |
-        // | ----- | ------------------------------------------------------------------------ |
-        // | 00    | Deploy `NttManager` implementation.                                      |
-        // | 01    | Deploy `NttManager` proxy.                                               |
-        // | 02    | Initialize `NttManager` proxy.                                           |
-        // | 03    | Deploy `WormholeTransceiver` implementation.                             |
-        // | 04    | Deploy `WormholeTransceiver` proxy.                                      |
-        // | 05    | Initialize `WormholeTransceiver` proxy.                                  |
-        // | 06    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-        // | 07    | Set the threshold of transceiver attestation redundancy.                 |
+        // | Index | Action                                                                              |
+        // | ----- | ----------------------------------------------------------------------------------- |
+        // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+        // | 01    | Deploy `NttManager` implementation.                                                 |
+        // | 02    | Deploy `NttManager` proxy.                                                          |
+        // | 03    | Initialize `NttManager` proxy.                                                      |
+        // | 04    | Deploy `WormholeTransceiver` implementation.                                        |
+        // | 05    | Deploy `WormholeTransceiver` proxy.                                                 |
+        // | 06    | Initialize `WormholeTransceiver` proxy.                                             |
+        // | 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+        // | 08    | Set the threshold of transceiver attestation redundancy.                            |
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         string memory ethereumDeployJson = vm.readFile(ETH_DEPLOY_PATH);
 
-        state.ethereum.nttManager = vm.parseJsonAddress(ethereumDeployJson, ".transactions[1].contractAddress");
-        state.ethereum.wormholeTransceiver = vm.parseJsonAddress(ethereumDeployJson, ".transactions[4].contractAddress");
+        state.ethereum.nttManager = vm.parseJsonAddress(ethereumDeployJson, ".transactions[2].contractAddress");
+        state.ethereum.wormholeTransceiver = vm.parseJsonAddress(ethereumDeployJson, ".transactions[5].contractAddress");
     }
 
     function readImplementation(address proxy) internal view returns (address) {

@@ -487,19 +487,20 @@ forge script script/proposal-4/deploys/DeployWormholeInfraBNBChain.s.sol:DeployW
 
 **Transactions**:
 
-| Index | Action                                                                   |
-| ----- | ------------------------------------------------------------------------ |
-| 00    | Deploy `SyntheticNttUni`.                                                |
-| 01    | Deploy `NttManager` implementation.                                      |
-| 02    | Deploy `NttManager` proxy.                                               |
-| 03    | Initialize `NttManager` proxy.                                           |
-| 04    | Deploy `WormholeTransceiver` implementation.                             |
-| 05    | Deploy `WormholeTransceiver` proxy.                                      |
-| 06    | Initialize `WormholeTransceiver` proxy.                                  |
-| 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-| 08    | Set the threshold of transceiver attestation redundancy.                 |
-| 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
-| 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
+| Index | Action                                                                              |
+| ----- | ----------------------------------------------------------------------------------- |
+| 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| 01    | Deploy `SyntheticNttUni`.                                                           |
+| 02    | Deploy `NttManager` implementation.                                                 |
+| 03    | Deploy `NttManager` proxy.                                                          |
+| 04    | Initialize `NttManager` proxy.                                                      |
+| 05    | Deploy `WormholeTransceiver` implementation.                                        |
+| 06    | Deploy `WormholeTransceiver` proxy.                                                 |
+| 07    | Initialize `WormholeTransceiver` proxy.                                             |
+| 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+| 09    | Set the threshold of transceiver attestation redundancy.                            |
+| 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+| 11    | Transfer ownership of `SyntheticNttUni` to governance.                              |
 
 ### 2. Deploy Wormhole Infra Polygon
 
@@ -528,19 +529,20 @@ forge script script/proposal-4/deploys/DeployWormholeInfraPolygon.s.sol:DeployWo
 
 **Transactions**:
 
-| Index | Action                                                                   |
-| ----- | ------------------------------------------------------------------------ |
-| 00    | Deploy `SyntheticNttUni`.                                                |
-| 01    | Deploy `NttManager` implementation.                                      |
-| 02    | Deploy `NttManager` proxy.                                               |
-| 03    | Initialize `NttManager` proxy.                                           |
-| 04    | Deploy `WormholeTransceiver` implementation.                             |
-| 05    | Deploy `WormholeTransceiver` proxy.                                      |
-| 06    | Initialize `WormholeTransceiver` proxy.                                  |
-| 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-| 08    | Set the threshold of transceiver attestation redundancy.                 |
-| 09    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.              |
-| 10    | Transfer ownership of `SyntheticNttUni` to governance.                   |
+| Index | Action                                                                              |
+| ----- | ----------------------------------------------------------------------------------- |
+| 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| 01    | Deploy `SyntheticNttUni`.                                                           |
+| 02    | Deploy `NttManager` implementation.                                                 |
+| 03    | Deploy `NttManager` proxy.                                                          |
+| 04    | Initialize `NttManager` proxy.                                                      |
+| 05    | Deploy `WormholeTransceiver` implementation.                                        |
+| 06    | Deploy `WormholeTransceiver` proxy.                                                 |
+| 07    | Initialize `WormholeTransceiver` proxy.                                             |
+| 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+| 09    | Set the threshold of transceiver attestation redundancy.                            |
+| 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+| 11    | Transfer ownership of `SyntheticNttUni` to governance.                              |
 
 ### 3. Deploy Wormhole Infra Ethereum
 
@@ -568,16 +570,17 @@ forge script script/proposal-4/deploys/DeployWormholeInfraEthereum.s.sol:DeployW
 
 **Transactions**:
 
-| Index | Action                                                                   |
-| ----- | ------------------------------------------------------------------------ |
-| 00    | Deploy `NttManager` implementation.                                      |
-| 01    | Deploy `NttManager` proxy.                                               |
-| 02    | Initialize `NttManager` proxy.                                           |
-| 03    | Deploy `WormholeTransceiver` implementation.                             |
-| 04    | Deploy `WormholeTransceiver` proxy.                                      |
-| 05    | Initialize `WormholeTransceiver` proxy.                                  |
-| 06    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy. |
-| 07    | Set the threshold of transceiver attestation redundancy.                 |
+| Index | Action                                                                              |
+| ----- | ----------------------------------------------------------------------------------- |
+| 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| 01    | Deploy `NttManager` implementation.                                                 |
+| 02    | Deploy `NttManager` proxy.                                                          |
+| 03    | Initialize `NttManager` proxy.                                                      |
+| 04    | Deploy `WormholeTransceiver` implementation.                                        |
+| 05    | Deploy `WormholeTransceiver` proxy.                                                 |
+| 06    | Initialize `WormholeTransceiver` proxy.                                             |
+| 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+| 08    | Set the threshold of transceiver attestation redundancy.                            |
 
 ### 4. Configure Wormhole Infra BNB Chain
 
@@ -1116,13 +1119,13 @@ This action sets the fee collector of `UniswapV2Factory` to `TokenJar` and trans
 
 **RELEVANT ADDRESSES**:
 
-| Name                  | Network  | Address                                      | Description                       |
-| --------------------- | -------- | -------------------------------------------- | --------------------------------- |
-| `V2_FACTORY`          | Polygon  | `0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C` | Uniswap V2 Factory                |
-| `V3_FACTORY`          | Polygon  | `0x1F98431c8aD98523631AE4a59f267346ea31F984` | Uniswap V3 Factory                |
-| `V4_POOL_MANAGER`     | Polygon  | `0x67366782805870060151383F4BbFF9daB53e5cD6` | Uniswap V4 Pool Manager           |
-| `ETHEREUM_PROXY`      | Polygon  | `0x8a1B966aC46F42275860f905dbC75EfBfDC12374` | Governance Owned FxChild Receiver |
-| `POLYGON_FX_ROOT`     | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)    |
+| Name              | Network  | Address                                      | Description                       |
+| ----------------- | -------- | -------------------------------------------- | --------------------------------- |
+| `V2_FACTORY`      | Polygon  | `0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C` | Uniswap V2 Factory                |
+| `V3_FACTORY`      | Polygon  | `0x1F98431c8aD98523631AE4a59f267346ea31F984` | Uniswap V3 Factory                |
+| `V4_POOL_MANAGER` | Polygon  | `0x67366782805870060151383F4BbFF9daB53e5cD6` | Uniswap V4 Pool Manager           |
+| `ETHEREUM_PROXY`  | Polygon  | `0x8a1B966aC46F42275860f905dbC75EfBfDC12374` | Governance Owned FxChild Receiver |
+| `POLYGON_FX_ROOT` | Ethereum | `0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2` | Polygon's Sender (on Ethereum)    |
 
 **ACTIONS**:
 

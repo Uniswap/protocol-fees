@@ -45,6 +45,11 @@ contract DeployWormholeInfraEthereumScript is Script {
         // -----------------------------------------------------------------------------------------
         // Transaction 00
         //
+        // (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+
+        // -----------------------------------------------------------------------------------------
+        // Transaction 01
+        //
         // Deploy NttManager implementation with no rate limiting.
         //
         // - `_token`: Canonical UNI
@@ -60,7 +65,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         );
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 01
+        // Transaction 02
         //
         // Deploy NttManager proxy and set its implementation.
         //
@@ -81,14 +86,14 @@ contract DeployWormholeInfraEthereumScript is Script {
         }));
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 02
+        // Transaction 03
         //
         // Initialize NttManager proxy.
         //
         NttManagerNoRateLimiting(nttManagerProxy).initialize();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 03
+        // Transaction 04
         //
         // Deploy WormholeTransceiver implementation.
         //
@@ -118,7 +123,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         );
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 04
+        // Transaction 05
         //
         // Deploy WormholeTransceiver proxy.
         //
@@ -133,7 +138,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         uint256 messageFee = IWormhole(Constants.Ethereum.WORMHOLE).messageFee();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 05
+        // Transaction 06
         //
         // Initialize WormholeTransceiver proxy with a recently queried `messageFee`.
         //
@@ -144,7 +149,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         WormholeTransceiver(wormholeTransceiverProxy).initialize{value: messageFee}();
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 06
+        // Transaction 07
         //
         // Set the transceiver to the WormholeTransceiver proxy on the NttManager proxy
         //
@@ -157,7 +162,7 @@ contract DeployWormholeInfraEthereumScript is Script {
         });
 
         // -----------------------------------------------------------------------------------------
-        // Transaction 07
+        // Transaction 08
         //
         // Set the threshold of transceiver attestation redundancy. This gets set to `1` since it's
         // set to this in the wormhole team's deployment script. The wormhole team mentions this is
