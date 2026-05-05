@@ -359,7 +359,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
             NttManagerNoRateLimiting(eth.nttManagerProxy).getTransceiverInfo();
 
         require(readImplementation(eth.nttManagerProxy) == eth.nttManagerImplementation, "eth.nttManagerProxy.implementation() mismatch");
-        require(NttManagerNoRateLimiting(eth.nttManagerProxy).getMode() == uint8(IManagerBase.Mode.BURNING), "eth.nttManagerProxy.mode() mismatch");
+        require(NttManagerNoRateLimiting(eth.nttManagerProxy).getMode() == uint8(IManagerBase.Mode.LOCKING), "eth.nttManagerProxy.mode() mismatch");
         require(NttManagerNoRateLimiting(eth.nttManagerProxy).token() == eth.uni, "eth.nttManagerProxy.token() mismatch");
         require(NttManagerNoRateLimiting(eth.nttManagerProxy).getThreshold() == 1, "eth.nttManagerProxy.getThreshold() mismatch");
         require(transceiverInfos.length == 1, "nttManagerProxy.getTransceiverInfo().length mismatch");

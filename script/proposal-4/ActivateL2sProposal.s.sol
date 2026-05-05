@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 
 import "./Constants.sol" as Constants;
 import {
@@ -67,8 +67,10 @@ contract ActivateL2Proposals is Script {
     vm.startBroadcast();
 
     // propose.
-    IGovernorBravo(Constants.Ethereum.GOVERNOR_BRAVO)
+    uint256 proposalId = IGovernorBravo(Constants.Ethereum.GOVERNOR_BRAVO)
       .propose(targets, values, signatures, datas, PROPOSAL_DESCRIPTION);
+
+    console2.log(proposalId);
 
     // stop the broadcast.
     vm.stopBroadcast();

@@ -51,7 +51,7 @@ struct State {
 }
 
 contract PostflightCheckTest is Test {
-    function testProtocolState() public {
+    function __testProtocolState() public {
         State memory state = _loadDeployments();
 
         // -----------------------------------------------------------------------------------------

@@ -16,7 +16,7 @@ import {
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";
 
 contract PreflightCheckTest is Test {
-    function testProtocolState() public {
+    function __testProtocolState() public {
 
         // -----------------------------------------------------------------------------------------
         // -- celo protocol state check

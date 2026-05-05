@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
 import {
@@ -17,9 +17,10 @@ string constant POLYGON_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraPolyg
 string constant BNB_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
 
 /// @title Impersonates bridges to simulate proposal run.
-contract SimulateExecution is Script {
+contract SimulateExecutionScript is Script {
     function run() external {
         vm.startBroadcast();
+
         (
             address bnbChainTokenJar,
             address bnbChainOpenV3FeeAdapter,
@@ -27,36 +28,22 @@ contract SimulateExecution is Script {
             address polygonOpenV3FeeAdapter
         ) = _loadDeployments();
 
-        // -----------------------------------------------------------------------------------------
-        // -- celo sim
-        //
-        vm.createSelectFork("celo");
-
-        vm.startPrank(Constants.Celo.CROSS_CHAIN_ACCOUNT);
-        IUniswapV2Factory(Constants.Celo.V2_FACTORY).setFeeTo(Constants.Celo.TOKEN_JAR);
-        IUniswapV2Factory(Constants.Celo.V2_FACTORY).setFeeToSetter(Constants.Celo.CROSS_CHAIN_ACCOUNT);
-        IUniswapV3Factory(Constants.Celo.V3_FACTORY).setOwner(Constants.Celo.V3_OPEN_FEE_ADAPTER);
-        IUniswapV4PoolManager(Constants.Celo.V4_POOL_MANAGER).transferOwnership(Constants.Celo.CROSS_CHAIN_ACCOUNT);
-        vm.stopPrank();
-
-        // -----------------------------------------------------------------------------------------
-        // -- bnb chain sim
-        //
-        vm.createSelectFork("bnb_chain");
-
-        vm.startPrank(Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
-        IUniswapV2Factory(Constants.BNB.V2_FACTORY).setFeeTo(bnbChainTokenJar);
-        IUniswapV3Factory(Constants.BNB.V3_FACTORY).setOwner(bnbChainOpenV3FeeAdapter);
-        vm.stopPrank();
-
-        // -----------------------------------------------------------------------------------------
-        // -- polygon sim
-        //
-        vm.createSelectFork("polygon");
-        vm.startPrank(Constants.Polygon.ETHEREUM_PROXY);
-        IUniswapV2Factory(Constants.Polygon.V2_FACTORY).setFeeTo(polygonTokenJar);
-        IUniswapV3Factory(Constants.Polygon.V3_FACTORY).setOwner(polygonOpenV3FeeAdapter);
-        vm.stopPrank();
+        if (block.chainid == 42220) {
+            // -- celo
+            IUniswapV2Factory(Constants.Celo.V2_FACTORY).setFeeTo(Constants.Celo.TOKEN_JAR);
+            IUniswapV2Factory(Constants.Celo.V2_FACTORY).setFeeToSetter(Constants.Celo.CROSS_CHAIN_ACCOUNT);
+            IUniswapV3Factory(Constants.Celo.V3_FACTORY).setOwner(Constants.Celo.V3_OPEN_FEE_ADAPTER);
+            IUniswapV4PoolManager(Constants.Celo.V4_POOL_MANAGER).transferOwnership(Constants.Celo.CROSS_CHAIN_ACCOUNT);
+        } else if (block.chainid == 56) {
+            // -- bnb chain
+            IUniswapV2Factory(Constants.BNB.V2_FACTORY).setFeeTo(bnbChainTokenJar);
+            IUniswapV3Factory(Constants.BNB.V3_FACTORY).setOwner(bnbChainOpenV3FeeAdapter);
+        } else if (block.chainid == 137) {
+            IUniswapV2Factory(Constants.Polygon.V2_FACTORY).setFeeTo(polygonTokenJar);
+            IUniswapV3Factory(Constants.Polygon.V3_FACTORY).setOwner(polygonOpenV3FeeAdapter);
+        } else {
+            revert("unknown chain id");
+        }
 
         vm.stopBroadcast();
     }

@@ -14,10 +14,6 @@ import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
 import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
 import "../Constants.sol" as Constants;
 
-bytes32 constant TOKEN_JAR_SALT = bytes32(uint256(67));
-bytes32 constant RELEASER_SALT = bytes32(uint256(67));
-bytes32 constant FEE_ADAPTER_SALT = bytes32(uint256(67));
-
 // Protocol fee defaults — same as mainnet
 uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
 uint8 constant DEFAULT_FEE_500 = (4 << 4) | 4; // 1/4 for 0.05% tier
@@ -64,7 +60,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         //
         // Deploy `TokenJar`.
         //
-        tokenJar = new TokenJar{salt: TOKEN_JAR_SALT}();
+        tokenJar = new TokenJar();
 
         // -----------------------------------------------------------------------------------------
         // Transaction 01
@@ -79,7 +75,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `_threshold`: Minimum amount of `SyntheticNttUni` required to release.
         // - `_tokenJar`: `TokenJar`.
         //
-        releaser = new WormholeReleaser{salt: RELEASER_SALT}({
+        releaser = new WormholeReleaser({
             _wormhole: Constants.Polygon.WORMHOLE,
             _nttManager: polygon.nttManagerProxy,
             _resource: polygon.uni,
@@ -149,7 +145,7 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
         // - `_factory`: Polygon Uniswap V3 Factory.
         // - `_tokenJar: `TokenJar`.
         //
-        v3OpenFeeAdapter = new V3OpenFeeAdapter{salt: FEE_ADAPTER_SALT}({
+        v3OpenFeeAdapter = new V3OpenFeeAdapter({
             _factory: Constants.Polygon.V3_FACTORY,
             _tokenJar: address(tokenJar)
         });
