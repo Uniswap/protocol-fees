@@ -58,7 +58,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   mapping(uint8 familyId => uint24) public familyDefaults;
 
   /// @inheritdoc IV4FeePolicy
-  mapping(uint8 familyId => uint16) public familyMultiplierBps;
+  mapping(uint8 familyId => uint24) public familyMultiplierPips;
 
   /// @inheritdoc IV4FeePolicy
   mapping(bytes32 pairHash => uint24) public pairFees;
@@ -111,7 +111,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint8 family = _resolveFamily(hook);
     if (family != 0) {
       uint24 pairFee = pairFees[ph];
-      uint16 multiplier = familyMultiplierBps[family];
+      uint24 multiplier = familyMultiplierPips[family];
 
       if (pairFee != 0 && multiplier != 0) {
         return _applyMultiplier(_decodeFee(pairFee), multiplier);
@@ -213,15 +213,16 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setFamilyMultiplier(uint8 familyId, uint16 multiplierBps) external onlyFeeSetter {
+  function setFamilyMultiplier(uint8 familyId, uint24 multiplierPips) external onlyFeeSetter {
     if (familyId == 0) revert InvalidFamilyId();
-    familyMultiplierBps[familyId] = multiplierBps;
-    emit FamilyMultiplierUpdated(familyId, multiplierBps);
+    if (multiplierPips > MULTIPLIER_DENOMINATOR) revert MultiplierTooLarge();
+    familyMultiplierPips[familyId] = multiplierPips;
+    emit FamilyMultiplierUpdated(familyId, multiplierPips);
   }
 
   /// @inheritdoc IV4FeePolicy
   function clearFamilyMultiplier(uint8 familyId) external onlyFeeSetter {
-    delete familyMultiplierBps[familyId];
+    delete familyMultiplierPips[familyId];
     emit FamilyMultiplierUpdated(familyId, 0);
   }
 
@@ -301,10 +302,12 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Applies the global pips multiplier to an LP fee, packing the result symmetrically
   /// into both 12-bit directional components and clamping each to MAX_PROTOCOL_FEE (1000).
+  /// Shares MULTIPLIER_DENOMINATOR (1_000_000) with `_applyMultiplier`. Distinct from that
+  /// helper because this one constructs a symmetric packed fee from a single LP fee value
+  /// and must clamp (LP fees can exceed MAX_PROTOCOL_FEE), whereas `_applyMultiplier`
+  /// rescales an already-validated packed protocol fee per direction and needs no clamp.
   /// @param lpFee The pool's LP fee in pips (from key.fee for static fee pools).
-  /// @param multiplierPips The multiplier in pips. Denominator is MULTIPLIER_DENOMINATOR
-  /// (1_000_000) — this is distinct from `_applyMultiplier`'s 10_000 bps denominator and
-  /// the two helpers must not be conflated.
+  /// @param multiplierPips The multiplier in pips (max MULTIPLIER_DENOMINATOR = 1_000_000).
   /// @return The packed protocol fee with both 12-bit components equal.
   function _applyLpFeeMultiplier(uint24 lpFee, uint24 multiplierPips)
     internal
@@ -318,17 +321,17 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     return uint24((perDirection << 12) | perDirection);
   }
 
-  /// @dev Scales each 12-bit directional fee component by a basis-point multiplier,
-  /// clamping each to MAX_PROTOCOL_FEE (1000). The two 12-bit components are extracted,
-  /// scaled independently, and repacked into a single uint24.
+  /// @dev Scales each 12-bit directional fee component by a pips multiplier. The two
+  /// 12-bit components are extracted, scaled independently, and repacked into a single
+  /// uint24. Shares MULTIPLIER_DENOMINATOR with `_applyLpFeeMultiplier`. No clamp is
+  /// needed: pairFees are validated <= MAX_PROTOCOL_FEE per direction at write time,
+  /// and `multiplierPips` is bounded by `setFamilyMultiplier` to <= 1_000_000.
   /// @param baseFee The base protocol fee (two 12-bit directional components packed).
-  /// @param multiplierBps The multiplier in basis points (10000 = 1x, 5000 = 0.5x).
-  /// @return The scaled and clamped protocol fee.
-  function _applyMultiplier(uint24 baseFee, uint16 multiplierBps) internal pure returns (uint24) {
-    uint256 fee0 = uint256(baseFee & 0xFFF) * multiplierBps / 10_000;
-    uint256 fee1 = uint256(baseFee >> 12) * multiplierBps / 10_000;
-    if (fee0 > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) fee0 = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
-    if (fee1 > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) fee1 = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
+  /// @param multiplierPips The multiplier in pips (max 1_000_000 = 100%).
+  /// @return The scaled protocol fee.
+  function _applyMultiplier(uint24 baseFee, uint24 multiplierPips) internal pure returns (uint24) {
+    uint256 fee0 = uint256(baseFee & 0xFFF) * multiplierPips / MULTIPLIER_DENOMINATOR;
+    uint256 fee1 = uint256(baseFee >> 12) * multiplierPips / MULTIPLIER_DENOMINATOR;
     return uint24((fee1 << 12) | fee0);
   }
 

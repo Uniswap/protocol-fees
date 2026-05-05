@@ -633,7 +633,7 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
     policy.setPairFee(customKey.currency0, customKey.currency1, FEE_200);
-    policy.setFamilyMultiplier(1, 5000); // 50%
+    policy.setFamilyMultiplier(1, 500_000); // 50%
     vm.stopPrank();
 
     // FEE_200 = 200|200, multiplied by 50% = 100|100 = FEE_100
@@ -641,7 +641,7 @@ contract V4FeeAdapterTest is Test {
     vm.snapshotGasLastCall("policy.computeFee - classified pairFee * multiplier");
   }
 
-  function test_computeFee_classified_multiplierClamps() public {
+  function test_computeFee_classified_pairFeeAtMaxMultiplier() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({
       currency0: Currency.wrap(address(token0)),
@@ -655,9 +655,11 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
     policy.setPairFee(customKey.currency0, customKey.currency1, FEE_1000);
-    policy.setFamilyMultiplier(1, 20_000); // 2x -> would be 2000, clamped to 1000
+    policy.setFamilyMultiplier(1, 1_000_000); // 100% (1x) -- the new ceiling
     vm.stopPrank();
 
+    // FEE_1000 (1000|1000) * 1x = FEE_1000; setter validation guarantees the result
+    // can never exceed MAX_PROTOCOL_FEE per direction.
     assertEq(policy.computeFee(customKey), FEE_1000);
   }
 
@@ -884,17 +886,29 @@ contract V4FeeAdapterTest is Test {
 
   function test_setFamilyMultiplier_success() public {
     vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.FamilyMultiplierUpdated(2, 5000);
+    emit IV4FeePolicy.FamilyMultiplierUpdated(2, 500_000);
     vm.prank(feeSetter);
-    policy.setFamilyMultiplier(2, 5000);
+    policy.setFamilyMultiplier(2, 500_000);
     vm.snapshotGasLastCall("policy.setFamilyMultiplier");
-    assertEq(policy.familyMultiplierBps(2), 5000);
+    assertEq(policy.familyMultiplierPips(2), 500_000);
   }
 
   function test_setFamilyMultiplier_revertsZeroFamily() public {
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    policy.setFamilyMultiplier(0, 10_000);
+    policy.setFamilyMultiplier(0, 100_000);
+  }
+
+  function test_setFamilyMultiplier_revertsTooLarge() public {
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.MultiplierTooLarge.selector);
+    policy.setFamilyMultiplier(1, 1_000_001);
+  }
+
+  function test_setFamilyMultiplier_acceptsBoundary() public {
+    vm.prank(feeSetter);
+    policy.setFamilyMultiplier(1, 1_000_000);
+    assertEq(policy.familyMultiplierPips(1), 1_000_000);
   }
 
   function test_setPairFee_success() public {
@@ -992,11 +1006,11 @@ contract V4FeeAdapterTest is Test {
 
   function test_clearFamilyMultiplier() public {
     vm.startPrank(feeSetter);
-    policy.setFamilyMultiplier(1, 5000);
-    assertEq(policy.familyMultiplierBps(1), 5000);
+    policy.setFamilyMultiplier(1, 500_000);
+    assertEq(policy.familyMultiplierPips(1), 500_000);
 
     policy.clearFamilyMultiplier(1);
-    assertEq(policy.familyMultiplierBps(1), 0);
+    assertEq(policy.familyMultiplierPips(1), 0);
     vm.stopPrank();
   }
 
@@ -1041,7 +1055,7 @@ contract V4FeeAdapterTest is Test {
     policy.setHookFamily(customHook, 1);
     policy.setFamilyDefault(1, FEE_200);
     policy.setPairFee(customKey.currency0, customKey.currency1, FEE_300);
-    policy.setFamilyMultiplier(1, 10_000); // 1x
+    policy.setFamilyMultiplier(1, 1_000_000); // 1x
     vm.stopPrank();
 
     // StandardKey -> StaticNativeMath -> pair fee overrides multiplier -> FEE_300
@@ -1446,7 +1460,7 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setFlagRules(rules);
     policy.setPairFee(key.currency0, key.currency1, FEE_200);
-    policy.setFamilyMultiplier(3, 5000); // 50%
+    policy.setFamilyMultiplier(3, 500_000); // 50%
     vm.stopPrank();
 
     // FEE_200 (200|200) * 50% = (100|100) = FEE_100
