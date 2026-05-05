@@ -123,7 +123,7 @@ contract DeployWormholeInfraBNBChainScript is Script {
     // https://wormhole.com/docs/products/token-transfers/native-token-transfers/guides/deploy-to-evm/#ntt-manager-deployment-parameters
     // [2]
     // https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0001_generic_message_passing.md#custom-handling
-    //
+    // 
     wormholeTransceiverImplementation = address(
       new WormholeTransceiver({
         nttManager: nttManagerProxy,
