@@ -14,12 +14,12 @@ import {INttManager} from "../interfaces/wormhole/INttManager.sol";
 /// 1. User calls `release` on this contract.
 /// 2. This contract transfers `SyntheticNttUni` from the user to here.
 /// 3. This contract calls `release` on the `TokenJar`.
-/// 4. This contract initiates a Womrhole Native Token Transfer by calling `transfer` on `NTT_MANAGER`.
-///    a. The `NTT_MANAGER` calls `burn` on `SyntheticNttUni` locally.
-///    b. The `NTT_MANAGER` passes a message on to Ethereum to burn UNI via `transfer(0xdead, threshold)`.
-///    c. The NTT Manager on Ethereum facilitates the final burn to `0xdead`.
+/// 4. This contract initiates a Womrhole Native Token Transfer by calling `transfer` on
+/// `NTT_MANAGER`. a. The `NTT_MANAGER` calls `burn` on `SyntheticNttUni` locally.
+///    b. The `NTT_MANAGER` passes a message on to Ethereum to burn UNI via `transfer(0xdead,
+/// threshold)`. c. The NTT Manager on Ethereum facilitates the final burn to `0xdead`.
 contract WormholeReleaser is ExchangeReleaser {
-  /// @dev Thrown when the `release` function fails to refund Ether to the caller after sending a 
+  /// @dev Thrown when the `release` function fails to refund Ether to the caller after sending a
   /// message to Wormhole. Note that any nonzero Ether balance in this releaser after an NttManager
   /// call implies a refund will be attempted.
   error SenderRefundFailed();
@@ -43,9 +43,13 @@ contract WormholeReleaser is ExchangeReleaser {
   /// @param _resource Local UNI deployment (`SyntheticNttUni`).
   /// @param _threshold The minimum amount of resource tokens required for exchange.
   /// @param _tokenJar The address of the TokenJar contract holding accumulated fees.
-  constructor(address _wormhole, address _nttManager, address _resource, uint256 _threshold, address _tokenJar)
-    ExchangeReleaser(_resource, _threshold, _tokenJar, address(this))
-  {
+  constructor(
+    address _wormhole,
+    address _nttManager,
+    address _resource,
+    uint256 _threshold,
+    address _tokenJar
+  ) ExchangeReleaser(_resource, _threshold, _tokenJar, address(this)) {
     NTT_MANAGER = INttManager(_nttManager);
     WORMHOLE = IWormhole(_wormhole);
   }
@@ -57,7 +61,7 @@ contract WormholeReleaser is ExchangeReleaser {
   /// @dev Wormhole clips the decimals down to 8 to accommodate Solana chains. Since forcing the
   /// trim at `setThreshold` time would require changes up the contract inheritance tree, divergeing
   /// inheritance tree across deployments, instead we clip at `release` time.
-  /// @dev NOTICE: If governance sets a non-multiple of 1e8, dust will accumulate here. 
+  /// @dev NOTICE: If governance sets a non-multiple of 1e8, dust will accumulate here.
   function _afterRelease(Currency[] calldata, address) internal override {
     uint256 messageFee = WORMHOLE.messageFee();
 
@@ -66,13 +70,11 @@ contract WormholeReleaser is ExchangeReleaser {
     RESOURCE.approve(address(NTT_MANAGER), amount);
 
     NTT_MANAGER.transfer{value: messageFee}({
-        amount: amount,
-        recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID,
-        recipient: BURN_ADDRESS
+      amount: amount, recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID, recipient: BURN_ADDRESS
     });
 
     if (address(this).balance > 0) {
-      (bool success, ) = msg.sender.call{value: address(this).balance}(new bytes(0));
+      (bool success,) = msg.sender.call{value: address(this).balance}(new bytes(0));
       require(success, SenderRefundFailed());
     }
   }

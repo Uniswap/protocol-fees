@@ -6,7 +6,7 @@ import {SyntheticNttUni, ERC20} from "../../src/wormhole/SyntheticNttUni.sol";
 
 // trapdooring through `mockMint` for test setups
 contract MockSyntheticNttUni is SyntheticNttUni {
-    function mockMint(address receiver, uint256 amount) external {
-        _mint(receiver, amount);
-    }
+  function mockMint(address receiver, uint256 amount) external {
+    _mint(receiver, amount);
+  }
 }

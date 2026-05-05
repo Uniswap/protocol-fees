@@ -4,39 +4,39 @@ pragma solidity ^0.8.29;
 import {IReleaser, Currency} from "../../src/interfaces/IReleaser.sol";
 
 interface IERC20 {
-    function approve(address,uint256) external returns (bool);
+  function approve(address, uint256) external returns (bool);
 }
 
 contract MockReleaserCaller {
-    event MockReceive(address indexed caller, uint256 indexed amount);
+  event MockReceive(address indexed caller, uint256 indexed amount);
 
-    bool public mockShouldThrow;
+  bool public mockShouldThrow;
 
-    function doApproval(address uni, address spender, uint256 amount) external {
-        IERC20(uni).approve(spender, amount);
-    }
+  function doApproval(address uni, address spender, uint256 amount) external {
+    IERC20(uni).approve(spender, amount);
+  }
 
-    function doReleaserCall(
-        IReleaser releaser,
-        uint256 value,
-        uint256 nonce,
-        Currency[] calldata assets,
-        address receiver
-    ) external {
-        (bool success, ) = payable(address(releaser)).call{value: value}(new bytes(0));
+  function doReleaserCall(
+    IReleaser releaser,
+    uint256 value,
+    uint256 nonce,
+    Currency[] calldata assets,
+    address receiver
+  ) external {
+    (bool success,) = payable(address(releaser)).call{value: value}(new bytes(0));
 
-        require(success);
+    require(success);
 
-        releaser.release(nonce, assets, receiver);
-    }
+    releaser.release(nonce, assets, receiver);
+  }
 
-    receive() external payable {
-        require(!mockShouldThrow);
+  receive() external payable {
+    require(!mockShouldThrow);
 
-        emit MockReceive(msg.sender, msg.value);
-    }
+    emit MockReceive(msg.sender, msg.value);
+  }
 
-    function mockSetShouldThrow(bool newMockShouldThrow) external {
-        mockShouldThrow = newMockShouldThrow;
-    }
+  function mockSetShouldThrow(bool newMockShouldThrow) external {
+    mockShouldThrow = newMockShouldThrow;
+  }
 }

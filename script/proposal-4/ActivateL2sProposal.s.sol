@@ -19,12 +19,13 @@ string constant PROPOSAL_DESCRIPTION = "TODO";
 //
 // sine we can't know the bnb chain & polygon deployment addresses until scripts are run, we should
 // load them here instead, running some checks before proposing.
-string constant POLYGON_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
-string constant BNB_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
+string constant POLYGON_DEPLOY_PATH =
+  "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
+string constant BNB_DEPLOY_PATH =
+  "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
 
 /// @title Activate L2's (Plus Celo Retry)
 contract ActivateL2Proposals is Script {
-
   /// @notice Proposal Action Data Type.
   struct ProposalAction {
     address target;
@@ -76,7 +77,11 @@ contract ActivateL2Proposals is Script {
     vm.stopBroadcast();
   }
 
-  function _getActions(uint256 actionCount) internal view returns (ProposalAction[] memory actions) {
+  function _getActions(uint256 actionCount)
+    internal
+    view
+    returns (ProposalAction[] memory actions)
+  {
     actions = new ProposalAction[](actionCount);
 
     (
@@ -150,7 +155,8 @@ contract ActivateL2Proposals is Script {
 
       targets[1] = Constants.Celo.V2_FACTORY;
       values[1] = 0;
-      datas[1] = abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
+      datas[1] =
+        abi.encodeCall(IUniswapV2Factory.setFeeToSetter, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
 
       targets[2] = Constants.Celo.V3_FACTORY;
       values[2] = 0;
@@ -158,7 +164,9 @@ contract ActivateL2Proposals is Script {
 
       targets[3] = Constants.Celo.V4_POOL_MANAGER;
       values[3] = 0;
-      datas[3] = abi.encodeCall(IUniswapV4PoolManager.transferOwnership, (Constants.Celo.CROSS_CHAIN_ACCOUNT));
+      datas[3] = abi.encodeCall(
+        IUniswapV4PoolManager.transferOwnership, (Constants.Celo.CROSS_CHAIN_ACCOUNT)
+      );
 
       actions[0] = ProposalAction({
         target: Constants.Ethereum.WORMHOLE_SENDER,
@@ -244,7 +252,7 @@ contract ActivateL2Proposals is Script {
     // the receiver for the Polygon message bridge `FxRoot(Ethereum) -> FxChild(Polygon)`. Since we
     // continue to use Polygon's native bridge for now, we only set the `UniswapV2Factory` fee
     // collector and transfer ownership of `UniswapV3Factory` to the `V3OpenFeeAdapter` because V3
-    // sends fees to the factory owner. 
+    // sends fees to the factory owner.
     //
     // Actions:
     // ---
@@ -272,75 +280,97 @@ contract ActivateL2Proposals is Script {
         signature: "",
         data: abi.encodeCall(
           IPolygonFxRoot.sendMessageToChild,
-          (
-            Constants.Polygon.ETHEREUM_PROXY,
-            abi.encode(targets, values, datas)
-          )
+          (Constants.Polygon.ETHEREUM_PROXY, abi.encode(targets, values, datas))
         )
       });
     }
   }
 
-  function _loadDeployments() internal view returns (
-    address bnbChainTokenJar,
-    address bnbChainOpenV3FeeAdapter,
-    address polygonTokenJar,
-    address polygonOpenV3FeeAdapter
-  ) {
-    // | Index | Action                                                                                 |
-    // | ----- | -------------------------------------------------------------------------------------- |
-    // | 00    | Deploy `TokenJar`.                                                                     |
-    // | 01    | Deploy `WormholeReleaser`.                                                             |
-    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
-    // | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
-    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
-    // | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
-    // | 06    | Deploy `V3OpenFeeAdapter`.                                                             |
-    // | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
-    // | 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
-    // | 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
-    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
-    /// forge-lint: disable-next-line(unsafe-cheatcode)
+  function _loadDeployments()
+    internal
+    view
+    returns (
+      address bnbChainTokenJar,
+      address bnbChainOpenV3FeeAdapter,
+      address polygonTokenJar,
+      address polygonOpenV3FeeAdapter
+    )
+  {
+    // | Index | Action
+    // | | ----- |
+    // -------------------------------------------------------------------------------------- |
+    // | 00    | Deploy `TokenJar`.
+    // | | 01    | Deploy `WormholeReleaser`.
+    // |
+    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.
+    // | | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
+    // |
+    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
+    // | | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
+    // |
+    // | 06    | Deploy `V3OpenFeeAdapter`.
+    // | | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
+    // |
+    // | 08    | Set `V3OpenFeeAdapter` default fee.
+    // | | 09    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // |
+    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // | | 11    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // |
+    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // | | 13    | Store `V3OpenFeeAdapter` fee tiers.
+    // |
+    // | 14    | Store `V3OpenFeeAdapter` fee tiers.
+    // | | 15    | Store `V3OpenFeeAdapter` fee tiers.
+    // |
+    // | 16    | Store `V3OpenFeeAdapter` fee tiers.
+    // | | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to
+    // `UniswapWormholeMessageReceiver`. |
+    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
+    // | / forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
     bnbChainTokenJar = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[0].contractAddress");
-    bnbChainOpenV3FeeAdapter = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
+    bnbChainOpenV3FeeAdapter =
+      vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
 
-
-    // | Index | Action                                                                                 |
-    // | ----- | -------------------------------------------------------------------------------------- |
-    // | 00    | Deploy `TokenJar`.                                                                     |
-    // | 01    | Deploy `WormholeReleaser`.                                                             |
-    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
-    // | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
-    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
-    // | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
-    // | 06    | Deploy `V3OpenFeeAdapter`.                                                             |
-    // | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
-    // | 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
-    // | 09    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 11    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.                                              |
-    // | 13    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-    // | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
-    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
-    /// forge-lint: disable-next-line(unsafe-cheatcode)
+    // | Index | Action
+    // | | ----- |
+    // -------------------------------------------------------------------------------------- |
+    // | 00    | Deploy `TokenJar`.
+    // | | 01    | Deploy `WormholeReleaser`.
+    // |
+    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.
+    // | | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
+    // |
+    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
+    // | | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
+    // |
+    // | 06    | Deploy `V3OpenFeeAdapter`.
+    // | | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
+    // |
+    // | 08    | Set `V3OpenFeeAdapter` default fee.
+    // | | 09    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // |
+    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // | | 11    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // |
+    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.
+    // | | 13    | Store `V3OpenFeeAdapter` fee tiers.
+    // |
+    // | 14    | Store `V3OpenFeeAdapter` fee tiers.
+    // | | 15    | Store `V3OpenFeeAdapter` fee tiers.
+    // |
+    // | 16    | Store `V3OpenFeeAdapter` fee tiers.
+    // | | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to
+    // `UniswapWormholeMessageReceiver`. |
+    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
+    // | / forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
     polygonTokenJar = vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress");
-    polygonOpenV3FeeAdapter = vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
+    polygonOpenV3FeeAdapter =
+      vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
 
     require(bnbChainTokenJar != address(0x00), "bnbChainTokenJar is address(0x00)");
     require(bnbChainOpenV3FeeAdapter != address(0x00), "bnbChainOpenV3FeeAdapter is address(0x00)");

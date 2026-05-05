@@ -13,39 +13,39 @@ import {INttToken} from "../interfaces/wormhole/INttToken.sol";
 ///         system can mint and burn synthetic UNI to match the amount of canonical UNI locked in
 ///         the Ethereum Layer 1 deployment of the NTT system.
 contract SyntheticNttUni is Owned, ERC20, INttToken {
-    /// @notice Logged when the Wormhole Native Token Transfer address changes.
-    /// @param ntt New Wormhole Native Token Transfer address.
-    event NttSet(address indexed ntt);
+  /// @notice Logged when the Wormhole Native Token Transfer address changes.
+  /// @param ntt New Wormhole Native Token Transfer address.
+  event NttSet(address indexed ntt);
 
-    /// @notice Wormhole Native Token Transfer address.
-    address public ntt;
+  /// @notice Wormhole Native Token Transfer address.
+  address public ntt;
 
-    constructor() Owned(msg.sender) ERC20("Synthetic Ntt Uniswap", "NUNI", 18) {}
+  constructor() Owned(msg.sender) ERC20("Synthetic Ntt Uniswap", "NUNI", 18) {}
 
-    /// @notice Set the Wormhole Native Token Transfer address.
-    /// @param newNtt New Wormhole Native Token Transfer address.
-    function setNtt(address newNtt) public onlyOwner {
-        ntt = newNtt;
+  /// @notice Set the Wormhole Native Token Transfer address.
+  /// @param newNtt New Wormhole Native Token Transfer address.
+  function setNtt(address newNtt) public onlyOwner {
+    ntt = newNtt;
 
-        emit NttSet(newNtt);
-    }
+    emit NttSet(newNtt);
+  }
 
-    /// @notice Mints synthetic tokens.
-    /// @dev Caller MUST be Wormhole Native Token Transfer.
-    /// @param receiver Account which receives the mint.
-    /// @param amount Amount to mint.
-    function mint(address receiver, uint256 amount) external {
-        require(msg.sender == ntt, "Not NTT");
+  /// @notice Mints synthetic tokens.
+  /// @dev Caller MUST be Wormhole Native Token Transfer.
+  /// @param receiver Account which receives the mint.
+  /// @param amount Amount to mint.
+  function mint(address receiver, uint256 amount) external {
+    require(msg.sender == ntt, "Not NTT");
 
-        _mint(receiver, amount);
-    }
+    _mint(receiver, amount);
+  }
 
-    /// @notice Burns synthetic tokens from the caller.
-    /// @dev Caller MUST be Wormhole Native Token Transfer.
-    /// @param amount Amount to mint.
-    function burn(uint256 amount) external {
-        require(msg.sender == ntt, "Not NTT");
+  /// @notice Burns synthetic tokens from the caller.
+  /// @dev Caller MUST be Wormhole Native Token Transfer.
+  /// @param amount Amount to mint.
+  function burn(uint256 amount) external {
+    require(msg.sender == ntt, "Not NTT");
 
-        _burn(msg.sender, amount);
-    }
+    _burn(msg.sender, amount);
+  }
 }

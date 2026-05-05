@@ -4,36 +4,32 @@ pragma solidity ^0.8.29;
 import {IWormhole} from "../../src/interfaces/wormhole/IWormhole.sol";
 
 contract MockWormhole is IWormhole {
-    event MockPublishMessage(
-        uint32 indexed nonce,
-        uint8 indexed consistencyLevel,
-        bytes payload
-    );
+  event MockPublishMessage(uint32 indexed nonce, uint8 indexed consistencyLevel, bytes payload);
 
-    uint64 internal _sequence;
+  uint64 internal _sequence;
 
-    bool public mockShouldThrow;
+  bool public mockShouldThrow;
 
-    uint256 public messageFee;
+  uint256 public messageFee;
 
-    function publishMessage(
-        uint32 nonce,
-        bytes memory payload,
-        uint8 consistencyLevel
-    ) external payable returns (uint64 sequence) {
-        require(!mockShouldThrow);
+  function publishMessage(uint32 nonce, bytes memory payload, uint8 consistencyLevel)
+    external
+    payable
+    returns (uint64 sequence)
+  {
+    require(!mockShouldThrow);
 
-        _sequence + 1;
-        sequence = _sequence;
+    _sequence + 1;
+    sequence = _sequence;
 
-        emit MockPublishMessage(nonce, consistencyLevel, payload);
-    }
+    emit MockPublishMessage(nonce, consistencyLevel, payload);
+  }
 
-    function mockSetMessageFee(uint256 newMessageFee) external {
-        messageFee = newMessageFee;
-    }
+  function mockSetMessageFee(uint256 newMessageFee) external {
+    messageFee = newMessageFee;
+  }
 
-    function mockSetShouldThrow(bool newMockShouldThrow) external {
-        mockShouldThrow = newMockShouldThrow;
-    }
+  function mockSetShouldThrow(bool newMockShouldThrow) external {
+    mockShouldThrow = newMockShouldThrow;
+  }
 }
