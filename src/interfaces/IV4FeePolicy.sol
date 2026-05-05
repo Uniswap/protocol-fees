@@ -5,17 +5,6 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
-/// @dev A breakpoint in the baseline curve. Protocol fee is applied for pools whose LP fee
-/// is >= lpFeeFloor. Breakpoints must be stored in ascending order of lpFeeFloor.
-struct CurveBreakpoint {
-  /// @dev The minimum LP fee (in pips) for this breakpoint to apply. Pools with an LP fee
-  /// >= this value and < the next breakpoint's floor receive this breakpoint's protocolFee.
-  uint24 lpFeeFloor;
-  /// @dev The protocol fee to apply. Packed as two 12-bit directional components:
-  /// lower 12 bits = 0→1 fee, upper 12 bits = 1→0 fee. Each must be <= MAX_PROTOCOL_FEE.
-  uint24 protocolFee;
-}
-
 /// @dev A flag-to-family mapping rule. The policy walks rules in order; the first rule
 /// whose requiredFlags are all present in the hook's self-reported flags wins.
 struct FlagRule {
@@ -33,7 +22,8 @@ struct FlagRule {
 /// Family IDs have no hardcoded semantic meaning — labels live in offchain documentation.
 /// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags();
 /// governance-configured flag rules map flag patterns to families automatically.
-/// Static NativeMath pools bypass classification and use the baseline curve directly.
+/// Static NativeMath pools bypass classification and derive their protocol fee as a
+/// fixed pips multiplier of `key.fee` (per-direction, clamped to MAX_PROTOCOL_FEE).
 /// Custom-accounting hooks and dynamic fee pools require classification (governance
 /// override, flag rule match, or defaultFee fallback).
 /// @custom:security-contact security@uniswap.org
@@ -49,11 +39,8 @@ interface IV4FeePolicy {
   /// @notice Thrown when familyId == 0 is passed to a function that requires > 0.
   error InvalidFamilyId();
 
-  /// @notice Thrown when setBaselineCurve is called with an empty array.
-  error EmptyCurve();
-
-  /// @notice Thrown when baseline curve breakpoints are not in strictly ascending order.
-  error CurveNotAscending();
+  /// @notice Thrown when setProtocolFeeMultiplier is called with pips > 1_000_000.
+  error MultiplierTooLarge();
 
   /// @notice Thrown when currency0 >= currency1 in setPairFee.
   error CurrenciesOutOfOrder();
@@ -91,9 +78,9 @@ interface IV4FeePolicy {
   /// @param feeValue The new pair fee (0 = removed).
   event PairFeeUpdated(bytes32 indexed pairHash, uint24 feeValue);
 
-  /// @notice Emitted when the baseline curve is replaced.
-  /// @param breakpointCount The number of breakpoints in the new curve.
-  event BaselineCurveUpdated(uint256 breakpointCount);
+  /// @notice Emitted when the global protocol fee multiplier is updated.
+  /// @param multiplierPips The new multiplier in pips (1_000_000 = 100% of LP fee).
+  event ProtocolFeeMultiplierUpdated(uint24 multiplierPips);
 
   /// @notice Emitted when the default classified fee is updated.
   /// @param feeValue The new default fee (0 = removed).
@@ -147,23 +134,17 @@ interface IV4FeePolicy {
 
   /// @notice Returns the pair fee for a token pair hash.
   /// @dev Flat mapping — one fee per pair. StaticNativeMath uses it directly (overrides
-  /// baseline curve). Classified pools scale it by the family multiplier.
+  /// the multiplier). Classified pools scale it by the family multiplier.
   /// @param pairHash The canonical keccak256 hash of the sorted token pair.
   /// @return The sentinel-encoded pair fee (0 = not set).
   function pairFees(bytes32 pairHash) external view returns (uint24);
 
-  /// @notice Returns the number of breakpoints in the baseline curve.
-  /// @return The count of breakpoints.
-  function baselineCurveLength() external view returns (uint256);
-
-  /// @notice Returns the breakpoint at the given index.
-  /// @param index The zero-based index into the curve array.
-  /// @return lpFeeFloor The minimum LP fee for this breakpoint.
-  /// @return protocolFee The protocol fee applied at this breakpoint.
-  function baselineCurve(uint256 index)
-    external
-    view
-    returns (uint24 lpFeeFloor, uint24 protocolFee);
+  /// @notice Returns the global multiplier (in pips) applied to `key.fee` on the
+  /// StaticNativeMath path when no pair fee is set.
+  /// @dev Pips, where 1_000_000 = 100% of the LP fee. 0 disables the protocol fee on
+  /// this path. Per-direction result is clamped to MAX_PROTOCOL_FEE.
+  /// @return The current multiplier in pips.
+  function protocolFeeMultiplierPips() external view returns (uint24);
 
   /// @notice Returns the number of flag rules configured.
   /// @return The count of flag rules.
@@ -190,7 +171,9 @@ interface IV4FeePolicy {
 
   /// @notice Computes the protocol fee for a pool.
   /// @dev Three paths:
-  /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee or baseline curve.
+  /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee, or
+  ///    `key.fee × protocolFeeMultiplierPips / 1_000_000` (per direction, clamped to
+  ///    MAX_PROTOCOL_FEE).
   /// 2. Dynamic fee NativeMath: requires governance familyId (Slot0.lpFee is unreliable).
   /// 3. CustomAccounting (return-delta flags set): requires governance familyId.
   /// Paths 2 and 3 fall through to defaultFee if unclassified.
@@ -235,13 +218,15 @@ interface IV4FeePolicy {
   /// @notice Removes the default fee, so unclassified pools return 0.
   function clearDefaultFee() external;
 
-  // --- Curve Configuration (onlyFeeSetter) ---
+  // --- Multiplier Configuration (onlyFeeSetter) ---
 
-  /// @notice Replaces the entire baseline curve with new breakpoints.
-  /// @dev Breakpoints must be in strictly ascending order of lpFeeFloor. At least one
-  /// required. Each breakpoint's protocolFee must pass isValidProtocolFee.
-  /// @param breakpoints The new curve breakpoints, sorted ascending by lpFeeFloor.
-  function setBaselineCurve(CurveBreakpoint[] calldata breakpoints) external;
+  /// @notice Sets the global multiplier applied to `key.fee` on the StaticNativeMath
+  /// path when no pair fee is set.
+  /// @dev Reverts MultiplierTooLarge if `pips > 1_000_000`. Setting 0 disables the
+  /// protocol fee on this path (no separate clear function needed — the resulting fee
+  /// computes to 0 directly).
+  /// @param pips The multiplier in pips (max 1_000_000 = 100% of LP fee).
+  function setProtocolFeeMultiplier(uint24 pips) external;
 
   // --- Family Defaults & Multipliers (onlyFeeSetter) ---
 
@@ -270,15 +255,15 @@ interface IV4FeePolicy {
   // --- Pair Fees (onlyFeeSetter) ---
 
   /// @notice Sets the pair fee for a token pair.
-  /// @dev StaticNativeMath pools use this directly (overrides baseline curve). Classified
-  /// pools scale it by familyMultiplierBps. Setting 0 sets explicit zero.
+  /// @dev StaticNativeMath pools use this directly (overrides the multiplier).
+  /// Classified pools scale it by familyMultiplierBps. Setting 0 sets explicit zero.
   /// Use clearPairFee to remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   /// @param feeValue The pair fee. Must pass isValidProtocolFee if non-zero.
   function setPairFee(Currency currency0, Currency currency1, uint24 feeValue) external;
 
-  /// @notice Removes the pair fee, falling through to the baseline curve.
+  /// @notice Removes the pair fee, falling through to the multiplier.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   function clearPairFee(Currency currency0, Currency currency1) external;

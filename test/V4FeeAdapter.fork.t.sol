@@ -18,7 +18,6 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {CurveBreakpoint} from "../src/interfaces/IV4FeePolicy.sol";
 
 /// @notice Integration tests using a real v4 PoolManager (deployed locally via Deployers).
 /// Verifies protocol fee accrual from real swaps, collection to TokenJar, and the full
@@ -92,13 +91,9 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ End-to-End: Set Fee -> Swap -> Accrue -> Collect ============
 
   function test_e2e_setFee_swap_collect() public {
-    // Configure baseline curve
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](3);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_100});
-    curve[1] = CurveBreakpoint({lpFeeFloor: 1000, protocolFee: PROTO_FEE_200});
-    curve[2] = CurveBreakpoint({lpFeeFloor: 5000, protocolFee: PROTO_FEE_500});
+    // 66_667 pips × pool3000.fee (3000) / 1_000_000 = 200 per direction (= PROTO_FEE_200)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(66_667);
 
     // Trigger fee update on the 3000 bps pool
     adapter.triggerFeeUpdate(pool3000);
@@ -136,17 +131,16 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(manager.protocolFeesAccrued(currency1), 0);
   }
 
-  // ============ Baseline Curve: Different Tiers Get Different Fees ============
+  // ============ Multiplier: Pools Scale Linearly With LP Fee ============
 
-  function test_baselineCurve_differentPoolsDifferentFees() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](3);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_100});
-    curve[1] = CurveBreakpoint({lpFeeFloor: 1000, protocolFee: PROTO_FEE_300});
-    curve[2] = CurveBreakpoint({lpFeeFloor: 5000, protocolFee: PROTO_FEE_500});
+  function test_multiplier_differentPoolsLinearlyScaled() public {
+    // multiplier = 100_000 (10% of LP fee)
+    //   pool500   (LP 500)    -> 50  per direction
+    //   pool3000  (LP 3000)   -> 300 per direction (= PROTO_FEE_300)
+    //   pool10000 (LP 10_000) -> 1000 per direction, clamped to MAX_PROTOCOL_FEE
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
 
-    // Trigger all pools
     PoolKey[] memory keys = new PoolKey[](3);
     keys[0] = pool500;
     keys[1] = pool3000;
@@ -154,27 +148,24 @@ contract V4FeeAdapterForkTest is Deployers {
     adapter.batchTriggerFeeUpdate(keys);
     vm.snapshotGasLastCall("fork: batchTriggerFeeUpdate 3 pools");
 
-    // 500 bps pool -> floor 0 matches -> PROTO_FEE_100
+    uint24 expected50 = (50 << 12) | 50;
     (,, uint24 fee500,) = manager.getSlot0(pool500.toId());
-    assertEq(fee500, PROTO_FEE_100);
+    assertEq(fee500, expected50);
 
-    // 3000 bps pool -> floor 1000 matches -> PROTO_FEE_300
     (,, uint24 fee3000,) = manager.getSlot0(pool3000.toId());
     assertEq(fee3000, PROTO_FEE_300);
 
-    // 10000 bps pool -> floor 5000 matches -> PROTO_FEE_500
+    uint24 expected1000 = (1000 << 12) | 1000;
     (,, uint24 fee10000,) = manager.getSlot0(pool10000.toId());
-    assertEq(fee10000, PROTO_FEE_500);
+    assertEq(fee10000, expected1000);
   }
 
   // ============ Pool Override Bypasses Policy ============
 
-  function test_poolOverride_bypassesBaselineCurve() public {
-    // Set baseline curve
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_100});
+  function test_poolOverride_bypassesPolicy() public {
+    // 200_000 pips × pool500.fee (500) / 1_000_000 = 100 per direction (= PROTO_FEE_100)
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(200_000);
 
     // Override one pool to PROTO_FEE_500
     adapter.setPoolOverride(pool3000.toId(), PROTO_FEE_500);
@@ -184,28 +175,27 @@ contract V4FeeAdapterForkTest is Deployers {
     adapter.triggerFeeUpdate(pool3000);
     adapter.triggerFeeUpdate(pool500);
 
-    // pool3000 gets the override
+    // pool3000 gets the override (multiplier-derived value would have been higher)
     (,, uint24 fee3000,) = manager.getSlot0(pool3000.toId());
     assertEq(fee3000, PROTO_FEE_500);
 
-    // pool500 gets the baseline
+    // pool500 gets the multiplier-derived fee
     (,, uint24 fee500,) = manager.getSlot0(pool500.toId());
     assertEq(fee500, PROTO_FEE_100);
   }
 
-  // ============ Pair Fee Overrides Curve ============
+  // ============ Pair Fee Overrides Multiplier ============
 
-  function test_pairFee_overridesBaselineCurve() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_100});
+  function test_pairFee_overridesMultiplier() public {
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(curve);
+    // Any non-zero multiplier — pair fee should win regardless
+    policy.setProtocolFeeMultiplier(100_000);
     policy.setPairFee(currency0, currency1, PROTO_FEE_300);
     vm.stopPrank();
 
     adapter.triggerFeeUpdate(pool3000);
 
-    // Pair fee takes precedence over baseline
+    // Pair fee takes precedence over the multiplier
     (,, uint24 fee,) = manager.getSlot0(pool3000.toId());
     assertEq(fee, PROTO_FEE_300);
   }
@@ -213,10 +203,9 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Fees Accrue From Multiple Swaps ============
 
   function test_feesAccrueFromMultipleSwaps() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_300});
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
 
     adapter.triggerFeeUpdate(pool3000);
 
@@ -243,29 +232,26 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(MockERC20(Currency.unwrap(currency1)).balanceOf(tokenJar), accrued1);
   }
 
-  // ============ Fee Update After Curve Change ============
+  // ============ Fee Update After Multiplier Change ============
 
-  function test_curveChange_requiresRetrigger() public {
-    // Set initial curve
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_100});
+  function test_multiplierChange_requiresRetrigger() public {
+    // 33_334 pips × 3000 / 1_000_000 = 100 per direction (= PROTO_FEE_100, integer-truncated)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(33_334);
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
     assertEq(feeBefore, PROTO_FEE_100);
 
-    // Change curve
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_500});
+    // 166_667 pips × 3000 / 1_000_000 = 500 per direction (= PROTO_FEE_500, integer-truncated)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(166_667);
 
     // Pool still has old fee until retriggered
     (,, uint24 feeStale,) = manager.getSlot0(pool3000.toId());
     assertEq(feeStale, PROTO_FEE_100);
 
-    // Retrigger picks up new curve
+    // Retrigger picks up new multiplier
     adapter.triggerFeeUpdate(pool3000);
     (,, uint24 feeAfter,) = manager.getSlot0(pool3000.toId());
     assertEq(feeAfter, PROTO_FEE_500);
@@ -274,17 +260,15 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Policy Swap ============
 
   function test_policySwap_newPolicyTakesEffect() public {
-    // Set up initial policy with fees
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_300});
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
     assertEq(feeBefore, PROTO_FEE_300);
 
-    // Deploy new policy with no curve (everything returns 0)
+    // Deploy new policy with no multiplier configured (default 0, everything returns 0)
     V4FeePolicy newPolicy = new V4FeePolicy(manager);
     adapter.setPolicy(newPolicy);
 
@@ -297,11 +281,9 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Explicit Zero Override Prevents Fee Accrual ============
 
   function test_explicitZeroOverride_preventsFeeAccrual() public {
-    // Set baseline curve with real fees
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_300});
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
 
     // Override pool to explicit zero
     adapter.setPoolOverride(pool3000.toId(), 0);
@@ -322,10 +304,9 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Clear Override Restores Policy Behavior ============
 
   function test_clearOverride_restoresPolicy() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_300});
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
     adapter.setPoolOverride(pool3000.toId(), 0); // explicit zero
     vm.stopPrank();
 
@@ -349,10 +330,9 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Partial Collection ============
 
   function test_partialCollection() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: PROTO_FEE_300});
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(100_000);
     adapter.triggerFeeUpdate(pool3000);
 
     // Swap to accrue fees
