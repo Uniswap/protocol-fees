@@ -70,8 +70,8 @@ interface IV4FeePolicy {
 
   /// @notice Emitted when a family's multiplier is updated.
   /// @param familyId The family whose multiplier was changed.
-  /// @param multiplierBps The new multiplier in basis points (0 = removed).
-  event FamilyMultiplierUpdated(uint8 indexed familyId, uint16 multiplierBps);
+  /// @param multiplierPips The new multiplier in pips (0 = removed, 1_000_000 = 100%).
+  event FamilyMultiplierUpdated(uint8 indexed familyId, uint24 multiplierPips);
 
   /// @notice Emitted when a pair fee is updated.
   /// @param pairHash The canonical hash of the token pair.
@@ -126,11 +126,13 @@ interface IV4FeePolicy {
   /// @return The sentinel-encoded default fee for the family.
   function familyDefaults(uint8 familyId) external view returns (uint24);
 
-  /// @notice Returns the multiplier (basis points) for a given family ID.
-  /// @dev 10000 = 1x, 5000 = 0.5x. Applied to pairFees to derive a scaled fee.
+  /// @notice Returns the multiplier (in pips) for a given family ID.
+  /// @dev 1_000_000 = 100% (1x), 500_000 = 50% (0.5x). Applied to pairFees to derive a
+  /// scaled fee on the classified path. Shares the same denominator
+  /// (MULTIPLIER_DENOMINATOR = 1_000_000) as protocolFeeMultiplierPips.
   /// @param familyId The family to query.
-  /// @return The multiplier in basis points (0 = not set).
-  function familyMultiplierBps(uint8 familyId) external view returns (uint16);
+  /// @return The multiplier in pips (0 = not set).
+  function familyMultiplierPips(uint8 familyId) external view returns (uint24);
 
   /// @notice Returns the pair fee for a token pair hash.
   /// @dev Flat mapping — one fee per pair. StaticNativeMath uses it directly (overrides
@@ -241,12 +243,12 @@ interface IV4FeePolicy {
   /// @param familyId The family to clear.
   function clearFamilyDefault(uint8 familyId) external;
 
-  /// @notice Sets a multiplier for a family, applied to pairFees.
-  /// @dev familyId must be > 0. multiplierBps in basis points (10000 = 1x).
-  /// The scaled fee is clamped so each 12-bit component <= MAX_PROTOCOL_FEE.
+  /// @notice Sets a multiplier for a family, applied to pairFees on the classified path.
+  /// @dev familyId must be > 0. multiplierPips in pips (1_000_000 = 100% = 1x).
+  /// Reverts MultiplierTooLarge if `multiplierPips > 1_000_000`.
   /// @param familyId The family to configure.
-  /// @param multiplierBps The multiplier in basis points.
-  function setFamilyMultiplier(uint8 familyId, uint16 multiplierBps) external;
+  /// @param multiplierPips The multiplier in pips (max 1_000_000 = 100%).
+  function setFamilyMultiplier(uint8 familyId, uint24 multiplierPips) external;
 
   /// @notice Removes the multiplier for a family.
   /// @param familyId The family to clear.
@@ -256,7 +258,7 @@ interface IV4FeePolicy {
 
   /// @notice Sets the pair fee for a token pair.
   /// @dev StaticNativeMath pools use this directly (overrides the multiplier).
-  /// Classified pools scale it by familyMultiplierBps. Setting 0 sets explicit zero.
+  /// Classified pools scale it by familyMultiplierPips. Setting 0 sets explicit zero.
   /// Use clearPairFee to remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
