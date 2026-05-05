@@ -8,14 +8,16 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
-import {IV4FeePolicy, CurveBreakpoint, FlagRule} from "../interfaces/IV4FeePolicy.sol";
+import {IV4FeePolicy, FlagRule} from "../interfaces/IV4FeePolicy.sol";
 import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 
 /// @title V4FeePolicy
 /// @notice Computes protocol fees for Uniswap V4 pools using automated hook classification
-/// and a baseline fee curve.
+/// and a global pips multiplier on `key.fee`.
 /// @dev Pools are classified into two paths:
-/// - StaticNativeMath: no RETURNS_DELTA flags and static fee → baseline curve or pair fee.
+/// - StaticNativeMath: no RETURNS_DELTA flags and static fee → pair fee, else
+///   `key.fee × protocolFeeMultiplierPips / 1_000_000` per direction (clamped to
+///   MAX_PROTOCOL_FEE).
 /// - Classified: custom accounting or dynamic fee → family multiplier × pair fee, family
 ///   default, or global default fee.
 /// Hook classification is automated from address bits 0-3 (RETURNS_DELTA flags).
@@ -36,6 +38,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Sentinel value: stored to represent an explicit zero fee. type(uint24).max is
   /// safe because each 12-bit component (0xFFF = 4095) exceeds MAX_PROTOCOL_FEE (1000).
   uint24 internal constant ZERO_FEE_SENTINEL = type(uint24).max;
+
+  /// @dev Denominator for protocolFeeMultiplierPips. 1_000_000 = 100% (matches MAX_LP_FEE).
+  uint24 internal constant MULTIPLIER_DENOMINATOR = 1_000_000;
 
   /// @inheritdoc IV4FeePolicy
   IPoolManager public immutable POOL_MANAGER;
@@ -58,9 +63,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @inheritdoc IV4FeePolicy
   mapping(bytes32 pairHash => uint24) public pairFees;
 
-  /// @dev The baseline curve breakpoints, sorted ascending by lpFeeFloor. Used only by
-  /// StaticNativeMath pools to map key.fee to a protocol fee.
-  CurveBreakpoint[] internal _baselineCurve;
+  /// @inheritdoc IV4FeePolicy
+  uint24 public protocolFeeMultiplierPips;
 
   /// @dev Maximum number of flag rules to bound gas in _resolveFamily.
   uint256 internal constant MAX_FLAG_RULES = 32;
@@ -98,7 +102,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     // StaticNativeMath: no custom accounting + static fee
     if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) {
       uint24 stored = pairFees[ph];
-      return stored != 0 ? _decodeFee(stored) : _lookupBaselineFee(key.fee);
+      if (stored != 0) return _decodeFee(stored);
+      return _applyLpFeeMultiplier(key.fee, protocolFeeMultiplierPips);
     }
 
     // Classified: custom accounting OR dynamic fee
@@ -117,23 +122,6 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     }
 
     return _decodeFee(defaultFee);
-  }
-
-  // ─── Curve Getters ───
-
-  /// @inheritdoc IV4FeePolicy
-  function baselineCurveLength() external view returns (uint256) {
-    return _baselineCurve.length;
-  }
-
-  /// @inheritdoc IV4FeePolicy
-  function baselineCurve(uint256 index)
-    external
-    view
-    returns (uint24 lpFeeFloor, uint24 protocolFee)
-  {
-    CurveBreakpoint storage bp = _baselineCurve[index];
-    return (bp.lpFeeFloor, bp.protocolFee);
   }
 
   // ─── Flag Rules Getters ───
@@ -204,22 +192,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setBaselineCurve(CurveBreakpoint[] calldata breakpoints) external onlyFeeSetter {
-    if (breakpoints.length == 0) revert EmptyCurve();
-
-    // Clear existing curve
-    delete _baselineCurve;
-
-    uint24 prevFloor;
-    for (uint256 i; i < breakpoints.length; ++i) {
-      CurveBreakpoint calldata bp = breakpoints[i];
-      if (i != 0 && bp.lpFeeFloor <= prevFloor) revert CurveNotAscending();
-      _validateFee(bp.protocolFee);
-      _baselineCurve.push(bp);
-      prevFloor = bp.lpFeeFloor;
-    }
-
-    emit BaselineCurveUpdated(breakpoints.length);
+  function setProtocolFeeMultiplier(uint24 pips) external onlyFeeSetter {
+    if (pips > MULTIPLIER_DENOMINATOR) revert MultiplierTooLarge();
+    protocolFeeMultiplierPips = pips;
+    emit ProtocolFeeMultiplierUpdated(pips);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -323,19 +299,23 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     return keccak256(abi.encodePacked(Currency.unwrap(c0), Currency.unwrap(c1)));
   }
 
-  /// @dev Walks the baseline curve backward to find the highest floor <= lpFee.
-  /// Returns 0 if the curve is empty or no breakpoint qualifies.
+  /// @dev Applies the global pips multiplier to an LP fee, packing the result symmetrically
+  /// into both 12-bit directional components and clamping each to MAX_PROTOCOL_FEE (1000).
   /// @param lpFee The pool's LP fee in pips (from key.fee for static fee pools).
-  /// @return The protocol fee from the matching breakpoint, or 0.
-  function _lookupBaselineFee(uint24 lpFee) internal view returns (uint24) {
-    uint256 len = _baselineCurve.length;
-    if (len == 0) return 0;
-
-    for (uint256 i = len; i != 0; --i) {
-      CurveBreakpoint storage bp = _baselineCurve[i - 1];
-      if (bp.lpFeeFloor <= lpFee) return bp.protocolFee;
+  /// @param multiplierPips The multiplier in pips. Denominator is MULTIPLIER_DENOMINATOR
+  /// (1_000_000) — this is distinct from `_applyMultiplier`'s 10_000 bps denominator and
+  /// the two helpers must not be conflated.
+  /// @return The packed protocol fee with both 12-bit components equal.
+  function _applyLpFeeMultiplier(uint24 lpFee, uint24 multiplierPips)
+    internal
+    pure
+    returns (uint24)
+  {
+    uint256 perDirection = uint256(lpFee) * multiplierPips / MULTIPLIER_DENOMINATOR;
+    if (perDirection > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) {
+      perDirection = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
     }
-    return 0;
+    return uint24((perDirection << 12) | perDirection);
   }
 
   /// @dev Scales each 12-bit directional fee component by a basis-point multiplier,

@@ -13,7 +13,7 @@ import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {CurveBreakpoint, FlagRule} from "../src/interfaces/IV4FeePolicy.sol";
+import {FlagRule} from "../src/interfaces/IV4FeePolicy.sol";
 import {HookFeeFlags} from "../src/libraries/HookFeeFlags.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
@@ -111,13 +111,13 @@ contract V4FeeAdapterTest is Test {
 
   // ============ Helpers ============
 
-  function _buildCurve() internal pure returns (CurveBreakpoint[] memory) {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](4);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: FEE_100});
-    curve[1] = CurveBreakpoint({lpFeeFloor: 500, protocolFee: FEE_200});
-    curve[2] = CurveBreakpoint({lpFeeFloor: 3000, protocolFee: FEE_300});
-    curve[3] = CurveBreakpoint({lpFeeFloor: 10_000, protocolFee: FEE_500});
-    return curve;
+  /// @dev Multiplier value chosen so that `standardKey.fee = 3000` yields
+  /// `FEE_300` (300 pips per direction): 3000 × 100_000 / 1_000_000 = 300.
+  uint24 internal constant TEST_MULTIPLIER_PIPS = 100_000;
+
+  function _setMultiplier(uint24 pips) internal {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(pips);
   }
 
   function _pairHash() internal view returns (bytes32) {
@@ -201,7 +201,7 @@ contract V4FeeAdapterTest is Test {
 
     // Configure policy to return FEE_300
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
     assertEq(adapter.getFee(standardKey), FEE_300);
 
     // Set pool override to explicit zero -should NOT fall through to policy
@@ -217,7 +217,7 @@ contract V4FeeAdapterTest is Test {
     PoolId id = standardKey.toId();
 
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     // Set override then clear it
     vm.startPrank(feeSetter);
@@ -253,9 +253,9 @@ contract V4FeeAdapterTest is Test {
   }
 
   function test_poolOverride_takesPriorityOverPolicy() public {
-    // Configure policy to return FEE_300 via baseline curve
+    // Configure policy to return FEE_300 via the multiplier path
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
     // Set pool override to FEE_500
     adapter.setPoolOverride(standardKey.toId(), FEE_500);
     vm.stopPrank();
@@ -268,7 +268,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_triggerFeeUpdate_success() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     vm.expectEmit(true, true, false, true, address(adapter));
     emit IV4FeeAdapter.FeeUpdateTriggered(alice, standardKey.toId(), FEE_300);
@@ -295,7 +295,7 @@ contract V4FeeAdapterTest is Test {
   function testFuzz_triggerFeeUpdate_permissionless(address caller) public {
     vm.assume(caller != address(0));
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     vm.prank(caller);
     adapter.triggerFeeUpdate(standardKey);
@@ -304,7 +304,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_batchTriggerFeeUpdate_success() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     PoolKey[] memory keys = new PoolKey[](2);
     keys[0] = standardKey;
@@ -404,108 +404,195 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.isCustomAccounting(address(addr)), expected);
   }
 
-  // ============ Policy: Baseline Curve ============
+  // ============ Policy: Protocol Fee Multiplier ============
 
-  function test_setBaselineCurve_success() public {
-    CurveBreakpoint[] memory curve = _buildCurve();
+  function test_setProtocolFeeMultiplier_success() public {
     vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.BaselineCurveUpdated(4);
+    emit IV4FeePolicy.ProtocolFeeMultiplierUpdated(TEST_MULTIPLIER_PIPS);
     vm.prank(feeSetter);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
-    vm.snapshotGasLastCall("policy.setBaselineCurve - four breakpoints");
-    assertEq(policy.baselineCurveLength(), 4);
-    (uint24 floor, uint24 fee) = policy.baselineCurve(2);
-    assertEq(floor, 3000);
-    assertEq(fee, FEE_300);
+    vm.snapshotGasLastCall("policy.setProtocolFeeMultiplier");
+    assertEq(policy.protocolFeeMultiplierPips(), TEST_MULTIPLIER_PIPS);
   }
 
-  function test_setBaselineCurve_revertsEmpty() public {
-    CurveBreakpoint[] memory empty = new CurveBreakpoint[](0);
+  function test_setProtocolFeeMultiplier_revertsTooLarge() public {
     vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.EmptyCurve.selector);
-    policy.setBaselineCurve(empty);
+    vm.expectRevert(IV4FeePolicy.MultiplierTooLarge.selector);
+    policy.setProtocolFeeMultiplier(1_000_001);
   }
 
-  function test_setBaselineCurve_revertsNotAscending() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](2);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 3000, protocolFee: FEE_300});
-    curve[1] = CurveBreakpoint({lpFeeFloor: 500, protocolFee: FEE_200}); // not ascending
+  function test_setProtocolFeeMultiplier_acceptsBoundary() public {
     vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.CurveNotAscending.selector);
-    policy.setBaselineCurve(curve);
+    policy.setProtocolFeeMultiplier(1_000_000);
+    assertEq(policy.protocolFeeMultiplierPips(), 1_000_000);
   }
 
-  function test_setBaselineCurve_revertsInvalidFee() public {
-    CurveBreakpoint[] memory curve = new CurveBreakpoint[](1);
-    curve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: (1001 << 12) | 1001});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setBaselineCurve(curve);
+  function test_setProtocolFeeMultiplier_acceptsZero() public {
+    vm.startPrank(feeSetter);
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setProtocolFeeMultiplier(0);
+    vm.stopPrank();
+    assertEq(policy.protocolFeeMultiplierPips(), 0);
   }
 
-  function test_setBaselineCurve_revertsUnauthorized() public {
+  function test_setProtocolFeeMultiplier_revertsUnauthorized() public {
     vm.prank(alice);
     vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
   }
 
-  function test_setBaselineCurve_replacesExisting() public {
+  function test_setProtocolFeeMultiplier_replacesExisting() public {
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
-    assertEq(policy.baselineCurveLength(), 4);
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    assertEq(policy.protocolFeeMultiplierPips(), TEST_MULTIPLIER_PIPS);
 
-    CurveBreakpoint[] memory newCurve = new CurveBreakpoint[](1);
-    newCurve[0] = CurveBreakpoint({lpFeeFloor: 0, protocolFee: FEE_100});
-    policy.setBaselineCurve(newCurve);
-    assertEq(policy.baselineCurveLength(), 1);
+    policy.setProtocolFeeMultiplier(200_000);
+    assertEq(policy.protocolFeeMultiplierPips(), 200_000);
     vm.stopPrank();
   }
 
   // ============ Policy: computeFee - static native math path ============
 
-  function test_computeFee_staticNativeMath_baselineCurve() public {
+  function test_computeFee_staticNativeMath_multiplier() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
-    // key.fee = 3000 -> should match the 3000 breakpoint -> FEE_300
+    // key.fee = 3000, multiplier 100_000 (10%) -> 3000 * 100_000 / 1_000_000 = 300
     assertEq(policy.computeFee(standardKey), FEE_300);
-    vm.snapshotGasLastCall("policy.computeFee - static native math baseline curve");
+    vm.snapshotGasLastCall("policy.computeFee - static native math multiplier");
   }
 
-  function test_computeFee_staticNativeMath_baselineCurve_lowFee() public {
+  function test_computeFee_staticNativeMath_multiplier_lowFee() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     PoolKey memory lowFeeKey = standardKey;
     lowFeeKey.fee = 100;
     poolManager.mockInitialize(lowFeeKey);
 
-    // key.fee = 100, floor 0 matches -> FEE_100
-    assertEq(policy.computeFee(lowFeeKey), FEE_100);
+    // key.fee = 100, multiplier 100_000 -> 100 * 100_000 / 1_000_000 = 10 per direction
+    uint24 expected = (10 << 12) | 10;
+    assertEq(policy.computeFee(lowFeeKey), expected);
   }
 
-  function test_computeFee_staticNativeMath_pairFeeOverridesCurve() public {
+  function test_computeFee_staticNativeMath_pairFeeOverridesMultiplier() public {
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
     policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
     vm.stopPrank();
 
-    // Pair fee should override baseline curve
+    // Pair fee should override the multiplier-derived fee
     assertEq(policy.computeFee(standardKey), FEE_500);
     vm.snapshotGasLastCall("policy.computeFee - static native math pair fee");
   }
 
-  function test_computeFee_staticNativeMath_emptyCurveReturnsZero() public view {
+  function test_computeFee_staticNativeMath_unsetMultiplierReturnsZero() public view {
     assertEq(policy.computeFee(standardKey), 0);
   }
 
   function test_computeFee_staticNativeMath_hookWithoutDeltaFlags() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     // hookKey has address with bit 7 set but bits 0-3 clear -> StaticNativeMath path
     assertEq(policy.computeFee(hookKey), FEE_300);
+  }
+
+  // ============ Policy: computeFee multiplier math ============
+
+  function test_computeFee_staticNativeMath_zeroMultiplier() public {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(0);
+    assertEq(policy.computeFee(standardKey), 0);
+  }
+
+  function test_computeFee_staticNativeMath_zeroLpFee() public {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(1_000_000);
+
+    PoolKey memory zeroFeeKey = standardKey;
+    zeroFeeKey.fee = 0;
+    poolManager.mockInitialize(zeroFeeKey);
+
+    // 0 * any multiplier = 0; LP fee of 0 means no protocol fee regardless of multiplier
+    assertEq(policy.computeFee(zeroFeeKey), 0);
+  }
+
+  function test_computeFee_staticNativeMath_multiplier10pct() public {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(100_000); // 10% of LP fee
+
+    PoolKey memory k = standardKey;
+    k.fee = 100;
+    poolManager.mockInitialize(k);
+
+    // 100 * 100_000 / 1_000_000 = 10 per direction (matches user's example)
+    uint24 expected = (10 << 12) | 10;
+    assertEq(policy.computeFee(k), expected);
+  }
+
+  function test_computeFee_staticNativeMath_multiplier100pct() public {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(1_000_000); // 100% of LP fee
+
+    PoolKey memory k = standardKey;
+    k.fee = 1000;
+    poolManager.mockInitialize(k);
+
+    // 1000 * 1_000_000 / 1_000_000 = 1000 per direction (clamp boundary, no truncation)
+    assertEq(policy.computeFee(k), FEE_1000);
+  }
+
+  function test_computeFee_staticNativeMath_multiplierClamps() public {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(1_000_000);
+
+    PoolKey memory k = standardKey;
+    k.fee = 5000;
+    poolManager.mockInitialize(k);
+
+    // 5000 * 1_000_000 / 1_000_000 = 5000, clamped to MAX_PROTOCOL_FEE = 1000 per direction
+    assertEq(policy.computeFee(k), FEE_1000);
+  }
+
+  function test_computeFee_staticNativeMath_pairFeeBeatsMultiplier() public {
+    vm.startPrank(feeSetter);
+    policy.setProtocolFeeMultiplier(1_000_000);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_200);
+    vm.stopPrank();
+
+    // Pair fee wins over multiplier-derived fee
+    assertEq(policy.computeFee(standardKey), FEE_200);
+  }
+
+  function test_computeFee_dynamicFee_skipsMultiplier() public {
+    // Regression: a future routing bug must not multiply DYNAMIC_FEE_FLAG (0x800000)
+    // on the StaticNativeMath path. Dynamic-fee pools must take the classified path.
+    vm.startPrank(feeSetter);
+    policy.setProtocolFeeMultiplier(1_000_000);
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    // dynamicKey.fee == LPFeeLibrary.DYNAMIC_FEE_FLAG -> classified -> defaultFee
+    assertEq(policy.computeFee(dynamicKey), FEE_100);
+  }
+
+  function testFuzz_computeFee_staticNativeMath_multiplier(uint24 lpFee, uint24 pips) public {
+    lpFee = uint24(bound(lpFee, 0, LPFeeLibrary.MAX_LP_FEE));
+    pips = uint24(bound(pips, 0, 1_000_000));
+    vm.prank(feeSetter);
+    policy.setProtocolFeeMultiplier(pips);
+
+    PoolKey memory k = standardKey;
+    k.fee = lpFee;
+    poolManager.mockInitialize(k);
+
+    uint24 fee = policy.computeFee(k);
+    uint24 zeroForOne = fee & 0xFFF;
+    uint24 oneForZero = fee >> 12;
+    assertEq(zeroForOne, oneForZero); // symmetric: both 12-bit components equal
+    assertLe(zeroForOne, ProtocolFeeLibrary.MAX_PROTOCOL_FEE);
   }
 
   // ============ Policy: computeFee - classified path ============
@@ -524,7 +611,6 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(customKey);
 
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
     policy.setHookFamily(customHook, 1);
     policy.setFamilyDefault(1, FEE_200);
     vm.stopPrank();
@@ -914,9 +1000,9 @@ contract V4FeeAdapterTest is Test {
     vm.stopPrank();
   }
 
-  function test_clearPairFee_fallsThroughToCurve() public {
+  function test_clearPairFee_fallsThroughToMultiplier() public {
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
     policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
     vm.stopPrank();
 
@@ -926,7 +1012,8 @@ contract V4FeeAdapterTest is Test {
     policy.clearPairFee(standardKey.currency0, standardKey.currency1);
 
     assertEq(policy.pairFees(_pairHash()), 0); // storage deleted
-    assertEq(policy.computeFee(standardKey), FEE_300); // back to baseline curve
+    // Falls through to multiplier: 3000 * 100_000 / 1_000_000 = 300
+    assertEq(policy.computeFee(standardKey), FEE_300);
   }
 
   function test_clearPairFee_revertsCurrenciesOutOfOrder() public {
@@ -949,7 +1036,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(customKey);
 
     vm.startPrank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
     policy.setDefaultFee(FEE_100);
     policy.setHookFamily(customHook, 1);
     policy.setFamilyDefault(1, FEE_200);
@@ -957,7 +1044,7 @@ contract V4FeeAdapterTest is Test {
     policy.setFamilyMultiplier(1, 10_000); // 1x
     vm.stopPrank();
 
-    // StandardKey -> StaticNativeMath -> pair fee overrides curve -> FEE_300
+    // StandardKey -> StaticNativeMath -> pair fee overrides multiplier -> FEE_300
     assertEq(adapter.getFee(standardKey), FEE_300);
 
     // CustomKey -> Classified -> pair fee × multiplier -> FEE_300 × 1x = FEE_300
@@ -976,7 +1063,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.setProtocolFeesAccrued(c, amount);
 
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     // Trigger fee update
     adapter.triggerFeeUpdate(standardKey);
@@ -1008,18 +1095,18 @@ contract V4FeeAdapterTest is Test {
 
   function test_edge_policySwap() public {
     vm.prank(feeSetter);
-    policy.setBaselineCurve(_buildCurve());
+    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
 
     assertEq(adapter.getFee(standardKey), FEE_300);
 
-    // Deploy new policy with different curve
+    // Deploy new policy with no multiplier configured (default 0)
     vm.startPrank(owner);
     V4FeePolicy newPolicy = new V4FeePolicy(IPoolManager(address(poolManager)));
     newPolicy.setFeeSetter(feeSetter);
     adapter.setPolicy(newPolicy);
     vm.stopPrank();
 
-    // New policy has no curve -> 0
+    // New policy has multiplier == 0 -> 0
     assertEq(adapter.getFee(standardKey), 0);
   }
 
