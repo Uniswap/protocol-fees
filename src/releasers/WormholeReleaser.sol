@@ -3,8 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 
-import {IResourceManager} from "../interfaces/base/IResourceManager.sol";
-import {ResourceManager} from "../base/ResourceManager.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
 import {IWormhole} from "../interfaces/wormhole/IWormhole.sol";

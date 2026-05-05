@@ -5,12 +5,9 @@ import {Test} from "forge-std/Test.sol";
 
 import "../../../script/proposal-4/Constants.sol" as Constants;
 import {
-    IWormholeSender,
     IUniswapV2Factory,
     IUniswapV3Factory,
     IUniswapV4PoolManager,
-    IGovernorBravo,
-    IPolygonFxRoot,
     IOwned
 } from "../../../script/proposal-4/Interfaces.sol";
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";

@@ -11,7 +11,6 @@ import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 import {NttManagerNoRateLimiting} from "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol";
 import {IManagerBase} from "lib/native-token-transfers/evm/src/interfaces/IManagerBase.sol";
 import {WormholeTransceiver} from "lib/native-token-transfers/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol";
-import {ERC1967Proxy} from "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:

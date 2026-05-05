@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.29;
 
+/// forge-lint: disable-next-line(unused-import)
 import {SyntheticNttUni, ERC20} from "../../src/wormhole/SyntheticNttUni.sol";
 
 // trapdooring through `mockMint` for test setups

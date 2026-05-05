@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {INttManager} from "../../src/interfaces/wormhole/INttManager.sol";
-import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
-
 contract MockNttManager {
     event MockTransfer(
         uint256 indexed amount,

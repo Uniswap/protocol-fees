@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
 import {
-    IWormholeSender,
     IUniswapV2Factory,
     IUniswapV3Factory,
-    IUniswapV4PoolManager,
-    IGovernorBravo,
-    IPolygonFxRoot
+    IUniswapV4PoolManager
 } from "../Interfaces.sol";
 
 string constant POLYGON_DEPLOY_PATH = "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
