@@ -13,7 +13,7 @@ import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {FlagRule} from "../src/interfaces/IV4FeePolicy.sol";
+import {FlagRule, FeeBucket} from "../src/interfaces/IV4FeePolicy.sol";
 import {HookFeeFlags} from "../src/libraries/HookFeeFlags.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
@@ -111,13 +111,46 @@ contract V4FeeAdapterTest is Test {
 
   // ============ Helpers ============
 
-  /// @dev Multiplier value chosen so that `standardKey.fee = 3000` yields
-  /// `FEE_300` (300 pips per direction): 3000 × 100_000 / 1_000_000 = 300.
-  uint24 internal constant TEST_MULTIPLIER_PIPS = 100_000;
+  /// @dev Slope value chosen so that `standardKey.fee = 3000` yields `FEE_300`
+  /// (300 pips per direction) under a single bucket starting at floor 0:
+  /// `0 + 100_000 × 3000 / 1_000_000 = 300`.
+  uint32 internal constant TEST_BETA_PIPS = 100_000;
 
-  function _setMultiplier(uint24 pips) internal {
+  /// @dev Returns a single-bucket array `[(0, 0, betaPips)]`. Equivalent in math to a
+  /// pre-bucket-era global multiplier: `protocolFee = 0 + betaPips * lpFee / 1_000_000`.
+  /// Caller is responsible for the prank.
+  function _singleBucketSlope(uint32 betaPips) internal pure returns (FeeBucket[] memory bs) {
+    bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
+  }
+
+  /// @dev Returns a single-bucket array `[(0, alphaPips, 0)]` — flat fee for any LP fee.
+  function _singleBucketFlat(uint24 alphaPips) internal pure returns (FeeBucket[] memory bs) {
+    bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: alphaPips, betaPips: 0});
+  }
+
+  /// @dev As above but pranks feeSetter for one-off setups.
+  function _setSingleBucketSlope(uint32 betaPips) internal {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(pips);
+    policy.setFeeBuckets(_singleBucketSlope(betaPips));
+  }
+
+  /// @dev Adjusted Configuration B from the design discussion. All alpha values stay at
+  /// or below MAX_PROTOCOL_FEE = 1000 (the per-bucket cap). Continuity-preserving:
+  /// each bucket starts at the previous bucket's endpoint.
+  ///   bucket 0: [0, 100)         flat 0
+  ///   bucket 1: [100, 500)       slope 10% (alpha 0, beta 100_000)
+  ///   bucket 2: [500, 3000)      starts at 40, slope 20% (alpha 40, beta 200_000)
+  ///   bucket 3: [3000, 10_000)   starts at 540, slope 15% (alpha 540, beta 150_000)
+  ///   bucket 4: [10_000, ∞)      flat ceiling at MAX_PROTOCOL_FEE
+  function _bucketsConfigB() internal pure returns (FeeBucket[] memory bs) {
+    bs = new FeeBucket[](5);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 0});
+    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 100_000});
+    bs[2] = FeeBucket({lpFeeFloor: 500, alphaPips: 40, betaPips: 200_000});
+    bs[3] = FeeBucket({lpFeeFloor: 3000, alphaPips: 540, betaPips: 150_000});
+    bs[4] = FeeBucket({lpFeeFloor: 10_000, alphaPips: 1000, betaPips: 0});
   }
 
   function _pairHash() internal view returns (bytes32) {
@@ -201,7 +234,7 @@ contract V4FeeAdapterTest is Test {
 
     // Configure policy to return FEE_300
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     assertEq(adapter.getFee(standardKey), FEE_300);
 
     // Set pool override to explicit zero -should NOT fall through to policy
@@ -217,7 +250,7 @@ contract V4FeeAdapterTest is Test {
     PoolId id = standardKey.toId();
 
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     // Set override then clear it
     vm.startPrank(feeSetter);
@@ -255,7 +288,7 @@ contract V4FeeAdapterTest is Test {
   function test_poolOverride_takesPriorityOverPolicy() public {
     // Configure policy to return FEE_300 via the multiplier path
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     // Set pool override to FEE_500
     adapter.setPoolOverride(standardKey.toId(), FEE_500);
     vm.stopPrank();
@@ -268,7 +301,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_triggerFeeUpdate_success() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     vm.expectEmit(true, true, false, true, address(adapter));
     emit IV4FeeAdapter.FeeUpdateTriggered(alice, standardKey.toId(), FEE_300);
@@ -295,7 +328,7 @@ contract V4FeeAdapterTest is Test {
   function testFuzz_triggerFeeUpdate_permissionless(address caller) public {
     vm.assume(caller != address(0));
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     vm.prank(caller);
     adapter.triggerFeeUpdate(standardKey);
@@ -304,7 +337,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_batchTriggerFeeUpdate_success() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     PoolKey[] memory keys = new PoolKey[](2);
     keys[0] = standardKey;
@@ -404,173 +437,363 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.isCustomAccounting(address(addr)), expected);
   }
 
-  // ============ Policy: Protocol Fee Multiplier ============
+  // ============ Policy: Fee Buckets ============
 
-  function test_setProtocolFeeMultiplier_success() public {
+  function test_setFeeBuckets_success() public {
+    FeeBucket[] memory bs = _singleBucketSlope(TEST_BETA_PIPS);
+
     vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.ProtocolFeeMultiplierUpdated(TEST_MULTIPLIER_PIPS);
+    emit IV4FeePolicy.FeeBucketsUpdated(1);
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(bs);
 
-    vm.snapshotGasLastCall("policy.setProtocolFeeMultiplier");
-    assertEq(policy.protocolFeeMultiplierPips(), TEST_MULTIPLIER_PIPS);
+    vm.snapshotGasLastCall("policy.setFeeBuckets - 1 bucket");
+    assertEq(policy.feeBucketsLength(), 1);
+    (uint24 floor, uint24 alpha, uint32 beta) = policy.feeBucket(0);
+    assertEq(floor, 0);
+    assertEq(alpha, 0);
+    assertEq(beta, TEST_BETA_PIPS);
   }
 
-  function test_setProtocolFeeMultiplier_revertsTooLarge() public {
+  function test_setFeeBuckets_5buckets_configurationB() public {
+    FeeBucket[] memory bs = _bucketsConfigB();
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.FeeBucketsUpdated(5);
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+
+    vm.snapshotGasLastCall("policy.setFeeBuckets - 5 buckets (configuration B)");
+    assertEq(policy.feeBucketsLength(), 5);
+  }
+
+  function test_setFeeBuckets_revertsEmpty() public {
+    FeeBucket[] memory bs = new FeeBucket[](0);
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.EmptyBuckets.selector);
+    policy.setFeeBuckets(bs);
+  }
+
+  function test_setFeeBuckets_revertsNotAscending() public {
+    FeeBucket[] memory bs = new FeeBucket[](2);
+    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
+    bs[1] = FeeBucket({lpFeeFloor: 50, alphaPips: 0, betaPips: 0});
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.BucketsNotAscending.selector);
+    policy.setFeeBuckets(bs);
+  }
+
+  function test_setFeeBuckets_revertsEqualFloors() public {
+    // Strict ascending: equal floors must also revert.
+    FeeBucket[] memory bs = new FeeBucket[](2);
+    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
+    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.BucketsNotAscending.selector);
+    policy.setFeeBuckets(bs);
+  }
+
+  function test_setFeeBuckets_revertsAlphaTooLarge() public {
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1001, betaPips: 0});
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
+    policy.setFeeBuckets(bs);
+  }
+
+  function test_setFeeBuckets_revertsBetaTooLarge() public {
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000_001});
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.MultiplierTooLarge.selector);
-    policy.setProtocolFeeMultiplier(1_000_001);
+    policy.setFeeBuckets(bs);
   }
 
-  function test_setProtocolFeeMultiplier_acceptsBoundary() public {
+  function test_setFeeBuckets_revertsTooManyBuckets() public {
+    FeeBucket[] memory bs = new FeeBucket[](17);
+    for (uint256 i; i < 17; ++i) {
+      bs[i] = FeeBucket({lpFeeFloor: uint24(i * 100), alphaPips: 0, betaPips: 0});
+    }
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000);
-    assertEq(policy.protocolFeeMultiplierPips(), 1_000_000);
+    vm.expectRevert(IV4FeePolicy.TooManyBuckets.selector);
+    policy.setFeeBuckets(bs);
   }
 
-  function test_setProtocolFeeMultiplier_acceptsZero() public {
-    vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
-    policy.setProtocolFeeMultiplier(0);
-    vm.stopPrank();
-    assertEq(policy.protocolFeeMultiplierPips(), 0);
+  function test_setFeeBuckets_acceptsAlphaBoundary() public {
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1000, betaPips: 0});
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+    (, uint24 alpha,) = policy.feeBucket(0);
+    assertEq(alpha, 1000);
   }
 
-  function test_setProtocolFeeMultiplier_revertsUnauthorized() public {
+  function test_setFeeBuckets_acceptsBetaBoundary() public {
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000_000});
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+    (,, uint32 beta) = policy.feeBucket(0);
+    assertEq(beta, 1_000_000_000);
+  }
+
+  function test_setFeeBuckets_acceptsMaxBuckets() public {
+    FeeBucket[] memory bs = new FeeBucket[](16);
+    for (uint256 i; i < 16; ++i) {
+      bs[i] = FeeBucket({lpFeeFloor: uint24(i * 100), alphaPips: 0, betaPips: 0});
+    }
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+    assertEq(policy.feeBucketsLength(), 16);
+  }
+
+  function test_setFeeBuckets_revertsUnauthorized() public {
     vm.prank(alice);
     vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
   }
 
-  function test_setProtocolFeeMultiplier_replacesExisting() public {
+  function test_setFeeBuckets_replacesExisting() public {
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
-    assertEq(policy.protocolFeeMultiplierPips(), TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_bucketsConfigB());
+    assertEq(policy.feeBucketsLength(), 5);
 
-    policy.setProtocolFeeMultiplier(200_000);
-    assertEq(policy.protocolFeeMultiplierPips(), 200_000);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    assertEq(policy.feeBucketsLength(), 1);
     vm.stopPrank();
+  }
+
+  function test_clearFeeBuckets() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    assertEq(policy.feeBucketsLength(), 1);
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.FeeBucketsUpdated(0);
+    policy.clearFeeBuckets();
+    vm.stopPrank();
+
+    assertEq(policy.feeBucketsLength(), 0);
+    // With no buckets and no pair fee, computeFee on standardKey returns 0.
+    assertEq(policy.computeFee(standardKey), 0);
+  }
+
+  function test_clearFeeBuckets_revertsUnauthorized() public {
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.clearFeeBuckets();
   }
 
   // ============ Policy: computeFee - static native math path ============
 
-  function test_computeFee_staticNativeMath_multiplier() public {
+  function test_computeFee_staticNativeMath_singleBucketSlope() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
-    // key.fee = 3000, multiplier 100_000 (10%) -> 3000 * 100_000 / 1_000_000 = 300
+    // key.fee = 3000, single bucket (0, 0, 100_000) -> 0 + 100_000 * 3000 / 1_000_000 = 300
     assertEq(policy.computeFee(standardKey), FEE_300);
-    vm.snapshotGasLastCall("policy.computeFee - static native math multiplier");
+    vm.snapshotGasLastCall("policy.computeFee - static native math buckets");
   }
 
-  function test_computeFee_staticNativeMath_multiplier_lowFee() public {
+  function test_computeFee_staticNativeMath_singleBucketSlope_lowFee() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     PoolKey memory lowFeeKey = standardKey;
     lowFeeKey.fee = 100;
     poolManager.mockInitialize(lowFeeKey);
 
-    // key.fee = 100, multiplier 100_000 -> 100 * 100_000 / 1_000_000 = 10 per direction
+    // key.fee = 100 -> 100 * 100_000 / 1_000_000 = 10 per direction
     uint24 expected = (10 << 12) | 10;
     assertEq(policy.computeFee(lowFeeKey), expected);
   }
 
-  function test_computeFee_staticNativeMath_pairFeeOverridesMultiplier() public {
+  function test_computeFee_staticNativeMath_pairFeeOverridesBuckets() public {
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
     vm.stopPrank();
 
-    // Pair fee should override the multiplier-derived fee
+    // Pair fee should override the bucket-derived fee
     assertEq(policy.computeFee(standardKey), FEE_500);
     vm.snapshotGasLastCall("policy.computeFee - static native math pair fee");
   }
 
-  function test_computeFee_staticNativeMath_unsetMultiplierReturnsZero() public view {
+  function test_computeFee_staticNativeMath_zeroBucketsReturnsZero() public view {
     assertEq(policy.computeFee(standardKey), 0);
   }
 
   function test_computeFee_staticNativeMath_hookWithoutDeltaFlags() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     // hookKey has address with bit 7 set but bits 0-3 clear -> StaticNativeMath path
     assertEq(policy.computeFee(hookKey), FEE_300);
   }
 
-  // ============ Policy: computeFee multiplier math ============
+  // ============ Policy: computeFee bucket math ============
 
-  function test_computeFee_staticNativeMath_zeroMultiplier() public {
+  function test_computeFee_staticNativeMath_singleBucketFlat() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(0);
-    assertEq(policy.computeFee(standardKey), 0);
-  }
+    policy.setFeeBuckets(_singleBucketFlat(25));
 
-  function test_computeFee_staticNativeMath_zeroLpFee() public {
-    vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000);
+    // alpha=25, beta=0 → flat 25 pips for any LP fee
+    uint24 expected = (25 << 12) | 25;
+    assertEq(policy.computeFee(standardKey), expected); // key.fee = 3000
 
     PoolKey memory zeroFeeKey = standardKey;
     zeroFeeKey.fee = 0;
     poolManager.mockInitialize(zeroFeeKey);
-
-    // 0 * any multiplier = 0; LP fee of 0 means no protocol fee regardless of multiplier
-    assertEq(policy.computeFee(zeroFeeKey), 0);
+    // snap-to-lowest with delta = 0 → still alpha = 25
+    assertEq(policy.computeFee(zeroFeeKey), expected);
   }
 
-  function test_computeFee_staticNativeMath_multiplier10pct() public {
+  function test_computeFee_staticNativeMath_singleBucket1to1() public {
+    // 1:1 boundary: beta = 1_000_000 means protocol fee == LP fee
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000});
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000); // 10% of LP fee
-
-    PoolKey memory k = standardKey;
-    k.fee = 100;
-    poolManager.mockInitialize(k);
-
-    // 100 * 100_000 / 1_000_000 = 10 per direction (matches user's example)
-    uint24 expected = (10 << 12) | 10;
-    assertEq(policy.computeFee(k), expected);
-  }
-
-  function test_computeFee_staticNativeMath_multiplier100pct() public {
-    vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000); // 100% of LP fee
+    policy.setFeeBuckets(bs);
 
     PoolKey memory k = standardKey;
     k.fee = 1000;
     poolManager.mockInitialize(k);
-
-    // 1000 * 1_000_000 / 1_000_000 = 1000 per direction (clamp boundary, no truncation)
+    // 1000 * 1_000_000 / 1_000_000 = 1000 per direction (clamp boundary)
     assertEq(policy.computeFee(k), FEE_1000);
   }
 
-  function test_computeFee_staticNativeMath_multiplierClamps() public {
+  function test_computeFee_staticNativeMath_clamps() public {
+    FeeBucket[] memory bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000});
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000);
+    policy.setFeeBuckets(bs);
 
     PoolKey memory k = standardKey;
     k.fee = 5000;
     poolManager.mockInitialize(k);
-
-    // 5000 * 1_000_000 / 1_000_000 = 5000, clamped to MAX_PROTOCOL_FEE = 1000 per direction
+    // 5000 * 1 = 5000, clamped to MAX_PROTOCOL_FEE = 1000 per direction
     assertEq(policy.computeFee(k), FEE_1000);
   }
 
-  function test_computeFee_staticNativeMath_pairFeeBeatsMultiplier() public {
+  function test_computeFee_staticNativeMath_zeroLpFee_alphaZero() public {
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+
+    PoolKey memory zeroFeeKey = standardKey;
+    zeroFeeKey.fee = 0;
+    poolManager.mockInitialize(zeroFeeKey);
+    // alpha = 0 + beta * 0 / 1_000_000 = 0
+    assertEq(policy.computeFee(zeroFeeKey), 0);
+  }
+
+  function test_computeFee_staticNativeMath_zeroLpFee_alphaNonzero() public {
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(_singleBucketFlat(25));
+
+    PoolKey memory zeroFeeKey = standardKey;
+    zeroFeeKey.fee = 0;
+    poolManager.mockInitialize(zeroFeeKey);
+    uint24 expected = (25 << 12) | 25;
+    assertEq(policy.computeFee(zeroFeeKey), expected);
+  }
+
+  function test_computeFee_staticNativeMath_snapToLowest() public {
+    // Two buckets where the lowest floor is > 0. lpFee < floor_0 must snap to bucket 0.
+    FeeBucket[] memory bs = new FeeBucket[](2);
+    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 0});
+    bs[1] = FeeBucket({lpFeeFloor: 500, alphaPips: 50, betaPips: 0});
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+
+    PoolKey memory k = standardKey;
+    k.fee = 50; // below floor_0 = 100
+    poolManager.mockInitialize(k);
+
+    // Snap to bucket 0 with delta = 0 -> alpha_0 = 25
+    uint24 expected = (25 << 12) | 25;
+    assertEq(policy.computeFee(k), expected);
+  }
+
+  function test_computeFee_staticNativeMath_continuousPiecewise() public {
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(_bucketsConfigB());
+
+    // Spot-check several lpFee values against the curve table:
+    //   lpFee=50    bucket 0 (flat 0)            -> 0
+    //   lpFee=100   bucket 1 starts (delta=0)    -> 0
+    //   lpFee=500   bucket 2 starts (delta=0)    -> 40
+    //   lpFee=3000  bucket 3 starts (delta=0)    -> 540
+    //   lpFee=10000 bucket 4 starts (flat 1000)  -> 1000 (clamp territory)
+    //   lpFee=200   bucket 1, delta=100          -> 0 + 100_000*100/1e6 = 10
+    //   lpFee=1000  bucket 2, delta=500          -> 40 + 200_000*500/1e6 = 140
+    //   lpFee=5000  bucket 3, delta=2000         -> 540 + 150_000*2000/1e6 = 840
+    PoolKey memory k = standardKey;
+
+    k.fee = 50;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), 0);
+
+    k.fee = 100;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), 0);
+
+    k.fee = 500;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (40 << 12) | 40);
+
+    k.fee = 3000;
+    assertEq(policy.computeFee(k), (540 << 12) | 540);
+
+    k.fee = 10_000;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), FEE_1000);
+
+    k.fee = 200;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (10 << 12) | 10);
+
+    k.fee = 1000;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (140 << 12) | 140);
+
+    k.fee = 5000;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (840 << 12) | 840);
+  }
+
+  function test_computeFee_staticNativeMath_discontinuousPiecewise() public {
+    // Intentional cliff: alpha jumps at the boundary
+    FeeBucket[] memory bs = new FeeBucket[](2);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 25, betaPips: 0});
+    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 100, betaPips: 0});
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(bs);
+
+    PoolKey memory k = standardKey;
+    k.fee = 99;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (25 << 12) | 25);
+
+    k.fee = 100;
+    poolManager.mockInitialize(k);
+    assertEq(policy.computeFee(k), (100 << 12) | 100);
+  }
+
+  function test_computeFee_staticNativeMath_pairFeeBeatsBuckets() public {
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000);
+    policy.setFeeBuckets(_bucketsConfigB());
     policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_200);
     vm.stopPrank();
 
-    // Pair fee wins over multiplier-derived fee
+    // Pair fee wins over bucket-derived fee
     assertEq(policy.computeFee(standardKey), FEE_200);
   }
 
-  function test_computeFee_dynamicFee_skipsMultiplier() public {
-    // Regression: a future routing bug must not multiply DYNAMIC_FEE_FLAG (0x800000)
-    // on the StaticNativeMath path. Dynamic-fee pools must take the classified path.
+  function test_computeFee_dynamicFee_skipsBuckets() public {
+    // Regression: a future routing bug must not evaluate buckets for DYNAMIC_FEE_FLAG.
+    // Dynamic-fee pools must take the classified path.
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(1_000_000);
+    policy.setFeeBuckets(_bucketsConfigB());
     policy.setDefaultFee(FEE_100);
     vm.stopPrank();
 
@@ -578,11 +801,10 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(dynamicKey), FEE_100);
   }
 
-  function testFuzz_computeFee_staticNativeMath_multiplier(uint24 lpFee, uint24 pips) public {
+  function testFuzz_computeFee_staticNativeMath_buckets(uint24 lpFee) public {
     lpFee = uint24(bound(lpFee, 0, LPFeeLibrary.MAX_LP_FEE));
-    pips = uint24(bound(pips, 0, 1_000_000));
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(pips);
+    policy.setFeeBuckets(_bucketsConfigB());
 
     PoolKey memory k = standardKey;
     k.fee = lpFee;
@@ -1016,7 +1238,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_clearPairFee_fallsThroughToMultiplier() public {
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
     vm.stopPrank();
 
@@ -1050,7 +1272,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(customKey);
 
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setDefaultFee(FEE_100);
     policy.setHookFamily(customHook, 1);
     policy.setFamilyDefault(1, FEE_200);
@@ -1077,7 +1299,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.setProtocolFeesAccrued(c, amount);
 
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     // Trigger fee update
     adapter.triggerFeeUpdate(standardKey);
@@ -1109,7 +1331,7 @@ contract V4FeeAdapterTest is Test {
 
   function test_edge_policySwap() public {
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(TEST_MULTIPLIER_PIPS);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     assertEq(adapter.getFee(standardKey), FEE_300);
 

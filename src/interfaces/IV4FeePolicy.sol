@@ -5,6 +5,22 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
+/// @dev A single segment of the piecewise-linear protocol-fee schedule on the
+/// StaticNativeMath path. Buckets are stored in an ascending-by-lpFeeFloor array.
+/// For a given `key.fee`, evaluation finds the bucket with the largest floor
+/// <= key.fee (or bucket 0 if key.fee < floor_0) and returns
+/// alpha + beta * (key.fee - floor) / 1_000_000 per direction (clamped to
+/// MAX_PROTOCOL_FEE).
+struct FeeBucket {
+  /// @dev LP-fee floor for this bucket, in pips. Ascending across the array; matches v4-core fee type.
+  uint24 lpFeeFloor;
+  /// @dev Flat base fee per direction in pips. Must be <= MAX_PROTOCOL_FEE (1000).
+  uint24 alphaPips;
+  /// @dev Slope: pips of protocol fee per pip of (lpFee - floor). Capped to 1_000_000_000
+  /// (above which any 1-pip delta saturates the per-direction MAX_PROTOCOL_FEE clamp).
+  uint32 betaPips;
+}
+
 /// @dev A flag-to-family mapping rule. The policy walks rules in order; the first rule
 /// whose requiredFlags are all present in the hook's self-reported flags wins.
 struct FlagRule {
@@ -22,8 +38,9 @@ struct FlagRule {
 /// Family IDs have no hardcoded semantic meaning — labels live in offchain documentation.
 /// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags();
 /// governance-configured flag rules map flag patterns to families automatically.
-/// Static NativeMath pools bypass classification and derive their protocol fee as a
-/// fixed pips multiplier of `key.fee` (per-direction, clamped to MAX_PROTOCOL_FEE).
+/// Static NativeMath pools bypass classification and derive their protocol fee from a
+/// piecewise-linear schedule of fee buckets keyed by LP-fee floor (per-direction,
+/// clamped to MAX_PROTOCOL_FEE).
 /// Custom-accounting hooks and dynamic fee pools require classification (governance
 /// override, flag rule match, or defaultFee fallback).
 /// @custom:security-contact security@uniswap.org
@@ -39,7 +56,8 @@ interface IV4FeePolicy {
   /// @notice Thrown when familyId == 0 is passed to a function that requires > 0.
   error InvalidFamilyId();
 
-  /// @notice Thrown when setProtocolFeeMultiplier is called with pips > 1_000_000.
+  /// @notice Thrown when a multiplier exceeds its allowed bound: `familyMultiplierPips`
+  /// > 1_000_000, or a fee bucket's `betaPips` > 1_000_000_000.
   error MultiplierTooLarge();
 
   /// @notice Thrown when currency0 >= currency1 in setPairFee.
@@ -50,6 +68,15 @@ interface IV4FeePolicy {
 
   /// @notice Thrown when flag rules exceed the maximum allowed count.
   error TooManyFlagRules();
+
+  /// @notice Thrown when setFeeBuckets is called with an empty array.
+  error EmptyBuckets();
+
+  /// @notice Thrown when fee buckets are not in strictly ascending order of lpFeeFloor.
+  error BucketsNotAscending();
+
+  /// @notice Thrown when fee buckets exceed the maximum allowed count.
+  error TooManyBuckets();
 
   // --- Events ---
 
@@ -78,9 +105,9 @@ interface IV4FeePolicy {
   /// @param feeValue The new pair fee (0 = removed).
   event PairFeeUpdated(bytes32 indexed pairHash, uint24 feeValue);
 
-  /// @notice Emitted when the global protocol fee multiplier is updated.
-  /// @param multiplierPips The new multiplier in pips (1_000_000 = 100% of LP fee).
-  event ProtocolFeeMultiplierUpdated(uint24 multiplierPips);
+  /// @notice Emitted when the fee buckets array is replaced.
+  /// @param bucketCount The number of buckets in the new array.
+  event FeeBucketsUpdated(uint256 bucketCount);
 
   /// @notice Emitted when the default classified fee is updated.
   /// @param feeValue The new default fee (0 = removed).
@@ -129,24 +156,31 @@ interface IV4FeePolicy {
   /// @notice Returns the multiplier (in pips) for a given family ID.
   /// @dev 1_000_000 = 100% (1x), 500_000 = 50% (0.5x). Applied to pairFees to derive a
   /// scaled fee on the classified path. Shares the same denominator
-  /// (MULTIPLIER_DENOMINATOR = 1_000_000) as protocolFeeMultiplierPips.
+  /// (MULTIPLIER_DENOMINATOR = 1_000_000) as the StaticNativeMath bucket schedule.
   /// @param familyId The family to query.
   /// @return The multiplier in pips (0 = not set).
   function familyMultiplierPips(uint8 familyId) external view returns (uint24);
 
   /// @notice Returns the pair fee for a token pair hash.
   /// @dev Flat mapping — one fee per pair. StaticNativeMath uses it directly (overrides
-  /// the multiplier). Classified pools scale it by the family multiplier.
+  /// the bucket schedule). Classified pools scale it by the family multiplier.
   /// @param pairHash The canonical keccak256 hash of the sorted token pair.
   /// @return The sentinel-encoded pair fee (0 = not set).
   function pairFees(bytes32 pairHash) external view returns (uint24);
 
-  /// @notice Returns the global multiplier (in pips) applied to `key.fee` on the
-  /// StaticNativeMath path when no pair fee is set.
-  /// @dev Pips, where 1_000_000 = 100% of the LP fee. 0 disables the protocol fee on
-  /// this path. Per-direction result is clamped to MAX_PROTOCOL_FEE.
-  /// @return The current multiplier in pips.
-  function protocolFeeMultiplierPips() external view returns (uint24);
+  /// @notice Returns the number of fee buckets configured.
+  /// @return The count of fee buckets.
+  function feeBucketsLength() external view returns (uint256);
+
+  /// @notice Returns the fee bucket at the given index.
+  /// @param index The zero-based index into the buckets array.
+  /// @return lpFeeFloor The LP-fee floor for this bucket.
+  /// @return alphaPips The flat base fee per direction in pips.
+  /// @return betaPips The slope: pips of protocol fee per pip of (lpFee - floor).
+  function feeBucket(uint256 index)
+    external
+    view
+    returns (uint24 lpFeeFloor, uint24 alphaPips, uint32 betaPips);
 
   /// @notice Returns the number of flag rules configured.
   /// @return The count of flag rules.
@@ -173,9 +207,11 @@ interface IV4FeePolicy {
 
   /// @notice Computes the protocol fee for a pool.
   /// @dev Three paths:
-  /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee, or
-  ///    `key.fee × protocolFeeMultiplierPips / 1_000_000` (per direction, clamped to
-  ///    MAX_PROTOCOL_FEE).
+  /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee, or evaluate the
+  ///    fee-bucket schedule — find the bucket with the largest `lpFeeFloor <= key.fee`
+  ///    (snap to bucket 0 if `key.fee < floor_0`) and return
+  ///    `alpha + beta * (key.fee - floor) / 1_000_000` per direction (clamped to
+  ///    MAX_PROTOCOL_FEE, packed symmetrically).
   /// 2. Dynamic fee NativeMath: requires governance familyId (Slot0.lpFee is unreliable).
   /// 3. CustomAccounting (return-delta flags set): requires governance familyId.
   /// Paths 2 and 3 fall through to defaultFee if unclassified.
@@ -220,15 +256,21 @@ interface IV4FeePolicy {
   /// @notice Removes the default fee, so unclassified pools return 0.
   function clearDefaultFee() external;
 
-  // --- Multiplier Configuration (onlyFeeSetter) ---
+  // --- Fee Bucket Configuration (onlyFeeSetter) ---
 
-  /// @notice Sets the global multiplier applied to `key.fee` on the StaticNativeMath
-  /// path when no pair fee is set.
-  /// @dev Reverts MultiplierTooLarge if `pips > 1_000_000`. Setting 0 disables the
-  /// protocol fee on this path (no separate clear function needed — the resulting fee
-  /// computes to 0 directly).
-  /// @param pips The multiplier in pips (max 1_000_000 = 100% of LP fee).
-  function setProtocolFeeMultiplier(uint24 pips) external;
+  /// @notice Replaces the entire fee-buckets array atomically.
+  /// @dev Must be non-empty, ascending by `lpFeeFloor` (strict), and at most 16 buckets.
+  /// Each bucket: `alphaPips <= MAX_PROTOCOL_FEE` (1000), `betaPips <= 1_000_000_000`.
+  /// The lowest bucket's `alpha` acts as a minimum-fee floor for very-low-LP-fee pools
+  /// because of the snap-to-lowest behavior in `computeFee`.
+  /// Reverts: `EmptyBuckets`, `TooManyBuckets`, `BucketsNotAscending`,
+  /// `InvalidFeeValue` (alpha out of range), `MultiplierTooLarge` (beta out of range).
+  /// @param buckets The new fee buckets, ordered ascending by lpFeeFloor.
+  function setFeeBuckets(FeeBucket[] calldata buckets) external;
+
+  /// @notice Removes all fee buckets. The StaticNativeMath path then returns 0 for any
+  /// pool that has no pair-fee override.
+  function clearFeeBuckets() external;
 
   // --- Family Defaults & Multipliers (onlyFeeSetter) ---
 
@@ -257,7 +299,7 @@ interface IV4FeePolicy {
   // --- Pair Fees (onlyFeeSetter) ---
 
   /// @notice Sets the pair fee for a token pair.
-  /// @dev StaticNativeMath pools use this directly (overrides the multiplier).
+  /// @dev StaticNativeMath pools use this directly (overrides the fee buckets).
   /// Classified pools scale it by familyMultiplierPips. Setting 0 sets explicit zero.
   /// Use clearPairFee to remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
@@ -265,7 +307,7 @@ interface IV4FeePolicy {
   /// @param feeValue The pair fee. Must pass isValidProtocolFee if non-zero.
   function setPairFee(Currency currency0, Currency currency1, uint24 feeValue) external;
 
-  /// @notice Removes the pair fee, falling through to the multiplier.
+  /// @notice Removes the pair fee, falling through to the fee buckets.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   function clearPairFee(Currency currency0, Currency currency1) external;

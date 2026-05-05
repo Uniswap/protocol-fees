@@ -91,7 +91,7 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 - `V4FeeAdapter` registered with the PoolManager as `protocolFeeController`; permissionless `triggerFeeUpdate` and `collect` calls push resolved fees to the PoolManager and route accrued revenue to the TokenJar
 - Fee resolution is split between a thin, long-lived adapter and a replaceable `V4FeePolicy`, so governance can iterate on fee strategy without re-handing PoolManager privileges
-- LP-fee-proportional protocol fee for vanilla pools; family-based classification for hook-using and dynamic-fee pools (see [V4 Fee Resolution](#v4-fee-resolution))
+- Piecewise-linear protocol fee schedule (per-bucket `alpha + beta × delta` over LP fee) for vanilla pools; family-based classification for hook-using and dynamic-fee pools (see [V4 Fee Resolution](#v4-fee-resolution))
 
 #### V4 Fee Resolution
 
@@ -103,7 +103,10 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
         └──►  policy.computeFee(key)
                 │
                 ├── Path A: StaticNativeMath ──►  pairFees[pair]  OR
-                │                                 key.fee × protocolFeeMultiplierPips / 1_000_000
+                │                                 walk feeBuckets backward, find largest
+                │                                 lpFeeFloor <= key.fee (snap to bucket 0
+                │                                 if key.fee < floor_0); return
+                │                                 alpha + beta × (key.fee - floor) / 1_000_000
                 │
                 └── Path B: Classified ────────►  familyId resolved from
                                                   hookFamilyId[hook]  OR  hook-reported flags
@@ -113,9 +116,11 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
                                                        defaultFee
 ```
 
-A pool takes **Path A (StaticNativeMath)** when the hook has no `*_RETURNS_DELTA` flags *and* the LP fee is static (`key.fee != 0x800000`), and **Path B (Classified)** otherwise (custom-accounting hook *or* dynamic-fee pool). `key.fee` is unreliable on Path B because dynamic fees can change every swap, and custom-accounting hooks can rewrite swap deltas, so the LP-fee multiplier doesn't apply there.
+A pool takes **Path A (StaticNativeMath)** when the hook has no `*_RETURNS_DELTA` flags *and* the LP fee is static (`key.fee != 0x800000`), and **Path B (Classified)** otherwise (custom-accounting hook *or* dynamic-fee pool). `key.fee` is unreliable on Path B because dynamic fees can change every swap, and custom-accounting hooks can rewrite swap deltas, so the bucket schedule doesn't apply there.
 
-Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`) and one cap (`MultiplierTooLarge` reverts on values above 100%). The protocol fee per direction is also bounded by v4-core's `MAX_PROTOCOL_FEE = 1000` pips.
+Path A's fee buckets are an ascending-by-`lpFeeFloor` array (max 16) of `(lpFeeFloor, alpha, beta)` triples. Each bucket's `alpha` is a flat per-direction base fee (≤ `MAX_PROTOCOL_FEE = 1000`), and `beta` is a slope in pips per pip of `(lpFee - floor)` (≤ 1_000_000_000). Setting `beta = 0` yields a pure step function; `alpha = 0` yields a slope-only multiplier; both nonzero yields a piecewise-linear curve. Continuity at boundaries is governance's responsibility — the contract does not enforce it. The lowest bucket's `alpha` doubles as a minimum-fee floor for very-low-LP-fee pools, since `key.fee < floor_0` snaps to bucket 0 with `delta = 0`.
+
+Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`). Family multipliers on Path B are capped at 100%; bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts setters that exceed their respective caps.
 
 `familyId` resolution for Path B:
 
@@ -126,7 +131,7 @@ Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1
 Permissioned roles:
 
 - **owner** — swaps the policy, sets the fee-setter
-- **feeSetter** — configures pool overrides, pair fees, hook families, flag rules, family defaults/multipliers, the global multiplier, and `defaultFee`
+- **feeSetter** — configures pool overrides, pair fees, hook families, flag rules, family defaults/multipliers, the fee buckets, and `defaultFee`
 
 ### 3. Releasers
 

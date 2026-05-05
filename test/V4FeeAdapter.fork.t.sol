@@ -18,6 +18,7 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
+import {FeeBucket} from "../src/interfaces/IV4FeePolicy.sol";
 
 /// @notice Integration tests using a real v4 PoolManager (deployed locally via Deployers).
 /// Verifies protocol fee accrual from real swaps, collection to TokenJar, and the full
@@ -88,12 +89,19 @@ contract V4FeeAdapterForkTest is Deployers {
     );
   }
 
+  /// @dev Equivalent of the pre-bucket-era global multiplier: a single bucket starting
+  /// at floor 0 with `betaPips = X`. Result: `protocolFee = X * lpFee / 1_000_000`.
+  function _singleBucketSlope(uint32 betaPips) internal pure returns (FeeBucket[] memory bs) {
+    bs = new FeeBucket[](1);
+    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
+  }
+
   // ============ End-to-End: Set Fee -> Swap -> Accrue -> Collect ============
 
   function test_e2e_setFee_swap_collect() public {
     // 66_667 pips × pool3000.fee (3000) / 1_000_000 = 200 per direction (= PROTO_FEE_200)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(66_667);
+    policy.setFeeBuckets(_singleBucketSlope(66_667));
 
     // Trigger fee update on the 3000 bps pool
     adapter.triggerFeeUpdate(pool3000);
@@ -133,13 +141,13 @@ contract V4FeeAdapterForkTest is Deployers {
 
   // ============ Multiplier: Pools Scale Linearly With LP Fee ============
 
-  function test_multiplier_differentPoolsLinearlyScaled() public {
+  function test_buckets_differentPoolsLinearlyScaled() public {
     // multiplier = 100_000 (10% of LP fee)
     //   pool500   (LP 500)    -> 50  per direction
     //   pool3000  (LP 3000)   -> 300 per direction (= PROTO_FEE_300)
     //   pool10000 (LP 10_000) -> 1000 per direction, clamped to MAX_PROTOCOL_FEE
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
 
     PoolKey[] memory keys = new PoolKey[](3);
     keys[0] = pool500;
@@ -165,7 +173,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_poolOverride_bypassesPolicy() public {
     // 200_000 pips × pool500.fee (500) / 1_000_000 = 100 per direction (= PROTO_FEE_100)
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(200_000);
+    policy.setFeeBuckets(_singleBucketSlope(200_000));
 
     // Override one pool to PROTO_FEE_500
     adapter.setPoolOverride(pool3000.toId(), PROTO_FEE_500);
@@ -189,7 +197,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_pairFee_overridesMultiplier() public {
     vm.startPrank(feeSetter);
     // Any non-zero multiplier — pair fee should win regardless
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
     policy.setPairFee(currency0, currency1, PROTO_FEE_300);
     vm.stopPrank();
 
@@ -205,7 +213,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_feesAccrueFromMultipleSwaps() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
 
     adapter.triggerFeeUpdate(pool3000);
 
@@ -234,10 +242,10 @@ contract V4FeeAdapterForkTest is Deployers {
 
   // ============ Fee Update After Multiplier Change ============
 
-  function test_multiplierChange_requiresRetrigger() public {
+  function test_bucketsChange_requiresRetrigger() public {
     // 33_334 pips × 3000 / 1_000_000 = 100 per direction (= PROTO_FEE_100, integer-truncated)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(33_334);
+    policy.setFeeBuckets(_singleBucketSlope(33_334));
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
@@ -245,7 +253,7 @@ contract V4FeeAdapterForkTest is Deployers {
 
     // 166_667 pips × 3000 / 1_000_000 = 500 per direction (= PROTO_FEE_500, integer-truncated)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(166_667);
+    policy.setFeeBuckets(_singleBucketSlope(166_667));
 
     // Pool still has old fee until retriggered
     (,, uint24 feeStale,) = manager.getSlot0(pool3000.toId());
@@ -262,7 +270,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_policySwap_newPolicyTakesEffect() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
@@ -283,7 +291,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_explicitZeroOverride_preventsFeeAccrual() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
 
     // Override pool to explicit zero
     adapter.setPoolOverride(pool3000.toId(), 0);
@@ -306,7 +314,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_clearOverride_restoresPolicy() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
     adapter.setPoolOverride(pool3000.toId(), 0); // explicit zero
     vm.stopPrank();
 
@@ -332,7 +340,7 @@ contract V4FeeAdapterForkTest is Deployers {
   function test_partialCollection() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
     vm.prank(feeSetter);
-    policy.setProtocolFeeMultiplier(100_000);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
     adapter.triggerFeeUpdate(pool3000);
 
     // Swap to accrue fees
