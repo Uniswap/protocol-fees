@@ -8,16 +8,19 @@ import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
-import {IV4FeePolicy, FlagRule} from "../interfaces/IV4FeePolicy.sol";
+import {IV4FeePolicy, FlagRule, FeeBucket} from "../interfaces/IV4FeePolicy.sol";
 import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 
 /// @title V4FeePolicy
 /// @notice Computes protocol fees for Uniswap V4 pools using automated hook classification
-/// and a global pips multiplier on `key.fee`.
+/// and a piecewise-linear schedule of fee buckets.
 /// @dev Pools are classified into two paths:
-/// - StaticNativeMath: no RETURNS_DELTA flags and static fee → pair fee, else
-///   `key.fee × protocolFeeMultiplierPips / 1_000_000` per direction (clamped to
-///   MAX_PROTOCOL_FEE).
+/// - StaticNativeMath: no RETURNS_DELTA flags and static fee → pair fee, else evaluate
+///   the fee-bucket schedule: find the bucket with the largest `lpFeeFloor <= key.fee`
+///   (snap to bucket 0 if `key.fee < floor_0`) and return
+///   `alpha + beta * (key.fee - floor) / 1_000_000` per direction (clamped to
+///   MAX_PROTOCOL_FEE, packed symmetrically). The lowest bucket's `alpha` doubles as a
+///   minimum-fee floor for very-low-LP-fee pools.
 /// - Classified: custom accounting or dynamic fee → family multiplier × pair fee, family
 ///   default, or global default fee.
 /// Hook classification is automated from address bits 0-3 (RETURNS_DELTA flags).
@@ -39,8 +42,19 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// safe because each 12-bit component (0xFFF = 4095) exceeds MAX_PROTOCOL_FEE (1000).
   uint24 internal constant ZERO_FEE_SENTINEL = type(uint24).max;
 
-  /// @dev Denominator for protocolFeeMultiplierPips. 1_000_000 = 100% (matches MAX_LP_FEE).
+  /// @dev Shared denominator for pips-based multipliers. 1_000_000 = 100% (matches
+  /// MAX_LP_FEE). Used by the StaticNativeMath bucket schedule and by family multipliers
+  /// on the classified path.
   uint24 internal constant MULTIPLIER_DENOMINATOR = 1_000_000;
+
+  /// @dev Maximum number of fee buckets. Bounds the backward walk in
+  /// `_computeStaticNativeMathFee`.
+  uint256 internal constant MAX_BUCKETS = 16;
+
+  /// @dev Maximum `betaPips` per bucket. Above this, even a 1-pip delta exceeds
+  /// MAX_PROTOCOL_FEE (1000), so the per-direction clamp is always hit and values above
+  /// are functionally identical noise.
+  uint32 internal constant MAX_BETA_PIPS = 1_000_000_000;
 
   /// @inheritdoc IV4FeePolicy
   IPoolManager public immutable POOL_MANAGER;
@@ -63,8 +77,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @inheritdoc IV4FeePolicy
   mapping(bytes32 pairHash => uint24) public pairFees;
 
-  /// @inheritdoc IV4FeePolicy
-  uint24 public protocolFeeMultiplierPips;
+  /// @dev Ordered fee buckets for the StaticNativeMath path. Ascending by
+  /// `lpFeeFloor`. Set atomically via `setFeeBuckets`. Empty array → Path A returns 0
+  /// (when no pair-fee override exists).
+  FeeBucket[] internal _feeBuckets;
 
   /// @dev Maximum number of flag rules to bound gas in _resolveFamily.
   uint256 internal constant MAX_FLAG_RULES = 32;
@@ -103,7 +119,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) {
       uint24 stored = pairFees[ph];
       if (stored != 0) return _decodeFee(stored);
-      return _applyLpFeeMultiplier(key.fee, protocolFeeMultiplierPips);
+      return _computeStaticNativeMathFee(key.fee);
     }
 
     // Classified: custom accounting OR dynamic fee
@@ -139,6 +155,23 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   {
     FlagRule storage rule = _flagRules[index];
     return (rule.requiredFlags, rule.familyId);
+  }
+
+  // ─── Fee Bucket Getters ───
+
+  /// @inheritdoc IV4FeePolicy
+  function feeBucketsLength() external view returns (uint256) {
+    return _feeBuckets.length;
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function feeBucket(uint256 index)
+    external
+    view
+    returns (uint24 lpFeeFloor, uint24 alphaPips, uint32 betaPips)
+  {
+    FeeBucket storage b = _feeBuckets[index];
+    return (b.lpFeeFloor, b.alphaPips, b.betaPips);
   }
 
   // ─── Admin ───
@@ -192,10 +225,33 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setProtocolFeeMultiplier(uint24 pips) external onlyFeeSetter {
-    if (pips > MULTIPLIER_DENOMINATOR) revert MultiplierTooLarge();
-    protocolFeeMultiplierPips = pips;
-    emit ProtocolFeeMultiplierUpdated(pips);
+  function setFeeBuckets(FeeBucket[] calldata buckets) external onlyFeeSetter {
+    uint256 len = buckets.length;
+    if (len == 0) revert EmptyBuckets();
+    if (len > MAX_BUCKETS) revert TooManyBuckets();
+
+    delete _feeBuckets;
+
+    uint24 prevFloor;
+    for (uint256 i; i < len; ++i) {
+      FeeBucket calldata b = buckets[i];
+      if (i > 0 && b.lpFeeFloor <= prevFloor) revert BucketsNotAscending();
+      // alpha is a single per-direction value, so check directly against
+      // MAX_PROTOCOL_FEE rather than reusing _validateFee (which expects a packed
+      // two-component fee value).
+      if (b.alphaPips > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) revert InvalidFeeValue();
+      if (b.betaPips > MAX_BETA_PIPS) revert MultiplierTooLarge();
+      _feeBuckets.push(b);
+      prevFloor = b.lpFeeFloor;
+    }
+
+    emit FeeBucketsUpdated(len);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function clearFeeBuckets() external onlyFeeSetter {
+    delete _feeBuckets;
+    emit FeeBucketsUpdated(0);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -300,21 +356,32 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     return keccak256(abi.encodePacked(Currency.unwrap(c0), Currency.unwrap(c1)));
   }
 
-  /// @dev Applies the global pips multiplier to an LP fee, packing the result symmetrically
-  /// into both 12-bit directional components and clamping each to MAX_PROTOCOL_FEE (1000).
-  /// Shares MULTIPLIER_DENOMINATOR (1_000_000) with `_applyMultiplier`. Distinct from that
-  /// helper because this one constructs a symmetric packed fee from a single LP fee value
-  /// and must clamp (LP fees can exceed MAX_PROTOCOL_FEE), whereas `_applyMultiplier`
-  /// rescales an already-validated packed protocol fee per direction and needs no clamp.
-  /// @param lpFee The pool's LP fee in pips (from key.fee for static fee pools).
-  /// @param multiplierPips The multiplier in pips (max MULTIPLIER_DENOMINATOR = 1_000_000).
+  /// @dev Walks `_feeBuckets` backward to find the largest floor `<= lpFee`, evaluates
+  /// the piecewise-linear formula `alpha + beta * (lpFee - floor) / MULTIPLIER_DENOMINATOR`
+  /// per direction, clamps to MAX_PROTOCOL_FEE, and packs symmetrically into both 12-bit
+  /// components. Snap behavior: when `lpFee < floor_0`, the loop never breaks and the
+  /// pre-loop default of `_feeBuckets[0]` applies, with `delta = 0`, so the result is
+  /// `alpha_0` — the de facto minimum fee for very-low-LP-fee pools.
+  /// @param lpFee The pool's LP fee in pips (from key.fee).
   /// @return The packed protocol fee with both 12-bit components equal.
-  function _applyLpFeeMultiplier(uint24 lpFee, uint24 multiplierPips)
-    internal
-    pure
-    returns (uint24)
-  {
-    uint256 perDirection = uint256(lpFee) * multiplierPips / MULTIPLIER_DENOMINATOR;
+  function _computeStaticNativeMathFee(uint24 lpFee) internal view returns (uint24) {
+    uint256 len = _feeBuckets.length;
+    if (len == 0) return 0;
+
+    // Default to the lowest bucket so the snap case (lpFee < floor_0) falls out
+    // naturally below with delta = 0.
+    FeeBucket memory bucket = _feeBuckets[0];
+    for (uint256 i = len; i > 0; --i) {
+      FeeBucket memory candidate = _feeBuckets[i - 1];
+      if (candidate.lpFeeFloor <= lpFee) {
+        bucket = candidate;
+        break;
+      }
+    }
+
+    uint256 delta = lpFee >= bucket.lpFeeFloor ? lpFee - bucket.lpFeeFloor : 0;
+    uint256 perDirection =
+      uint256(bucket.alphaPips) + uint256(bucket.betaPips) * delta / MULTIPLIER_DENOMINATOR;
     if (perDirection > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) {
       perDirection = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
     }
@@ -323,8 +390,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Scales each 12-bit directional fee component by a pips multiplier. The two
   /// 12-bit components are extracted, scaled independently, and repacked into a single
-  /// uint24. Shares MULTIPLIER_DENOMINATOR with `_applyLpFeeMultiplier`. No clamp is
-  /// needed: pairFees are validated <= MAX_PROTOCOL_FEE per direction at write time,
+  /// uint24. Shares MULTIPLIER_DENOMINATOR with `_computeStaticNativeMathFee`. No clamp
+  /// is needed: pairFees are validated <= MAX_PROTOCOL_FEE per direction at write time,
   /// and `multiplierPips` is bounded by `setFamilyMultiplier` to <= 1_000_000.
   /// @param baseFee The base protocol fee (two 12-bit directional components packed).
   /// @param multiplierPips The multiplier in pips (max 1_000_000 = 100%).
