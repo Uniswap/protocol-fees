@@ -36,7 +36,7 @@ jobs:
       toolkit_ref: 96ef665ba04221de07e94fcc3ea69fe32c7cf306
       custom_prompt_path: ".claude/prompts/claude-pr-review.md"
 
-      model: "claude-opus-4-6"
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
