@@ -9,7 +9,7 @@ on:
     types: [opened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
-  contents: read
+  contents: write # required by ai-toolkit _claude-code-review.yml for the auto_fix feature
   pull-requests: write
   issues: read
   actions: read
@@ -27,13 +27,12 @@ jobs:
         github.event.action == 'ready_for_review'
       )
 
-    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@9aa3cf98744a2b4e1aac51cd2d26144ea337ab3b
+    uses: Uniswap/ai-toolkit/.github/workflows/_claude-code-review.yml@96ef665ba04221de07e94fcc3ea69fe32c7cf306
     with:
       pr_number: ${{ github.event.pull_request.number }}
       base_ref: ${{ github.base_ref }}
       force_review: false
-      toolkit_ref: 9aa3cf98744a2b4e1aac51cd2d26144ea337ab3b
-      custom_prompt_path: ".claude/prompts/claude-pr-review.md"
+      toolkit_ref: 96ef665ba04221de07e94fcc3ea69fe32c7cf306
 
       model: "claude-opus-4-6"
 
