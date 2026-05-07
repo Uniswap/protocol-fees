@@ -28,9 +28,9 @@ string constant POLYGON_DEPLOY_PATH =
 string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json";
 
 string constant BNB_DEPLOY_FEE_INFRA_PATH =
-  "broadcast/DeployAndConfigureWormholeInfraBNBChain.s.sol/56/run-latest.json";
+  "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
 string constant POLYGON_DEPLOY_FEE_INFRA_PATH =
-  "broadcast/DeployAndConfigureWormholeInfraPolygon.s.sol/137/run-latest.json";
+  "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
 
 /// @dev Home chain deployment.
 struct LocalDeployment {
@@ -55,8 +55,19 @@ struct State {
 }
 
 contract PostflightCheckTest is Test {
-  function __testProtocolState() public {
-    State memory state = _loadDeployments();
+  State internal state;
+
+  function setUp() public {
+    bool shouldRun = vm.envOr("PROP4_POSTFLIGHT", false);
+    vm.skip(!shouldRun);
+
+    _loadDeployments();
+  }
+
+  function testProtocolState() public {
+    uint256 celoFork = vm.createFork(vm.rpcUrl("fork_celo"));
+    uint256 bnbChainFork = vm.createFork(vm.rpcUrl("fork_bnb_chain"));
+    uint256 polygonFork = vm.createFork(vm.rpcUrl("fork_polygon"));
 
     // -----------------------------------------------------------------------------------------
     // -- loader smoke checks
@@ -83,9 +94,47 @@ contract PostflightCheckTest is Test {
     assertNotEq(state.polygon.v3OpenFeeAdapter, address(0x00));
 
     // -----------------------------------------------------------------------------------------
+    // -- simulate prop outcomes
+    //
+
+    // Celo
+    vm.selectFork(celoFork);
+    vm.startPrank(Constants.Celo.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+    {
+      IUniswapV2Factory(Constants.Celo.V2_FACTORY).setFeeTo(Constants.Celo.TOKEN_JAR);
+
+      IUniswapV2Factory(Constants.Celo.V2_FACTORY)
+        .setFeeToSetter(Constants.Celo.CROSS_CHAIN_ACCOUNT);
+
+      IUniswapV3Factory(Constants.Celo.V3_FACTORY).setOwner(Constants.Celo.V3_OPEN_FEE_ADAPTER);
+
+      IUniswapV4PoolManager(Constants.Celo.V4_POOL_MANAGER)
+        .transferOwnership(Constants.Celo.CROSS_CHAIN_ACCOUNT);
+    }
+    vm.stopPrank();
+
+    // BNB Chain
+    vm.selectFork(bnbChainFork);
+    vm.startPrank(Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER);
+    {
+      IUniswapV2Factory(Constants.BNB.V2_FACTORY).setFeeTo(state.bnbChain.tokenJar);
+      IUniswapV3Factory(Constants.BNB.V3_FACTORY).setOwner(state.bnbChain.v3OpenFeeAdapter);
+    }
+    vm.stopPrank();
+
+    // Polygon
+    vm.selectFork(polygonFork);
+    vm.startPrank(Constants.Polygon.ETHEREUM_PROXY);
+    {
+      IUniswapV2Factory(Constants.Polygon.V2_FACTORY).setFeeTo(state.polygon.tokenJar);
+      IUniswapV3Factory(Constants.Polygon.V3_FACTORY).setOwner(state.polygon.v3OpenFeeAdapter);
+    }
+    vm.stopPrank();
+
+    // -----------------------------------------------------------------------------------------
     // -- celo protocol state check
     //
-    vm.createSelectFork("fork_celo");
+    vm.selectFork(celoFork);
 
     // Core
     //
@@ -112,7 +161,7 @@ contract PostflightCheckTest is Test {
     // -----------------------------------------------------------------------------------------
     // -- bnb chain protocol state check
     //
-    vm.createSelectFork("fork_bnb_chain");
+    vm.selectFork(bnbChainFork);
 
     // Core
     assertEq(IUniswapV2Factory(Constants.BNB.V2_FACTORY).feeTo(), state.bnbChain.tokenJar);
@@ -216,7 +265,7 @@ contract PostflightCheckTest is Test {
     // -----------------------------------------------------------------------------------------
     // -- polygon protocol state check
     //
-    vm.createSelectFork("fork_polygon");
+    vm.selectFork(polygonFork);
 
     // Core
     assertEq(IUniswapV2Factory(Constants.Polygon.V2_FACTORY).feeTo(), state.polygon.tokenJar);
@@ -310,7 +359,7 @@ contract PostflightCheckTest is Test {
     }
   }
 
-  function _loadDeployments() internal view returns (State memory state) {
+  function _loadDeployments() internal {
     // Transactions: (`BNB_DEPLOY_PATH`)
     //
     // | Index | Action

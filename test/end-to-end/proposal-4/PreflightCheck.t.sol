@@ -13,7 +13,12 @@ import {
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";
 
 contract PreflightCheckTest is Test {
-  function __testProtocolState() public {
+  function setUp() public {
+    bool shouldRun = vm.envOr("PROP4_PREFLIGHT", false);
+    vm.skip(!shouldRun);
+  }
+
+  function testProtocolState() public {
     // -----------------------------------------------------------------------------------------
     // -- celo protocol state check
     //
