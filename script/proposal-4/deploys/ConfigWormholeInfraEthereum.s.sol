@@ -307,27 +307,18 @@ contract ConfigWormholeInfraEthereumScript is Script {
     //
     // BNB Deployment Transaction Index Recap:
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy SyntheticNttUni.
-    // |
-    // | 02    | Deploy NttManager implementation.
-    // | | 03    | Deploy NttManager proxy.
-    // |
-    // | 04    | Initialize NttManager proxy.
-    // | | 05    | Deploy WormholeTransceiver implementation.
-    // |
-    // | 06    | Deploy WormholeTransceiver proxy
-    // | | 07    | Initialize WormholeTransceiver proxy
-    // |
-    // | 08    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy
-    // | | 09    | Set the threshold of transceiver attestation redundancy
-    // |
-    // | 10    | Set SyntheticNttUni mint authority to NttManager proxy
-    // | | 11    | Transfer ownership of SyntheticNttUni to governance
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy SyntheticNttUni.
+    // 02: Deploy NttManager implementation.
+    // 03: Deploy NttManager proxy.
+    // 04: Initialize NttManager proxy.
+    // 05: Deploy WormholeTransceiver implementation.
+    // 06: Deploy WormholeTransceiver proxy
+    // 07: Initialize WormholeTransceiver proxy
+    // 08: Set NttManager proxy's transceiver to the WormholeTransceiver proxy
+    // 09: Set the threshold of transceiver attestation redundancy
+    // 10: Set SyntheticNttUni mint authority to NttManager proxy
+    // 11: Transfer ownership of SyntheticNttUni to governance
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
@@ -350,27 +341,18 @@ contract ConfigWormholeInfraEthereumScript is Script {
     //
     // Polygon Deployment Transaction Index Recap:
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy SyntheticNttUni.
-    // |
-    // | 02    | Deploy NttManager implementation.
-    // | | 03    | Deploy NttManager proxy.
-    // |
-    // | 04    | Initialize NttManager proxy.
-    // | | 05    | Deploy WormholeTransceiver implementation.
-    // |
-    // | 06    | Deploy WormholeTransceiver proxy
-    // | | 07    | Initialize WormholeTransceiver proxy
-    // |
-    // | 08    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy
-    // | | 09    | Set the threshold of transceiver attestation redundancy
-    // |
-    // | 10    | Set SyntheticNttUni mint authority to NttManager proxy
-    // | | 11    | Transfer ownership of SyntheticNttUni to governance
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy SyntheticNttUni.
+    // 02: Deploy NttManager implementation.
+    // 03: Deploy NttManager proxy.
+    // 04: Initialize NttManager proxy.
+    // 05: Deploy WormholeTransceiver implementation.
+    // 06: Deploy WormholeTransceiver proxy
+    // 07: Initialize WormholeTransceiver proxy
+    // 08: Set NttManager proxy's transceiver to the WormholeTransceiver proxy
+    // 09: Set the threshold of transceiver attestation redundancy
+    // 10: Set SyntheticNttUni mint authority to NttManager proxy
+    // 11: Transfer ownership of SyntheticNttUni to governance
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
@@ -393,23 +375,16 @@ contract ConfigWormholeInfraEthereumScript is Script {
     //
     // ETH Deployment Transaction Index Recap:
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy NttManager implementation.
-    // |
-    // | 02    | Deploy NttManager proxy.
-    // | | 03    | Initialize NttManager proxy.
-    // |
-    // | 04    | Deploy WormholeTransceiver implementation.
-    // | | 05    | Deploy WormholeTransceiver proxy
-    // |
-    // | 06    | Initialize WormholeTransceiver proxy
-    // | | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy
-    // |
-    // | 08    | Set the threshold of transceiver attestation redundancy
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy NttManager implementation.
+    // 02: Deploy NttManager proxy.
+    // 03: Initialize NttManager proxy.
+    // 04: Deploy WormholeTransceiver implementation.
+    // 05: Deploy WormholeTransceiver proxy
+    // 06: Initialize WormholeTransceiver proxy
+    // 07: Set NttManager proxy's transceiver to the WormholeTransceiver proxy
+    // 08: Set the threshold of transceiver attestation redundancy
+    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
     eth = Deployment({

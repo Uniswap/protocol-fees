@@ -362,27 +362,19 @@ contract PostflightCheckTest is Test {
   function _loadDeployments() internal {
     // Transactions: (`BNB_DEPLOY_PATH`)
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy `SyntheticNttUni`.
-    // |
-    // | 02    | Deploy `NttManager` implementation.
-    // | | 03    | Deploy `NttManager` proxy.
-    // |
-    // | 04    | Initialize `NttManager` proxy.
-    // | | 05    | Deploy `WormholeTransceiver` implementation.
-    // |
-    // | 06    | Deploy `WormholeTransceiver` proxy.
-    // | | 07    | Initialize `WormholeTransceiver` proxy.
-    // |
-    // | 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // | | 09    | Set the threshold of transceiver attestation redundancy.
-    // |
-    // | 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.
-    // | | 11    | Transfer ownership of `SyntheticNttUni` to governance.
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy `SyntheticNttUni`.
+    // 02: Deploy `NttManager` implementation.
+    // 03: Deploy `NttManager` proxy.
+    // 04: Initialize `NttManager` proxy.
+    // 05: Deploy `WormholeTransceiver` implementation.
+    // 06: Deploy `WormholeTransceiver` proxy.
+    // 07: Initialize `WormholeTransceiver` proxy.
+    // 08: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
+    // 09: Set the threshold of transceiver attestation redundancy.
+    // 10: Set `SyntheticNttUni` mint authority to `NttManager` proxy.
+    // 11: Transfer ownership of `SyntheticNttUni` to governance.
+    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
@@ -395,38 +387,27 @@ contract PostflightCheckTest is Test {
 
     // Transactions: (`BNB_DEPLOY_FEE_INFRA_PATH`)
     //
-    // | Index | Action
-    // | | ----- |
-    // -------------------------------------------------------------------------------------- |
-    // | 00    | Deploy `TokenJar`.
-    // | | 01    | Deploy `WormholeReleaser`.
-    // |
-    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // | | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // |
-    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // | | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // |
-    // | 06    | Deploy `V3OpenFeeAdapter`.
-    // | | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // |
-    // | 08    | Set `V3OpenFeeAdapter` default fee.
-    // | | 09    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // |
-    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // | | 11    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // |
-    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // | | 13    | Store `V3OpenFeeAdapter` fee tiers.
-    // |
-    // | 14    | Store `V3OpenFeeAdapter` fee tiers.
-    // | | 15    | Store `V3OpenFeeAdapter` fee tiers.
-    // |
-    // | 16    | Store `V3OpenFeeAdapter` fee tiers.
-    // | | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to
-    // `UniswapWormholeMessageReceiver`. |
-    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    // | / forge-lint: disable-next-line(unsafe-cheatcode)
+    // 00: Deploy `TokenJar`.
+    // 01: Deploy `WormholeReleaser`.
+    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
+    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
+    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
+    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
+    // 06: Deploy `V3OpenFeeAdapter`.
+    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
+    // 08: Set `V3OpenFeeAdapter` default fee.
+    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 13: Store `V3OpenFeeAdapter` fee tiers.
+    // 14: Store `V3OpenFeeAdapter` fee tiers.
+    // 15: Store `V3OpenFeeAdapter` fee tiers.
+    // 16: Store `V3OpenFeeAdapter` fee tiers.
+    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
+    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
+    //
+    /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployFeeInfraJson = vm.readFile(BNB_DEPLOY_FEE_INFRA_PATH);
 
     state.bnbChain.tokenJar =
@@ -438,27 +419,19 @@ contract PostflightCheckTest is Test {
 
     // Transactions (`POLYGON_DEPLOY_PATH`)
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy `SyntheticNttUni`.
-    // |
-    // | 02    | Deploy `NttManager` implementation.
-    // | | 03    | Deploy `NttManager` proxy.
-    // |
-    // | 04    | Initialize `NttManager` proxy.
-    // | | 05    | Deploy `WormholeTransceiver` implementation.
-    // |
-    // | 06    | Deploy `WormholeTransceiver` proxy.
-    // | | 07    | Initialize `WormholeTransceiver` proxy.
-    // |
-    // | 08    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // | | 09    | Set the threshold of transceiver attestation redundancy.
-    // |
-    // | 10    | Set `SyntheticNttUni` mint authority to `NttManager` proxy.
-    // | | 11    | Transfer ownership of `SyntheticNttUni` to governance.
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy `SyntheticNttUni`.
+    // 02: Deploy `NttManager` implementation.
+    // 03: Deploy `NttManager` proxy.
+    // 04: Initialize `NttManager` proxy.
+    // 05: Deploy `WormholeTransceiver` implementation.
+    // 06: Deploy `WormholeTransceiver` proxy.
+    // 07: Initialize `WormholeTransceiver` proxy.
+    // 08: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
+    // 09: Set the threshold of transceiver attestation redundancy.
+    // 10: Set `SyntheticNttUni` mint authority to `NttManager` proxy.
+    // 11: Transfer ownership of `SyntheticNttUni` to governance.
+    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
 
@@ -471,38 +444,27 @@ contract PostflightCheckTest is Test {
 
     // Transactions (`POLYGON_DEPLOY_FEE_INFRA_PATH`)
     //
-    // | Index | Action
-    // | | ----- |
-    // -------------------------------------------------------------------------------------- |
-    // | 00    | Deploy `TokenJar`.
-    // | | 01    | Deploy `WormholeReleaser`.
-    // |
-    // | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // | | 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // |
-    // | 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // | | 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // |
-    // | 06    | Deploy `V3OpenFeeAdapter`.
-    // | | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // |
-    // | 08    | Set `V3OpenFeeAdapter` default fee.
-    // | | 09    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // |
-    // | 10    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // | | 11    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // |
-    // | 12    | Set `V3OpenFeeAdapter` fee tier defaults.
-    // | | 13    | Store `V3OpenFeeAdapter` fee tiers.
-    // |
-    // | 14    | Store `V3OpenFeeAdapter` fee tiers.
-    // | | 15    | Store `V3OpenFeeAdapter` fee tiers.
-    // |
-    // | 16    | Store `V3OpenFeeAdapter` fee tiers.
-    // | | 17    | Transfer `V3OpenFeeAdapter` fee setter permission to
-    // `UniswapWormholeMessageReceiver`. |
-    // | 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    // | / forge-lint: disable-next-line(unsafe-cheatcode)
+    // 00: Deploy `TokenJar`.
+    // 01: Deploy `WormholeReleaser`.
+    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
+    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
+    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
+    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
+    // 06: Deploy `V3OpenFeeAdapter`.
+    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
+    // 08: Set `V3OpenFeeAdapter` default fee.
+    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
+    // 13: Store `V3OpenFeeAdapter` fee tiers.
+    // 14: Store `V3OpenFeeAdapter` fee tiers.
+    // 15: Store `V3OpenFeeAdapter` fee tiers.
+    // 16: Store `V3OpenFeeAdapter` fee tiers.
+    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
+    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
+    //
+    /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployFeeInfraJson = vm.readFile(POLYGON_DEPLOY_FEE_INFRA_PATH);
 
     state.polygon.tokenJar =
@@ -514,23 +476,17 @@ contract PostflightCheckTest is Test {
 
     // Transactions (`ETH_DEPLOY_PATH`)
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy `NttManager` implementation.
-    // |
-    // | 02    | Deploy `NttManager` proxy.
-    // | | 03    | Initialize `NttManager` proxy.
-    // |
-    // | 04    | Deploy `WormholeTransceiver` implementation.
-    // | | 05    | Deploy `WormholeTransceiver` proxy.
-    // |
-    // | 06    | Initialize `WormholeTransceiver` proxy.
-    // | | 07    | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // |
-    // | 08    | Set the threshold of transceiver attestation redundancy.
-    // | / forge-lint: disable-next-line(unsafe-cheatcode)
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy `NttManager` implementation.
+    // 02: Deploy `NttManager` proxy.
+    // 03: Initialize `NttManager` proxy.
+    // 04: Deploy `WormholeTransceiver` implementation.
+    // 05: Deploy `WormholeTransceiver` proxy.
+    // 06: Initialize `WormholeTransceiver` proxy.
+    // 07: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
+    // 08: Set the threshold of transceiver attestation redundancy.
+    //
+    /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory ethereumDeployJson = vm.readFile(ETH_DEPLOY_PATH);
 
     state.ethereum.nttManager =
