@@ -114,13 +114,20 @@ contract ConfigWormholeInfraPolygonScript is Script {
     // -----------------------------------------------------------------------------------------
     // Transaction 03
     //
-    // Renounce pauser capability on the NttManager proxy.
+    // Renounce pauser capability on the WormholeTransceiver proxy.
     //
     // The deployer is set as the pauser when the proxy is initialized in the deploy script and
     // is independent of ownership. We deliberately defer the renounce until after the ownership
     // transfer above so that the renounce lives alongside the rest of the authority handoff in
     // this configuration script. The deployer is still the pauser at this point, so
     // `transferPauserCapability` succeeds under `onlyOwnerOrPauser`.
+    //
+    NttManagerNoRateLimiting(polygon.wormholeTransceiverProxy).transferPauserCapability(address(0));
+
+    // -----------------------------------------------------------------------------------------
+    // Transaction 04
+    //
+    // Renounce pauser capability on the NttManager proxy. Same rationale as the transceiver.
     //
     NttManagerNoRateLimiting(polygon.nttManagerProxy).transferPauserCapability(address(0));
 
