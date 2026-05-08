@@ -1351,8 +1351,7 @@ contract V4FeeAdapterTest is Test {
   function test_setFlagRules_success() public {
     FlagRule[] memory rules = new FlagRule[](2);
     rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
-      familyId: 3
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
     });
     rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
 
@@ -1494,8 +1493,7 @@ contract V4FeeAdapterTest is Test {
     FlagRule[] memory rules = new FlagRule[](2);
     // More specific rule first: both flags required
     rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
-      familyId: 3
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
     });
     // Less specific: only one flag
     rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
@@ -1530,8 +1528,7 @@ contract V4FeeAdapterTest is Test {
 
     FlagRule[] memory rules = new FlagRule[](2);
     rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
-      familyId: 3
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
     });
     rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
 
@@ -1675,8 +1672,7 @@ contract V4FeeAdapterTest is Test {
 
     FlagRule[] memory rules = new FlagRule[](1);
     rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS,
-      familyId: 3
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
     });
 
     vm.startPrank(feeSetter);

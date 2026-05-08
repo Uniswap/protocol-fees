@@ -12,7 +12,8 @@ import {Currency} from "v4-core/types/Currency.sol";
 /// alpha + beta * (key.fee - floor) / 1_000_000 per direction (clamped to
 /// MAX_PROTOCOL_FEE).
 struct FeeBucket {
-  /// @dev LP-fee floor for this bucket, in pips. Ascending across the array; matches v4-core fee type.
+  /// @dev LP-fee floor for this bucket, in pips. Ascending across the array; matches v4-core fee
+  /// type.
   uint24 lpFeeFloor;
   /// @dev Flat base fee per direction in pips. Must be <= MAX_PROTOCOL_FEE (1000).
   uint24 alphaPips;
@@ -190,10 +191,7 @@ interface IV4FeePolicy {
   /// @param index The zero-based index into the rules array.
   /// @return requiredFlags The flags that must all be present for a match.
   /// @return familyId The family ID assigned on match.
-  function flagRules(uint256 index)
-    external
-    view
-    returns (uint256 requiredFlags, uint8 familyId);
+  function flagRules(uint256 index) external view returns (uint256 requiredFlags, uint8 familyId);
 
   // --- Pure Classification ---
 

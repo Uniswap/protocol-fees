@@ -148,11 +148,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function flagRules(uint256 index)
-    external
-    view
-    returns (uint256 requiredFlags, uint8 familyId)
-  {
+  function flagRules(uint256 index) external view returns (uint256 requiredFlags, uint8 familyId) {
     FlagRule storage rule = _flagRules[index];
     return (rule.requiredFlags, rule.familyId);
   }
@@ -337,9 +333,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
       if (flags != 0) {
         for (uint256 i; i < rulesLen; ++i) {
           FlagRule storage rule = _flagRules[i];
-          if (flags & rule.requiredFlags == rule.requiredFlags) {
-            return rule.familyId;
-          }
+          if (flags & rule.requiredFlags == rule.requiredFlags) return rule.familyId;
         }
       }
     }
