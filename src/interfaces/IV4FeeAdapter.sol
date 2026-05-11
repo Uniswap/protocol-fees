@@ -30,8 +30,9 @@ interface IV4FeeAdapter {
 
   /// @notice Emitted when a pool override is set or removed.
   /// @param poolId The pool whose override changed.
-  /// @param feeValue The new fee value (0 means override was removed).
-  event PoolOverrideUpdated(PoolId indexed poolId, uint24 feeValue);
+  /// @param feeValue The new fee value, packed as `(fee1to0 << 24) | fee0to1` with each
+  /// 24-bit half <= MAX_LP_FEE (0 means override was removed).
+  event PoolOverrideUpdated(PoolId indexed poolId, uint48 feeValue);
 
   /// @notice Emitted when the fee setter address is updated.
   /// @param oldFeeSetter The previous fee setter address.
@@ -70,9 +71,10 @@ interface IV4FeeAdapter {
   function TOKEN_JAR() external view returns (address);
 
   /// @notice Sentinel value representing an explicit zero fee in storage.
-  /// @dev type(uint24).max — safe because isValidProtocolFee rejects it.
-  /// @return The sentinel value (0xFFFFFF).
-  function ZERO_FEE_SENTINEL() external pure returns (uint24);
+  /// @dev type(uint48).max — safe because _validateFee rejects 24-bit halves above
+  /// MAX_LP_FEE.
+  /// @return The sentinel value (0xFFFFFFFFFFFF).
+  function ZERO_FEE_SENTINEL() external pure returns (uint48);
 
   // --- State ---
 
@@ -86,8 +88,9 @@ interface IV4FeeAdapter {
 
   /// @notice Returns the pool-specific fee override.
   /// @param poolId The pool to query.
-  /// @return The sentinel-encoded fee override. 0 = not set.
-  function poolOverrides(PoolId poolId) external view returns (uint24);
+  /// @return The sentinel-encoded fee override, packed as `(fee1to0 << 24) | fee0to1`
+  /// with each 24-bit half <= MAX_LP_FEE. 0 = not set.
+  function poolOverrides(PoolId poolId) external view returns (uint48);
 
   // --- Admin (onlyOwner) ---
 
@@ -104,10 +107,11 @@ interface IV4FeeAdapter {
 
   /// @notice Sets a pool-specific fee override (highest priority in waterfall).
   /// @dev Setting 0 sets an explicit zero fee (does NOT fall through to policy).
-  /// Use clearPoolOverride to remove the override entirely.
+  /// Use clearPoolOverride to remove the override entirely. Packed as
+  /// `(fee1to0 << 24) | fee0to1`; each 24-bit half must be <= MAX_LP_FEE.
   /// @param poolId The pool to override.
-  /// @param feeValue The protocol fee to set. Must pass isValidProtocolFee if non-zero.
-  function setPoolOverride(PoolId poolId, uint24 feeValue) external;
+  /// @param feeValue The protocol fee to set. Each 24-bit half must be <= MAX_LP_FEE.
+  function setPoolOverride(PoolId poolId, uint48 feeValue) external;
 
   /// @notice Removes a pool-specific fee override, falling through to policy.
   /// @param poolId The pool to clear the override for.
@@ -115,9 +119,21 @@ interface IV4FeeAdapter {
 
   // --- Fee Resolution ---
 
-  /// @notice Resolves the protocol fee for a pool: pool override → policy → 0.
+  /// @notice Resolves the raw uint48 protocol fee for a pool: pool override → policy → 0.
+  /// @dev Returns the uncapped packed `(fee1to0 << 24) | fee0to1`, each 24-bit half
+  /// possibly up to MAX_LP_FEE. Callers that push to PoolManager should use `getFee`,
+  /// which clamps and packs to uint24.
   /// @param key The pool key to resolve the fee for.
-  /// @return fee The resolved protocol fee.
+  /// @return fee The resolved raw protocol fee (uint48 packed 24+24).
+  function getFeeRaw(PoolKey memory key) external view returns (uint48 fee);
+
+  /// @notice Resolves the protocol fee for a pool, clamped and packed for the
+  /// PoolManager: pool override → policy → 0.
+  /// @dev Returns the manager-compatible uint24 packed `(fee1to0 << 12) | fee0to1` with
+  /// each 12-bit half clamped to MAX_PROTOCOL_FEE. For the uncapped uint48 value, use
+  /// `getFeeRaw`.
+  /// @param key The pool key to resolve the fee for.
+  /// @return fee The resolved protocol fee (uint24 packed 12+12, manager-compatible).
   function getFee(PoolKey memory key) external view returns (uint24 fee);
 
   // --- Permissionless Triggering ---

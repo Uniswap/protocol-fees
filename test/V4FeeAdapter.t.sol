@@ -43,12 +43,20 @@ contract V4FeeAdapterTest is Test {
   PoolKey public hookKey; // static fee, non-custom-accounting hook
   PoolKey public dynamicKey; // dynamic fee, no hook
 
-  // Protocol fee constants (symmetric 0->1 and 1->0)
-  uint24 constant FEE_100 = (100 << 12) | 100; // 100 pips both directions
-  uint24 constant FEE_200 = (200 << 12) | 200;
-  uint24 constant FEE_300 = (300 << 12) | 300;
-  uint24 constant FEE_500 = (500 << 12) | 500;
-  uint24 constant FEE_1000 = (1000 << 12) | 1000; // max both directions
+  // Raw uint48 protocol fee constants (symmetric 0->1 and 1->0, packed 24+24)
+  uint48 constant FEE_100 = (uint48(100) << 24) | 100; // 100 pips both directions
+  uint48 constant FEE_200 = (uint48(200) << 24) | 200;
+  uint48 constant FEE_300 = (uint48(300) << 24) | 300;
+  uint48 constant FEE_500 = (uint48(500) << 24) | 500;
+  uint48 constant FEE_1000 = (uint48(1000) << 24) | 1000; // MAX_PROTOCOL_FEE both directions
+
+  // Manager-side uint24 packed (12+12) — equivalent to clamping each FEE_X half to
+  // MAX_PROTOCOL_FEE. Used for assertions on Slot0 / adapter.getFee return values.
+  uint24 constant MGR_FEE_100 = (uint24(100) << 12) | 100;
+  uint24 constant MGR_FEE_200 = (uint24(200) << 12) | 200;
+  uint24 constant MGR_FEE_300 = (uint24(300) << 12) | 300;
+  uint24 constant MGR_FEE_500 = (uint24(500) << 12) | 500;
+  uint24 constant MGR_FEE_1000 = (uint24(1000) << 12) | 1000;
 
   function setUp() public {
     owner = makeAddr("owner");
@@ -226,7 +234,8 @@ contract V4FeeAdapterTest is Test {
     vm.prank(feeSetter);
     adapter.setPoolOverride(id, FEE_500);
     vm.snapshotGasLastCall("adapter.setPoolOverride");
-    assertEq(adapter.getFee(standardKey), FEE_500);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_500);
+    assertEq(adapter.getFeeRaw(standardKey), FEE_500);
   }
 
   function test_setPoolOverride_zeroSetsExplicitZero() public {
@@ -235,15 +244,16 @@ contract V4FeeAdapterTest is Test {
     // Configure policy to return FEE_300
     vm.prank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    assertEq(adapter.getFee(standardKey), FEE_300);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_300);
 
     // Set pool override to explicit zero -should NOT fall through to policy
     vm.prank(feeSetter);
     adapter.setPoolOverride(id, 0);
 
     // Raw storage holds sentinel (explicit zero), getFee decodes to 0
-    assertEq(adapter.poolOverrides(id), type(uint24).max);
+    assertEq(adapter.poolOverrides(id), type(uint48).max);
     assertEq(adapter.getFee(standardKey), 0);
+    assertEq(adapter.getFeeRaw(standardKey), 0);
   }
 
   function test_clearPoolOverride_fallsThroughToPolicy() public {
@@ -255,14 +265,14 @@ contract V4FeeAdapterTest is Test {
     // Set override then clear it
     vm.startPrank(feeSetter);
     adapter.setPoolOverride(id, FEE_500);
-    assertEq(adapter.getFee(standardKey), FEE_500);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_500);
 
     adapter.clearPoolOverride(id);
     vm.stopPrank();
 
     // Raw storage is 0 (not set), falls through to policy
     assertEq(adapter.poolOverrides(id), 0);
-    assertEq(adapter.getFee(standardKey), FEE_300);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_300);
   }
 
   function test_clearPoolOverride_revertsUnauthorized() public {
@@ -278,8 +288,8 @@ contract V4FeeAdapterTest is Test {
   }
 
   function test_setPoolOverride_revertsInvalidFee() public {
-    // Fee with 12-bit component > 1000
-    uint24 badFee = (1001 << 12) | 500;
+    // Fee with 24-bit component > MAX_LP_FEE
+    uint48 badFee = (uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24) | 500;
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeeAdapter.InvalidFeeValue.selector);
     adapter.setPoolOverride(standardKey.toId(), badFee);
@@ -293,7 +303,7 @@ contract V4FeeAdapterTest is Test {
     adapter.setPoolOverride(standardKey.toId(), FEE_500);
     vm.stopPrank();
 
-    assertEq(adapter.getFee(standardKey), FEE_500);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_500);
     vm.snapshotGasLastCall("adapter.getFee - pool override hit");
   }
 
@@ -304,12 +314,12 @@ contract V4FeeAdapterTest is Test {
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
     vm.expectEmit(true, true, false, true, address(adapter));
-    emit IV4FeeAdapter.FeeUpdateTriggered(alice, standardKey.toId(), FEE_300);
+    emit IV4FeeAdapter.FeeUpdateTriggered(alice, standardKey.toId(), MGR_FEE_300);
     vm.prank(alice);
     adapter.triggerFeeUpdate(standardKey);
     vm.snapshotGasLastCall("adapter.triggerFeeUpdate - single pool");
 
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), MGR_FEE_300);
   }
 
   function test_triggerFeeUpdate_skipsUninitializedPool() public {
@@ -332,7 +342,7 @@ contract V4FeeAdapterTest is Test {
 
     vm.prank(caller);
     adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), MGR_FEE_300);
   }
 
   function test_batchTriggerFeeUpdate_success() public {
@@ -346,8 +356,8 @@ contract V4FeeAdapterTest is Test {
     adapter.batchTriggerFeeUpdate(keys);
     vm.snapshotGasLastCall("adapter.batchTriggerFeeUpdate - two pools");
 
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
-    assertEq(poolManager.getProtocolFee(hookKey.toId()), FEE_300);
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), MGR_FEE_300);
+    assertEq(poolManager.getProtocolFee(hookKey.toId()), MGR_FEE_300);
   }
 
   // ============ Adapter: Collection ============
@@ -604,7 +614,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(lowFeeKey);
 
     // key.fee = 100 -> 100 * 100_000 / 1_000_000 = 10 per direction
-    uint24 expected = (10 << 12) | 10;
+    uint48 expected = (uint48(10) << 24) | 10;
     assertEq(policy.computeFee(lowFeeKey), expected);
   }
 
@@ -638,7 +648,7 @@ contract V4FeeAdapterTest is Test {
     policy.setFeeBuckets(_singleBucketFlat(25));
 
     // alpha=25, beta=0 → flat 25 pips for any LP fee
-    uint24 expected = (25 << 12) | 25;
+    uint48 expected = (uint48(25) << 24) | 25;
     assertEq(policy.computeFee(standardKey), expected); // key.fee = 3000
 
     PoolKey memory zeroFeeKey = standardKey;
@@ -693,7 +703,7 @@ contract V4FeeAdapterTest is Test {
     PoolKey memory zeroFeeKey = standardKey;
     zeroFeeKey.fee = 0;
     poolManager.mockInitialize(zeroFeeKey);
-    uint24 expected = (25 << 12) | 25;
+    uint48 expected = (uint48(25) << 24) | 25;
     assertEq(policy.computeFee(zeroFeeKey), expected);
   }
 
@@ -710,7 +720,7 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(k);
 
     // Snap to bucket 0 with delta = 0 -> alpha_0 = 25
-    uint24 expected = (25 << 12) | 25;
+    uint48 expected = (uint48(25) << 24) | 25;
     assertEq(policy.computeFee(k), expected);
   }
 
@@ -739,10 +749,10 @@ contract V4FeeAdapterTest is Test {
 
     k.fee = 500;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (40 << 12) | 40);
+    assertEq(policy.computeFee(k), (uint48(40) << 24) | 40);
 
     k.fee = 3000;
-    assertEq(policy.computeFee(k), (540 << 12) | 540);
+    assertEq(policy.computeFee(k), (uint48(540) << 24) | 540);
 
     k.fee = 10_000;
     poolManager.mockInitialize(k);
@@ -750,15 +760,15 @@ contract V4FeeAdapterTest is Test {
 
     k.fee = 200;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (10 << 12) | 10);
+    assertEq(policy.computeFee(k), (uint48(10) << 24) | 10);
 
     k.fee = 1000;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (140 << 12) | 140);
+    assertEq(policy.computeFee(k), (uint48(140) << 24) | 140);
 
     k.fee = 5000;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (840 << 12) | 840);
+    assertEq(policy.computeFee(k), (uint48(840) << 24) | 840);
   }
 
   function test_computeFee_staticNativeMath_discontinuousPiecewise() public {
@@ -772,11 +782,11 @@ contract V4FeeAdapterTest is Test {
     PoolKey memory k = standardKey;
     k.fee = 99;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (25 << 12) | 25);
+    assertEq(policy.computeFee(k), (uint48(25) << 24) | 25);
 
     k.fee = 100;
     poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (100 << 12) | 100);
+    assertEq(policy.computeFee(k), (uint48(100) << 24) | 100);
   }
 
   function test_computeFee_staticNativeMath_pairFeeBeatsBuckets() public {
@@ -810,10 +820,12 @@ contract V4FeeAdapterTest is Test {
     k.fee = lpFee;
     poolManager.mockInitialize(k);
 
-    uint24 fee = policy.computeFee(k);
-    uint24 zeroForOne = fee & 0xFFF;
-    uint24 oneForZero = fee >> 12;
-    assertEq(zeroForOne, oneForZero); // symmetric: both 12-bit components equal
+    uint48 fee = policy.computeFee(k);
+    uint48 zeroForOne = fee & 0xFFFFFF;
+    uint48 oneForZero = fee >> 24;
+    assertEq(zeroForOne, oneForZero); // symmetric: both 24-bit components equal
+    // Bucket path still clamps to MAX_PROTOCOL_FEE (StaticNativeMath only feeds the
+    // manager-push path).
     assertLe(zeroForOne, ProtocolFeeLibrary.MAX_PROTOCOL_FEE);
   }
 
@@ -1086,9 +1098,10 @@ contract V4FeeAdapterTest is Test {
   }
 
   function test_setDefaultFee_revertsInvalidFee() public {
+    // Each 24-bit half above MAX_LP_FEE must revert.
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setDefaultFee((2000 << 12) | 2000);
+    policy.setDefaultFee(uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24);
   }
 
   function test_setFamilyDefault_success() public {
@@ -1150,9 +1163,14 @@ contract V4FeeAdapterTest is Test {
   }
 
   function test_setPairFee_revertsInvalidFee() public {
+    // Each 24-bit half above MAX_LP_FEE must revert.
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, (1001 << 12) | 500);
+    policy.setPairFee(
+      standardKey.currency0,
+      standardKey.currency1,
+      (uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24) | 500
+    );
   }
 
   // ============ Policy: Sentinel Encoding ============
@@ -1164,7 +1182,7 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.familyDefaults(1), FEE_200);
 
     policy.setFamilyDefault(1, 0);
-    assertEq(policy.familyDefaults(1), type(uint24).max); // sentinel in storage
+    assertEq(policy.familyDefaults(1), type(uint48).max); // sentinel in storage
     vm.stopPrank();
 
     // computeFee decodes sentinel to 0 -explicit zero, does not fall through
@@ -1281,15 +1299,15 @@ contract V4FeeAdapterTest is Test {
     vm.stopPrank();
 
     // StandardKey -> StaticNativeMath -> pair fee overrides multiplier -> FEE_300
-    assertEq(adapter.getFee(standardKey), FEE_300);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_300);
 
     // CustomKey -> Classified -> pair fee × multiplier -> FEE_300 × 1x = FEE_300
-    assertEq(adapter.getFee(customKey), FEE_300);
+    assertEq(adapter.getFee(customKey), MGR_FEE_300);
 
     // Pool override beats everything
     vm.prank(feeSetter);
     adapter.setPoolOverride(standardKey.toId(), FEE_1000);
-    assertEq(adapter.getFee(standardKey), FEE_1000);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_1000);
   }
 
   function test_integration_triggerAndCollect() public {
@@ -1303,7 +1321,7 @@ contract V4FeeAdapterTest is Test {
 
     // Trigger fee update
     adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), MGR_FEE_300);
 
     // Collect fees
     IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
@@ -1317,23 +1335,27 @@ contract V4FeeAdapterTest is Test {
   function test_edge_maxProtocolFee() public {
     vm.prank(feeSetter);
     adapter.setPoolOverride(standardKey.toId(), FEE_1000);
-    assertEq(adapter.getFee(standardKey), FEE_1000);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_1000);
+    assertEq(adapter.getFeeRaw(standardKey), FEE_1000);
   }
 
   function test_edge_asymmetricFee() public {
-    uint24 asymmetric = (500 << 12) | 200; // 500 pips 1->0, 200 pips 0->1
+    // Asymmetric within MAX_PROTOCOL_FEE so the manager-side push round-trips. 500 pips
+    // 1->0, 200 pips 0->1, packed in the uint48 (24+24) format.
+    uint48 asymmetric = (uint48(500) << 24) | 200;
+    uint24 asymmetricMgr = (uint24(500) << 12) | 200;
     vm.prank(feeSetter);
     adapter.setPoolOverride(standardKey.toId(), asymmetric);
 
     adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), asymmetric);
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), asymmetricMgr);
   }
 
   function test_edge_policySwap() public {
     vm.prank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
-    assertEq(adapter.getFee(standardKey), FEE_300);
+    assertEq(adapter.getFee(standardKey), MGR_FEE_300);
 
     // Deploy new policy with no multiplier configured (default 0)
     vm.startPrank(owner);
@@ -1724,5 +1746,137 @@ contract V4FeeAdapterTest is Test {
     policy.setFlagRules(rules);
     vm.snapshotGasLastCall("policy.setFlagRules - 32 rules (max)");
     assertEq(policy.flagRulesLength(), 32);
+  }
+
+  // ============ Widened uint48 Storage (T1) ============
+  // These tests assert that internal storage holds the full uint48 raw fee unclamped,
+  // while the manager-push path keeps clamping each 12-bit half to MAX_PROTOCOL_FEE.
+
+  /// @dev 5% per direction, well above MAX_PROTOCOL_FEE (0.1%). Accepted into storage.
+  uint48 constant WIDE_FEE_5PCT = (uint48(50_000) << 24) | 50_000;
+
+  function test_widening_setPairFee_acceptsAboveMaxProtocolFee() public {
+    bytes32 ph = _pairHash();
+    vm.prank(feeSetter);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, WIDE_FEE_5PCT);
+    assertEq(policy.pairFees(ph), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_setPairFee_revertsAboveMaxLpFee() public {
+    // Each 24-bit half above MAX_LP_FEE must revert.
+    uint48 bad = uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24;
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, bad);
+  }
+
+  function test_widening_setDefaultFee_acceptsAboveMaxProtocolFee() public {
+    vm.prank(feeSetter);
+    policy.setDefaultFee(WIDE_FEE_5PCT);
+    assertEq(policy.defaultFee(), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_setFamilyDefault_acceptsAboveMaxProtocolFee() public {
+    vm.prank(feeSetter);
+    policy.setFamilyDefault(1, WIDE_FEE_5PCT);
+    assertEq(policy.familyDefaults(1), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_setFamilyDefault_revertsAboveMaxLpFee() public {
+    uint48 bad = uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24;
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
+    policy.setFamilyDefault(1, bad);
+  }
+
+  function test_widening_setDefaultFee_revertsAboveMaxLpFee() public {
+    uint48 bad = uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24;
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
+    policy.setDefaultFee(bad);
+  }
+
+  function test_widening_setPoolOverride_acceptsAboveMaxProtocolFee() public {
+    PoolId id = standardKey.toId();
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(id, WIDE_FEE_5PCT);
+    assertEq(adapter.poolOverrides(id), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_setPoolOverride_revertsAboveMaxLpFee() public {
+    uint48 bad = uint48(LPFeeLibrary.MAX_LP_FEE + 1) << 24;
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeeAdapter.InvalidFeeValue.selector);
+    adapter.setPoolOverride(standardKey.toId(), bad);
+  }
+
+  function test_widening_getFeeRaw_returnsUnclampedPairFee() public {
+    vm.prank(feeSetter);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, WIDE_FEE_5PCT);
+
+    // getFeeRaw returns the raw uint48 — unclamped.
+    assertEq(adapter.getFeeRaw(standardKey), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_getFee_clampsPairFeeToMaxProtocolFee() public {
+    vm.prank(feeSetter);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, WIDE_FEE_5PCT);
+
+    // getFee clamps each 24-bit half to MAX_PROTOCOL_FEE and repacks as uint24 (12+12).
+    assertEq(adapter.getFee(standardKey), MGR_FEE_1000);
+  }
+
+  function test_widening_getFeeRaw_returnsUnclampedPoolOverride() public {
+    PoolId id = standardKey.toId();
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(id, WIDE_FEE_5PCT);
+
+    assertEq(adapter.getFeeRaw(standardKey), WIDE_FEE_5PCT);
+  }
+
+  function test_widening_getFee_clampsPoolOverrideToMaxProtocolFee() public {
+    PoolId id = standardKey.toId();
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(id, WIDE_FEE_5PCT);
+
+    assertEq(adapter.getFee(standardKey), MGR_FEE_1000);
+  }
+
+  function test_widening_triggerFeeUpdate_pushesClampedFeeToManager() public {
+    PoolId id = standardKey.toId();
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(id, WIDE_FEE_5PCT);
+
+    // The manager-push path still clamps and packs to uint24.
+    adapter.triggerFeeUpdate(standardKey);
+    assertEq(poolManager.getProtocolFee(id), MGR_FEE_1000);
+  }
+
+  function test_widening_getFee_clampsAsymmetric() public {
+    // One half above the cap, the other below it. Verify each direction is clamped
+    // independently.
+    uint48 raw = (uint48(50_000) << 24) | 500;
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(standardKey.toId(), raw);
+
+    assertEq(adapter.getFeeRaw(standardKey), raw);
+    uint24 expected = (uint24(1000) << 12) | 500;
+    assertEq(adapter.getFee(standardKey), expected);
+  }
+
+  function testFuzz_widening_setPairFee_roundTripsThroughGetFeeRaw(uint48 packed) public {
+    // Constrain each 24-bit half to <= MAX_LP_FEE so the setter accepts.
+    uint256 fee0 = uint256(packed) & 0xFFFFFF;
+    uint256 fee1 = uint256(packed) >> 24;
+    fee0 = bound(fee0, 1, LPFeeLibrary.MAX_LP_FEE);
+    fee1 = bound(fee1, 1, LPFeeLibrary.MAX_LP_FEE);
+    uint48 validPacked = uint48((fee1 << 24) | fee0);
+
+    vm.prank(feeSetter);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, validPacked);
+
+    // getFeeRaw on a standard pool (StaticNativeMath path, pair fee overrides buckets)
+    // should round-trip the raw value.
+    assertEq(adapter.getFeeRaw(standardKey), validPacked);
   }
 }

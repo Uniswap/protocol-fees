@@ -39,10 +39,19 @@ contract V4FeeAdapterForkTest is Deployers {
   PoolKey pool3000; // 30 bps LP fee
   PoolKey pool10000; // 100 bps LP fee
 
-  uint24 constant PROTO_FEE_100 = (100 << 12) | 100;
-  uint24 constant PROTO_FEE_200 = (200 << 12) | 200;
-  uint24 constant PROTO_FEE_300 = (300 << 12) | 300;
-  uint24 constant PROTO_FEE_500 = (500 << 12) | 500;
+  // Manager-side packed (12+12) — what shows up in Slot0 after the adapter clamps and
+  // pushes. Used for assertions on `manager.getSlot0(...).protocolFee`.
+  uint24 constant PROTO_FEE_100 = (uint24(100) << 12) | 100;
+  uint24 constant PROTO_FEE_200 = (uint24(200) << 12) | 200;
+  uint24 constant PROTO_FEE_300 = (uint24(300) << 12) | 300;
+  uint24 constant PROTO_FEE_500 = (uint24(500) << 12) | 500;
+
+  // Raw uint48 packed (24+24) — the internal storage representation. Used wherever we
+  // call `setPoolOverride` / `setPairFee` and have to pass the wider type.
+  uint48 constant RAW_FEE_100 = (uint48(100) << 24) | 100;
+  uint48 constant RAW_FEE_200 = (uint48(200) << 24) | 200;
+  uint48 constant RAW_FEE_300 = (uint48(300) << 24) | 300;
+  uint48 constant RAW_FEE_500 = (uint48(500) << 24) | 500;
 
   function setUp() public {
     owner = address(this);
@@ -175,8 +184,8 @@ contract V4FeeAdapterForkTest is Deployers {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(200_000));
 
-    // Override one pool to PROTO_FEE_500
-    adapter.setPoolOverride(pool3000.toId(), PROTO_FEE_500);
+    // Override one pool to PROTO_FEE_500 (pass the raw uint48 representation)
+    adapter.setPoolOverride(pool3000.toId(), RAW_FEE_500);
     vm.stopPrank();
 
     // Trigger both
@@ -198,7 +207,7 @@ contract V4FeeAdapterForkTest is Deployers {
     vm.startPrank(feeSetter);
     // Any non-zero multiplier — pair fee should win regardless
     policy.setFeeBuckets(_singleBucketSlope(100_000));
-    policy.setPairFee(currency0, currency1, PROTO_FEE_300);
+    policy.setPairFee(currency0, currency1, RAW_FEE_300);
     vm.stopPrank();
 
     adapter.triggerFeeUpdate(pool3000);
@@ -362,14 +371,16 @@ contract V4FeeAdapterForkTest is Deployers {
   // ============ Asymmetric Fees ============
 
   function test_asymmetricFees() public {
-    // 500 pips 0->1, 100 pips 1->0
-    uint24 asymmetric = (100 << 12) | 500;
+    // 500 pips 0->1, 100 pips 1->0. Set via uint48 (24+24) but Slot0 stores uint24
+    // (12+12). Both halves are below MAX_PROTOCOL_FEE so the round-trip is lossless.
+    uint48 asymmetric = (uint48(100) << 24) | 500;
+    uint24 asymmetricMgr = (uint24(100) << 12) | 500;
     vm.prank(feeSetter);
     adapter.setPoolOverride(pool3000.toId(), asymmetric);
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 fee,) = manager.getSlot0(pool3000.toId());
-    assertEq(fee, asymmetric);
+    assertEq(fee, asymmetricMgr);
 
     // Swap zeroForOne (input is currency0, protocol fee = 500 pips on 0->1)
     swap(pool3000, true, -1e18, ZERO_BYTES);

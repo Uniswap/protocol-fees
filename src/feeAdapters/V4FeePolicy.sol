@@ -27,6 +27,12 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags().
 /// Governance-configured flag rules map flag patterns to families automatically.
 /// Priority: governance override → flag-rule match on self-reported flags → defaultFee.
+///
+/// Fee values are stored internally as uint48 packed `(fee1to0 << 24) | fee0to1`. Each
+/// 24-bit half holds up to MAX_LP_FEE = 1_000_000 pips (100%). The manager-push path
+/// (V4FeeAdapter) clamps each half to MAX_PROTOCOL_FEE = 1000 and repacks as uint24
+/// (12+12) before calling PoolManager.setProtocolFee. Buckets only feed the manager-push
+/// path, so `alphaPips` and the bucket-result clamp stay at MAX_PROTOCOL_FEE.
 /// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
@@ -38,9 +44,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Gas limit for hook self-report calls. Prevents griefing in batch operations.
   uint256 internal constant SELF_REPORT_GAS_LIMIT = 30_000;
 
-  /// @dev Sentinel value: stored to represent an explicit zero fee. type(uint24).max is
-  /// safe because each 12-bit component (0xFFF = 4095) exceeds MAX_PROTOCOL_FEE (1000).
-  uint24 internal constant ZERO_FEE_SENTINEL = type(uint24).max;
+  /// @dev Sentinel value: stored to represent an explicit zero fee. type(uint48).max is
+  /// safe because each 24-bit component (0xFFFFFF = 16_777_215) exceeds MAX_LP_FEE
+  /// (1_000_000), so _validateFee rejects it.
+  uint48 internal constant ZERO_FEE_SENTINEL = type(uint48).max;
 
   /// @dev Shared denominator for pips-based multipliers. 1_000_000 = 100% (matches
   /// MAX_LP_FEE). Used by the StaticNativeMath bucket schedule and by family multipliers
@@ -53,7 +60,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Maximum `betaPips` per bucket. Above this, even a 1-pip delta exceeds
   /// MAX_PROTOCOL_FEE (1000), so the per-direction clamp is always hit and values above
-  /// are functionally identical noise.
+  /// are functionally identical noise. Buckets only feed the manager-push path, so the
+  /// MAX_PROTOCOL_FEE reference here is intentional.
   uint32 internal constant MAX_BETA_PIPS = 1_000_000_000;
 
   /// @inheritdoc IV4FeePolicy
@@ -63,19 +71,19 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   address public feeSetter;
 
   /// @inheritdoc IV4FeePolicy
-  uint24 public defaultFee;
+  uint48 public defaultFee;
 
   /// @inheritdoc IV4FeePolicy
   mapping(address hook => uint8) public hookFamilyId;
 
   /// @inheritdoc IV4FeePolicy
-  mapping(uint8 familyId => uint24) public familyDefaults;
+  mapping(uint8 familyId => uint48) public familyDefaults;
 
   /// @inheritdoc IV4FeePolicy
   mapping(uint8 familyId => uint24) public familyMultiplierPips;
 
   /// @inheritdoc IV4FeePolicy
-  mapping(bytes32 pairHash => uint24) public pairFees;
+  mapping(bytes32 pairHash => uint48) public pairFees;
 
   /// @dev Ordered fee buckets for the StaticNativeMath path. Ascending by
   /// `lpFeeFloor`. Set atomically via `setFeeBuckets`. Empty array → Path A returns 0
@@ -111,13 +119,13 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   // ─── Fee Computation ───
 
   /// @inheritdoc IV4FeePolicy
-  function computeFee(PoolKey calldata key) external view returns (uint24) {
+  function computeFee(PoolKey calldata key) external view returns (uint48) {
     address hook = address(key.hooks);
     bytes32 ph = _pairHash(key.currency0, key.currency1);
 
     // StaticNativeMath: no custom accounting + static fee
     if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) {
-      uint24 stored = pairFees[ph];
+      uint48 stored = pairFees[ph];
       if (stored != 0) return _decodeFee(stored);
       return _computeStaticNativeMathFee(key.fee);
     }
@@ -126,14 +134,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     // Priority: governance override → flag-rule match → unclassified
     uint8 family = _resolveFamily(hook);
     if (family != 0) {
-      uint24 pairFee = pairFees[ph];
+      uint48 pairFee = pairFees[ph];
       uint24 multiplier = familyMultiplierPips[family];
 
       if (pairFee != 0 && multiplier != 0) {
         return _applyMultiplier(_decodeFee(pairFee), multiplier);
       }
 
-      uint24 famDefault = familyDefaults[family];
+      uint48 famDefault = familyDefaults[family];
       if (famDefault != 0) return _decodeFee(famDefault);
     }
 
@@ -208,7 +216,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setDefaultFee(uint24 feeValue) external onlyFeeSetter {
+  function setDefaultFee(uint48 feeValue) external onlyFeeSetter {
     if (feeValue != 0) _validateFee(feeValue);
     defaultFee = _encodeFee(feeValue);
     emit DefaultFeeUpdated(feeValue);
@@ -234,7 +242,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
       if (i > 0 && b.lpFeeFloor <= prevFloor) revert BucketsNotAscending();
       // alpha is a single per-direction value, so check directly against
       // MAX_PROTOCOL_FEE rather than reusing _validateFee (which expects a packed
-      // two-component fee value).
+      // two-component fee value). Buckets only feed the manager-push path, which clamps
+      // to MAX_PROTOCOL_FEE — staying capped here is intentional.
       if (b.alphaPips > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) revert InvalidFeeValue();
       if (b.betaPips > MAX_BETA_PIPS) revert MultiplierTooLarge();
       _feeBuckets.push(b);
@@ -251,7 +260,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setFamilyDefault(uint8 familyId, uint24 feeValue) external onlyFeeSetter {
+  function setFamilyDefault(uint8 familyId, uint48 feeValue) external onlyFeeSetter {
     if (familyId == 0) revert InvalidFamilyId();
     if (feeValue != 0) _validateFee(feeValue);
     familyDefaults[familyId] = _encodeFee(feeValue);
@@ -279,7 +288,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setPairFee(Currency currency0, Currency currency1, uint24 feeValue)
+  function setPairFee(Currency currency0, Currency currency1, uint48 feeValue)
     external
     onlyFeeSetter
   {
@@ -352,13 +361,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Walks `_feeBuckets` backward to find the largest floor `<= lpFee`, evaluates
   /// the piecewise-linear formula `alpha + beta * (lpFee - floor) / MULTIPLIER_DENOMINATOR`
-  /// per direction, clamps to MAX_PROTOCOL_FEE, and packs symmetrically into both 12-bit
-  /// components. Snap behavior: when `lpFee < floor_0`, the loop never breaks and the
-  /// pre-loop default of `_feeBuckets[0]` applies, with `delta = 0`, so the result is
-  /// `alpha_0` — the de facto minimum fee for very-low-LP-fee pools.
+  /// per direction, clamps to MAX_PROTOCOL_FEE, and packs symmetrically into both 24-bit
+  /// components of a uint48. Snap behavior: when `lpFee < floor_0`, the loop never breaks
+  /// and the pre-loop default of `_feeBuckets[0]` applies, with `delta = 0`, so the
+  /// result is `alpha_0` — the de facto minimum fee for very-low-LP-fee pools.
   /// @param lpFee The pool's LP fee in pips (from key.fee).
-  /// @return The packed protocol fee with both 12-bit components equal.
-  function _computeStaticNativeMathFee(uint24 lpFee) internal view returns (uint24) {
+  /// @return The packed protocol fee with both 24-bit components equal (each <=
+  /// MAX_PROTOCOL_FEE).
+  function _computeStaticNativeMathFee(uint24 lpFee) internal view returns (uint48) {
     uint256 len = _feeBuckets.length;
     if (len == 0) return 0;
 
@@ -379,42 +389,47 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     if (perDirection > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) {
       perDirection = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
     }
-    return uint24((perDirection << 12) | perDirection);
+    return uint48((perDirection << 24) | perDirection);
   }
 
-  /// @dev Scales each 12-bit directional fee component by a pips multiplier. The two
-  /// 12-bit components are extracted, scaled independently, and repacked into a single
-  /// uint24. Shares MULTIPLIER_DENOMINATOR with `_computeStaticNativeMathFee`. No clamp
-  /// is needed: pairFees are validated <= MAX_PROTOCOL_FEE per direction at write time,
-  /// and `multiplierPips` is bounded by `setFamilyMultiplier` to <= 1_000_000.
-  /// @param baseFee The base protocol fee (two 12-bit directional components packed).
+  /// @dev Scales each 24-bit directional fee component by a pips multiplier. The two
+  /// 24-bit components are extracted, scaled independently, and repacked into a single
+  /// uint48. Shares MULTIPLIER_DENOMINATOR with `_computeStaticNativeMathFee`. No clamp
+  /// is needed: pairFees are validated <= MAX_LP_FEE per direction at write time, and
+  /// `multiplierPips` is bounded by `setFamilyMultiplier` to <= 1_000_000. Overflow is
+  /// safe in uint256: MAX_LP_FEE × MULTIPLIER_DENOMINATOR = 1e12 ≪ 2^256.
+  /// @param baseFee The base protocol fee (two 24-bit directional components packed).
   /// @param multiplierPips The multiplier in pips (max 1_000_000 = 100%).
-  /// @return The scaled protocol fee.
-  function _applyMultiplier(uint24 baseFee, uint24 multiplierPips) internal pure returns (uint24) {
-    uint256 fee0 = uint256(baseFee & 0xFFF) * multiplierPips / MULTIPLIER_DENOMINATOR;
-    uint256 fee1 = uint256(baseFee >> 12) * multiplierPips / MULTIPLIER_DENOMINATOR;
-    return uint24((fee1 << 12) | fee0);
+  /// @return The scaled protocol fee (each 24-bit half <= MAX_LP_FEE).
+  function _applyMultiplier(uint48 baseFee, uint24 multiplierPips) internal pure returns (uint48) {
+    uint256 fee0 = uint256(baseFee & 0xFFFFFF) * multiplierPips / MULTIPLIER_DENOMINATOR;
+    uint256 fee1 = uint256(baseFee >> 24) * multiplierPips / MULTIPLIER_DENOMINATOR;
+    return uint48((fee1 << 24) | fee0);
   }
 
   /// @dev Encodes a fee for storage. Converts 0 to ZERO_FEE_SENTINEL so that 0 in
   /// storage means "not set" rather than "explicitly zero".
   /// @param feeValue The actual fee value (0 = remove/unset).
   /// @return The encoded value to store.
-  function _encodeFee(uint24 feeValue) internal pure returns (uint24) {
+  function _encodeFee(uint48 feeValue) internal pure returns (uint48) {
     return feeValue == 0 ? ZERO_FEE_SENTINEL : feeValue;
   }
 
   /// @dev Decodes a fee from storage. Converts ZERO_FEE_SENTINEL back to 0.
   /// @param stored The raw value from storage.
   /// @return The actual fee value.
-  function _decodeFee(uint24 stored) internal pure returns (uint24) {
+  function _decodeFee(uint48 stored) internal pure returns (uint48) {
     return stored == ZERO_FEE_SENTINEL ? 0 : stored;
   }
 
-  /// @dev Validates that a protocol fee is within v4-core bounds (each 12-bit directional
-  /// component must be <= MAX_PROTOCOL_FEE = 1000).
+  /// @dev Validates that a protocol fee is within structural bounds: each 24-bit
+  /// directional component must be <= LPFeeLibrary.MAX_LP_FEE (1_000_000 = 100%). Note
+  /// that this is *wider* than the manager-push path's MAX_PROTOCOL_FEE = 1000 ceiling;
+  /// V4FeeAdapter clamps to MAX_PROTOCOL_FEE at the publication boundary.
   /// @param feeValue The fee to validate.
-  function _validateFee(uint24 feeValue) internal pure {
-    if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue();
+  function _validateFee(uint48 feeValue) internal pure {
+    uint256 fee0 = feeValue & 0xFFFFFF;
+    uint256 fee1 = uint256(feeValue) >> 24;
+    if (fee0 > LPFeeLibrary.MAX_LP_FEE || fee1 > LPFeeLibrary.MAX_LP_FEE) revert InvalidFeeValue();
   }
 }

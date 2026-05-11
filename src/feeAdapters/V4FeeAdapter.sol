@@ -6,6 +6,7 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {IV4FeeAdapter} from "../interfaces/IV4FeeAdapter.sol";
@@ -16,14 +17,22 @@ import {IV4FeePolicy} from "../interfaces/IV4FeePolicy.sol";
 /// waterfall (pool override → policy → 0), pushes them to the PoolManager, and collects
 /// accrued fees to the TokenJar.
 /// @dev The adapter is the trusted, long-lived piece. The policy is replaceable by the owner.
+///
+/// Fees are stored internally as uint48 packed `(fee1to0 << 24) | fee0to1`, with each
+/// 24-bit half bounded by MAX_LP_FEE (1_000_000). The manager-push path clamps each
+/// half to MAX_PROTOCOL_FEE (1000) and repacks as uint24 (12+12) before calling
+/// PoolManager.setProtocolFee, so `getFee` keeps its uint24 return type for off-chain
+/// backwards compatibility. `getFeeRaw` exposes the uncapped uint48 for callers that
+/// understand the wider representation.
 /// @custom:security-contact security@uniswap.org
 contract V4FeeAdapter is IV4FeeAdapter, Owned {
   using PoolIdLibrary for PoolKey;
   using StateLibrary for IPoolManager;
 
-  /// @dev Sentinel value: stored to represent an explicit zero fee. type(uint24).max is
-  /// safe because each 12-bit component (0xFFF = 4095) exceeds MAX_PROTOCOL_FEE (1000).
-  uint24 public constant ZERO_FEE_SENTINEL = type(uint24).max;
+  /// @dev Sentinel value: stored to represent an explicit zero fee. type(uint48).max is
+  /// safe because each 24-bit component (0xFFFFFF = 16_777_215) exceeds MAX_LP_FEE
+  /// (1_000_000), so _validateFee rejects it.
+  uint48 public constant ZERO_FEE_SENTINEL = type(uint48).max;
 
   /// @inheritdoc IV4FeeAdapter
   IPoolManager public immutable POOL_MANAGER;
@@ -38,7 +47,7 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   IV4FeePolicy public policy;
 
   /// @inheritdoc IV4FeeAdapter
-  mapping(PoolId poolId => uint24) public poolOverrides;
+  mapping(PoolId poolId => uint48) public poolOverrides;
 
   /// @notice Restricts access to the fee setter address.
   modifier onlyFeeSetter() {
@@ -59,11 +68,16 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   // ─── Fee Resolution ───
 
   /// @inheritdoc IV4FeeAdapter
-  function getFee(PoolKey memory key) public view returns (uint24) {
-    uint24 stored = poolOverrides[key.toId()];
+  function getFeeRaw(PoolKey memory key) public view returns (uint48) {
+    uint48 stored = poolOverrides[key.toId()];
     if (stored != 0) return _decodeFee(stored);
     if (address(policy) == address(0)) return 0;
     return policy.computeFee(key);
+  }
+
+  /// @inheritdoc IV4FeeAdapter
+  function getFee(PoolKey memory key) public view returns (uint24) {
+    return _clampAndPackForManager(getFeeRaw(key));
   }
 
   // ─── Permissionless Triggering ───
@@ -109,7 +123,7 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   // ─── Pool Overrides (onlyFeeSetter) ───
 
   /// @inheritdoc IV4FeeAdapter
-  function setPoolOverride(PoolId poolId, uint24 feeValue) external onlyFeeSetter {
+  function setPoolOverride(PoolId poolId, uint48 feeValue) external onlyFeeSetter {
     if (feeValue != 0) _validateFee(feeValue);
     poolOverrides[poolId] = _encodeFee(feeValue);
     emit PoolOverrideUpdated(poolId, feeValue);
@@ -126,6 +140,8 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   /// @dev Resolves the fee for a pool via the waterfall, checks that the pool is
   /// initialized, and pushes the fee to the PoolManager. Silently skips uninitialized
   /// pools (sqrtPriceX96 == 0) to avoid a revert from the PoolManager and save gas.
+  /// Pushes the clamped-and-packed uint24 representation; the raw uint48 stays accessible
+  /// via `getFeeRaw` for callers that need the uncapped value.
   /// @param key The pool key identifying the pool to update.
   function _setProtocolFee(PoolKey memory key) internal {
     PoolId id = key.toId();
@@ -139,25 +155,41 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
     emit FeeUpdateTriggered(msg.sender, id, feeValue);
   }
 
+  /// @dev Clamps each 24-bit half of a raw uint48 fee to MAX_PROTOCOL_FEE and packs the
+  /// result as a uint24 (12+12) suitable for PoolManager.setProtocolFee.
+  /// @param raw The raw uint48 fee (each 24-bit half <= MAX_LP_FEE).
+  /// @return The clamped uint24 fee (each 12-bit half <= MAX_PROTOCOL_FEE).
+  function _clampAndPackForManager(uint48 raw) internal pure returns (uint24) {
+    uint256 fee0 = uint256(raw) & 0xFFFFFF;
+    uint256 fee1 = uint256(raw) >> 24;
+    if (fee0 > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) fee0 = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
+    if (fee1 > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) fee1 = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
+    return uint24((fee1 << 12) | fee0);
+  }
+
   /// @dev Encodes a fee for storage. Converts 0 to ZERO_FEE_SENTINEL so that 0 in
   /// storage means "not set" rather than "explicitly zero".
   /// @param feeValue The actual fee value (0 = remove/unset).
   /// @return The encoded value to store.
-  function _encodeFee(uint24 feeValue) internal pure returns (uint24) {
+  function _encodeFee(uint48 feeValue) internal pure returns (uint48) {
     return feeValue == 0 ? ZERO_FEE_SENTINEL : feeValue;
   }
 
   /// @dev Decodes a fee from storage. Converts ZERO_FEE_SENTINEL back to 0.
   /// @param stored The raw value from storage.
   /// @return The actual fee value.
-  function _decodeFee(uint24 stored) internal pure returns (uint24) {
+  function _decodeFee(uint48 stored) internal pure returns (uint48) {
     return stored == ZERO_FEE_SENTINEL ? 0 : stored;
   }
 
-  /// @dev Validates that a protocol fee is within v4-core bounds (each 12-bit directional
-  /// component must be <= MAX_PROTOCOL_FEE = 1000).
+  /// @dev Validates that a protocol fee is within structural bounds: each 24-bit
+  /// directional component must be <= LPFeeLibrary.MAX_LP_FEE (1_000_000). Wider than
+  /// the manager-push path's MAX_PROTOCOL_FEE; clamping happens in
+  /// _clampAndPackForManager.
   /// @param feeValue The fee to validate.
-  function _validateFee(uint24 feeValue) internal pure {
-    if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue();
+  function _validateFee(uint48 feeValue) internal pure {
+    uint256 fee0 = uint256(feeValue) & 0xFFFFFF;
+    uint256 fee1 = uint256(feeValue) >> 24;
+    if (fee0 > LPFeeLibrary.MAX_LP_FEE || fee1 > LPFeeLibrary.MAX_LP_FEE) revert InvalidFeeValue();
   }
 }

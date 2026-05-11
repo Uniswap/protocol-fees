@@ -93,8 +93,9 @@ interface IV4FeePolicy {
 
   /// @notice Emitted when a family's default protocol fee is updated.
   /// @param familyId The family whose default was changed.
-  /// @param feeValue The new default fee (0 = removed).
-  event FamilyDefaultUpdated(uint8 indexed familyId, uint24 feeValue);
+  /// @param feeValue The new default fee, packed as `(fee1to0 << 24) | fee0to1` with
+  /// each 24-bit half <= MAX_LP_FEE (0 = removed).
+  event FamilyDefaultUpdated(uint8 indexed familyId, uint48 feeValue);
 
   /// @notice Emitted when a family's multiplier is updated.
   /// @param familyId The family whose multiplier was changed.
@@ -103,16 +104,18 @@ interface IV4FeePolicy {
 
   /// @notice Emitted when a pair fee is updated.
   /// @param pairHash The canonical hash of the token pair.
-  /// @param feeValue The new pair fee (0 = removed).
-  event PairFeeUpdated(bytes32 indexed pairHash, uint24 feeValue);
+  /// @param feeValue The new pair fee, packed as `(fee1to0 << 24) | fee0to1` with each
+  /// 24-bit half <= MAX_LP_FEE (0 = removed).
+  event PairFeeUpdated(bytes32 indexed pairHash, uint48 feeValue);
 
   /// @notice Emitted when the fee buckets array is replaced.
   /// @param bucketCount The number of buckets in the new array.
   event FeeBucketsUpdated(uint256 bucketCount);
 
   /// @notice Emitted when the default classified fee is updated.
-  /// @param feeValue The new default fee (0 = removed).
-  event DefaultFeeUpdated(uint24 feeValue);
+  /// @param feeValue The new default fee, packed as `(fee1to0 << 24) | fee0to1` with
+  /// each 24-bit half <= MAX_LP_FEE (0 = removed).
+  event DefaultFeeUpdated(uint48 feeValue);
 
   /// @notice Emitted when the flag rules array is replaced.
   /// @param ruleCount The number of rules in the new array.
@@ -139,9 +142,10 @@ interface IV4FeePolicy {
   function feeSetter() external view returns (address);
 
   /// @notice Fallback fee for all classified pools when no family-specific config applies.
-  /// @dev Also used for unclassified hooks (familyId == 0). Sentinel-encoded in storage.
+  /// @dev Also used for unclassified hooks (familyId == 0). Sentinel-encoded in storage,
+  /// packed as `(fee1to0 << 24) | fee0to1` with each 24-bit half <= MAX_LP_FEE.
   /// @return The sentinel-encoded default fee.
-  function defaultFee() external view returns (uint24);
+  function defaultFee() external view returns (uint48);
 
   /// @notice Returns the governance-assigned family ID for a hook.
   /// @dev 0 = unclassified. StaticNativeMath pools bypass this entirely.
@@ -151,8 +155,9 @@ interface IV4FeePolicy {
 
   /// @notice Returns the default protocol fee for a given family ID.
   /// @param familyId The family to query.
-  /// @return The sentinel-encoded default fee for the family.
-  function familyDefaults(uint8 familyId) external view returns (uint24);
+  /// @return The sentinel-encoded default fee for the family, packed as
+  /// `(fee1to0 << 24) | fee0to1` with each 24-bit half <= MAX_LP_FEE.
+  function familyDefaults(uint8 familyId) external view returns (uint48);
 
   /// @notice Returns the multiplier (in pips) for a given family ID.
   /// @dev 1_000_000 = 100% (1x), 500_000 = 50% (0.5x). Applied to pairFees to derive a
@@ -164,10 +169,11 @@ interface IV4FeePolicy {
 
   /// @notice Returns the pair fee for a token pair hash.
   /// @dev Flat mapping — one fee per pair. StaticNativeMath uses it directly (overrides
-  /// the bucket schedule). Classified pools scale it by the family multiplier.
+  /// the bucket schedule). Classified pools scale it by the family multiplier. Packed
+  /// as `(fee1to0 << 24) | fee0to1` with each 24-bit half <= MAX_LP_FEE.
   /// @param pairHash The canonical keccak256 hash of the sorted token pair.
   /// @return The sentinel-encoded pair fee (0 = not set).
-  function pairFees(bytes32 pairHash) external view returns (uint24);
+  function pairFees(bytes32 pairHash) external view returns (uint48);
 
   /// @notice Returns the number of fee buckets configured.
   /// @return The count of fee buckets.
@@ -203,7 +209,7 @@ interface IV4FeePolicy {
 
   // --- Fee Computation ---
 
-  /// @notice Computes the protocol fee for a pool.
+  /// @notice Computes the raw protocol fee for a pool.
   /// @dev Three paths:
   /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee, or evaluate the
   ///    fee-bucket schedule — find the bucket with the largest `lpFeeFloor <= key.fee`
@@ -213,10 +219,13 @@ interface IV4FeePolicy {
   /// 2. Dynamic fee NativeMath: requires governance familyId (Slot0.lpFee is unreliable).
   /// 3. CustomAccounting (return-delta flags set): requires governance familyId.
   /// Paths 2 and 3 fall through to defaultFee if unclassified.
+  /// Result is the raw uint48 packed as `(fee1to0 << 24) | fee0to1`. Each 24-bit half can
+  /// reach MAX_LP_FEE (1_000_000); V4FeeAdapter clamps to MAX_PROTOCOL_FEE before pushing
+  /// to the PoolManager.
   /// Callable by anyone (no access control) for offchain tooling.
   /// @param key The pool key to compute the fee for.
-  /// @return fee The computed protocol fee (two 12-bit directional components packed).
-  function computeFee(PoolKey calldata key) external view returns (uint24 fee);
+  /// @return fee The computed protocol fee (two 24-bit directional components packed).
+  function computeFee(PoolKey calldata key) external view returns (uint48 fee);
 
   // --- Admin (onlyOwner) ---
 
@@ -248,8 +257,9 @@ interface IV4FeePolicy {
 
   /// @notice Sets the fallback fee for all classified pools (including unclassified hooks).
   /// @dev Setting 0 sets an explicit zero fee. Use clearDefaultFee to remove entirely.
-  /// @param feeValue The protocol fee to set. Must pass isValidProtocolFee if non-zero.
-  function setDefaultFee(uint24 feeValue) external;
+  /// Packed as `(fee1to0 << 24) | fee0to1`; each 24-bit half must be <= MAX_LP_FEE.
+  /// @param feeValue The protocol fee to set. Each 24-bit half must be <= MAX_LP_FEE.
+  function setDefaultFee(uint48 feeValue) external;
 
   /// @notice Removes the default fee, so unclassified pools return 0.
   function clearDefaultFee() external;
@@ -274,10 +284,11 @@ interface IV4FeePolicy {
 
   /// @notice Sets the default protocol fee for a given family ID.
   /// @dev familyId must be > 0. Setting 0 sets explicit zero. Use clearFamilyDefault to
-  /// remove entirely.
+  /// remove entirely. Packed as `(fee1to0 << 24) | fee0to1`; each 24-bit half must be
+  /// <= MAX_LP_FEE.
   /// @param familyId The family to configure.
-  /// @param feeValue The default fee. Must pass isValidProtocolFee if non-zero.
-  function setFamilyDefault(uint8 familyId, uint24 feeValue) external;
+  /// @param feeValue The default fee. Each 24-bit half must be <= MAX_LP_FEE.
+  function setFamilyDefault(uint8 familyId, uint48 feeValue) external;
 
   /// @notice Removes the default fee for a family, falling through in the waterfall.
   /// @param familyId The family to clear.
@@ -299,11 +310,12 @@ interface IV4FeePolicy {
   /// @notice Sets the pair fee for a token pair.
   /// @dev StaticNativeMath pools use this directly (overrides the fee buckets).
   /// Classified pools scale it by familyMultiplierPips. Setting 0 sets explicit zero.
-  /// Use clearPairFee to remove entirely.
+  /// Use clearPairFee to remove entirely. Packed as `(fee1to0 << 24) | fee0to1`; each
+  /// 24-bit half must be <= MAX_LP_FEE.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
-  /// @param feeValue The pair fee. Must pass isValidProtocolFee if non-zero.
-  function setPairFee(Currency currency0, Currency currency1, uint24 feeValue) external;
+  /// @param feeValue The pair fee. Each 24-bit half must be <= MAX_LP_FEE.
+  function setPairFee(Currency currency0, Currency currency1, uint48 feeValue) external;
 
   /// @notice Removes the pair fee, falling through to the fee buckets.
   /// @param currency0 The lower currency of the pair (must be < currency1).
