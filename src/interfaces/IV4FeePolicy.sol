@@ -51,7 +51,9 @@ interface IV4FeePolicy {
   /// @notice Thrown when an unauthorized address calls a restricted function.
   error Unauthorized();
 
-  /// @notice Thrown when a fee value fails ProtocolFeeLibrary.isValidProtocolFee.
+  /// @notice Thrown when a fee value exceeds its allowed bound: packed pair/family/default
+  /// fees check each 24-bit half <= LPFeeLibrary.MAX_LP_FEE; bucket alphaPips checks
+  /// <= ProtocolFeeLibrary.MAX_PROTOCOL_FEE.
   error InvalidFeeValue();
 
   /// @notice Thrown when familyId == 0 is passed to a function that requires > 0.

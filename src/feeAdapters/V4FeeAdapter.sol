@@ -34,6 +34,13 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   /// (1_000_000), so _validateFee rejects it.
   uint48 public constant ZERO_FEE_SENTINEL = type(uint48).max;
 
+  /// @dev Bitmask for the four RETURNS_DELTA flags (bits 0-3 of hook address).
+  /// INVARIANT: keep in sync with V4FeePolicy.CUSTOM_ACCOUNTING_MASK and v4-core's
+  /// hook RETURNS_DELTA bit layout. Duplicated locally (not imported from policy)
+  /// to avoid an external SLOAD on a hot path and a reentrancy surface across the
+  /// adapter/policy boundary.
+  uint160 internal constant CUSTOM_ACCOUNTING_MASK = 0xF;
+
   /// @inheritdoc IV4FeeAdapter
   IPoolManager public immutable POOL_MANAGER;
 
@@ -78,6 +85,12 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   /// @inheritdoc IV4FeeAdapter
   function getFee(PoolKey memory key) public view returns (uint24) {
     return _clampAndPackForManager(getFeeRaw(key));
+  }
+
+  /// @inheritdoc IV4FeeAdapter
+  function getCustomAccountingFee(PoolKey memory key) external view returns (uint48 feePacked) {
+    if (uint160(address(key.hooks)) & CUSTOM_ACCOUNTING_MASK == 0) return 0;
+    return getFeeRaw(key);
   }
 
   // ─── Permissionless Triggering ───
@@ -150,7 +163,14 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
     (uint160 sqrtPriceX96,,,) = POOL_MANAGER.getSlot0(id);
     if (sqrtPriceX96 == 0) return;
 
-    uint24 feeValue = getFee(key);
+    // Custom-accounting hooks read their fee directly from this adapter via
+    // getCustomAccountingFee. Push 0 so off-chain readers see a deterministic
+    // state and stale Slot0 values don't mislead.
+    // This bypasses the pool-override waterfall: an explicit poolOverrides[id]
+    // is ignored for custom-accounting pools, since the manager-side fee is
+    // structurally unused for them.
+    bool isCustomAccounting = uint160(address(key.hooks)) & CUSTOM_ACCOUNTING_MASK != 0;
+    uint24 feeValue = isCustomAccounting ? 0 : getFee(key);
     POOL_MANAGER.setProtocolFee(key, feeValue);
     emit FeeUpdateTriggered(msg.sender, id, feeValue);
   }

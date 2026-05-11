@@ -1879,4 +1879,164 @@ contract V4FeeAdapterTest is Test {
     // should round-trip the raw value.
     assertEq(adapter.getFeeRaw(standardKey), validPacked);
   }
+
+  // ============ Adapter: Custom-Accounting Short-Circuit & View (T2) ============
+  // These tests cover (a) getCustomAccountingFee — the new view used by hooks to read
+  // uncapped per-pool fees at swap time — and (b) _setProtocolFee's short-circuit that
+  // pushes 0 to the manager for custom-accounting pools (since the manager-side fee is
+  // structurally unused for them).
+
+  /// @dev Custom-accounting hook address: bits 7 (beforeSwap) + 3
+  /// (beforeSwapReturnsDelta). Any of bits 0-3 set qualifies as custom-accounting.
+  uint160 internal constant CUSTOM_ACC_HOOK_ADDR = uint160((1 << 7) | (1 << 3));
+
+  /// @dev Builds and initializes a custom-accounting pool key for the standard pair.
+  function _customAccountingKey() internal returns (PoolKey memory key) {
+    key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(address(CUSTOM_ACC_HOOK_ADDR))
+    });
+    poolManager.mockInitialize(key);
+  }
+
+  function test_getCustomAccountingFee_nonCustomAccountingHook_returnsZero() public {
+    // hookKey uses 0x80 (beforeSwap only, no RETURNS_DELTA bits). Configure a pair fee
+    // and a pool override; both should be ignored by getCustomAccountingFee.
+    vm.startPrank(feeSetter);
+    policy.setPairFee(hookKey.currency0, hookKey.currency1, WIDE_FEE_5PCT);
+    adapter.setPoolOverride(hookKey.toId(), WIDE_FEE_5PCT);
+    vm.stopPrank();
+
+    // Sanity: getFeeRaw would return the configured fee, but getCustomAccountingFee
+    // short-circuits on the address-bit gate.
+    assertEq(adapter.getFeeRaw(hookKey), WIDE_FEE_5PCT, "sanity: raw fee is set");
+    assertEq(adapter.getCustomAccountingFee(hookKey), 0, "non-custom-accounting -> 0");
+  }
+
+  function test_getCustomAccountingFee_customAccountingHook_returnsUncappedRaw() public {
+    PoolKey memory customKey = _customAccountingKey();
+
+    // On the classified path, pair fees only flow through when paired with a family
+    // and a multiplier (per V4FeePolicy.computeFee). Use 1x multiplier so the WIDE
+    // value flows through unchanged.
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(CUSTOM_ACC_HOOK_ADDR), 1);
+    policy.setFamilyMultiplier(1, 1_000_000); // 100% (1x)
+    policy.setPairFee(customKey.currency0, customKey.currency1, WIDE_FEE_5PCT);
+    vm.stopPrank();
+
+    // The 50_000-pips-per-direction value is far above MAX_PROTOCOL_FEE; that's the
+    // whole point of the new view.
+    assertGt(
+      uint256(50_000),
+      uint256(ProtocolFeeLibrary.MAX_PROTOCOL_FEE),
+      "self-doc: WIDE_FEE_5PCT half exceeds MAX_PROTOCOL_FEE"
+    );
+    assertEq(adapter.getCustomAccountingFee(customKey), WIDE_FEE_5PCT);
+    // Mirror getFeeRaw — view is uncapped.
+    assertEq(adapter.getFeeRaw(customKey), WIDE_FEE_5PCT);
+  }
+
+  function test_getCustomAccountingFee_policyUnset_returnsZero() public {
+    PoolKey memory customKey = _customAccountingKey();
+
+    // Disable policy: with no pool override and no policy, getFeeRaw -> 0, and so the
+    // custom-accounting view also returns 0.
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(0)));
+
+    assertEq(adapter.getCustomAccountingFee(customKey), 0);
+  }
+
+  function test_setProtocolFee_customAccountingPool_pushesZero() public {
+    PoolKey memory customKey = _customAccountingKey();
+    PoolId id = customKey.toId();
+
+    // Configure defaultFee = WIDE_FEE_5PCT and assign the hook to family 1 with that
+    // default. getFee would clamp WIDE_FEE_5PCT to MGR_FEE_1000, so a non-shortcircuit
+    // path would push MGR_FEE_1000.
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(CUSTOM_ACC_HOOK_ADDR), 1);
+    policy.setFamilyDefault(1, WIDE_FEE_5PCT);
+    vm.stopPrank();
+
+    // Sanity: getFee resolves to the clamped value that would otherwise be pushed.
+    assertEq(adapter.getFee(customKey), MGR_FEE_1000, "sanity: pre-shortcircuit value");
+
+    // Expect event with 0 payload (caller indexed, poolId indexed, feeValue not).
+    vm.expectEmit(true, true, false, true, address(adapter));
+    emit IV4FeeAdapter.FeeUpdateTriggered(alice, id, 0);
+    vm.prank(alice);
+    adapter.triggerFeeUpdate(customKey);
+
+    assertEq(poolManager.getProtocolFee(id), 0, "Slot0 protocolFee should be 0");
+  }
+
+  function test_setProtocolFee_customAccountingPool_bypassesPoolOverride() public {
+    PoolKey memory customKey = _customAccountingKey();
+    PoolId id = customKey.toId();
+
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(id, WIDE_FEE_5PCT);
+
+    // Sanity: without the short-circuit, the override would clamp to MGR_FEE_1000.
+    assertEq(adapter.getFee(customKey), MGR_FEE_1000, "sanity: override resolves clamped");
+
+    adapter.triggerFeeUpdate(customKey);
+
+    // But the manager-push path ignores the override for custom-accounting pools.
+    assertEq(poolManager.getProtocolFee(id), 0);
+  }
+
+  function test_setProtocolFee_nonCustomAccountingPool_pushesGetFee() public {
+    // hookKey: bit 7 only (no RETURNS_DELTA). Standard manager-push path applies.
+    vm.prank(feeSetter);
+    policy.setFeeBuckets(_singleBucketFlat(300));
+
+    adapter.triggerFeeUpdate(hookKey);
+
+    assertEq(poolManager.getProtocolFee(hookKey.toId()), MGR_FEE_300);
+  }
+
+  function test_setProtocolFee_contrast_customVsNonCustom() public {
+    // Two pool keys differing only in hook address (one custom-accounting, one not),
+    // same pair fee configured -> divergent pushed values.
+    PoolKey memory customKey = _customAccountingKey();
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(CUSTOM_ACC_HOOK_ADDR), 1);
+    policy.setFamilyDefault(1, FEE_300);
+    policy.setFeeBuckets(_singleBucketFlat(300)); // for hookKey (StaticNativeMath path)
+    vm.stopPrank();
+
+    adapter.triggerFeeUpdate(customKey);
+    adapter.triggerFeeUpdate(hookKey);
+
+    assertEq(poolManager.getProtocolFee(customKey.toId()), 0, "custom-accounting -> 0");
+    assertEq(poolManager.getProtocolFee(hookKey.toId()), MGR_FEE_300, "non-custom -> getFee");
+  }
+
+  function test_batchTriggerFeeUpdate_mixedCustomAndNonCustom() public {
+    PoolKey memory customKey = _customAccountingKey();
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(CUSTOM_ACC_HOOK_ADDR), 1);
+    policy.setFamilyDefault(1, FEE_500);
+    policy.setFeeBuckets(_singleBucketFlat(300)); // applies to standardKey + hookKey
+    vm.stopPrank();
+
+    PoolKey[] memory keys = new PoolKey[](3);
+    keys[0] = standardKey;
+    keys[1] = customKey;
+    keys[2] = hookKey;
+
+    adapter.batchTriggerFeeUpdate(keys);
+
+    assertEq(poolManager.getProtocolFee(standardKey.toId()), MGR_FEE_300);
+    assertEq(poolManager.getProtocolFee(customKey.toId()), 0);
+    assertEq(poolManager.getProtocolFee(hookKey.toId()), MGR_FEE_300);
+  }
 }
