@@ -41,7 +41,8 @@ contract MockL2GatewayRouter is IL2GatewayRouter {
 /// @notice Mock Gateway for token approval
 contract MockGateway {
   // Just needs to exist for approval
-}
+
+  }
 
 /// @notice Mock V3 Factory for testing — returns non-zero tick spacing for known fee tiers
 contract MockV3Factory {
