@@ -405,9 +405,9 @@ contract V4FeeAdapterForkTest is Deployers {
   //  - For a pool whose hook address has any RETURNS_DELTA bit set, `triggerFeeUpdate`
   //    writes Slot0.protocolFee = 0 regardless of policy state, pair-fee setting, or
   //    pool override. The hook reads its uncapped fee directly from the adapter via
-  //    `getCustomAccountingFee` and charges via its own delta accounting.
-  //  - `getCustomAccountingFee` returns the raw uint48 (no MAX_PROTOCOL_FEE clamp),
-  //    so fees well above 1000 pips (e.g. 50_000 = 5%) flow through unchanged.
+  //    `getFeeRaw` and charges via its own delta accounting.
+  //  - `getFeeRaw` returns the raw uint48 (no MAX_PROTOCOL_FEE clamp), so fees well
+  //    above 1000 pips (e.g. 50_000 = 5%) flow through unchanged.
   //
   // Non-custom-accounting contrast — Slot0 push and MAX_PROTOCOL_FEE clamp on the
   // standard path — is already covered by `test_buckets_differentPoolsLinearlyScaled`
@@ -452,11 +452,11 @@ contract V4FeeAdapterForkTest is Deployers {
     vm.stopPrank();
   }
 
-  function test_customAccounting_getCustomAccountingFee_uncapped() public {
+  function test_customAccounting_getFeeRaw_uncapped() public {
     PoolKey memory customKey = _initCustomAccountingPool();
 
-    // 50_000 pips = 5%, far exceeding MAX_PROTOCOL_FEE = 1000 pips. The custom-
-    // accounting view must NOT clamp.
+    // 50_000 pips = 5%, far exceeding MAX_PROTOCOL_FEE = 1000 pips. The raw view
+    // must NOT clamp.
     assertGt(
       uint256(50_000),
       uint256(ProtocolFeeLibrary.MAX_PROTOCOL_FEE),
@@ -465,12 +465,9 @@ contract V4FeeAdapterForkTest is Deployers {
 
     _configureClassifiedFee(50_000);
 
-    // getFeeRaw flows the uint48 through unclamped.
+    // getFeeRaw is the direct-read for custom-accounting hooks; uint48 flows through
+    // unclamped.
     assertEq(adapter.getFeeRaw(customKey), _symmetric(50_000));
-
-    // getCustomAccountingFee is the dedicated direct-read for the hook; same value,
-    // no clamp.
-    assertEq(adapter.getCustomAccountingFee(customKey), _symmetric(50_000));
 
     // getFee (manager-compat uint24 view) clamps each direction to MAX_PROTOCOL_FEE.
     uint24 expectedClamped = (uint24(1000) << 12) | 1000;
@@ -506,13 +503,13 @@ contract V4FeeAdapterForkTest is Deployers {
     adapter.triggerFeeUpdate(customKey);
     (,, uint24 fee1,) = manager.getSlot0(customKey.toId());
     assertEq(fee1, 0, "first trigger must push zero");
-    assertEq(adapter.getCustomAccountingFee(customKey), _symmetric(50_000));
+    assertEq(adapter.getFeeRaw(customKey), _symmetric(50_000));
 
     // Reconfigure to a different uncapped value. familyMultiplier stays at 100%, so
     // the new pair fee flows through unchanged.
     vm.prank(feeSetter);
     policy.setPairFee(currency0, currency1, _symmetric(100_000));
-    assertEq(adapter.getCustomAccountingFee(customKey), _symmetric(100_000));
+    assertEq(adapter.getFeeRaw(customKey), _symmetric(100_000));
 
     // Re-trigger: still zero. The two paths are independent — reconfiguring the
     // direct-read fee never affects Slot0.
@@ -521,7 +518,7 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(fee2, 0, "re-trigger must still push zero");
 
     // Direct-read view stays consistent with the new configuration.
-    assertEq(adapter.getCustomAccountingFee(customKey), _symmetric(100_000));
+    assertEq(adapter.getFeeRaw(customKey), _symmetric(100_000));
   }
 
   function test_customAccounting_poolOverride_isIgnored() public {
@@ -533,15 +530,13 @@ contract V4FeeAdapterForkTest is Deployers {
     vm.prank(feeSetter);
     adapter.setPoolOverride(id, _symmetric(50_000));
 
-    // Override flows through the raw view unclamped.
+    // Override flows through the raw view unclamped — this is the value the
+    // custom-accounting hook reads at swap time.
     assertEq(adapter.getFeeRaw(customKey), _symmetric(50_000));
 
     // Manager-compat view clamps the override.
     uint24 expectedClamped = (uint24(1000) << 12) | 1000;
     assertEq(adapter.getFee(customKey), expectedClamped);
-
-    // Custom-accounting view returns the uncapped override.
-    assertEq(adapter.getCustomAccountingFee(customKey), _symmetric(50_000));
 
     // Triggering still pushes 0 — the short-circuit bypasses the pool override too,
     // since the manager-side fee is structurally unused for custom-accounting pools.

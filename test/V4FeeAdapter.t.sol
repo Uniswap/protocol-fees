@@ -1880,11 +1880,13 @@ contract V4FeeAdapterTest is Test {
     assertEq(adapter.getFeeRaw(standardKey), validPacked);
   }
 
-  // ============ Adapter: Custom-Accounting Short-Circuit & View (T2) ============
-  // These tests cover (a) getCustomAccountingFee — the new view used by hooks to read
-  // uncapped per-pool fees at swap time — and (b) _setProtocolFee's short-circuit that
-  // pushes 0 to the manager for custom-accounting pools (since the manager-side fee is
-  // structurally unused for them).
+  // ============ Adapter: Custom-Accounting Short-Circuit & getFeeRaw (T2) ============
+  // These tests cover (a) getFeeRaw — the view custom-accounting hooks read at swap
+  // time to fetch their uncapped per-pool fee — and (b) _setProtocolFee's short-
+  // circuit that pushes 0 to the manager for custom-accounting pools (since the
+  // manager-side fee is structurally unused for them). The adapter no longer gates
+  // the raw view on hook address bits; the dual audience for getFeeRaw is documented
+  // in IV4FeeAdapter.
 
   /// @dev Custom-accounting hook address: bits 7 (beforeSwap) + 3
   /// (beforeSwapReturnsDelta). Any of bits 0-3 set qualifies as custom-accounting.
@@ -1902,21 +1904,25 @@ contract V4FeeAdapterTest is Test {
     poolManager.mockInitialize(key);
   }
 
-  function test_getCustomAccountingFee_nonCustomAccountingHook_returnsZero() public {
-    // hookKey uses 0x80 (beforeSwap only, no RETURNS_DELTA bits). Configure a pair fee
-    // and a pool override; both should be ignored by getCustomAccountingFee.
+  function test_getFeeRaw_returnsConfiguredFee_regardlessOfHookType() public {
+    // The adapter intentionally does NOT gate getFeeRaw on hook address bits — the
+    // hook-vs-manager audience split is the consumer's responsibility (the aggregator
+    // hooks' ProtocolFees mixin reads getFeeRaw; the manager-push path uses getFee).
+    // Configure the same pair fee + pool override on a non-custom-accounting hook key
+    // and a custom-accounting hook key, and assert both flow through unchanged.
+    PoolKey memory customKey = _customAccountingKey();
+
     vm.startPrank(feeSetter);
     policy.setPairFee(hookKey.currency0, hookKey.currency1, WIDE_FEE_5PCT);
     adapter.setPoolOverride(hookKey.toId(), WIDE_FEE_5PCT);
+    adapter.setPoolOverride(customKey.toId(), WIDE_FEE_5PCT);
     vm.stopPrank();
 
-    // Sanity: getFeeRaw would return the configured fee, but getCustomAccountingFee
-    // short-circuits on the address-bit gate.
-    assertEq(adapter.getFeeRaw(hookKey), WIDE_FEE_5PCT, "sanity: raw fee is set");
-    assertEq(adapter.getCustomAccountingFee(hookKey), 0, "non-custom-accounting -> 0");
+    assertEq(adapter.getFeeRaw(hookKey), WIDE_FEE_5PCT, "non-custom-accounting raw fee");
+    assertEq(adapter.getFeeRaw(customKey), WIDE_FEE_5PCT, "custom-accounting raw fee");
   }
 
-  function test_getCustomAccountingFee_customAccountingHook_returnsUncappedRaw() public {
+  function test_getFeeRaw_customAccountingHook_returnsUncappedFromPolicy() public {
     PoolKey memory customKey = _customAccountingKey();
 
     // On the classified path, pair fees only flow through when paired with a family
@@ -1929,26 +1935,23 @@ contract V4FeeAdapterTest is Test {
     vm.stopPrank();
 
     // The 50_000-pips-per-direction value is far above MAX_PROTOCOL_FEE; that's the
-    // whole point of the new view.
+    // whole point of the raw view.
     assertGt(
       uint256(50_000),
       uint256(ProtocolFeeLibrary.MAX_PROTOCOL_FEE),
       "self-doc: WIDE_FEE_5PCT half exceeds MAX_PROTOCOL_FEE"
     );
-    assertEq(adapter.getCustomAccountingFee(customKey), WIDE_FEE_5PCT);
-    // Mirror getFeeRaw — view is uncapped.
     assertEq(adapter.getFeeRaw(customKey), WIDE_FEE_5PCT);
   }
 
-  function test_getCustomAccountingFee_policyUnset_returnsZero() public {
+  function test_getFeeRaw_policyUnset_returnsZero() public {
     PoolKey memory customKey = _customAccountingKey();
 
-    // Disable policy: with no pool override and no policy, getFeeRaw -> 0, and so the
-    // custom-accounting view also returns 0.
+    // Disable policy: with no pool override and no policy, getFeeRaw -> 0.
     vm.prank(owner);
     adapter.setPolicy(IV4FeePolicy(address(0)));
 
-    assertEq(adapter.getCustomAccountingFee(customKey), 0);
+    assertEq(adapter.getFeeRaw(customKey), 0);
   }
 
   function test_setProtocolFee_customAccountingPool_pushesZero() public {

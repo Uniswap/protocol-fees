@@ -87,12 +87,6 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
     return _clampAndPackForManager(getFeeRaw(key));
   }
 
-  /// @inheritdoc IV4FeeAdapter
-  function getCustomAccountingFee(PoolKey memory key) external view returns (uint48 feePacked) {
-    if (uint160(address(key.hooks)) & CUSTOM_ACCOUNTING_MASK == 0) return 0;
-    return getFeeRaw(key);
-  }
-
   // ─── Permissionless Triggering ───
 
   /// @inheritdoc IV4FeeAdapter
@@ -164,8 +158,8 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
     if (sqrtPriceX96 == 0) return;
 
     // Custom-accounting hooks read their fee directly from this adapter via
-    // getCustomAccountingFee. Push 0 so off-chain readers see a deterministic
-    // state and stale Slot0 values don't mislead.
+    // getFeeRaw. Push 0 so off-chain readers see a deterministic state and
+    // stale Slot0 values don't mislead.
     // This bypasses the pool-override waterfall: an explicit poolOverrides[id]
     // is ignored for custom-accounting pools, since the manager-side fee is
     // structurally unused for them.

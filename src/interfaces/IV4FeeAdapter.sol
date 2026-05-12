@@ -122,8 +122,11 @@ interface IV4FeeAdapter {
 
   /// @notice Resolves the raw uint48 protocol fee for a pool: pool override → policy → 0.
   /// @dev Returns the uncapped packed `(fee1to0 << 24) | fee0to1`, each 24-bit half
-  /// possibly up to MAX_LP_FEE. Callers that push to PoolManager should use `getFee`,
-  /// which clamps and packs to uint24.
+  /// possibly up to MAX_LP_FEE. Custom-accounting hooks (those with any RETURNS_DELTA
+  /// permission bit set in their address) read this view at swap time and unpack the
+  /// per-direction pips value. Non-custom-accounting consumers should use `getFee`
+  /// instead, which clamps each direction to MAX_PROTOCOL_FEE and packs as 12+12 for
+  /// PoolManager.setProtocolFee.
   /// @param key The pool key to resolve the fee for.
   /// @return fee The resolved raw protocol fee (uint48 packed 24+24).
   function getFeeRaw(PoolKey memory key) external view returns (uint48 fee);
@@ -136,16 +139,6 @@ interface IV4FeeAdapter {
   /// @param key The pool key to resolve the fee for.
   /// @return fee The resolved protocol fee (uint24 packed 12+12, manager-compatible).
   function getFee(PoolKey memory key) external view returns (uint24 fee);
-
-  /// @notice Resolves the uncapped custom-accounting fee for a pool, in pips packed as
-  /// uint48 (24+24). Returns 0 for non-custom-accounting hooks.
-  /// @dev Unlike `getFee` (which clamps to MAX_PROTOCOL_FEE and packs as 12+12 for V4
-  /// manager compatibility), this returns the raw uint48 — each direction up to
-  /// MAX_LP_FEE. Intended for custom-accounting hooks to read at swap time.
-  /// @param key The pool key to resolve the fee for.
-  /// @return feePacked The uint48 packed (24+24) per-direction fee, or 0 if the hook
-  /// does not have any RETURNS_DELTA flag set.
-  function getCustomAccountingFee(PoolKey memory key) external view returns (uint48 feePacked);
 
   // --- Permissionless Triggering ---
 

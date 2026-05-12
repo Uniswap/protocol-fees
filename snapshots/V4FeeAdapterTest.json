@@ -1,7 +1,7 @@
 {
   "adapter.batchTriggerFeeUpdate - two pools": "47175",
   "adapter.collect - single currency": "31151",
-  "adapter.getFee - pool override hit": "1511",
+  "adapter.getFee - pool override hit": "1466",
   "adapter.setPoolOverride": "26380",
   "adapter.triggerFeeUpdate - single pool": "27793",
   "policy.computeFee - classified family default": "6093",
