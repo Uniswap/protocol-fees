@@ -12,6 +12,7 @@ import {INttToken} from "../interfaces/wormhole/INttToken.sol";
 ///         whereas the synthetic UNI exists on all foreign chains such that the respective NTT
 ///         system can mint and burn synthetic UNI to match the amount of canonical UNI locked in
 ///         the Ethereum Layer 1 deployment of the NTT system.
+/// @custom:security-contact security@uniswap.org
 contract SyntheticNttUni is Owned, ERC20, INttToken {
   /// @notice Logged when the Wormhole Native Token Transfer address changes.
   /// @param ntt New Wormhole Native Token Transfer address.

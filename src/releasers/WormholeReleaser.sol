@@ -17,6 +17,7 @@ import {INttManager} from "../interfaces/wormhole/INttManager.sol";
 /// `NTT_MANAGER`. a. The `NTT_MANAGER` calls `burn` on `SyntheticNttUni` locally.
 ///    b. The `NTT_MANAGER` passes a message on to Ethereum to burn UNI via `transfer(0xdead,
 /// threshold)`. c. The NTT Manager on Ethereum facilitates the final burn to `0xdead`.
+/// @custom:security-contact security@uniswap.org
 contract WormholeReleaser is ExchangeReleaser {
   /// @dev Thrown when the `release` function fails to refund Ether to the caller after sending a
   /// message to Wormhole. Note that any nonzero Ether balance in this releaser after an NttManager
