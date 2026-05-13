@@ -3,6 +3,7 @@ pragma solidity 0.8.29;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {PROPOSAL_DESCRIPTION} from "script/proposal-4/ProposalDescription.sol";
 import "./Constants.sol" as Constants;
 import {
   IWormholeSender,
@@ -12,8 +13,6 @@ import {
   IGovernorBravo,
   IPolygonFxRoot
 } from "./Interfaces.sol";
-
-string constant PROPOSAL_DESCRIPTION = "TODO";
 
 // deployment paths from the latest contract run
 //

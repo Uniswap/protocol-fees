@@ -57,6 +57,7 @@ quote_style = "double"
 single_line_statement_blocks = "single"
 tab_width = 2
 wrap_comments = true
+ignore = ["script/proposal-4/ProposalDescription.sol"]
 
 [lint]
 exclude_lints = ["mixed-case-variable", "mixed-case-function"]
