@@ -814,9 +814,9 @@ forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraPolygon.s.sol:D
 | 00    | Deploy `TokenJar`.                                                                     |
 | 01    | Deploy `WormholeReleaser`.                                                             |
 | 02    | Set `WormholeReleaser` as the releaser on `TokenJar`.                                  |
-| 03    | Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.                     |
-| 04    | Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.           |
-| 05    | Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.          |
+| 03    | Transfer `TokenJar` ownership to `EthereumProxy`.                                      |
+| 04    | Set `WormholeReleaser` threshold setter to `EthereumProxy`.                            |
+| 05    | Transfer ownership of `WormholeReleaser` to `EthereumProxy`.                           |
 | 06    | Deploy `V3OpenFeeAdapter`.                                                             |
 | 07    | Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.                   |
 | 08    | Set `V3OpenFeeAdapter` default fee.                                                    |
@@ -828,8 +828,8 @@ forge script script/proposal-4/deploys/DeployAndConfigureFeeInfraPolygon.s.sol:D
 | 14    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
 | 15    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
 | 16    | Store `V3OpenFeeAdapter` fee tiers.                                                    |
-| 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`. |
-| 18    | Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.             |
+| 17    | Transfer `V3OpenFeeAdapter` fee setter permission to `EthereumProxy`.                  |
+| 18    | Transfer `V3OpenFeeAdapter` ownership to `EthereumProxy`.                              |
 
 ### 9. Propose Governance Actions
 

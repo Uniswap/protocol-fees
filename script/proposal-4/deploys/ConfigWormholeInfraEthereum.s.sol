@@ -36,7 +36,7 @@ string constant ETH_DEPLOY_PATH = "broadcast/DeployWormholeInfraEthereum.s.sol/1
 /// @dev Deployment script outputs.
 struct Deployment {
   // On BNB Chain, this is SyntheticNttUni.
-  // On Polygon, this is SytheticNttUni.
+  // On Polygon, this is SyntheticNttUni.
   // On Ethereum, this is the canonical UNI.
   address uni;
   address nttManagerImplementation;
@@ -53,7 +53,7 @@ contract ConfigWormholeInfraEthereumScript is Script {
   function run() public {
     Constants.smokeCheck();
 
-    // loads json files of BNB Chain, and ETH deployments and stores them locally in this script.
+    // loads json files of BNB Chain, Polygon, and ETH deployments and stores them locally in this script.
     loadDeployments();
 
     vm.startBroadcast();

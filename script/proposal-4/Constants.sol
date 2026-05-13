@@ -79,7 +79,7 @@ library Ethereum {
   ///
   /// source: owned by Timelock, used in prev scripts
   /// Timelock: `cast call 0xf5F4496219F31CDCBa6130B5402873624585615a "owner()(address)"`
-  /// script: `script/proposal-2/05_ActivateL2sProposal.s.sol`
+  /// script: `script/proposal-2/05_ActivateOPBaseArbProposal.s.sol`
   address constant WORMHOLE_SENDER = address(0xf5F4496219F31CDCBa6130B5402873624585615a);
 
   /// @dev Wormhole.
@@ -118,7 +118,7 @@ library Celo {
 
   /// @dev Fee adapter.
   ///
-  /// source: in `script/proposal-2/06_ActivateL2sProposal.s.sol`, otherwise there appears to
+  /// source: in `script/proposal-3/06_ActivateL2sProposal.s.sol`, otherwise there appears to
   /// be no record of this contract's address.
   address constant V3_OPEN_FEE_ADAPTER = address(0xB9952C01830306ea2fAAe1505f6539BD260Bfc48);
 
@@ -133,7 +133,7 @@ library Celo {
   /// @dev Optimism Bridge Cross Chain Account
   ///
   /// source: referenced in last two proposals for ownership handoff:
-  /// - `script/proposal-2/05_ActivateL2sProposal.s.sol`
+  /// - `script/proposal-2/05_ActivateOPBaseArbProposal.s.sol`
   /// - `script/proposal-3/06_ActivateL2sProposal.s.sol`
   address constant CROSS_CHAIN_ACCOUNT = address(0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7);
 }

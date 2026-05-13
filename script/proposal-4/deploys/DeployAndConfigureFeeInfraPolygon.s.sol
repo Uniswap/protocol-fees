@@ -100,33 +100,33 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
     // -----------------------------------------------------------------------------------------
     // Transaction 03
     //
-    // Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
+    // Transfer `TokenJar` ownership to `EthereumProxy`.
     //
     // Parameters:
     //
-    // - `newOwner`: Governance-owned Wormhole message receiver.
+    // - `newOwner`: Governance-owned Polygon message receiver.
     //
     tokenJar.transferOwnership({newOwner: Constants.Polygon.ETHEREUM_PROXY});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 04
     //
-    // Set `WormholeReleaser` threshold-setter to `UniswapWormholeMessageReceiver`.
+    // Set `WormholeReleaser` threshold-setter to `EthereumProxy`.
     //
     // Parameters:
     //
-    // - `_thresholdSetter`: Governance-owned Wormhole message receiver.
+    // - `_thresholdSetter`: Governance-owned Polygon message receiver.
     //
     releaser.setThresholdSetter({_thresholdSetter: Constants.Polygon.ETHEREUM_PROXY});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 05
     //
-    // Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
+    // Transfer ownership of `WormholeReleaser` to `EthereumProxy`.
     //
     // Parameters:
     //
-    // - `newOwner`: Governance-owned Wormhole message receiver.
+    // - `newOwner`: Governance-owned Polygon message receiver.
     //
     releaser.transferOwnership({newOwner: Constants.Polygon.ETHEREUM_PROXY});
 
@@ -205,22 +205,22 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
     // -----------------------------------------------------------------------------------------
     // Transaction 17
     //
-    // Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
+    // Transfer `V3OpenFeeAdapter` fee setter permission to `EthereumProxy`.
     //
     // Parameters:
     //
-    // - `newFeeSetter`: Governance-owned Wormhole message receiver.
+    // - `newFeeSetter`: Governance-owned Polygon message receiver.
     //
     v3OpenFeeAdapter.setFeeSetter({newFeeSetter: Constants.Polygon.ETHEREUM_PROXY});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 18
     //
-    // Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
+    // Transfer `V3OpenFeeAdapter` ownership to `EthereumProxy`.
     //
     // Parameters:
     //
-    // - `newOwner`: Governance-owned Wormhole message receiver.
+    // - `newOwner`: Governance-owned Polygon message receiver.
     //
     v3OpenFeeAdapter.transferOwnership({newOwner: Constants.Polygon.ETHEREUM_PROXY});
 

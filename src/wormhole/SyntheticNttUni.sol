@@ -43,7 +43,7 @@ contract SyntheticNttUni is Owned, ERC20, INttToken {
 
   /// @notice Burns synthetic tokens from the caller.
   /// @dev Caller MUST be Wormhole Native Token Transfer.
-  /// @param amount Amount to mint.
+  /// @param amount Amount to burn.
   function burn(uint256 amount) external {
     require(msg.sender == ntt, "Not NTT");
 

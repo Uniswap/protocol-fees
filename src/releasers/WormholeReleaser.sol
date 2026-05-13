@@ -53,7 +53,7 @@ contract WormholeReleaser is ExchangeReleaser {
   /// @dev Wormhole clips the decimals down to 8 to accommodate Solana chains. Since forcing the
   /// trim at `setThreshold` time would require changes up the contract inheritance tree, divergeing
   /// inheritance tree across deployments, instead we clip at `release` time.
-  /// @dev NOTICE: If governance sets a non-multiple of 1e8, dust will accumulate here.
+  /// @dev WARNING: If governance sets a non-multiple of 1e10, dust will accumulate here.
   function _afterRelease(Currency[] calldata, address) internal override {
     (, uint256 totalQuote) = NTT_MANAGER.quoteDeliveryPrice({
       recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID, transceiverInstructions: new bytes(1)
