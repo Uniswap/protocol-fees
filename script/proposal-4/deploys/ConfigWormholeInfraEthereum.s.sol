@@ -53,7 +53,8 @@ contract ConfigWormholeInfraEthereumScript is Script {
   function run() public {
     Constants.smokeCheck();
 
-    // loads json files of BNB Chain, Polygon, and ETH deployments and stores them locally in this script.
+    // loads json files of BNB Chain, Polygon, and ETH deployments and stores them locally in this
+    // script.
     loadDeployments();
 
     vm.startBroadcast();
