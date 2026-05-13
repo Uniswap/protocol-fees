@@ -10,7 +10,6 @@ function smokeCheck() pure {
   require(Ethereum.TIMELOCK != address(0x00), "Ethereum.TIMELOCK is address(0x00)");
   require(Ethereum.GOVERNOR_BRAVO != address(0x00), "Ethereum.GOVERNOR_BRAVO is address(0x00)");
   require(Ethereum.UNI != address(0x00), "Ethereum.UNI is address(0x00)");
-  require(Ethereum.CELO_PORTAL != address(0x00), "Ethereum.CELO_PORTAL is address(0x00)");
   require(Ethereum.POLYGON_FX_ROOT != address(0x00), "Ethereum.POLYGON_FX_ROOT is address(0x00)");
   require(Ethereum.WORMHOLE_SENDER != address(0x00), "Ethereum.WORMHOLE_SENDER is address(0x00)");
   require(Ethereum.WORMHOLE != address(0x00), "Ethereum.WORMHOLE is address(0x00)");
@@ -70,9 +69,6 @@ library Ethereum {
   /// source: designated by GovernorBravo: `cast call 0x408ED6354d4973f66138C91495F2f2FCbd8724C3
   /// "uni()(address)"`
   address constant UNI = address(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
-
-  /// @dev Celo Optimism Portal.
-  address constant CELO_PORTAL = address(0x1AC1181fc4e4F877963680587AEAa2C90D7EbB95);
 
   /// @dev Polygon FX Root.
   ///
