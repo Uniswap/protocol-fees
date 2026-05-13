@@ -49,7 +49,9 @@ contract WormholeReleaser is ExchangeReleaser {
   /// @dev Wormhole may charge protocol fees, in Ether, in the future. The cost of sending a message
   /// over the NttManager system depends on the total quoted price from all WormholeTransceiver
   /// instances used by the NttManager. This contract MUST have sufficient Ether to send the total
-  /// quoted price from `NttManager.quoteDeliveryPrice`.
+  /// quoted price from `NttManager.quoteDeliveryPrice`. Note that the sending of the Ether into
+  /// this contract MUST be atomic with calling the `release` function, else the funds may be lost
+  /// to frontrunning.
   /// @dev Wormhole clips the decimals down to 8 to accommodate Solana chains. Since forcing the
   /// trim at `setThreshold` time would require changes up the contract inheritance tree, divergeing
   /// inheritance tree across deployments, instead we clip at `release` time.
