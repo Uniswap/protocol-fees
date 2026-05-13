@@ -74,14 +74,12 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
     //
     // Parameters:
     //
-    // - `_wormhole`: Wormhole core contract.
     // - `_nttManager`: Polygon NttManager proxy.
     // - `_resource`: Polygon SyntheticNttUni.
     // - `_threshold`: Minimum amount of `SyntheticNttUni` required to release.
     // - `_tokenJar`: `TokenJar`.
     //
     releaser = new WormholeReleaser({
-      _wormhole: Constants.Polygon.WORMHOLE,
       _nttManager: polygon.nttManagerProxy,
       _resource: polygon.uni,
       _threshold: Constants.Polygon.RELEASER_THRESHOLD,

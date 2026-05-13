@@ -35,7 +35,6 @@ contract WormholeReleaserTest is Test {
 
     vm.prank(admin);
     releaser = new WormholeReleaser({
-      _wormhole: address(wormhole),
       _nttManager: address(nttManager),
       _resource: address(uni),
       _threshold: defaultThreshold,
@@ -114,6 +113,7 @@ contract WormholeReleaserTest is Test {
     assets[1] = Currency.wrap(address(0x02));
 
     wormhole.mockSetMessageFee(wormholeFee);
+    nttManager.mockSetMessageFee(wormholeFee);
 
     vm.deal(address(releaserCaller), wormholeFee);
 
@@ -152,6 +152,7 @@ contract WormholeReleaserTest is Test {
     assets[1] = Currency.wrap(address(0x02));
 
     wormhole.mockSetMessageFee(wormholeFee);
+    nttManager.mockSetMessageFee(wormholeFee);
 
     vm.deal(address(releaserCaller), wormholeFee + 1);
 
@@ -193,6 +194,7 @@ contract WormholeReleaserTest is Test {
     assets[1] = Currency.wrap(address(0x02));
 
     wormhole.mockSetMessageFee(wormholeFee);
+    nttManager.mockSetMessageFee(wormholeFee);
     releaserCaller.mockSetShouldThrow(true);
 
     vm.deal(address(releaserCaller), wormholeFee + 1);
@@ -223,6 +225,7 @@ contract WormholeReleaserTest is Test {
     uint256 trimmed = releaser.wormholeTrim(threshold);
 
     wormhole.mockSetMessageFee(wormholeFee);
+    nttManager.mockSetMessageFee(wormholeFee);
     releaserCaller.mockSetShouldThrow(shouldThrow.releaserCaller);
     tokenJar.mockSetShouldThrow(shouldThrow.tokenJar);
     uni.mockSetShouldThrow(shouldThrow.uni);

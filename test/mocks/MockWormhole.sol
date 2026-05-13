@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {IWormhole} from "../../src/interfaces/wormhole/IWormhole.sol";
-
-contract MockWormhole is IWormhole {
+contract MockWormhole {
   event MockPublishMessage(uint32 indexed nonce, uint8 indexed consistencyLevel, bytes payload);
 
   uint64 internal _sequence;

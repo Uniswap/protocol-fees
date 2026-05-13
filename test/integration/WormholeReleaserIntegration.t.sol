@@ -226,6 +226,83 @@ contract WormholeReleaserIntegrationTest is Test {
     assertEq(address(pol.wormhole).balance, wormholeFee);
   }
 
+  function testReleaseWithWormholeFeeMultipleTransceivers() external {
+    uint256 wormholeFee = 67;
+    uint256 threshold = pol.releaser.threshold();
+    uint256 nonce = pol.releaser.nonce();
+
+    uint256 length;
+    Currency[] memory assets = new Currency[](length);
+    uint256[] memory amounts = defaultAmounts;
+
+    for (uint256 i; i < length; i++) {
+      tokens[i].mint(address(pol.tokenJar), amounts[i]);
+
+      assets[i] = Currency.wrap(address(tokens[i]));
+    }
+
+    vm.prank(admin);
+    WormholeTransceiver secondTransceiver = WormholeTransceiver(
+      address(
+        new ERC1967Proxy({
+          implementation: address(
+            new WormholeTransceiver({
+              nttManager: address(pol.nttManager),
+              wormholeCoreBridge: address(pol.wormhole),
+              _consistencyLevel: 202,
+              _customConsistencyLevel: 0,
+              _additionalBlocks: 0,
+              _customConsistencyLevelAddress: address(0x00)
+            })
+          ),
+          _data: new bytes(0)
+        })
+      )
+    );
+
+    vm.prank(admin);
+    secondTransceiver.initialize();
+
+    vm.prank(admin);
+    pol.nttManager.setTransceiver({transceiver: address(secondTransceiver)});
+
+    vm.deal(address(caller), wormholeFee * 2);
+
+    pol.wormhole.mockSetMessageFee(wormholeFee);
+
+    pol.uni.mockMint(address(caller), threshold);
+
+    caller.doApproval(address(pol.uni), address(pol.releaser), threshold);
+
+    vm.expectEmit(true, true, true, true, address(pol.uni));
+    emit ERC20.Transfer(address(pol.nttManager), address(0x00), threshold);
+
+    caller.doReleaserCall({
+      releaser: pol.releaser,
+      value: wormholeFee * 2,
+      nonce: nonce,
+      assets: new Currency[](0),
+      receiver: bob
+    });
+
+    assertEq(pol.uni.balanceOf(bob), 0);
+    assertEq(pol.uni.balanceOf(address(caller)), 0);
+    assertEq(pol.uni.balanceOf(address(pol.releaser)), 0);
+
+    for (uint256 i; i < length; i++) {
+      MockERC20 token = tokens[i];
+
+      assertEq(token.balanceOf(bob), amounts[i]);
+      assertEq(token.balanceOf(address(caller)), 0);
+      assertEq(token.balanceOf(address(pol.tokenJar)), 0);
+    }
+
+    assertEq(bob.balance, 0);
+    assertEq(address(caller).balance, 0);
+    assertEq(address(pol.releaser).balance, 0);
+    assertEq(address(pol.wormhole).balance, wormholeFee * 2);
+  }
+
   function testReleaseWithWormholeFeeAndRefund() external {
     uint256 wormholeFee = 67;
     uint256 amountPaid = wormholeFee + 2;
@@ -561,7 +638,6 @@ contract WormholeReleaserIntegrationTest is Test {
     net.tokenJar = new TokenJar();
 
     net.releaser = new WormholeReleaser({
-      _wormhole: address(net.wormhole),
       _nttManager: address(net.nttManager),
       _resource: address(net.uni),
       _threshold: defaultThreshold,

@@ -11,6 +11,8 @@ contract MockNttManager {
   );
 
   bool public mockShouldThrow;
+  uint256 public mockMessageFee;
+  uint256 public mockTransceiverCount = 1;
 
   function transfer(uint256 amount, uint16 recipientChain, bytes32 recipient) external payable {
     require(!mockShouldThrow);
@@ -18,7 +20,23 @@ contract MockNttManager {
     emit MockTransfer(amount, recipientChain, recipient, msg.sender, msg.value);
   }
 
+  function quoteDeliveryPrice(uint16, bytes memory)
+    external
+    view
+    returns (uint256[] memory, uint256)
+  {
+    return (new uint256[](0), mockTransceiverCount * mockMessageFee);
+  }
+
   function mockSetShouldThrow(bool newMockShouldThrow) external {
     mockShouldThrow = newMockShouldThrow;
+  }
+
+  function mockSetMessageFee(uint256 newMockMessageFee) external {
+    mockMessageFee = newMockMessageFee;
+  }
+
+  function mockSetTransceiverCount(uint256 newMockTransceiverCount) external {
+    mockTransceiverCount = newMockTransceiverCount;
   }
 }

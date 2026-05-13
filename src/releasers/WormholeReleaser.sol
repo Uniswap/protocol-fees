@@ -5,7 +5,6 @@ import {Currency} from "v4-core/types/Currency.sol";
 
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
-import {IWormhole} from "../interfaces/wormhole/IWormhole.sol";
 import {INttManager} from "../interfaces/wormhole/INttManager.sol";
 
 /// @title WormholeReleaser
@@ -34,42 +33,36 @@ contract WormholeReleaser is ExchangeReleaser {
   /// UNI interactions, forwards the message to Ethereum for the final burn.
   INttManager public immutable NTT_MANAGER;
 
-  /// @dev Wormhole Core Bridge, queries the message fee required for sending messages.
-  IWormhole public immutable WORMHOLE;
-
   /// @notice Creates the Wormhole Releaser.
-  /// @param _wormhole Wormhole contract.
   /// @param _nttManager NTT Manager contract.
   /// @param _resource Local UNI deployment (`SyntheticNttUni`).
   /// @param _threshold The minimum amount of resource tokens required for exchange.
   /// @param _tokenJar The address of the TokenJar contract holding accumulated fees.
-  constructor(
-    address _wormhole,
-    address _nttManager,
-    address _resource,
-    uint256 _threshold,
-    address _tokenJar
-  ) ExchangeReleaser(_resource, _threshold, _tokenJar, address(this)) {
+  constructor(address _nttManager, address _resource, uint256 _threshold, address _tokenJar)
+    ExchangeReleaser(_resource, _threshold, _tokenJar, address(this))
+  {
     NTT_MANAGER = INttManager(_nttManager);
-    WORMHOLE = IWormhole(_wormhole);
   }
 
   /// @notice Hook called after assets are released - initiates transfer message for final burn.
-  /// @dev Wormhole has an optional fee parameter, this contract MUST have at least that much ether
-  /// to send the burn message to Wormhole through NttManager. Caller MUST implement a means to
-  /// receive ether from this contract.
+  /// @dev Wormhole may charge protocol fees, in Ether, in the future. The cost of sending a message
+  /// over the NttManager system depends on the total quoted price from all WormholeTransceiver
+  /// instances used by the NttManager. This contract MUST have sufficient Ether to send the total
+  /// quoted price from `NttManager.quoteDeliveryPrice`.
   /// @dev Wormhole clips the decimals down to 8 to accommodate Solana chains. Since forcing the
   /// trim at `setThreshold` time would require changes up the contract inheritance tree, divergeing
   /// inheritance tree across deployments, instead we clip at `release` time.
   /// @dev NOTICE: If governance sets a non-multiple of 1e8, dust will accumulate here.
   function _afterRelease(Currency[] calldata, address) internal override {
-    uint256 messageFee = WORMHOLE.messageFee();
+    (, uint256 totalQuote) = NTT_MANAGER.quoteDeliveryPrice({
+      recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID, transceiverInstructions: new bytes(1)
+    });
 
     uint256 amount = wormholeTrim(threshold);
 
     RESOURCE.approve(address(NTT_MANAGER), amount);
 
-    NTT_MANAGER.transfer{value: messageFee}({
+    NTT_MANAGER.transfer{value: totalQuote}({
       amount: amount, recipientChain: WORMHOLE_DEFINED_ETH_CHAIN_ID, recipient: BURN_ADDRESS
     });
 
