@@ -350,12 +350,16 @@ contract ActivateL2Proposals is Script {
     // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
-    string memory polygonDeployJson = vm.readFile(BNB_DEPLOY_PATH);
+    string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
 
     polygonTokenJar = vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress");
     polygonOpenV3FeeAdapter =
       vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
 
+    require(
+      keccak256(bytes(bnbChainDeployJson)) != keccak256(bytes(polygonDeployJson)),
+      "JSON files are the same"
+    );
     require(bnbChainTokenJar != address(0x00), "bnbChainTokenJar is address(0x00)");
     require(bnbChainOpenV3FeeAdapter != address(0x00), "bnbChainOpenV3FeeAdapter is address(0x00)");
     require(polygonTokenJar != address(0x00), "polygonTokenJar is address(0x00)");
