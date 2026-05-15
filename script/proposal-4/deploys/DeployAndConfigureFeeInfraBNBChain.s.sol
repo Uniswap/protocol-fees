@@ -17,6 +17,7 @@ import {TokenJar} from "../../../src/TokenJar.sol";
 import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
 import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
 import "../Constants.sol" as Constants;
+import {BroadcastResolver} from "../BroadcastResolver.sol";
 
 // Protocol fee defaults — same as mainnet
 uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
@@ -335,15 +336,29 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
     bnb = Deployment({
       uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[1].contractAddress"),
-      nttManagerImplementation: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[2].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(bnbDeployJson, ".transactions[3].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[5].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[6].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 

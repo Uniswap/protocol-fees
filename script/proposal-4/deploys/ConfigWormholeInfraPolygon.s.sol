@@ -5,6 +5,7 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
+import {BroadcastResolver} from "../BroadcastResolver.sol";
 import {IWormhole} from "../Interfaces.sol";
 import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
@@ -234,15 +235,29 @@ contract ConfigWormholeInfraPolygonScript is Script {
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
     polygon = Deployment({
       uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
-      nttManagerImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[2].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[5].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[6].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 
@@ -265,15 +280,29 @@ contract ConfigWormholeInfraPolygonScript is Script {
     string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
     eth = Deployment({
       uni: Constants.Ethereum.UNI,
-      nttManagerImplementation: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[1].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(ethDeployJson, ".transactions[2].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[4].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[5].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 

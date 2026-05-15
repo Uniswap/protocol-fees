@@ -17,6 +17,7 @@ import {TokenJar} from "../../../src/TokenJar.sol";
 import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
 import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
 import "../Constants.sol" as Constants;
+import {BroadcastResolver} from "../BroadcastResolver.sol";
 
 // Protocol fee defaults — same as mainnet
 uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
@@ -334,15 +335,29 @@ contract DeployAndConfigureFeeInfraPolygonScript is Script {
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
     polygon = Deployment({
       uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
-      nttManagerImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[2].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[5].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[6].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 

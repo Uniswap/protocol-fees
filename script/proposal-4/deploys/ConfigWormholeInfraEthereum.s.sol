@@ -5,6 +5,7 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
+import {BroadcastResolver} from "../BroadcastResolver.sol";
 import {IWormhole} from "../Interfaces.sol";
 
 import {ERC20} from "lib/solmate/src/tokens/ERC20.sol";
@@ -325,15 +326,29 @@ contract ConfigWormholeInfraEthereumScript is Script {
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
     bnb = Deployment({
       uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[1].contractAddress"),
-      nttManagerImplementation: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[2].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(bnbDeployJson, ".transactions[3].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[5].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        bnbDeployJson, ".transactions[6].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 
@@ -359,15 +374,29 @@ contract ConfigWormholeInfraEthereumScript is Script {
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
     polygon = Deployment({
       uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
-      nttManagerImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[2].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[5].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        polygonDeployJson, ".transactions[6].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 
@@ -390,15 +419,29 @@ contract ConfigWormholeInfraEthereumScript is Script {
     string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
     eth = Deployment({
       uni: Constants.Ethereum.UNI,
-      nttManagerImplementation: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[1].contractAddress"
+      nttManagerImplementation: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.NttManagerImplementation
       ),
-      nttManagerProxy: vm.parseJsonAddress(ethDeployJson, ".transactions[2].contractAddress"),
-      wormholeTransceiverImplementation: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[4].contractAddress"
+      nttManagerProxy: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.NttManagerProxy
       ),
-      wormholeTransceiverProxy: vm.parseJsonAddress(
-        ethDeployJson, ".transactions[5].contractAddress"
+      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.WormholeTransceiverImplementation
+      ),
+      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
+        vm,
+        ethDeployJson,
+        BroadcastResolver.Network.Ethereum,
+        BroadcastResolver.Deployed.WormholeTransceiverProxy
       )
     });
 
@@ -508,3 +551,60 @@ contract ConfigWormholeInfraEthereumScript is Script {
     return address(uint160(uint256(value)));
   }
 }
+/*
+Traces:
+  [2760498] → new ConfigWormholeInfraEthereumScript@0x5b73C5498c1E3b4dbA84de0F1833c4a029d90519
+    └─ ← [Return] 13677 bytes of code
+  [1874678] ConfigWormholeInfraEthereumScript::run()
+    ├─ [0] VM::readFile("broadcast/DeployWormholeInfraBNBChain.s.sol/56/run-latest.json") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[1].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[2].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x0B359a34f94c9371d43560448d6765d508771fFc
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[3].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[5].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x3b0d2c0CAbA427b17B842d5Af94CfFe1A5DBDDEe
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[6].contractAddress") [staticcall]
+    │   └─ ← [Return] 0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716
+    ├─ [0] VM::readFile("broadcast/DeployWormholeInfraPolygon.s.sol/137/run-latest.json") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[1].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[2].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x0B359a34f94c9371d43560448d6765d508771fFc
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[3].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[5].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x3b0d2c0CAbA427b17B842d5Af94CfFe1A5DBDDEe
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[6].contractAddress") [staticcall]
+    │   └─ ← [Return] 0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716
+    ├─ [0] VM::readFile("broadcast/DeployWormholeInfraEthereum.s.sol/1/run-latest.json") [staticcall]
+    │   └─ ← [Return] <file>
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[1].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[2].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[4].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x7597C40Fd3df66b750C14ad4D90524e247499011
+    ├─ [0] VM::parseJsonAddress("<stringified JSON>", ".transactions[5].contractAddress") [staticcall]
+    │   └─ ← [Return] 0x7597C40Fd3df66b750C14ad4D90524e247499011
+    ├─ [708] 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984::name() [staticcall]
+    │   └─ ← [Return] "Uniswap"
+    ├─ [750] 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984::symbol() [staticcall]
+    │   └─ ← [Return] "UNI"
+    ├─ [395] 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984::decimals() [staticcall]
+    │   └─ ← [Return] 18
+    ├─ [13120] 0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44::getTransceiverInfo() [staticcall]
+    │   ├─ [8221] 0x3232dc4F7b7bA1a5518A4a44c84FdCDe0e4eD89f::getTransceiverInfo() [delegatecall]
+    │   │   └─ ← [Return] [TransceiverInfo({ registered: true, enabled: true, index: 0 })]
+    │   └─ ← [Return] [TransceiverInfo({ registered: true, enabled: true, index: 0 })]
+    ├─ [0] VM::load(0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44, 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc) [staticcall]
+    │   └─ ← [Return] 0x0000000000000000000000003232dc4f7b7ba1a5518a4a44c84fdcde0e4ed89f
+    └─ ← [Revert] eth.nttManagerProxy.implementation() mismatch
+
+
+transcevier proxy0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44
+0x3232dc4f7b7ba1a5518a4a44c84fdcde0e4ed89f
+*/
