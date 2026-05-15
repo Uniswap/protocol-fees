@@ -325,7 +325,12 @@ contract ConfigWormholeInfraEthereumScript is Script {
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
     bnb = Deployment({
-      uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[1].contractAddress"),
+      uni: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.SyntheticNttUni
+      ),
       nttManagerImplementation: BroadcastResolver.getDeployed(
         vm,
         bnbDeployJson,
@@ -373,7 +378,12 @@ contract ConfigWormholeInfraEthereumScript is Script {
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
     polygon = Deployment({
-      uni: vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress"),
+      uni: BroadcastResolver.getDeployed(
+        vm,
+        polygonDeployJson,
+        BroadcastResolver.Network.Polygon,
+        BroadcastResolver.Deployed.SyntheticNttUni
+      ),
       nttManagerImplementation: BroadcastResolver.getDeployed(
         vm,
         polygonDeployJson,

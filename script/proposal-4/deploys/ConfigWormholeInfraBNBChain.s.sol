@@ -249,7 +249,12 @@ contract ConfigWormholeInfraBNBChainScript is Script {
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
     bnb = Deployment({
-      uni: vm.parseJsonAddress(bnbDeployJson, ".transactions[1].contractAddress"),
+      uni: BroadcastResolver.getDeployed(
+        vm,
+        bnbDeployJson,
+        BroadcastResolver.Network.BNBChain,
+        BroadcastResolver.Deployed.SyntheticNttUni
+      ),
       nttManagerImplementation: BroadcastResolver.getDeployed(
         vm,
         bnbDeployJson,

@@ -11,6 +11,7 @@ library BroadcastResolver {
   }
 
   enum Deployed {
+    SyntheticNttUni,
     NttManagerImplementation,
     NttManagerProxy,
     WormholeTransceiverImplementation,
@@ -38,11 +39,13 @@ library BroadcastResolver {
       // in our case, for all 3 networks (eth, bnb, pol), the deployment ordering is exactly
       // the same and there is one library per chain.
       if (net == Network.Ethereum) {
+        if (deployed == Deployed.SyntheticNttUni) revert();
         if (deployed == Deployed.NttManagerImplementation) txIndex = "1";
         if (deployed == Deployed.NttManagerProxy) txIndex = "2";
         if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "4";
         if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "5";
       } else {
+        if (deployed == Deployed.SyntheticNttUni) txIndex = "1";
         if (deployed == Deployed.NttManagerImplementation) txIndex = "2";
         if (deployed == Deployed.NttManagerProxy) txIndex = "3";
         if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "5";
@@ -50,11 +53,13 @@ library BroadcastResolver {
       }
     } else {
       if (net == Network.Ethereum) {
+        if (deployed == Deployed.SyntheticNttUni) revert();
         if (deployed == Deployed.NttManagerImplementation) txIndex = "0";
         if (deployed == Deployed.NttManagerProxy) txIndex = "1";
         if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "3";
         if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "4";
       } else {
+        if (deployed == Deployed.SyntheticNttUni) txIndex = "0";
         if (deployed == Deployed.NttManagerImplementation) txIndex = "1";
         if (deployed == Deployed.NttManagerProxy) txIndex = "2";
         if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "4";
