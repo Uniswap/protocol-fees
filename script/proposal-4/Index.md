@@ -3,6 +3,7 @@
 - [Proposal-4](#proposal-4)
   - [Definitions](#definitions)
   - [Abstract](#abstract)
+  - [Audits](#audits)
   - [Prerequsite Action Ordering](#prerequsite-action-ordering)
   - [Wormhole Context](#wormhole-context)
     - [Send UNI from Etherum to Foreign Chain](#send-uni-from-etherum-to-foreign-chain)
@@ -48,6 +49,10 @@ an ownership transition. BNB Chain does not have fee collection infrastructure, 
 prerequisite actions which must be taken before governance can enact the ownership transition.
 Polygon also does not have fee collection infrastructure, there are prerequsite actions which must
 be taken before governance can enact the ownership transition.
+
+## Audits
+
+- [Open Zeppelin](../../audit/openzeppelin-4.pdf)
 
 ## Prerequsite Action Ordering
 
