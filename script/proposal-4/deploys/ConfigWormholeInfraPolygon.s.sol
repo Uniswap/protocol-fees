@@ -5,7 +5,7 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
-import {BroadcastResolver} from "../BroadcastResolver.sol";
+import {BroadcastResolver, DeployWormholeInfraBroadcast} from "../BroadcastResolver.sol";
 import {IWormhole} from "../Interfaces.sol";
 import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
@@ -233,37 +233,15 @@ contract ConfigWormholeInfraPolygonScript is Script {
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
+    DeployWormholeInfraBroadcast memory polygonInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: polygonDeployJson, network: BroadcastResolver.Network.Polygon
+    });
     polygon = Deployment({
-      uni: BroadcastResolver.getDeployed(
-        vm,
-        polygonDeployJson,
-        BroadcastResolver.Network.Polygon,
-        BroadcastResolver.Deployed.SyntheticNttUni
-      ),
-      nttManagerImplementation: BroadcastResolver.getDeployed(
-        vm,
-        polygonDeployJson,
-        BroadcastResolver.Network.Polygon,
-        BroadcastResolver.Deployed.NttManagerImplementation
-      ),
-      nttManagerProxy: BroadcastResolver.getDeployed(
-        vm,
-        polygonDeployJson,
-        BroadcastResolver.Network.Polygon,
-        BroadcastResolver.Deployed.NttManagerProxy
-      ),
-      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
-        vm,
-        polygonDeployJson,
-        BroadcastResolver.Network.Polygon,
-        BroadcastResolver.Deployed.WormholeTransceiverImplementation
-      ),
-      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
-        vm,
-        polygonDeployJson,
-        BroadcastResolver.Network.Polygon,
-        BroadcastResolver.Deployed.WormholeTransceiverProxy
-      )
+      uni: polygonInfra.syntheticNttUni,
+      nttManagerImplementation: polygonInfra.nttManagerImplementation,
+      nttManagerProxy: polygonInfra.nttManagerProxy,
+      wormholeTransceiverImplementation: polygonInfra.wormholeTransceiverImplementation,
+      wormholeTransceiverProxy: polygonInfra.wormholeTransceiverProxy
     });
 
     // -----------------------------------------------------------------------------------------
@@ -283,32 +261,15 @@ contract ConfigWormholeInfraPolygonScript is Script {
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
+    DeployWormholeInfraBroadcast memory ethInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: ethDeployJson, network: BroadcastResolver.Network.Ethereum
+    });
     eth = Deployment({
       uni: Constants.Ethereum.UNI,
-      nttManagerImplementation: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.NttManagerImplementation
-      ),
-      nttManagerProxy: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.NttManagerProxy
-      ),
-      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.WormholeTransceiverImplementation
-      ),
-      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.WormholeTransceiverProxy
-      )
+      nttManagerImplementation: ethInfra.nttManagerImplementation,
+      nttManagerProxy: ethInfra.nttManagerProxy,
+      wormholeTransceiverImplementation: ethInfra.wormholeTransceiverImplementation,
+      wormholeTransceiverProxy: ethInfra.wormholeTransceiverProxy
     });
 
     // -----------------------------------------------------------------------------------------

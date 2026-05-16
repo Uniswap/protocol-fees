@@ -10,6 +10,11 @@ import {
   IUniswapV4PoolManager,
   IOwned
 } from "../../../script/proposal-4/Interfaces.sol";
+import {
+  BroadcastResolver,
+  DeployWormholeInfraBroadcast,
+  DeployAndConfigureWormohleInfraBroadcast
+} from "../../../script/proposal-4/BroadcastResolver.sol";
 import {IV3OpenFeeAdapter} from "../../../src/interfaces/IV3OpenFeeAdapter.sol";
 import {ITokenJar} from "../../../src/interfaces/ITokenJar.sol";
 import {IReleaser} from "../../../src/interfaces/IReleaser.sol";
@@ -360,139 +365,63 @@ contract PostflightCheckTest is Test {
   }
 
   function _loadDeployments() internal {
-    // Transactions: (`BNB_DEPLOY_PATH`)
-    //
-    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // 01: Deploy `SyntheticNttUni`.
-    // 02: Deploy `NttManager` implementation.
-    // 03: Deploy `NttManager` proxy.
-    // 04: Initialize `NttManager` proxy.
-    // 05: Deploy `WormholeTransceiver` implementation.
-    // 06: Deploy `WormholeTransceiver` proxy.
-    // 07: Initialize `WormholeTransceiver` proxy.
-    // 08: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // 09: Set the threshold of transceiver attestation redundancy.
-    // 10: Set `SyntheticNttUni` mint authority to `NttManager` proxy.
-    // 11: Transfer ownership of `SyntheticNttUni` to governance.
-    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
-    state.bnbChain.syntheticNttUni =
-      vm.parseJsonAddress(bnbChainDeployJson, ".transactions[1].contractAddress");
-    state.bnbChain.nttManager =
-      vm.parseJsonAddress(bnbChainDeployJson, ".transactions[3].contractAddress");
-    state.bnbChain.wormholeTransceiver =
-      vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
+    DeployWormholeInfraBroadcast memory bnbInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: bnbChainDeployJson, network: BroadcastResolver.Network.BNBChain
+    });
 
-    // Transactions: (`BNB_DEPLOY_FEE_INFRA_PATH`)
-    //
-    // 00: Deploy `TokenJar`.
-    // 01: Deploy `WormholeReleaser`.
-    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // 06: Deploy `V3OpenFeeAdapter`.
-    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // 08: Set `V3OpenFeeAdapter` default fee.
-    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 13: Store `V3OpenFeeAdapter` fee tiers.
-    // 14: Store `V3OpenFeeAdapter` fee tiers.
-    // 15: Store `V3OpenFeeAdapter` fee tiers.
-    // 16: Store `V3OpenFeeAdapter` fee tiers.
-    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
-    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    //
+    state.bnbChain.syntheticNttUni = bnbInfra.syntheticNttUni;
+    state.bnbChain.nttManager = bnbInfra.nttManagerProxy;
+    state.bnbChain.wormholeTransceiver = bnbInfra.wormholeTransceiverProxy;
+
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployFeeInfraJson = vm.readFile(BNB_DEPLOY_FEE_INFRA_PATH);
 
-    state.bnbChain.tokenJar =
-      vm.parseJsonAddress(bnbChainDeployFeeInfraJson, ".transactions[0].contractAddress");
-    state.bnbChain.wormholeReleaser =
-      vm.parseJsonAddress(bnbChainDeployFeeInfraJson, ".transactions[1].contractAddress");
-    state.bnbChain.v3OpenFeeAdapter =
-      vm.parseJsonAddress(bnbChainDeployFeeInfraJson, ".transactions[6].contractAddress");
+    DeployAndConfigureWormohleInfraBroadcast memory bnbFeeInfra =
+      BroadcastResolver.getDeployAndConfigureWormholeInfra({
+        vm: vm,
+        broadcastJson: bnbChainDeployFeeInfraJson,
+        network: BroadcastResolver.Network.BNBChain
+      });
 
-    // Transactions (`POLYGON_DEPLOY_PATH`)
-    //
-    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // 01: Deploy `SyntheticNttUni`.
-    // 02: Deploy `NttManager` implementation.
-    // 03: Deploy `NttManager` proxy.
-    // 04: Initialize `NttManager` proxy.
-    // 05: Deploy `WormholeTransceiver` implementation.
-    // 06: Deploy `WormholeTransceiver` proxy.
-    // 07: Initialize `WormholeTransceiver` proxy.
-    // 08: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // 09: Set the threshold of transceiver attestation redundancy.
-    // 10: Set `SyntheticNttUni` mint authority to `NttManager` proxy.
-    // 11: Transfer ownership of `SyntheticNttUni` to governance.
-    //
+    state.bnbChain.tokenJar = bnbFeeInfra.tokenJar;
+    state.bnbChain.wormholeReleaser = bnbFeeInfra.releaser;
+    state.bnbChain.v3OpenFeeAdapter = bnbFeeInfra.v3OpenFeeAdapter;
+
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
 
-    state.polygon.syntheticNttUni =
-      vm.parseJsonAddress(polygonDeployJson, ".transactions[1].contractAddress");
-    state.polygon.nttManager =
-      vm.parseJsonAddress(polygonDeployJson, ".transactions[3].contractAddress");
-    state.polygon.wormholeTransceiver =
-      vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
+    DeployWormholeInfraBroadcast memory polygonInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: polygonDeployJson, network: BroadcastResolver.Network.Polygon
+    });
 
-    // Transactions (`POLYGON_DEPLOY_FEE_INFRA_PATH`)
-    //
-    // 00: Deploy `TokenJar`.
-    // 01: Deploy `WormholeReleaser`.
-    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // 06: Deploy `V3OpenFeeAdapter`.
-    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // 08: Set `V3OpenFeeAdapter` default fee.
-    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 13: Store `V3OpenFeeAdapter` fee tiers.
-    // 14: Store `V3OpenFeeAdapter` fee tiers.
-    // 15: Store `V3OpenFeeAdapter` fee tiers.
-    // 16: Store `V3OpenFeeAdapter` fee tiers.
-    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
-    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    //
+    state.polygon.syntheticNttUni = polygonInfra.syntheticNttUni;
+    state.polygon.nttManager = polygonInfra.nttManagerProxy;
+    state.polygon.wormholeTransceiver = polygonInfra.wormholeTransceiverProxy;
+
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployFeeInfraJson = vm.readFile(POLYGON_DEPLOY_FEE_INFRA_PATH);
 
-    state.polygon.tokenJar =
-      vm.parseJsonAddress(polygonDeployFeeInfraJson, ".transactions[0].contractAddress");
-    state.polygon.wormholeReleaser =
-      vm.parseJsonAddress(polygonDeployFeeInfraJson, ".transactions[1].contractAddress");
-    state.polygon.v3OpenFeeAdapter =
-      vm.parseJsonAddress(polygonDeployFeeInfraJson, ".transactions[6].contractAddress");
+    DeployAndConfigureWormohleInfraBroadcast memory polygonFeeInfra =
+      BroadcastResolver.getDeployAndConfigureWormholeInfra({
+        vm: vm, broadcastJson: polygonDeployFeeInfraJson, network: BroadcastResolver.Network.Polygon
+      });
 
-    // Transactions (`ETH_DEPLOY_PATH`)
-    //
-    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // 01: Deploy `NttManager` implementation.
-    // 02: Deploy `NttManager` proxy.
-    // 03: Initialize `NttManager` proxy.
-    // 04: Deploy `WormholeTransceiver` implementation.
-    // 05: Deploy `WormholeTransceiver` proxy.
-    // 06: Initialize `WormholeTransceiver` proxy.
-    // 07: Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.
-    // 08: Set the threshold of transceiver attestation redundancy.
-    //
+    state.polygon.tokenJar = polygonFeeInfra.tokenJar;
+    state.polygon.wormholeReleaser = polygonFeeInfra.releaser;
+    state.polygon.v3OpenFeeAdapter = polygonFeeInfra.v3OpenFeeAdapter;
+
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory ethereumDeployJson = vm.readFile(ETH_DEPLOY_PATH);
 
-    state.ethereum.nttManager =
-      vm.parseJsonAddress(ethereumDeployJson, ".transactions[2].contractAddress");
-    state.ethereum.wormholeTransceiver =
-      vm.parseJsonAddress(ethereumDeployJson, ".transactions[5].contractAddress");
+    DeployWormholeInfraBroadcast memory ethInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: ethereumDeployJson, network: BroadcastResolver.Network.Ethereum
+    });
+
+    state.ethereum.nttManager = ethInfra.nttManagerProxy;
+    state.ethereum.wormholeTransceiver = ethInfra.wormholeTransceiverProxy;
   }
 
   function readImplementation(address proxy) internal view returns (address) {

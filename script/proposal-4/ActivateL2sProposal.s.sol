@@ -13,6 +13,7 @@ import {
   IGovernorBravo,
   IPolygonFxRoot
 } from "./Interfaces.sol";
+import {BroadcastResolver, DeployAndConfigureWormohleInfraBroadcast} from "./BroadcastResolver.sol";
 
 // deployment paths from the latest contract run
 //
@@ -295,65 +296,27 @@ contract ActivateL2Proposals is Script {
       address polygonOpenV3FeeAdapter
     )
   {
-    // ---------------------------------------------------------------------------------------------
-    // BNBChain Deployment Transaction Index Recap:
-    //
-    // 00: Deploy `TokenJar`.
-    // 01: Deploy `WormholeReleaser`.
-    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // 06: Deploy `V3OpenFeeAdapter`.
-    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // 08: Set `V3OpenFeeAdapter` default fee.
-    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 13: Store `V3OpenFeeAdapter` fee tiers.
-    // 14: Store `V3OpenFeeAdapter` fee tiers.
-    // 15: Store `V3OpenFeeAdapter` fee tiers.
-    // 16: Store `V3OpenFeeAdapter` fee tiers.
-    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
-    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
 
-    bnbChainTokenJar = vm.parseJsonAddress(bnbChainDeployJson, ".transactions[0].contractAddress");
-    bnbChainOpenV3FeeAdapter =
-      vm.parseJsonAddress(bnbChainDeployJson, ".transactions[6].contractAddress");
+    DeployAndConfigureWormohleInfraBroadcast memory bnbInfra =
+      BroadcastResolver.getDeployAndConfigureWormholeInfra({
+        vm: vm, broadcastJson: bnbChainDeployJson, network: BroadcastResolver.Network.BNBChain
+      });
 
-    // ---------------------------------------------------------------------------------------------
-    // Polygon Deployment Transaction Index Recap:
-    //
-    // 00: Deploy `TokenJar`.
-    // 01: Deploy `WormholeReleaser`.
-    // 02: Set `WormholeReleaser` as the releaser on `TokenJar`.
-    // 03: Transfer `TokenJar` ownership to `UniswapWormholeMessageReceiver`.
-    // 04: Set `WormholeReleaser` threshold setter to `UniswapWormholeMessageReceiver`.
-    // 05: Transfer ownership of `WormholeReleaser` to `UniswapWormholeMessageReceiver`.
-    // 06: Deploy `V3OpenFeeAdapter`.
-    // 07: Set `V3OpenFeeAdapter` fee setter to the deployer for configuration.
-    // 08: Set `V3OpenFeeAdapter` default fee.
-    // 09: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 10: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 11: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 12: Set `V3OpenFeeAdapter` fee tier defaults.
-    // 13: Store `V3OpenFeeAdapter` fee tiers.
-    // 14: Store `V3OpenFeeAdapter` fee tiers.
-    // 15: Store `V3OpenFeeAdapter` fee tiers.
-    // 16: Store `V3OpenFeeAdapter` fee tiers.
-    // 17: Transfer `V3OpenFeeAdapter` fee setter permission to `UniswapWormholeMessageReceiver`.
-    // 18: Transfer `V3OpenFeeAdapter` ownership to `UniswapWormholeMessageReceiver`.
-    //
+    bnbChainTokenJar = bnbInfra.tokenJar;
+    bnbChainOpenV3FeeAdapter = bnbInfra.v3OpenFeeAdapter;
+
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
 
-    polygonTokenJar = vm.parseJsonAddress(polygonDeployJson, ".transactions[0].contractAddress");
-    polygonOpenV3FeeAdapter =
-      vm.parseJsonAddress(polygonDeployJson, ".transactions[6].contractAddress");
+    DeployAndConfigureWormohleInfraBroadcast memory polygonInfra =
+      BroadcastResolver.getDeployAndConfigureWormholeInfra({
+        vm: vm, broadcastJson: polygonDeployJson, network: BroadcastResolver.Network.Polygon
+      });
+
+    polygonTokenJar = polygonInfra.tokenJar;
+    polygonOpenV3FeeAdapter = polygonInfra.v3OpenFeeAdapter;
 
     require(
       keccak256(bytes(bnbChainDeployJson)) != keccak256(bytes(polygonDeployJson)),

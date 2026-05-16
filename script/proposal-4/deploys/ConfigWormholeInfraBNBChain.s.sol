@@ -5,7 +5,7 @@ import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
 
 import "../Constants.sol" as Constants;
-import {BroadcastResolver} from "../BroadcastResolver.sol";
+import {BroadcastResolver, DeployWormholeInfraBroadcast} from "../BroadcastResolver.sol";
 import {IWormhole} from "../Interfaces.sol";
 import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 
@@ -248,37 +248,15 @@ contract ConfigWormholeInfraBNBChainScript is Script {
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
+    DeployWormholeInfraBroadcast memory bnbInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: bnbDeployJson, network: BroadcastResolver.Network.BNBChain
+    });
     bnb = Deployment({
-      uni: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.SyntheticNttUni
-      ),
-      nttManagerImplementation: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.NttManagerImplementation
-      ),
-      nttManagerProxy: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.NttManagerProxy
-      ),
-      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.WormholeTransceiverImplementation
-      ),
-      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.WormholeTransceiverProxy
-      )
+      uni: bnbInfra.syntheticNttUni,
+      nttManagerImplementation: bnbInfra.nttManagerImplementation,
+      nttManagerProxy: bnbInfra.nttManagerProxy,
+      wormholeTransceiverImplementation: bnbInfra.wormholeTransceiverImplementation,
+      wormholeTransceiverProxy: bnbInfra.wormholeTransceiverProxy
     });
 
     // -----------------------------------------------------------------------------------------
@@ -286,51 +264,27 @@ contract ConfigWormholeInfraBNBChainScript is Script {
     //
     // ETH Deployment Transaction Index Recap:
     //
-    // | Index | Action
-    // | | ----- |
-    // ----------------------------------------------------------------------------------- |
-    // | 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
-    // | | 01    | Deploy NttManager implementation.
-    // |
-    // | 02    | Deploy NttManager proxy.
-    // | | 03    | Initialize NttManager proxy.
-    // |
-    // | 04    | Deploy WormholeTransceiver implementation.
-    // | | 05    | Deploy WormholeTransceiver proxy
-    // |
-    // | 06    | Initialize WormholeTransceiver proxy
-    // | | 07    | Set NttManager proxy's transceiver to the WormholeTransceiver proxy
-    // |
-    // | 08    | Set the threshold of transceiver attestation redundancy
-    // |
+    // 00: (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts.
+    // 01: Deploy NttManager implementation.
+    // 02: Deploy NttManager proxy.
+    // 03: Initialize NttManager proxy.
+    // 04: Deploy WormholeTransceiver implementation.
+    // 05: Deploy WormholeTransceiver proxy
+    // 06: Initialize WormholeTransceiver proxy
+    // 07: Set NttManager proxy's transceiver to the WormholeTransceiver proxy
+    // 08: Set the threshold of transceiver attestation redundancy
+    //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory ethDeployJson = vm.readFile(ETH_DEPLOY_PATH);
+    DeployWormholeInfraBroadcast memory ethInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: ethDeployJson, network: BroadcastResolver.Network.Ethereum
+    });
     eth = Deployment({
       uni: Constants.Ethereum.UNI,
-      nttManagerImplementation: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.NttManagerImplementation
-      ),
-      nttManagerProxy: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.NttManagerProxy
-      ),
-      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.WormholeTransceiverImplementation
-      ),
-      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
-        vm,
-        ethDeployJson,
-        BroadcastResolver.Network.Ethereum,
-        BroadcastResolver.Deployed.WormholeTransceiverProxy
-      )
+      nttManagerImplementation: ethInfra.nttManagerImplementation,
+      nttManagerProxy: ethInfra.nttManagerProxy,
+      wormholeTransceiverImplementation: ethInfra.wormholeTransceiverImplementation,
+      wormholeTransceiverProxy: ethInfra.wormholeTransceiverProxy
     });
 
     // -----------------------------------------------------------------------------------------

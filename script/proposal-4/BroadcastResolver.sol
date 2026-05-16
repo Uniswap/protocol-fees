@@ -3,72 +3,111 @@ pragma solidity 0.8.29;
 
 import {Vm} from "forge-std/Vm.sol";
 
+struct DeployWormholeInfraBroadcast {
+  address syntheticNttUni;
+  address nttManagerImplementation;
+  address nttManagerProxy;
+  address wormholeTransceiverImplementation;
+  address wormholeTransceiverProxy;
+}
+
+struct DeployAndConfigureWormohleInfraBroadcast {
+  address tokenJar;
+  address releaser;
+  address v3OpenFeeAdapter;
+}
+
 library BroadcastResolver {
   enum Network {
     Ethereum,
-    Polygon,
-    BNBChain
+    BNBChain,
+    Polygon
   }
 
-  enum Deployed {
-    SyntheticNttUni,
-    NttManagerImplementation,
-    NttManagerProxy,
-    WormholeTransceiverImplementation,
-    WormholeTransceiverProxy
-  }
-
-  function getDeployed(Vm vm, string memory broadcastJson, Network net, Deployed deployed)
-    internal
+  function getDeployWormholeInfra(Vm vm, string memory broadcastJson, Network network)
+    external
     pure
-    returns (address)
+    returns (DeployWormholeInfraBroadcast memory)
   {
     string memory firstTxType =
       vm.parseJsonString(broadcastJson, ".transactions[0].transactionType");
 
-    string memory txIndex;
+    bool externaLibraryWasDeployed = keccak256(bytes(firstTxType)) == keccak256(bytes("CREATE2"));
 
-    if (keccak256(bytes(firstTxType)) == keccak256(bytes("CREATE2"))) {
-      // if this is the case, then the external library got deployed, in which case we shift
-      // the indices +1.
-      //
-      // this is bc foundry deploys external libraries first, but they do so deterministically
-      // and they check if it's deployed first. if it's deployed already, they always omit the
-      // tx. no way around.
-      //
-      // in our case, for all 3 networks (eth, bnb, pol), the deployment ordering is exactly
-      // the same and there is one library per chain.
-      if (net == Network.Ethereum) {
-        if (deployed == Deployed.SyntheticNttUni) revert();
-        if (deployed == Deployed.NttManagerImplementation) txIndex = "1";
-        if (deployed == Deployed.NttManagerProxy) txIndex = "2";
-        if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "4";
-        if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "5";
+    if (externaLibraryWasDeployed) {
+      if (network == Network.Ethereum) {
+        return DeployWormholeInfraBroadcast({
+          syntheticNttUni: address(0x00),
+          nttManagerImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[1].contractAddress"
+          ),
+          nttManagerProxy: vm.parseJsonAddress(broadcastJson, ".transactions[2].contractAddress"),
+          wormholeTransceiverImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[4].contractAddress"
+          ),
+          wormholeTransceiverProxy: vm.parseJsonAddress(
+            broadcastJson, ".transactions[5].contractAddress"
+          )
+        });
       } else {
-        if (deployed == Deployed.SyntheticNttUni) txIndex = "1";
-        if (deployed == Deployed.NttManagerImplementation) txIndex = "2";
-        if (deployed == Deployed.NttManagerProxy) txIndex = "3";
-        if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "5";
-        if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "6";
+        return DeployWormholeInfraBroadcast({
+          syntheticNttUni: vm.parseJsonAddress(broadcastJson, ".transactions[1].contractAddress"),
+          nttManagerImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[2].contractAddress"
+          ),
+          nttManagerProxy: vm.parseJsonAddress(broadcastJson, ".transactions[3].contractAddress"),
+          wormholeTransceiverImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[5].contractAddress"
+          ),
+          wormholeTransceiverProxy: vm.parseJsonAddress(
+            broadcastJson, ".transactions[6].contractAddress"
+          )
+        });
       }
     } else {
-      if (net == Network.Ethereum) {
-        if (deployed == Deployed.SyntheticNttUni) revert();
-        if (deployed == Deployed.NttManagerImplementation) txIndex = "0";
-        if (deployed == Deployed.NttManagerProxy) txIndex = "1";
-        if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "3";
-        if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "4";
+      if (network == Network.Ethereum) {
+        return DeployWormholeInfraBroadcast({
+          syntheticNttUni: address(0x00),
+          nttManagerImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[0].contractAddress"
+          ),
+          nttManagerProxy: vm.parseJsonAddress(broadcastJson, ".transactions[1].contractAddress"),
+          wormholeTransceiverImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[3].contractAddress"
+          ),
+          wormholeTransceiverProxy: vm.parseJsonAddress(
+            broadcastJson, ".transactions[4].contractAddress"
+          )
+        });
       } else {
-        if (deployed == Deployed.SyntheticNttUni) txIndex = "0";
-        if (deployed == Deployed.NttManagerImplementation) txIndex = "1";
-        if (deployed == Deployed.NttManagerProxy) txIndex = "2";
-        if (deployed == Deployed.WormholeTransceiverImplementation) txIndex = "4";
-        if (deployed == Deployed.WormholeTransceiverProxy) txIndex = "5";
+        return DeployWormholeInfraBroadcast({
+          syntheticNttUni: vm.parseJsonAddress(broadcastJson, ".transactions[0].contractAddress"),
+          nttManagerImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[1].contractAddress"
+          ),
+          nttManagerProxy: vm.parseJsonAddress(broadcastJson, ".transactions[2].contractAddress"),
+          wormholeTransceiverImplementation: vm.parseJsonAddress(
+            broadcastJson, ".transactions[4].contractAddress"
+          ),
+          wormholeTransceiverProxy: vm.parseJsonAddress(
+            broadcastJson, ".transactions[5].contractAddress"
+          )
+        });
       }
     }
+  }
 
-    return vm.parseJsonAddress(
-      broadcastJson, string.concat(".transactions[", txIndex, "].contractAddress")
-    );
+  function getDeployAndConfigureWormholeInfra(Vm vm, string memory broadcastJson, Network network)
+    external
+    pure
+    returns (DeployAndConfigureWormohleInfraBroadcast memory)
+  {
+    require(network != Network.Ethereum, "invalid network");
+
+    return DeployAndConfigureWormohleInfraBroadcast({
+      tokenJar: vm.parseJsonAddress(broadcastJson, ".transactions[0].contractAddress"),
+      releaser: vm.parseJsonAddress(broadcastJson, ".transactions[1].contractAddress"),
+      v3OpenFeeAdapter: vm.parseJsonAddress(broadcastJson, ".transactions[6].contractAddress")
+    });
   }
 }

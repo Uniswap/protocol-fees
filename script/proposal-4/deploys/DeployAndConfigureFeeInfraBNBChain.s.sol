@@ -17,7 +17,7 @@ import {TokenJar} from "../../../src/TokenJar.sol";
 import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
 import {V3OpenFeeAdapter} from "../../../src/feeAdapters/V3OpenFeeAdapter.sol";
 import "../Constants.sol" as Constants;
-import {BroadcastResolver} from "../BroadcastResolver.sol";
+import {BroadcastResolver, DeployWormholeInfraBroadcast} from "../BroadcastResolver.sol";
 
 // Protocol fee defaults — same as mainnet
 uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
@@ -334,37 +334,15 @@ contract DeployAndConfigureFeeInfraBNBChainScript is Script {
     //
     /// forge-lint: disable-next-line(unsafe-cheatcode)
     string memory bnbDeployJson = vm.readFile(BNB_DEPLOY_PATH);
+    DeployWormholeInfraBroadcast memory bnbInfra = BroadcastResolver.getDeployWormholeInfra({
+      vm: vm, broadcastJson: bnbDeployJson, network: BroadcastResolver.Network.BNBChain
+    });
     bnb = Deployment({
-      uni: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.SyntheticNttUni
-      ),
-      nttManagerImplementation: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.NttManagerImplementation
-      ),
-      nttManagerProxy: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.NttManagerProxy
-      ),
-      wormholeTransceiverImplementation: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.WormholeTransceiverImplementation
-      ),
-      wormholeTransceiverProxy: BroadcastResolver.getDeployed(
-        vm,
-        bnbDeployJson,
-        BroadcastResolver.Network.BNBChain,
-        BroadcastResolver.Deployed.WormholeTransceiverProxy
-      )
+      uni: bnbInfra.syntheticNttUni,
+      nttManagerImplementation: bnbInfra.nttManagerImplementation,
+      nttManagerProxy: bnbInfra.nttManagerProxy,
+      wormholeTransceiverImplementation: bnbInfra.wormholeTransceiverImplementation,
+      wormholeTransceiverProxy: bnbInfra.wormholeTransceiverProxy
     });
 
     // -----------------------------------------------------------------------------------------
