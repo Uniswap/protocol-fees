@@ -62,8 +62,9 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   function getFee(PoolKey memory key) public view returns (uint24) {
     uint24 stored = poolOverrides[key.toId()];
     if (stored != 0) return _decodeFee(stored);
-    if (address(policy) == address(0)) return 0;
-    return policy.computeFee(key);
+    IV4FeePolicy currentPolicy = policy;
+    if (address(currentPolicy) == address(0)) return 0;
+    return currentPolicy.computeFee(key);
   }
 
   // ─── Permissionless Triggering ───
@@ -75,7 +76,8 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
 
   /// @inheritdoc IV4FeeAdapter
   function batchTriggerFeeUpdate(PoolKey[] calldata keys) external {
-    for (uint256 i; i < keys.length; ++i) {
+    uint256 length = keys.length;
+    for (uint256 i; i < length; ++i) {
       _setProtocolFee(keys[i]);
     }
   }

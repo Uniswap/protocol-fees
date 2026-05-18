@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
@@ -30,7 +29,6 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
-  using PoolIdLibrary for PoolKey;
 
   /// @dev Bitmask for the four RETURNS_DELTA flags (bits 0-3 of hook address).
   uint160 public constant CUSTOM_ACCOUNTING_MASK = 0xF;
@@ -378,7 +376,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     // Default to the lowest bucket so the snap case (lpFee < floor_0) falls out
     // naturally below with delta = 0.
     FeeBucket memory bucket = _feeBuckets[0];
-    for (uint256 i = len; i > 0; --i) {
+    for (uint256 i = len; i > 1; --i) {
       FeeBucket memory candidate = _feeBuckets[i - 1];
       if (candidate.lpFeeFloor <= lpFee) {
         bucket = candidate;
