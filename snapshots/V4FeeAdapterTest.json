@@ -7,7 +7,7 @@
   "policy.computeFee - classified family default": "10090",
   "policy.computeFee - classified flag-rule self-report": "19991",
   "policy.computeFee - classified griefing hook -> defaultFee": "7721",
-  "policy.computeFee - classified pairFee * multiplier": "8312",
+  "policy.computeFee - classified pairFee * multiplier": "8384",
   "policy.computeFee - classified unclassified -> defaultFee": "7721",
   "policy.computeFee - flag-rule multi-flag match": "19991",
   "policy.computeFee - flag-rule single flag match": "19991",

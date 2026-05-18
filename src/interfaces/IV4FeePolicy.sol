@@ -298,8 +298,10 @@ interface IV4FeePolicy {
 
   /// @notice Sets the pair fee for a token pair.
   /// @dev StaticNativeMath pools use this directly (overrides the fee buckets).
-  /// Classified pools scale it by familyMultiplierPips. Setting 0 sets explicit zero.
-  /// Use clearPairFee to remove entirely.
+  /// Classified pools scale it by familyMultiplierPips. If a nonzero pair fee scales to
+  /// zero because of integer truncation, the classified path falls through to the family
+  /// default. Setting 0 sets explicit zero and does not fall through. Use clearPairFee to
+  /// remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   /// @param feeValue The pair fee. Must pass isValidProtocolFee if non-zero.

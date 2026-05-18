@@ -18,6 +18,9 @@ interface IV4FeeAdapter {
   /// @notice Thrown when an unauthorized address calls a restricted function.
   error Unauthorized();
 
+  /// @notice Thrown when a zero address is provided.
+  error ZeroAddress();
+
   /// @notice Thrown when a fee value fails ProtocolFeeLibrary.isValidProtocolFee.
   error InvalidFeeValue();
 

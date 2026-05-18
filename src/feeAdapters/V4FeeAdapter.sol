@@ -102,6 +102,7 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
 
   /// @inheritdoc IV4FeeAdapter
   function setFeeSetter(address newFeeSetter) external onlyOwner {
+    if (newFeeSetter == address(0)) revert ZeroAddress();
     emit FeeSetterUpdated(feeSetter, newFeeSetter);
     feeSetter = newFeeSetter;
   }

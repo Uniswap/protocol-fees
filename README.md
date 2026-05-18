@@ -151,6 +151,8 @@ Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1
 2. gas-capped staticcall to `hook.protocolFeeFlags()` (optional `IFeeClassifiedHook` interface) → walk governance-configured `flagRules` first-match-wins
 3. otherwise unclassified → falls through to `defaultFee`
 
+With a non-zero family, the policy returns `pairFees[ph] × familyMultiplierPips[family] / 1_000_000` if both are set and the scaled result is non-zero, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair fee still short-circuits to zero; only truncation-to-zero from a non-zero pair fee falls through.
+
 Permissioned roles:
 
 - **owner** — swaps the policy, sets the fee-setter

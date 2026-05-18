@@ -863,6 +863,50 @@ contract V4FeeAdapterTest is Test {
     vm.snapshotGasLastCall("policy.computeFee - classified pairFee * multiplier");
   }
 
+  function test_computeFee_classified_roundingToZeroFallsBackToFamilyDefault() public {
+    address customHook = address(uint160((1 << 7) | (1 << 2)));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    uint24 fee50 = (50 << 12) | 50;
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(customHook, 1);
+    policy.setPairFee(customKey.currency0, customKey.currency1, FEE_100);
+    policy.setFamilyMultiplier(1, 9999);
+    policy.setFamilyDefault(1, fee50);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(customKey), fee50);
+  }
+
+  function test_computeFee_classified_explicitZeroPairFeeDoesNotFallBack() public {
+    address customHook = address(uint160((1 << 7) | (1 << 2)));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(customHook, 1);
+    policy.setPairFee(customKey.currency0, customKey.currency1, 0);
+    policy.setFamilyMultiplier(1, 500_000);
+    policy.setFamilyDefault(1, FEE_200);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(customKey), 0);
+  }
+
   function test_computeFee_classified_pairFeeAtMaxMultiplier() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({

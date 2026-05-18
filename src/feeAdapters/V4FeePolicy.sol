@@ -130,7 +130,11 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
       uint24 multiplier = familyMultiplierPips[family];
 
       if (pairFee != 0 && multiplier != 0) {
-        return _applyMultiplier(_decodeFee(pairFee), multiplier);
+        uint24 baseFee = _decodeFee(pairFee);
+        if (baseFee == 0) return 0;
+
+        uint24 scaledFee = _applyMultiplier(baseFee, multiplier);
+        if (scaledFee != 0) return scaledFee;
       }
 
       uint24 famDefault = familyDefaults[family];
