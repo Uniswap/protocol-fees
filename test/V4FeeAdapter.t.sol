@@ -19,7 +19,8 @@ import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
   MockFeeClassifiedHook,
   GriefingHook,
-  RevertingHook
+  RevertingHook,
+  ReturnBombHook
 } from "./mocks/MockFeeClassifiedHook.sol";
 
 contract V4FeeAdapterTest is Test {
@@ -1088,6 +1089,38 @@ contract V4FeeAdapterTest is Test {
     // Gas-capped call should fail gracefully -> defaultFee
     assertEq(policy.computeFee(key), FEE_100);
     vm.snapshotGasLastCall("policy.computeFee - classified griefing hook -> defaultFee");
+  }
+
+  function test_computeFee_selfReport_boundsReturnDataCopy() public {
+    uint160 flags = (1 << 7) | (1 << 2);
+    address hookAddr = address(flags);
+    ReturnBombHook impl = new ReturnBombHook();
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 1});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFamilyDefault(1, FEE_300);
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    uint256 gasBefore = gasleft();
+    uint24 fee = policy.computeFee(key);
+    uint256 gasUsed = gasBefore - gasleft();
+
+    assertEq(fee, FEE_300);
+    assertLt(gasUsed, 45_000);
   }
 
   // ============ Policy: Configuration Functions ============

@@ -30,3 +30,13 @@ contract RevertingHook {
     revert("not classified");
   }
 }
+
+/// @notice Mock hook that returns valid flags followed by excess returndata.
+contract ReturnBombHook {
+  function protocolFeeFlags() external pure returns (uint256) {
+    assembly ("memory-safe") {
+      mstore(0, 1)
+      return(0, 0x10000)
+    }
+  }
+}

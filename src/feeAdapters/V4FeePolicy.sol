@@ -332,16 +332,22 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint256 rulesLen = _flagRules.length;
     if (rulesLen == 0) return 0;
 
-    (bool ok, bytes memory ret) = hook.staticcall{gas: SELF_REPORT_GAS_LIMIT}(
-      abi.encodeCall(IFeeClassifiedHook.protocolFeeFlags, ())
-    );
-    if (ok && ret.length >= 32) {
-      uint256 flags = abi.decode(ret, (uint256));
-      if (flags != 0) {
-        for (uint256 i; i < rulesLen; ++i) {
-          FlagRule storage rule = _flagRules[i];
-          if (flags & rule.requiredFlags == rule.requiredFlags) return rule.familyId;
-        }
+    uint256 flags;
+    bool ok;
+    uint256 gasLimit = SELF_REPORT_GAS_LIMIT;
+    uint256 selector = uint32(IFeeClassifiedHook.protocolFeeFlags.selector);
+    assembly ("memory-safe") {
+      let ptr := mload(0x40)
+      mstore(ptr, shl(224, selector))
+      ok := staticcall(gasLimit, hook, ptr, 0x04, ptr, 0x20)
+      ok := and(ok, iszero(lt(returndatasize(), 0x20)))
+      flags := mload(ptr)
+    }
+    if (ok && flags != 0) {
+      for (uint256 i; i < rulesLen; ++i) {
+        FlagRule storage rule = _flagRules[i];
+        uint256 requiredFlags = rule.requiredFlags;
+        if (flags & requiredFlags == requiredFlags) return rule.familyId;
       }
     }
 
