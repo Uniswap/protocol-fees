@@ -92,8 +92,10 @@ interface IV4FeePolicy {
   event HookFamilySet(address indexed hook, uint8 familyId);
 
   /// @notice Emitted when a family's default protocol fee is updated.
+  /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
+  /// ZERO_FEE_SENTINEL = explicit zero fee.
   /// @param familyId The family whose default was changed.
-  /// @param feeValue The new default fee (0 = removed).
+  /// @param feeValue The new encoded default fee.
   event FamilyDefaultUpdated(uint8 indexed familyId, uint24 feeValue);
 
   /// @notice Emitted when a family's multiplier is updated.
@@ -102,8 +104,10 @@ interface IV4FeePolicy {
   event FamilyMultiplierUpdated(uint8 indexed familyId, uint24 multiplierPips);
 
   /// @notice Emitted when a pair fee is updated.
+  /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
+  /// ZERO_FEE_SENTINEL = explicit zero fee.
   /// @param pairHash The canonical hash of the token pair.
-  /// @param feeValue The new pair fee (0 = removed).
+  /// @param feeValue The new encoded pair fee.
   event PairFeeUpdated(bytes32 indexed pairHash, uint24 feeValue);
 
   /// @notice Emitted when the fee buckets array is replaced.
@@ -111,7 +115,9 @@ interface IV4FeePolicy {
   event FeeBucketsUpdated(uint256 bucketCount);
 
   /// @notice Emitted when the default classified fee is updated.
-  /// @param feeValue The new default fee (0 = removed).
+  /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
+  /// ZERO_FEE_SENTINEL = explicit zero fee.
+  /// @param feeValue The new encoded default fee.
   event DefaultFeeUpdated(uint24 feeValue);
 
   /// @notice Emitted when the flag rules array is replaced.

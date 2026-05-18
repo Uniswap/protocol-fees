@@ -112,8 +112,9 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   /// @inheritdoc IV4FeeAdapter
   function setPoolOverride(PoolId poolId, uint24 feeValue) external onlyFeeSetter {
     if (feeValue != 0) _validateFee(feeValue);
-    poolOverrides[poolId] = _encodeFee(feeValue);
-    emit PoolOverrideUpdated(poolId, feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    poolOverrides[poolId] = stored;
+    emit PoolOverrideUpdated(poolId, stored);
   }
 
   /// @inheritdoc IV4FeeAdapter
@@ -142,7 +143,7 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
 
   /// @dev Encodes a fee for storage. Converts 0 to ZERO_FEE_SENTINEL so that 0 in
   /// storage means "not set" rather than "explicitly zero".
-  /// @param feeValue The actual fee value (0 = remove/unset).
+  /// @param feeValue The actual fee value (0 = explicit zero).
   /// @return The encoded value to store.
   function _encodeFee(uint24 feeValue) internal pure returns (uint24) {
     return feeValue == 0 ? ZERO_FEE_SENTINEL : feeValue;

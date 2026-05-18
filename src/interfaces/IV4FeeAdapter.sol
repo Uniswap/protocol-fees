@@ -32,8 +32,10 @@ interface IV4FeeAdapter {
   event PolicyUpdated(address indexed oldPolicy, address indexed newPolicy);
 
   /// @notice Emitted when a pool override is set or removed.
+  /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
+  /// ZERO_FEE_SENTINEL = explicit zero fee.
   /// @param poolId The pool whose override changed.
-  /// @param feeValue The new fee value (0 means override was removed).
+  /// @param feeValue The new encoded fee value.
   event PoolOverrideUpdated(PoolId indexed poolId, uint24 feeValue);
 
   /// @notice Emitted when the fee setter address is updated.

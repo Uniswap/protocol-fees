@@ -214,8 +214,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @inheritdoc IV4FeePolicy
   function setDefaultFee(uint24 feeValue) external onlyFeeSetter {
     if (feeValue != 0) _validateFee(feeValue);
-    defaultFee = _encodeFee(feeValue);
-    emit DefaultFeeUpdated(feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    defaultFee = stored;
+    emit DefaultFeeUpdated(stored);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -258,8 +259,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external onlyFeeSetter {
     if (familyId == 0) revert InvalidFamilyId();
     if (feeValue != 0) _validateFee(feeValue);
-    familyDefaults[familyId] = _encodeFee(feeValue);
-    emit FamilyDefaultUpdated(familyId, feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    familyDefaults[familyId] = stored;
+    emit FamilyDefaultUpdated(familyId, stored);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -292,8 +294,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     }
     if (feeValue != 0) _validateFee(feeValue);
     bytes32 ph = _pairHash(currency0, currency1);
-    pairFees[ph] = _encodeFee(feeValue);
-    emit PairFeeUpdated(ph, feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    pairFees[ph] = stored;
+    emit PairFeeUpdated(ph, stored);
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -402,7 +405,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @dev Encodes a fee for storage. Converts 0 to ZERO_FEE_SENTINEL so that 0 in
   /// storage means "not set" rather than "explicitly zero".
-  /// @param feeValue The actual fee value (0 = remove/unset).
+  /// @param feeValue The actual fee value (0 = explicit zero).
   /// @return The encoded value to store.
   function _encodeFee(uint24 feeValue) internal pure returns (uint24) {
     return feeValue == 0 ? ZERO_FEE_SENTINEL : feeValue;

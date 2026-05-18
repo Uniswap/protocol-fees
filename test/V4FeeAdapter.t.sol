@@ -238,6 +238,8 @@ contract V4FeeAdapterTest is Test {
     assertEq(adapter.getFee(standardKey), FEE_300);
 
     // Set pool override to explicit zero -should NOT fall through to policy
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(id, type(uint24).max);
     vm.prank(feeSetter);
     adapter.setPoolOverride(id, 0);
 
@@ -257,6 +259,8 @@ contract V4FeeAdapterTest is Test {
     adapter.setPoolOverride(id, FEE_500);
     assertEq(adapter.getFee(standardKey), FEE_500);
 
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(id, 0);
     adapter.clearPoolOverride(id);
     vm.stopPrank();
 
@@ -1229,6 +1233,38 @@ contract V4FeeAdapterTest is Test {
 
     // Family 1 has explicit zero -> 0, NOT the defaultFee of FEE_500
     assertEq(policy.computeFee(customKey), 0);
+  }
+
+  function test_sentinel_updateEventsDistinguishExplicitZeroAndClear() public {
+    bytes32 ph = _pairHash();
+
+    vm.startPrank(feeSetter);
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.DefaultFeeUpdated(type(uint24).max);
+    policy.setDefaultFee(0);
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.DefaultFeeUpdated(0);
+    policy.clearDefaultFee();
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(1, type(uint24).max);
+    policy.setFamilyDefault(1, 0);
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(1, 0);
+    policy.clearFamilyDefault(1);
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.PairFeeUpdated(ph, type(uint24).max);
+    policy.setPairFee(standardKey.currency0, standardKey.currency1, 0);
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.PairFeeUpdated(ph, 0);
+    policy.clearPairFee(standardKey.currency0, standardKey.currency1);
+
+    vm.stopPrank();
   }
 
   function test_sentinel_clearFallsThrough() public {
