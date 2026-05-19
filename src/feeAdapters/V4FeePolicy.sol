@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";

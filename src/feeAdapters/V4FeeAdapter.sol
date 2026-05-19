@@ -1,11 +1,10 @@
-// SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
 
 import {Owned} from "solmate/src/auth/Owned.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {Currency} from "v4-core/types/Currency.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {IV4FeeAdapter} from "../interfaces/IV4FeeAdapter.sol";
