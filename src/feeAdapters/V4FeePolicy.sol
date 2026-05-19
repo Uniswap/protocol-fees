@@ -40,19 +40,20 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// safe because each 12-bit component (0xFFF = 4095) exceeds MAX_PROTOCOL_FEE (1000).
   uint24 internal constant ZERO_FEE_SENTINEL = type(uint24).max;
 
-  /// @dev Shared denominator for pips-based multipliers. 1_000_000 = 100% (matches
-  /// MAX_LP_FEE). Used by the StaticNativeMath bucket schedule and by family multipliers
-  /// on the classified path.
-  uint24 internal constant MULTIPLIER_DENOMINATOR = 1_000_000;
+  /// @dev Shared denominator for pips-based multipliers. 1_000_000 = 100% (matches the
+  /// v4-core LP fee denominator). Used by the StaticNativeMath bucket schedule and by
+  /// family multipliers on the classified path.
+  uint24 internal constant MULTIPLIER_DENOMINATOR = LPFeeLibrary.MAX_LP_FEE;
 
   /// @dev Maximum number of fee buckets. Bounds the backward walk in
   /// `_computeStaticNativeMathFee`.
   uint256 internal constant MAX_BUCKETS = 16;
 
   /// @dev Maximum `betaPips` per bucket. Above this, even a 1-pip delta exceeds
-  /// MAX_PROTOCOL_FEE (1000), so the per-direction clamp is always hit and values above
-  /// are functionally identical noise.
-  uint32 internal constant MAX_BETA_PIPS = 1_000_000_000;
+  /// MAX_PROTOCOL_FEE, so the per-direction clamp is always hit and values above are
+  /// functionally identical noise.
+  uint32 internal constant MAX_BETA_PIPS =
+    uint32(uint256(MULTIPLIER_DENOMINATOR) * ProtocolFeeLibrary.MAX_PROTOCOL_FEE);
 
   /// @inheritdoc IV4FeePolicy
   IPoolManager public immutable POOL_MANAGER;
@@ -287,9 +288,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     external
     onlyFeeSetter
   {
-    if (Currency.unwrap(currency0) >= Currency.unwrap(currency1)) {
-      revert CurrenciesOutOfOrder();
-    }
+    if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     if (feeValue != 0) _validateFee(feeValue);
     bytes32 ph = _pairHash(currency0, currency1);
     uint24 stored = _encodeFee(feeValue);
@@ -299,7 +298,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function clearPairFee(Currency currency0, Currency currency1) external onlyFeeSetter {
-    if (Currency.unwrap(currency0) >= Currency.unwrap(currency1)) revert CurrenciesOutOfOrder();
+    if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     bytes32 ph = _pairHash(currency0, currency1);
     delete pairFees[ph];
     emit PairFeeUpdated(ph, 0);
