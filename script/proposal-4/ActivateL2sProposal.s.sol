@@ -280,7 +280,7 @@ contract ActivateL2Proposals is Script {
         signature: "",
         data: abi.encodeCall(
           IPolygonFxRoot.sendMessageToChild,
-          (Constants.Polygon.ETHEREUM_PROXY, abi.encode(targets, values, datas))
+          (Constants.Polygon.ETHEREUM_PROXY, abi.encode(targets, datas, values))
         )
       });
     }
