@@ -1,4 +1,5 @@
 solmate/=lib/solmate/
+solady/=lib/optimism/packages/contracts-bedrock/lib/solady/
 @eth-optimism-bedrock/=lib/optimism/packages/contracts-bedrock
 eas-contracts/=lib/dao-signer/lib/eas-contracts/contracts/
 scripts/libraries/Config.sol=lib/optimism/packages/contracts-bedrock/scripts/libraries/Config.sol

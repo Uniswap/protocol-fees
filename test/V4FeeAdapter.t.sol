@@ -1527,6 +1527,18 @@ contract V4FeeAdapterTest is Test {
     policy.setFlagRules(rules);
   }
 
+  function test_setFlagRules_revertsIfSpecificRuleFollowsBroadRule() public {
+    FlagRule[] memory rules = new FlagRule[](2);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
+    rules[1] = FlagRule({
+      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
+    });
+
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.FlagRulesNotSorted.selector);
+    policy.setFlagRules(rules);
+  }
+
   function test_setFlagRules_revertsTooManyRules() public {
     FlagRule[] memory rules = new FlagRule[](33);
     for (uint256 i; i < 33; ++i) {

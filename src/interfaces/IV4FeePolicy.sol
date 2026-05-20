@@ -70,6 +70,9 @@ interface IV4FeePolicy {
   /// @notice Thrown when flag rules exceed the maximum allowed count.
   error TooManyFlagRules();
 
+  /// @notice Thrown when flag rules are not sorted from most to least specific.
+  error FlagRulesNotSorted();
+
   /// @notice Thrown when setFeeBuckets is called with an empty array.
   error EmptyBuckets();
 
@@ -242,8 +245,9 @@ interface IV4FeePolicy {
 
   /// @notice Replaces the entire flag rules array atomically.
   /// @dev Rules are checked in order; the first rule whose requiredFlags are all present
-  /// in the hook's self-reported flags wins. More specific patterns should come first.
-  /// Each rule must have requiredFlags != 0 and familyId > 0. Max 32 rules.
+  /// in the hook's self-reported flags wins. Rules must be sorted by non-increasing
+  /// number of set bits in requiredFlags, so more specific patterns come first. Each
+  /// rule must have requiredFlags != 0 and familyId > 0. Max 32 rules.
   /// @param rules The new flag rules, ordered by match priority (first match wins).
   function setFlagRules(FlagRule[] calldata rules) external;
 

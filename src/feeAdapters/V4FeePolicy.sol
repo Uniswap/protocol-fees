@@ -7,6 +7,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
+import {LibBit} from "solady/src/utils/LibBit.sol";
 import {IV4FeePolicy, FlagRule, FeeBucket} from "../interfaces/IV4FeePolicy.sol";
 import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 
@@ -195,9 +196,13 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
     delete _flagRules;
 
+    uint256 previousSpecificity = type(uint256).max;
     for (uint256 i; i < rules.length; ++i) {
       FlagRule calldata rule = rules[i];
       if (rule.requiredFlags == 0 || rule.familyId == 0) revert InvalidFlagRule();
+      uint256 specificity = LibBit.popCount(rule.requiredFlags);
+      if (specificity > previousSpecificity) revert FlagRulesNotSorted();
+      previousSpecificity = specificity;
       _flagRules.push(rule);
     }
 

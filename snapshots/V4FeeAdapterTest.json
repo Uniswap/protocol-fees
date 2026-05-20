@@ -17,8 +17,8 @@
   "policy.setFamilyMultiplier": "47684",
   "policy.setFeeBuckets - 1 bucket": "71479",
   "policy.setFeeBuckets - 5 buckets (configuration B)": "148687",
-  "policy.setFlagRules - 32 rules (max)": "1493920",
-  "policy.setFlagRules - two rules": "137740",
+  "policy.setFlagRules - 32 rules (max)": "1499865",
+  "policy.setFlagRules - two rules": "138105",
   "policy.setHookFamily": "47568",
   "policy.setPairFee": "48712"
 }
