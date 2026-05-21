@@ -4,26 +4,49 @@ _A unified system for collecting and converting fees from arbitrary revenue sour
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Goals](#goals)
-- [Architecture](#architecture)
-- [Economic Incentives](#economic-incentives)
-- [Fault Tolerance](#fault-tolerance)
-- [Deployment Architecture](#deployment-architecture)
-- [Development](#development)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Testing](#testing)
-  - [Project Structure](#project-structure)
-- [Governance Proposal](#governance-proposal)
-- [Security](#security)
-- [Future Development](#future-development)
-  - [Protocol Fee Auctions](#protocol-fee-auctions)
-  - [Additional Protocol Support](#additional-protocol-support)
-  - [Cross-chain Expansion](#cross-chain-expansion)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
+- [Uniswap Fee Collection](#uniswap-fee-collection)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Goals](#goals)
+  - [Architecture](#architecture)
+    - [1. Token Jar](#1-token-jar)
+    - [2. Fee Sources](#2-fee-sources)
+      - [Push vs Pull Models](#push-vs-pull-models)
+      - [Supported Protocols](#supported-protocols)
+    - [3. Releasers](#3-releasers)
+      - [UNI Burn (Mainnet)](#uni-burn-mainnet)
+      - [Cross-Chain UNI Burn (OP Stack L2s)](#cross-chain-uni-burn-op-stack-l2s)
+      - [(Future) Hub-and-Spoke Cross-Chain](#future-hub-and-spoke-cross-chain)
+  - [Economic Incentives](#economic-incentives)
+  - [Fault Tolerance (In-Progress)](#fault-tolerance-in-progress)
+  - [Deployment Architecture](#deployment-architecture)
+  - [Deployed Addresses](#deployed-addresses)
+    - [Ethereum Mainnet (Chain ID: 1)](#ethereum-mainnet-chain-id-1)
+    - [Unichain (Chain ID: 130)](#unichain-chain-id-130)
+    - [World Chain (Chain ID: 480)](#world-chain-chain-id-480)
+    - [Soneium (Chain ID: 1868)](#soneium-chain-id-1868)
+    - [Celo (Chain ID: 42220)](#celo-chain-id-42220)
+    - [Zora (Chain ID: 7777777)](#zora-chain-id-7777777)
+    - [X Layer (Chain ID: 196)](#x-layer-chain-id-196)
+    - [Arbitrum One (Chain ID: 42161)](#arbitrum-one-chain-id-42161)
+    - [OP Mainnet (Chain ID: 10)](#op-mainnet-chain-id-10)
+    - [Base (Chain ID: 8453)](#base-chain-id-8453)
+    - [Polygon (Chain ID: 137)](#polygon-chain-id-137)
+    - [BNB Chain (Chain ID: 56)](#bnb-chain-chain-id-56)
+  - [Development](#development)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Testing](#testing)
+    - [Project Structure](#project-structure)
+  - [Governance Proposal](#governance-proposal)
+  - [Security](#security)
+  - [Future Development](#future-development)
+    - [Protocol Fee Auctions](#protocol-fee-auctions)
+    - [Additional Protocol Support](#additional-protocol-support)
+    - [Cross-chain Expansion](#cross-chain-expansion)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Support](#support)
 
 ## Overview
 
@@ -217,17 +240,19 @@ Ethereum Mainnet
 
 ### Ethereum Mainnet (Chain ID: 1)
 
-| Contract           | Address                                                                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| MainnetDeployer    | [`0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C`](https://etherscan.io/address/0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C) |
-| TokenJar           | [`0xf38521f130fcCF29dB1961597bc5d2B60F995f85`](https://etherscan.io/address/0xf38521f130fcCF29dB1961597bc5d2B60F995f85) |
-| Releaser (Firepit) | [`0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721`](https://etherscan.io/address/0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721) |
-| V3FeeAdapter       | [`0x5E74C9f42EEd283bFf3744fBD1889d398d40867d`](https://etherscan.io/address/0x5E74C9f42EEd283bFf3744fBD1889d398d40867d) |
-| V3OpenFeeAdapter   | [`0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`](https://etherscan.io/address/0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A) |
-| UNI Vesting        | [`0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2`](https://etherscan.io/address/0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2) |
-| Agreement Anchor 1 | [`0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8`](https://etherscan.io/address/0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8) |
-| Agreement Anchor 2 | [`0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd`](https://etherscan.io/address/0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd) |
-| Agreement Anchor 3 | [`0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1`](https://etherscan.io/address/0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1) |
+| Contract             | Address                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| MainnetDeployer      | [`0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C`](https://etherscan.io/address/0xd3Aa12B99892b7D95BBAA27AEf222A8E2a038C0C) |
+| TokenJar             | [`0xf38521f130fcCF29dB1961597bc5d2B60F995f85`](https://etherscan.io/address/0xf38521f130fcCF29dB1961597bc5d2B60F995f85) |
+| Releaser (Firepit)   | [`0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721`](https://etherscan.io/address/0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721) |
+| V3FeeAdapter         | [`0x5E74C9f42EEd283bFf3744fBD1889d398d40867d`](https://etherscan.io/address/0x5E74C9f42EEd283bFf3744fBD1889d398d40867d) |
+| V3OpenFeeAdapter     | [`0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`](https://etherscan.io/address/0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A) |
+| UNI Vesting          | [`0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2`](https://etherscan.io/address/0xCa046A83EDB78F74aE338bb5A291bF6FdAc9e1D2) |
+| Agreement Anchor 1   | [`0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8`](https://etherscan.io/address/0xC707467e7fb43Fe7Cc55264F892Dd2D7f8Fc27C8) |
+| Agreement Anchor 2   | [`0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd`](https://etherscan.io/address/0x33A56942Fe57f3697FE0fF52aB16cb0ba9b8eadd) |
+| Agreement Anchor 3   | [`0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1`](https://etherscan.io/address/0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1) |
+| Ntt Manager          | [`0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44`](https://etherscan.io/address/0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44) |
+| Wormhole Transceiver | [`0x7597C40Fd3df66b750C14ad4D90524e247499011`](https://etherscan.io/address/0x7597C40Fd3df66b750C14ad4D90524e247499011) |
 
 ### Unichain (Chain ID: 130)
 
@@ -311,6 +336,28 @@ Ethereum Mainnet
 | TokenJar                                  | [`0x9bD25e67bF390437C8fAF480AC735a27BcF6168c`](https://basescan.org/address/0x9bD25e67bF390437C8fAF480AC735a27BcF6168c) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0xFf77c0ED0B6b13A20446969107E5867abc46f53a`](https://basescan.org/address/0xFf77c0ED0B6b13A20446969107E5867abc46f53a) |
 | V3OpenFeeAdapter                          | [`0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1`](https://basescan.org/address/0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1) |
+
+### Polygon (Chain ID: 137)
+
+| Contract            | Address                                                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| syntheticNttUni     | [`0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822`](https://polygonscan.com/address/0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822) |
+| nttManager          | [`0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E`](https://polygonscan.com/address/0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E) |
+| wormholeTransceiver | [`0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716`](https://polygonscan.com/address/0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716) |
+| tokenJar            | [`0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A`](https://polygonscan.com/address/0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A) |
+| wormholeReleaser    | [`0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2`](https://polygonscan.com/address/0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2) |
+| v3OpenFeeAdapter    | [`0x3F07F08b45912dCd6691C5B9412975D5113B2910`](https://polygonscan.com/address/0x3F07F08b45912dCd6691C5B9412975D5113B2910) |
+
+### BNB Chain (Chain ID: 56)
+
+| Contract            | Address                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| syntheticNttUni     | [`0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822`](https://bscscan.com/address/0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822) |
+| nttManager          | [`0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E`](https://bscscan.com/address/0x9226AEb835487dD2ed6700A967A8AD25BEE1Dc0E) |
+| wormholeTransceiver | [`0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716`](https://bscscan.com/address/0xB89780a55d15CAcA4F5c8828b5B5cf95442C2716) |
+| tokenJar            | [`0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A`](https://bscscan.com/address/0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A) |
+| wormholeReleaser    | [`0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2`](https://bscscan.com/address/0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2) |
+| v3OpenFeeAdapter    | [`0x3F07F08b45912dCd6691C5B9412975D5113B2910`](https://bscscan.com/address/0x3F07F08b45912dCd6691C5B9412975D5113B2910) |
 
 ## Development
 

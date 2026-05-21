@@ -28,3 +28,6 @@
 [submodule "lib/dao-signer"]
 	path = lib/dao-signer
 	url = https://github.com/ScopeLift/dao-signer
+[submodule "lib/native-token-transfers"]
+	path = lib/native-token-transfers
+	url = https://github.com/wormhole-foundation/native-token-transfers
