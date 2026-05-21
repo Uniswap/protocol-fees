@@ -15,15 +15,6 @@ import {
 } from "./Interfaces.sol";
 import {BroadcastResolver, DeployAndConfigureWormohleInfraBroadcast} from "./BroadcastResolver.sol";
 
-// deployment paths from the latest contract run
-//
-// sine we can't know the bnb chain & polygon deployment addresses until scripts are run, we should
-// load them here instead, running some checks before proposing.
-string constant POLYGON_DEPLOY_PATH =
-  "broadcast/DeployAndConfigureFeeInfraPolygon.s.sol/137/run-latest.json";
-string constant BNB_DEPLOY_PATH =
-  "broadcast/DeployAndConfigureFeeInfraBNBChain.s.sol/56/run-latest.json";
-
 /// @title Activate L2's (Plus Celo Retry)
 contract ActivateL2Proposals is Script {
   /// @notice Proposal Action Data Type.
@@ -79,7 +70,7 @@ contract ActivateL2Proposals is Script {
 
   function _getActions(uint256 actionCount)
     internal
-    view
+    pure
     returns (ProposalAction[] memory actions)
   {
     actions = new ProposalAction[](actionCount);
@@ -288,7 +279,7 @@ contract ActivateL2Proposals is Script {
 
   function _loadDeployments()
     internal
-    view
+    pure
     returns (
       address bnbChainTokenJar,
       address bnbChainOpenV3FeeAdapter,
@@ -296,35 +287,9 @@ contract ActivateL2Proposals is Script {
       address polygonOpenV3FeeAdapter
     )
   {
-    /// forge-lint: disable-next-line(unsafe-cheatcode)
-    string memory bnbChainDeployJson = vm.readFile(BNB_DEPLOY_PATH);
-
-    DeployAndConfigureWormohleInfraBroadcast memory bnbInfra =
-      BroadcastResolver.getDeployAndConfigureWormholeInfra({
-        vm: vm, broadcastJson: bnbChainDeployJson, network: BroadcastResolver.Network.BNBChain
-      });
-
-    bnbChainTokenJar = bnbInfra.tokenJar;
-    bnbChainOpenV3FeeAdapter = bnbInfra.v3OpenFeeAdapter;
-
-    /// forge-lint: disable-next-line(unsafe-cheatcode)
-    string memory polygonDeployJson = vm.readFile(POLYGON_DEPLOY_PATH);
-
-    DeployAndConfigureWormohleInfraBroadcast memory polygonInfra =
-      BroadcastResolver.getDeployAndConfigureWormholeInfra({
-        vm: vm, broadcastJson: polygonDeployJson, network: BroadcastResolver.Network.Polygon
-      });
-
-    polygonTokenJar = polygonInfra.tokenJar;
-    polygonOpenV3FeeAdapter = polygonInfra.v3OpenFeeAdapter;
-
-    require(
-      keccak256(bytes(bnbChainDeployJson)) != keccak256(bytes(polygonDeployJson)),
-      "JSON files are the same"
-    );
-    require(bnbChainTokenJar != address(0x00), "bnbChainTokenJar is address(0x00)");
-    require(bnbChainOpenV3FeeAdapter != address(0x00), "bnbChainOpenV3FeeAdapter is address(0x00)");
-    require(polygonTokenJar != address(0x00), "polygonTokenJar is address(0x00)");
-    require(polygonOpenV3FeeAdapter != address(0x00), "polygonOpenV3FeeAdapter is address(0x00)");
+    bnbChainTokenJar = 0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A;
+    bnbChainOpenV3FeeAdapter = 0x3F07F08b45912dCd6691C5B9412975D5113B2910;
+    polygonTokenJar = 0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A;
+    polygonOpenV3FeeAdapter = 0x3F07F08b45912dCd6691C5B9412975D5113B2910;
   }
 }
