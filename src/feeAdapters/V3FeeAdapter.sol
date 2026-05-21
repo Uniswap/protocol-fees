@@ -7,7 +7,9 @@ import {IUniswapV3Factory} from "v3-core/contracts/interfaces/IUniswapV3Factory.
 import {
   IUniswapV3PoolOwnerActions
 } from "v3-core/contracts/interfaces/pool/IUniswapV3PoolOwnerActions.sol";
-import {MerkleProof} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import {
+  MerkleProof
+} from "../../lib/openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {IV3FeeAdapter} from "../interfaces/IV3FeeAdapter.sol";
 import {ArrayLib} from "../libraries/ArrayLib.sol";
 
