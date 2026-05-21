@@ -893,7 +893,7 @@ Polygon actions are to turn on fee collection for the V2 and V3 factories.
     - `V2_FACTORY.setFeeTo(TOKEN_JAR)`
     - `V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)`
 - Action 2 (Polygon):
-  - `POLYGON_FX_ROOT.sendMessageToChild(ETHEREUM_PROXY, abi.encode(targets, values, datas))`
+  - `POLYGON_FX_ROOT.sendMessageToChild(ETHEREUM_PROXY, abi.encode(targets, datas, values))`
   - encodes:
     - `V2_FACTORY.setFeeTo(TOKEN_JAR)`
     - `V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)`

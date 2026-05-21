@@ -109,7 +109,7 @@ string constant PROPOSAL_DESCRIPTION =
 "| POLYGON_FX_ROOT | Ethereum | 0xfe5e5D361b2ad62c541bAb87C45a0B9B018389a2 | Polygon's Sender (on Ethereum) |\n"
 "\n"
 "```\n"
-"POLYGON_FX_ROOT.sendMessageToChild(ETHEREUM_PROXY, abi.encode(targets, values, datas))\n"
+"POLYGON_FX_ROOT.sendMessageToChild(ETHEREUM_PROXY, abi.encode(targets, datas, values))\n"
 "encodes:\n"
 "V2_FACTORY.setFeeTo(TOKEN_JAR)\n"
 "V3_FACTORY.setOwner(V3_OPEN_FEE_ADAPTER)\n"
