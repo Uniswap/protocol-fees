@@ -15,7 +15,7 @@ source .env && anvil --rpc-url $MAINNET_RPC_URL --port $FORK_MAINNET_PORT
 Mainnet fork maps `CELO_RPC_URL` to `FORK_CELO_RPC_URL` on `FORK_CELO_PORT`.
 
 ```sh
-source .env && anvil --rpc-url $CELO_RPC_URL --port $FORK_MAINNET_PORT
+source .env && anvil --rpc-url $CELO_RPC_URL --port $FORK_CELO_PORT
 ```
 
 ## Terminal 2
