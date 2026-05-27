@@ -8,7 +8,14 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {LibBit} from "solady/src/utils/LibBit.sol";
-import {IV4FeePolicy, FlagRule, FeeBucket} from "../interfaces/IV4FeePolicy.sol";
+import {
+  IV4FeePolicy,
+  FlagRule,
+  FeeBucket,
+  HookFamilyAssignment,
+  PairClassFeeAssignment,
+  PairClassFeeClear
+} from "../interfaces/IV4FeePolicy.sol";
 import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 
 /// @title V4FeePolicy
@@ -172,8 +179,16 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function setHookFamily(address hook, uint8 familyId) external onlyFeeSetter {
-    hookFamilyId[hook] = familyId;
-    emit HookFamilySet(hook, familyId);
+    _setHookFamily(hook, familyId);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function batchSetHookFamily(HookFamilyAssignment[] calldata assignments) external onlyFeeSetter {
+    uint256 len = assignments.length;
+    for (uint256 i; i < len; ++i) {
+      HookFamilyAssignment calldata a = assignments[i];
+      _setHookFamily(a.hook, a.familyId);
+    }
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -264,6 +279,51 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint8 familyId,
     uint24 feeValue
   ) external onlyFeeSetter {
+    _setPairClassFee(currency0, currency1, familyId, feeValue);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function batchSetPairClassFee(PairClassFeeAssignment[] calldata assignments)
+    external
+    onlyFeeSetter
+  {
+    uint256 len = assignments.length;
+    for (uint256 i; i < len; ++i) {
+      PairClassFeeAssignment calldata a = assignments[i];
+      _setPairClassFee(a.currency0, a.currency1, a.familyId, a.feeValue);
+    }
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId)
+    external
+    onlyFeeSetter
+  {
+    _clearPairClassFee(currency0, currency1, familyId);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function batchClearPairClassFee(PairClassFeeClear[] calldata clears) external onlyFeeSetter {
+    uint256 len = clears.length;
+    for (uint256 i; i < len; ++i) {
+      PairClassFeeClear calldata c = clears[i];
+      _clearPairClassFee(c.currency0, c.currency1, c.familyId);
+    }
+  }
+
+  // ─── Internal ───
+
+  function _setHookFamily(address hook, uint8 familyId) internal {
+    hookFamilyId[hook] = familyId;
+    emit HookFamilySet(hook, familyId);
+  }
+
+  function _setPairClassFee(
+    Currency currency0,
+    Currency currency1,
+    uint8 familyId,
+    uint24 feeValue
+  ) internal {
     if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     if (feeValue != 0) _validateFee(feeValue);
     bytes32 ph = _pairHash(currency0, currency1);
@@ -272,18 +332,12 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     emit PairClassFeeUpdated(ph, familyId, stored);
   }
 
-  /// @inheritdoc IV4FeePolicy
-  function clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId)
-    external
-    onlyFeeSetter
-  {
+  function _clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId) internal {
     if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     bytes32 ph = _pairHash(currency0, currency1);
     delete pairClassFees[ph][familyId];
     emit PairClassFeeUpdated(ph, familyId, 0);
   }
-
-  // ─── Internal ───
 
   /// @dev Returns true if the hook address has any RETURNS_DELTA flag set (bits 0-3).
   function _isCustomAccounting(address hook) internal pure returns (bool) {

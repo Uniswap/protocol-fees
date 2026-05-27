@@ -32,6 +32,27 @@ struct FlagRule {
   uint8 familyId;
 }
 
+/// @dev Hook address and family for `batchSetHookFamily`.
+struct HookFamilyAssignment {
+  address hook;
+  uint8 familyId;
+}
+
+/// @dev Token pair, family slot, and fee for `batchSetPairClassFee`.
+struct PairClassFeeAssignment {
+  Currency currency0;
+  Currency currency1;
+  uint8 familyId;
+  uint24 feeValue;
+}
+
+/// @dev Token pair and family slot for `batchClearPairClassFee`.
+struct PairClassFeeClear {
+  Currency currency0;
+  Currency currency1;
+  uint8 familyId;
+}
+
 /// @title IV4FeePolicy
 /// @notice Interface for the V4 fee policy contract that computes protocol fees based on
 /// automated hook classification and governance-configured parameters.
@@ -229,6 +250,10 @@ interface IV4FeePolicy {
   /// @param familyId The family ID to assign (0 = unclassify).
   function setHookFamily(address hook, uint8 familyId) external;
 
+  /// @notice Assigns multiple hooks to families in one transaction.
+  /// @param assignments Hook/family pairs. Emits `HookFamilySet` per entry.
+  function batchSetHookFamily(HookFamilyAssignment[] calldata assignments) external;
+
   // --- Flag Rules (onlyFeeSetter) ---
 
   /// @notice Replaces the entire flag rules array atomically.
@@ -297,9 +322,17 @@ interface IV4FeePolicy {
     uint24 feeValue
   ) external;
 
+  /// @notice Sets multiple pair class fees in one transaction.
+  /// @param assignments Pair/family/fee tuples. Emits `PairClassFeeUpdated` per entry.
+  function batchSetPairClassFee(PairClassFeeAssignment[] calldata assignments) external;
+
   /// @notice Removes the pair class fee for a family slot.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   /// @param familyId The family slot to clear.
   function clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId) external;
+
+  /// @notice Clears multiple pair class fees in one transaction.
+  /// @param clears Pair/family slots to remove. Emits `PairClassFeeUpdated` with fee 0 per entry.
+  function batchClearPairClassFee(PairClassFeeClear[] calldata clears) external;
 }

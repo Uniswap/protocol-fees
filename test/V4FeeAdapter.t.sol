@@ -13,7 +13,13 @@ import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {FlagRule, FeeBucket} from "../src/interfaces/IV4FeePolicy.sol";
+import {
+  FlagRule,
+  FeeBucket,
+  HookFamilyAssignment,
+  PairClassFeeAssignment,
+  PairClassFeeClear
+} from "../src/interfaces/IV4FeePolicy.sol";
 import {HookFeeFlags} from "../src/libraries/HookFeeFlags.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
@@ -1184,6 +1190,22 @@ contract V4FeeAdapterTest is Test {
     policy.setHookFamily(address(1), 1);
   }
 
+  function test_batchSetHookFamily_success() public {
+    address hook0 = address(uint160(1 << 2));
+    address hook1 = address(uint160((1 << 7) | (1 << 2)));
+
+    HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+    assignments[0] = HookFamilyAssignment({hook: hook0, familyId: 1});
+    assignments[1] = HookFamilyAssignment({hook: hook1, familyId: 3});
+
+    vm.prank(feeSetter);
+    policy.batchSetHookFamily(assignments);
+    vm.snapshotGasLastCall("policy.batchSetHookFamily");
+
+    assertEq(policy.hookFamilyId(hook0), 1);
+    assertEq(policy.hookFamilyId(hook1), 3);
+  }
+
   function test_setDefaultFee_success() public {
     vm.expectEmit(false, false, false, true, address(policy));
     emit IV4FeePolicy.DefaultFeeUpdated(FEE_100);
@@ -1235,6 +1257,54 @@ contract V4FeeAdapterTest is Test {
     policy.setPairClassFee(
       standardKey.currency0, standardKey.currency1, 0, (1001 << 12) | 500
     );
+  }
+
+  function test_batchSetPairClassFee_success() public {
+    bytes32 ph = _pairHash();
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    PairClassFeeAssignment[] memory assignments = new PairClassFeeAssignment[](2);
+    assignments[0] = PairClassFeeAssignment({
+      currency0: standardKey.currency0,
+      currency1: standardKey.currency1,
+      familyId: nativeFamily,
+      feeValue: FEE_200
+    });
+    assignments[1] = PairClassFeeAssignment({
+      currency0: standardKey.currency0,
+      currency1: standardKey.currency1,
+      familyId: 1,
+      feeValue: FEE_300
+    });
+
+    vm.prank(feeSetter);
+    policy.batchSetPairClassFee(assignments);
+    vm.snapshotGasLastCall("policy.batchSetPairClassFee");
+
+    assertEq(policy.pairClassFees(ph, nativeFamily), FEE_200);
+    assertEq(policy.pairClassFees(ph, 1), FEE_300);
+  }
+
+  function test_batchClearPairClassFee_success() public {
+    bytes32 ph = _pairHash();
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_500);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, FEE_300);
+
+    PairClassFeeClear[] memory clears = new PairClassFeeClear[](2);
+    clears[0] =
+      PairClassFeeClear({currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: nativeFamily});
+    clears[1] =
+      PairClassFeeClear({currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: 1});
+
+    policy.batchClearPairClassFee(clears);
+    vm.snapshotGasLastCall("policy.batchClearPairClassFee");
+    vm.stopPrank();
+
+    assertEq(policy.pairClassFees(ph, nativeFamily), 0);
+    assertEq(policy.pairClassFees(ph, 1), 0);
   }
 
   // ============ Policy: Sentinel Encoding ============
