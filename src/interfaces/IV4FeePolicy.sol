@@ -35,13 +35,13 @@ struct FlagRule {
 /// @title IV4FeePolicy
 /// @notice Interface for the V4 fee policy contract that computes protocol fees based on
 /// automated hook classification and governance-configured parameters.
-/// @dev Hook family IDs are governance-assigned uint8 values (1-255). 0 = unclassified.
-/// Family IDs have no hardcoded semantic meaning — labels live in offchain documentation.
+/// @dev Hook family IDs are governance-assigned uint8 values (1-255). 0 = unclassified hook
+/// on the classified path. `NATIVE_MATH_FAMILY_ID` (0) in `pairClassFees` is a reserved
+/// slot for StaticNativeMath pair overrides only — not a classified hook family.
 /// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags();
 /// governance-configured flag rules map flag patterns to families automatically.
-/// Static NativeMath pools bypass classification and derive their protocol fee from a
-/// piecewise-linear schedule of fee buckets keyed by LP-fee floor (per-direction,
-/// clamped to MAX_PROTOCOL_FEE).
+/// Static NativeMath pools bypass hook classification and derive their protocol fee from
+/// `pairClassFees[pair][NATIVE_MATH_FAMILY_ID]` or a piecewise-linear fee-bucket schedule.
 /// Custom-accounting hooks and dynamic fee pools require classification (governance
 /// override, flag rule match, or defaultFee fallback).
 /// @custom:security-contact security@uniswap.org
@@ -57,11 +57,10 @@ interface IV4FeePolicy {
   /// @notice Thrown when familyId == 0 is passed to a function that requires > 0.
   error InvalidFamilyId();
 
-  /// @notice Thrown when a multiplier exceeds its allowed bound: `familyMultiplierPips`
-  /// > 1_000_000, or a fee bucket's `betaPips` > 1_000_000_000.
+  /// @notice Thrown when a fee bucket's `betaPips` exceeds 1_000_000_000.
   error MultiplierTooLarge();
 
-  /// @notice Thrown when currency0 >= currency1 in setPairFee.
+  /// @notice Thrown when currency0 >= currency1 in setPairClassFee.
   error CurrenciesOutOfOrder();
 
   /// @notice Thrown when a flag rule has requiredFlags == 0 or familyId == 0.
@@ -101,17 +100,14 @@ interface IV4FeePolicy {
   /// @param feeValue The new encoded default fee.
   event FamilyDefaultUpdated(uint8 indexed familyId, uint24 feeValue);
 
-  /// @notice Emitted when a family's multiplier is updated.
-  /// @param familyId The family whose multiplier was changed.
-  /// @param multiplierPips The new multiplier in pips (0 = removed, 1_000_000 = 100%).
-  event FamilyMultiplierUpdated(uint8 indexed familyId, uint24 multiplierPips);
-
-  /// @notice Emitted when a pair fee is updated.
+  /// @notice Emitted when a pair class fee is updated.
   /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
-  /// ZERO_FEE_SENTINEL = explicit zero fee.
+  /// ZERO_FEE_SENTINEL = explicit zero fee. `familyId` is `NATIVE_MATH_FAMILY_ID` for
+  /// StaticNativeMath pair overrides, or a classified family ID (1-255) otherwise.
   /// @param pairHash The canonical hash of the token pair.
-  /// @param feeValue The new encoded pair fee.
-  event PairFeeUpdated(bytes32 indexed pairHash, uint24 feeValue);
+  /// @param familyId The family slot that was changed.
+  /// @param feeValue The new encoded fee.
+  event PairClassFeeUpdated(bytes32 indexed pairHash, uint8 indexed familyId, uint24 feeValue);
 
   /// @notice Emitted when the fee buckets array is replaced.
   /// @param bucketCount The number of buckets in the new array.
@@ -135,6 +131,11 @@ interface IV4FeePolicy {
   /// @return The bitmask value (0xF).
   function CUSTOM_ACCOUNTING_MASK() external pure returns (uint160);
 
+  /// @notice Reserved `pairClassFees` family slot for StaticNativeMath pair overrides.
+  /// @dev Not a classified hook family. Distinct from `hookFamilyId == 0` (unclassified).
+  /// @return 0
+  function NATIVE_MATH_FAMILY_ID() external pure returns (uint8);
+
   // --- Immutables ---
 
   /// @notice The Uniswap V4 PoolManager this policy reads state from.
@@ -147,36 +148,29 @@ interface IV4FeePolicy {
   /// @return The current fee setter address.
   function feeSetter() external view returns (address);
 
-  /// @notice Fallback fee for all classified pools when no family-specific config applies.
+  /// @notice Fallback fee for classified pools when no family-specific config applies.
   /// @dev Also used for unclassified hooks (familyId == 0). Sentinel-encoded in storage.
   /// @return The sentinel-encoded default fee.
   function defaultFee() external view returns (uint24);
 
   /// @notice Returns the governance-assigned family ID for a hook.
-  /// @dev 0 = unclassified. StaticNativeMath pools bypass this entirely.
+  /// @dev 0 = unclassified on the classified path. StaticNativeMath pools do not use this.
   /// @param hook The hook address to query.
   /// @return The family ID (0-255).
   function hookFamilyId(address hook) external view returns (uint8);
 
   /// @notice Returns the default protocol fee for a given family ID.
-  /// @param familyId The family to query.
+  /// @param familyId The family to query (must be > 0 when set via admin).
   /// @return The sentinel-encoded default fee for the family.
   function familyDefaults(uint8 familyId) external view returns (uint24);
 
-  /// @notice Returns the multiplier (in pips) for a given family ID.
-  /// @dev 1_000_000 = 100% (1x), 500_000 = 50% (0.5x). Applied to pairFees to derive a
-  /// scaled fee on the classified path. Shares the same denominator
-  /// (MULTIPLIER_DENOMINATOR = 1_000_000) as the StaticNativeMath bucket schedule.
-  /// @param familyId The family to query.
-  /// @return The multiplier in pips (0 = not set).
-  function familyMultiplierPips(uint8 familyId) external view returns (uint24);
-
-  /// @notice Returns the pair fee for a token pair hash.
-  /// @dev Flat mapping — one fee per pair. StaticNativeMath uses it directly (overrides
-  /// the bucket schedule). Classified pools scale it by the family multiplier.
+  /// @notice Returns the pair class fee for a token pair and family slot.
+  /// @dev `familyId == NATIVE_MATH_FAMILY_ID` is the StaticNativeMath pair override.
+  /// Classified pools use family IDs 1-255. 0 in storage = not set.
   /// @param pairHash The canonical keccak256 hash of the sorted token pair.
-  /// @return The sentinel-encoded pair fee (0 = not set).
-  function pairFees(bytes32 pairHash) external view returns (uint24);
+  /// @param familyId The family slot to query.
+  /// @return The sentinel-encoded fee (0 = not set).
+  function pairClassFees(bytes32 pairHash, uint8 familyId) external view returns (uint24);
 
   /// @notice Returns the number of fee buckets configured.
   /// @return The count of fee buckets.
@@ -213,15 +207,9 @@ interface IV4FeePolicy {
   // --- Fee Computation ---
 
   /// @notice Computes the protocol fee for a pool.
-  /// @dev Three paths:
-  /// 1. StaticNativeMath (no return-delta flags, static fee): pair fee, or evaluate the
-  ///    fee-bucket schedule — find the bucket with the largest `lpFeeFloor <= key.fee`
-  ///    (snap to bucket 0 if `key.fee < floor_0`) and return
-  ///    `alpha + beta * (key.fee - floor) / 1_000_000` per direction (clamped to
-  ///    MAX_PROTOCOL_FEE, packed symmetrically).
-  /// 2. Dynamic fee NativeMath: requires governance familyId (Slot0.lpFee is unreliable).
-  /// 3. CustomAccounting (return-delta flags set): requires governance familyId.
-  /// Paths 2 and 3 fall through to defaultFee if unclassified.
+  /// @dev StaticNativeMath: `pairClassFees[pair][NATIVE_MATH_FAMILY_ID]` or fee buckets.
+  /// Classified: resolve family → `pairClassFees[pair][family]` → `familyDefaults[family]`
+  /// → `defaultFee`. Unclassified (family 0) → `defaultFee` only.
   /// Callable by anyone (no access control) for offchain tooling.
   /// @param key The pool key to compute the fee for.
   /// @return fee The computed protocol fee (two 12-bit directional components packed).
@@ -256,7 +244,7 @@ interface IV4FeePolicy {
 
   // --- Default Fee (onlyFeeSetter) ---
 
-  /// @notice Sets the fallback fee for all classified pools (including unclassified hooks).
+  /// @notice Sets the fallback fee for classified pools (including unclassified hooks).
   /// @dev Setting 0 sets an explicit zero fee. Use clearDefaultFee to remove entirely.
   /// @param feeValue The protocol fee to set. Must pass isValidProtocolFee if non-zero.
   function setDefaultFee(uint24 feeValue) external;
@@ -276,11 +264,10 @@ interface IV4FeePolicy {
   /// @param buckets The new fee buckets, ordered ascending by lpFeeFloor.
   function setFeeBuckets(FeeBucket[] calldata buckets) external;
 
-  /// @notice Removes all fee buckets. The StaticNativeMath path then returns 0 for any
-  /// pool that has no pair-fee override.
+  /// @notice Removes all fee buckets. StaticNativeMath returns 0 when no pair class fee is set.
   function clearFeeBuckets() external;
 
-  // --- Family Defaults & Multipliers (onlyFeeSetter) ---
+  // --- Family Defaults (onlyFeeSetter) ---
 
   /// @notice Sets the default protocol fee for a given family ID.
   /// @dev familyId must be > 0. Setting 0 sets explicit zero. Use clearFamilyDefault to
@@ -293,32 +280,26 @@ interface IV4FeePolicy {
   /// @param familyId The family to clear.
   function clearFamilyDefault(uint8 familyId) external;
 
-  /// @notice Sets a multiplier for a family, applied to pairFees on the classified path.
-  /// @dev familyId must be > 0. multiplierPips in pips (1_000_000 = 100% = 1x).
-  /// Reverts MultiplierTooLarge if `multiplierPips > 1_000_000`.
-  /// @param familyId The family to configure.
-  /// @param multiplierPips The multiplier in pips (max 1_000_000 = 100%).
-  function setFamilyMultiplier(uint8 familyId, uint24 multiplierPips) external;
+  // --- Pair Class Fees (onlyFeeSetter) ---
 
-  /// @notice Removes the multiplier for a family.
-  /// @param familyId The family to clear.
-  function clearFamilyMultiplier(uint8 familyId) external;
-
-  // --- Pair Fees (onlyFeeSetter) ---
-
-  /// @notice Sets the pair fee for a token pair.
-  /// @dev StaticNativeMath pools use this directly (overrides the fee buckets).
-  /// Classified pools scale it by familyMultiplierPips. If a nonzero pair fee scales to
-  /// zero because of integer truncation, the classified path falls through to the family
-  /// default. Setting 0 sets explicit zero and does not fall through. Use clearPairFee to
-  /// remove entirely.
+  /// @notice Sets the pair class fee for a token pair and family slot.
+  /// @dev Use `NATIVE_MATH_FAMILY_ID` for StaticNativeMath pair overrides (Path A).
+  /// Use family IDs 1-255 for classified pools (Path B). Setting 0 sets explicit zero
+  /// and does not fall through. Use clearPairClassFee to remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
-  /// @param feeValue The pair fee. Must pass isValidProtocolFee if non-zero.
-  function setPairFee(Currency currency0, Currency currency1, uint24 feeValue) external;
+  /// @param familyId The family slot (`NATIVE_MATH_FAMILY_ID` or 1-255).
+  /// @param feeValue The protocol fee. Must pass isValidProtocolFee if non-zero.
+  function setPairClassFee(
+    Currency currency0,
+    Currency currency1,
+    uint8 familyId,
+    uint24 feeValue
+  ) external;
 
-  /// @notice Removes the pair fee, falling through to the fee buckets.
+  /// @notice Removes the pair class fee for a family slot.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
-  function clearPairFee(Currency currency0, Currency currency1) external;
+  /// @param familyId The family slot to clear.
+  function clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId) external;
 }

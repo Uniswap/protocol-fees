@@ -125,7 +125,7 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
         │
         └──►  policy.computeFee(key)
                 │
-                ├── Path A: StaticNativeMath ──►  pairFees[pair]  OR
+                ├── Path A: StaticNativeMath ──►  pairClassFees[pair][NATIVE_MATH_FAMILY_ID]  OR
                 │                                 walk feeBuckets backward, find largest
                 │                                 lpFeeFloor <= key.fee (snap to bucket 0
                 │                                 if key.fee < floor_0); return
@@ -134,7 +134,7 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
                 └── Path B: Classified ────────►  familyId resolved from
                                                   hookFamilyId[hook]  OR  hook-reported flags
                                                   │
-                                                  └─►  pairFee × familyMultiplierPips  OR
+                                                  └─►  pairClassFees[pair][family]  OR
                                                        familyDefaults[family]          OR
                                                        defaultFee
 ```
@@ -143,7 +143,7 @@ A pool takes **Path A (StaticNativeMath)** when the hook has no `*_RETURNS_DELTA
 
 Path A's fee buckets are an ascending-by-`lpFeeFloor` array (max 16) of `(lpFeeFloor, alpha, beta)` triples. Each bucket's `alpha` is a flat per-direction base fee (≤ `MAX_PROTOCOL_FEE = 1000`), and `beta` is a slope in pips per pip of `(lpFee - floor)` (≤ 1_000_000_000). Setting `beta = 0` yields a pure step function; `alpha = 0` yields a slope-only multiplier; both nonzero yields a piecewise-linear curve. Continuity at boundaries is governance's responsibility — the contract does not enforce it. The lowest bucket's `alpha` doubles as a minimum-fee floor for very-low-LP-fee pools, since `key.fee < floor_0` snaps to bucket 0 with `delta = 0`.
 
-Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`). Family multipliers on Path B are capped at 100%; bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts setters that exceed their respective caps.
+Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`) for bucket slope math. Bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts bucket setters that exceed that cap. `NATIVE_MATH_FAMILY_ID` (0) in `pairClassFees` is reserved for StaticNativeMath pair overrides — distinct from `hookFamilyId == 0` (unclassified hook).
 
 `familyId` resolution for Path B:
 
@@ -151,12 +151,12 @@ Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1
 2. gas-capped staticcall to `hook.protocolFeeFlags()` (optional `IFeeClassifiedHook` interface) → walk governance-configured `flagRules` first-match-wins
 3. otherwise unclassified → falls through to `defaultFee`
 
-With a non-zero family, the policy returns `pairFees[ph] × familyMultiplierPips[family] / 1_000_000` if both are set and the scaled result is non-zero, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair fee still short-circuits to zero; only truncation-to-zero from a non-zero pair fee falls through.
+With a non-zero family, the policy returns `pairClassFees[ph][family]` if set, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair class fee still short-circuits to zero. Unclassified hooks (`family == 0`) use `defaultFee` only.
 
 Permissioned roles:
 
 - **owner** — swaps the policy, sets the fee-setter
-- **feeSetter** — configures pool overrides, pair fees, hook families, flag rules, family defaults/multipliers, the fee buckets, and `defaultFee`
+- **feeSetter** — configures pool overrides, pair class fees, hook families, flag rules, family defaults, the fee buckets, and `defaultFee`
 
 ### 3. Releasers
 

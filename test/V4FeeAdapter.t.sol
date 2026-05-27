@@ -613,15 +613,17 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(lowFeeKey), expected);
   }
 
-  function test_computeFee_staticNativeMath_pairFeeOverridesBuckets() public {
+  function test_computeFee_staticNativeMath_pairClassFeeOverridesBuckets() public {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
+    policy.setPairClassFee(
+      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
+    );
     vm.stopPrank();
 
-    // Pair fee should override the bucket-derived fee
+    // Native pair class fee should override the bucket-derived fee
     assertEq(policy.computeFee(standardKey), FEE_500);
-    vm.snapshotGasLastCall("policy.computeFee - static native math pair fee");
+    vm.snapshotGasLastCall("policy.computeFee - static native math pair class fee");
   }
 
   function test_computeFee_staticNativeMath_zeroBucketsReturnsZero() public view {
@@ -784,13 +786,15 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(k), (100 << 12) | 100);
   }
 
-  function test_computeFee_staticNativeMath_pairFeeBeatsBuckets() public {
+  function test_computeFee_staticNativeMath_pairClassFeeBeatsBuckets() public {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_bucketsConfigB());
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_200);
+    policy.setPairClassFee(
+      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_200
+    );
     vm.stopPrank();
 
-    // Pair fee wins over bucket-derived fee
+    // Native pair class fee wins over bucket-derived fee
     assertEq(policy.computeFee(standardKey), FEE_200);
   }
 
@@ -846,7 +850,7 @@ contract V4FeeAdapterTest is Test {
     vm.snapshotGasLastCall("policy.computeFee - classified family default");
   }
 
-  function test_computeFee_classified_pairFeeTimesMultiplier() public {
+  function test_computeFee_classified_pairClassFeeLiteral() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({
       currency0: Currency.wrap(address(token0)),
@@ -859,16 +863,14 @@ contract V4FeeAdapterTest is Test {
 
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
-    policy.setPairFee(customKey.currency0, customKey.currency1, FEE_200);
-    policy.setFamilyMultiplier(1, 500_000); // 50%
+    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_100);
     vm.stopPrank();
 
-    // FEE_200 = 200|200, multiplied by 50% = 100|100 = FEE_100
     assertEq(policy.computeFee(customKey), FEE_100);
-    vm.snapshotGasLastCall("policy.computeFee - classified pairFee * multiplier");
+    vm.snapshotGasLastCall("policy.computeFee - classified pair class fee");
   }
 
-  function test_computeFee_classified_roundingToZeroFallsBackToFamilyDefault() public {
+  function test_computeFee_classified_clearPairClassFeeFallsBackToFamilyDefault() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({
       currency0: Currency.wrap(address(token0)),
@@ -883,15 +885,42 @@ contract V4FeeAdapterTest is Test {
 
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
-    policy.setPairFee(customKey.currency0, customKey.currency1, FEE_100);
-    policy.setFamilyMultiplier(1, 9999);
+    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_100);
     policy.setFamilyDefault(1, fee50);
     vm.stopPrank();
+
+    assertEq(policy.computeFee(customKey), FEE_100);
+
+    vm.prank(feeSetter);
+    policy.clearPairClassFee(customKey.currency0, customKey.currency1, 1);
 
     assertEq(policy.computeFee(customKey), fee50);
   }
 
-  function test_computeFee_classified_explicitZeroPairFeeDoesNotFallBack() public {
+  function test_computeFee_classified_nativePairClassFeeDoesNotApply() public {
+    address customHook = address(uint160((1 << 7) | (1 << 2)));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    vm.startPrank(feeSetter);
+    policy.setPairClassFee(
+      customKey.currency0, customKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
+    );
+    policy.setHookFamily(customHook, 1);
+    policy.setFamilyDefault(1, FEE_200);
+    vm.stopPrank();
+
+    // NATIVE_MATH_FAMILY_ID slot is not read on the classified path
+    assertEq(policy.computeFee(customKey), FEE_200);
+  }
+
+  function test_computeFee_classified_explicitZeroPairClassFeeDoesNotFallBack() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({
       currency0: Currency.wrap(address(token0)),
@@ -904,15 +933,14 @@ contract V4FeeAdapterTest is Test {
 
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
-    policy.setPairFee(customKey.currency0, customKey.currency1, 0);
-    policy.setFamilyMultiplier(1, 500_000);
+    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, 0);
     policy.setFamilyDefault(1, FEE_200);
     vm.stopPrank();
 
     assertEq(policy.computeFee(customKey), 0);
   }
 
-  function test_computeFee_classified_pairFeeAtMaxMultiplier() public {
+  function test_computeFee_classified_pairClassFeeAtMax() public {
     address customHook = address(uint160((1 << 7) | (1 << 2)));
     PoolKey memory customKey = PoolKey({
       currency0: Currency.wrap(address(token0)),
@@ -925,12 +953,9 @@ contract V4FeeAdapterTest is Test {
 
     vm.startPrank(feeSetter);
     policy.setHookFamily(customHook, 1);
-    policy.setPairFee(customKey.currency0, customKey.currency1, FEE_1000);
-    policy.setFamilyMultiplier(1, 1_000_000); // 100% (1x) -- the new ceiling
+    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_1000);
     vm.stopPrank();
 
-    // FEE_1000 (1000|1000) * 1x = FEE_1000; setter validation guarantees the result
-    // can never exceed MAX_PROTOCOL_FEE per direction.
     assertEq(policy.computeFee(customKey), FEE_1000);
   }
 
@@ -1187,53 +1212,29 @@ contract V4FeeAdapterTest is Test {
     policy.setFamilyDefault(0, FEE_100);
   }
 
-  function test_setFamilyMultiplier_success() public {
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.FamilyMultiplierUpdated(2, 500_000);
-    vm.prank(feeSetter);
-    policy.setFamilyMultiplier(2, 500_000);
-    vm.snapshotGasLastCall("policy.setFamilyMultiplier");
-    assertEq(policy.familyMultiplierPips(2), 500_000);
-  }
-
-  function test_setFamilyMultiplier_revertsZeroFamily() public {
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    policy.setFamilyMultiplier(0, 100_000);
-  }
-
-  function test_setFamilyMultiplier_revertsTooLarge() public {
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.MultiplierTooLarge.selector);
-    policy.setFamilyMultiplier(1, 1_000_001);
-  }
-
-  function test_setFamilyMultiplier_acceptsBoundary() public {
-    vm.prank(feeSetter);
-    policy.setFamilyMultiplier(1, 1_000_000);
-    assertEq(policy.familyMultiplierPips(1), 1_000_000);
-  }
-
-  function test_setPairFee_success() public {
+  function test_setPairClassFee_success() public {
     bytes32 ph = _pairHash();
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.PairFeeUpdated(ph, FEE_200);
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    vm.expectEmit(true, true, false, true, address(policy));
+    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, FEE_200);
     vm.prank(feeSetter);
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_200);
-    vm.snapshotGasLastCall("policy.setPairFee");
-    assertEq(policy.pairFees(ph), FEE_200);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_200);
+    vm.snapshotGasLastCall("policy.setPairClassFee");
+    assertEq(policy.pairClassFees(ph, nativeFamily), FEE_200);
   }
 
-  function test_setPairFee_revertsCurrenciesOutOfOrder() public {
-    vm.prank(feeSetter);
+  function test_setPairClassFee_revertsCurrenciesOutOfOrder() public {
     vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
-    policy.setPairFee(standardKey.currency1, standardKey.currency0, FEE_200);
+    vm.prank(feeSetter);
+    policy.setPairClassFee(standardKey.currency1, standardKey.currency0, 0, FEE_200);
   }
 
-  function test_setPairFee_revertsInvalidFee() public {
-    vm.prank(feeSetter);
+  function test_setPairClassFee_revertsInvalidFee() public {
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, (1001 << 12) | 500);
+    vm.prank(feeSetter);
+    policy.setPairClassFee(
+      standardKey.currency0, standardKey.currency1, 0, (1001 << 12) | 500
+    );
   }
 
   // ============ Policy: Sentinel Encoding ============
@@ -1289,13 +1290,15 @@ contract V4FeeAdapterTest is Test {
     emit IV4FeePolicy.FamilyDefaultUpdated(1, 0);
     policy.clearFamilyDefault(1);
 
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.PairFeeUpdated(ph, type(uint24).max);
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, 0);
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
 
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.PairFeeUpdated(ph, 0);
-    policy.clearPairFee(standardKey.currency0, standardKey.currency1);
+    vm.expectEmit(true, true, false, true, address(policy));
+    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, type(uint24).max);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, 0);
+
+    vm.expectEmit(true, true, false, true, address(policy));
+    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, 0);
+    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily);
 
     vm.stopPrank();
   }
@@ -1339,36 +1342,27 @@ contract V4FeeAdapterTest is Test {
     vm.stopPrank();
   }
 
-  function test_clearFamilyMultiplier() public {
-    vm.startPrank(feeSetter);
-    policy.setFamilyMultiplier(1, 500_000);
-    assertEq(policy.familyMultiplierPips(1), 500_000);
-
-    policy.clearFamilyMultiplier(1);
-    assertEq(policy.familyMultiplierPips(1), 0);
-    vm.stopPrank();
-  }
-
-  function test_clearPairFee_fallsThroughToMultiplier() public {
+  function test_clearPairClassFee_fallsThroughToBuckets() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setPairFee(standardKey.currency0, standardKey.currency1, FEE_500);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_500);
     vm.stopPrank();
 
-    assertEq(policy.computeFee(standardKey), FEE_500); // pair fee wins
+    assertEq(policy.computeFee(standardKey), FEE_500); // pair class fee wins
 
     vm.prank(feeSetter);
-    policy.clearPairFee(standardKey.currency0, standardKey.currency1);
+    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily);
 
-    assertEq(policy.pairFees(_pairHash()), 0); // storage deleted
-    // Falls through to multiplier: 3000 * 100_000 / 1_000_000 = 300
+    assertEq(policy.pairClassFees(_pairHash(), nativeFamily), 0); // storage deleted
+    // Falls through to buckets: 3000 * 100_000 / 1_000_000 = 300
     assertEq(policy.computeFee(standardKey), FEE_300);
   }
 
-  function test_clearPairFee_revertsCurrenciesOutOfOrder() public {
-    vm.prank(feeSetter);
+  function test_clearPairClassFee_revertsCurrenciesOutOfOrder() public {
     vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
-    policy.clearPairFee(standardKey.currency1, standardKey.currency0);
+    vm.prank(feeSetter);
+    policy.clearPairClassFee(standardKey.currency1, standardKey.currency0, 0);
   }
 
   // ============ Integration: Full Waterfall ============
@@ -1389,14 +1383,16 @@ contract V4FeeAdapterTest is Test {
     policy.setDefaultFee(FEE_100);
     policy.setHookFamily(customHook, 1);
     policy.setFamilyDefault(1, FEE_200);
-    policy.setPairFee(customKey.currency0, customKey.currency1, FEE_300);
-    policy.setFamilyMultiplier(1, 1_000_000); // 1x
+    policy.setPairClassFee(
+      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
+    );
+    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_300);
     vm.stopPrank();
 
-    // StandardKey -> StaticNativeMath -> pair fee overrides multiplier -> FEE_300
-    assertEq(adapter.getFee(standardKey), FEE_300);
+    // StandardKey -> StaticNativeMath -> native pair class fee -> FEE_500
+    assertEq(adapter.getFee(standardKey), FEE_500);
 
-    // CustomKey -> Classified -> pair fee × multiplier -> FEE_300 × 1x = FEE_300
+    // CustomKey -> Classified -> pair class fee -> FEE_300
     assertEq(adapter.getFee(customKey), FEE_300);
 
     // Pool override beats everything
@@ -1779,7 +1775,7 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(key), FEE_200);
   }
 
-  function test_flagRule_withPairFeeAndMultiplier() public {
+  function test_flagRule_withPairClassFee() public {
     uint160 addrFlags = (1 << 7) | (1 << 2);
     address hookAddr = address(addrFlags);
     uint256 feeFlags = HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS;
@@ -1802,11 +1798,9 @@ contract V4FeeAdapterTest is Test {
 
     vm.startPrank(feeSetter);
     policy.setFlagRules(rules);
-    policy.setPairFee(key.currency0, key.currency1, FEE_200);
-    policy.setFamilyMultiplier(3, 500_000); // 50%
+    policy.setPairClassFee(key.currency0, key.currency1, 3, FEE_100);
     vm.stopPrank();
 
-    // FEE_200 (200|200) * 50% = (100|100) = FEE_100
     assertEq(policy.computeFee(key), FEE_100);
   }
 

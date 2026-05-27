@@ -192,18 +192,17 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(fee500, PROTO_FEE_100);
   }
 
-  // ============ Pair Fee Overrides Multiplier ============
+  // ============ Native Pair Class Fee Overrides Buckets ============
 
-  function test_pairFee_overridesMultiplier() public {
+  function test_nativePairClassFee_overridesBuckets() public {
     vm.startPrank(feeSetter);
-    // Any non-zero multiplier — pair fee should win regardless
     policy.setFeeBuckets(_singleBucketSlope(100_000));
-    policy.setPairFee(currency0, currency1, PROTO_FEE_300);
+    policy.setPairClassFee(currency0, currency1, policy.NATIVE_MATH_FAMILY_ID(), PROTO_FEE_300);
     vm.stopPrank();
 
     adapter.triggerFeeUpdate(pool3000);
 
-    // Pair fee takes precedence over the multiplier
+    // Native pair class fee takes precedence over the bucket schedule
     (,, uint24 fee,) = manager.getSlot0(pool3000.toId());
     assertEq(fee, PROTO_FEE_300);
   }
