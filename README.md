@@ -143,7 +143,7 @@ A pool takes **Path A (StaticNativeMath)** when the hook has no `*_RETURNS_DELTA
 
 Path A's fee buckets are an ascending-by-`lpFeeFloor` array (max 16) of `(lpFeeFloor, alpha, beta)` triples. Each bucket's `alpha` is a flat per-direction base fee (≤ `MAX_PROTOCOL_FEE = 1000`), and `beta` is a slope in pips per pip of `(lpFee - floor)` (≤ 1_000_000_000). Setting `beta = 0` yields a pure step function; `alpha = 0` yields a slope-only multiplier; both nonzero yields a piecewise-linear curve. Continuity at boundaries is governance's responsibility — the contract does not enforce it. The lowest bucket's `alpha` doubles as a minimum-fee floor for very-low-LP-fee pools, since `key.fee < floor_0` snaps to bucket 0 with `delta = 0`.
 
-Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`) for bucket slope math. Bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts bucket setters that exceed that cap. `NATIVE_MATH_FAMILY_ID` (0) in `pairClassFees` is reserved for StaticNativeMath pair overrides — distinct from `hookFamilyId == 0` (unclassified hook).
+Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`) for bucket slope math. Bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts bucket setters that exceed that cap. `NATIVE_MATH_FAMILY_ID` (255) in `pairClassFees` is reserved for native-math pair overrides. Governance families are 1-255; `hookFamilyId == 0` is unclassified.
 
 `familyId` resolution for Path B:
 
@@ -151,7 +151,7 @@ Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1
 2. gas-capped staticcall to `hook.protocolFeeFlags()` (optional `IFeeClassifiedHook` interface) → walk governance-configured `flagRules` first-match-wins
 3. otherwise unclassified → falls through to `defaultFee`
 
-With a non-zero family, the policy returns `pairClassFees[ph][family]` if set, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair class fee still short-circuits to zero. Unclassified hooks (`family == 0`) use `defaultFee` only.
+With a governance family (1-255), the policy returns `pairClassFees[ph][family]` if set, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair class fee still short-circuits to zero. Unclassified hooks (`family == 0`) use `defaultFee` only. Static pools resolve to `NATIVE_MATH_FAMILY_ID` (255) and use pair overrides or fee buckets.
 
 Permissioned roles:
 

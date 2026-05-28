@@ -56,9 +56,9 @@ struct PairClassFeeClear {
 /// @title IV4FeePolicy
 /// @notice Interface for the V4 fee policy contract that computes protocol fees based on
 /// automated hook classification and governance-configured parameters.
-/// @dev Hook family IDs are governance-assigned uint8 values (1-255). 0 = unclassified hook
-/// on the classified path. `NATIVE_MATH_FAMILY_ID` (0) in `pairClassFees` is a reserved
-/// slot for StaticNativeMath pair overrides only — not a classified hook family.
+/// @dev Governance hook family IDs are 1-255. 0 = unclassified. `NATIVE_MATH_FAMILY_ID`
+/// (255) is also used internally for native-math resolution on static pools; governance may
+/// reuse 255 for classified config when appropriate.
 /// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags();
 /// governance-configured flag rules map flag patterns to families automatically.
 /// Static NativeMath pools bypass hook classification and derive their protocol fee from
@@ -84,7 +84,7 @@ interface IV4FeePolicy {
   /// @notice Thrown when currency0 >= currency1 in setPairClassFee.
   error CurrenciesOutOfOrder();
 
-  /// @notice Thrown when a flag rule has requiredFlags == 0 or familyId == 0.
+  /// @notice Thrown when a flag rule has requiredFlags == 0 or a non-governance familyId.
   error InvalidFlagRule();
 
   /// @notice Thrown when flag rules exceed the maximum allowed count.
@@ -124,7 +124,7 @@ interface IV4FeePolicy {
   /// @notice Emitted when a pair class fee is updated.
   /// @dev `feeValue` is the encoded storage value: 0 = removed/unset,
   /// ZERO_FEE_SENTINEL = explicit zero fee. `familyId` is `NATIVE_MATH_FAMILY_ID` for
-  /// StaticNativeMath pair overrides, or a classified family ID (1-255) otherwise.
+  /// native-math pair overrides, or a governance family ID (1-255) otherwise.
   /// @param pairHash The canonical hash of the token pair.
   /// @param familyId The family slot that was changed.
   /// @param feeValue The new encoded fee.
@@ -152,10 +152,15 @@ interface IV4FeePolicy {
   /// @return The bitmask value (0xF).
   function CUSTOM_ACCOUNTING_MASK() external pure returns (uint160);
 
-  /// @notice Reserved `pairClassFees` family slot for StaticNativeMath pair overrides.
-  /// @dev Not a classified hook family. Distinct from `hookFamilyId == 0` (unclassified).
-  /// @return 0
+  /// @notice Reserved `pairClassFees` family slot for native-math pair overrides.
+  /// @dev Not assignable as a governance hook family. Distinct from `hookFamilyId == 0`.
+  /// @return 0xFF (255 == `type(uint8).max`).
   function NATIVE_MATH_FAMILY_ID() external pure returns (uint8);
+
+  /// @notice Reserved `pairClassFees` family slot for unclassified hooks.
+  /// @dev Not assignable as a governance hook family. Distinct from `NATIVE_MATH_FAMILY_ID`.
+  /// @return 0 (unclassified).
+  function UNCLASSIFIED_FAMILY_ID() external pure returns (uint8);
 
   // --- Immutables ---
 
@@ -187,7 +192,8 @@ interface IV4FeePolicy {
 
   /// @notice Returns the pair class fee for a token pair and family slot.
   /// @dev `familyId == NATIVE_MATH_FAMILY_ID` is the StaticNativeMath pair override.
-  /// Classified pools use family IDs 1-255. 0 in storage = not set.
+  /// Governance families use IDs 1-255; `NATIVE_MATH_FAMILY_ID` is the native-math slot.
+  /// 0 in storage = not set.
   /// @param pairHash The canonical keccak256 hash of the sorted token pair.
   /// @param familyId The family slot to query.
   /// @return The sentinel-encoded fee (0 = not set).
@@ -228,9 +234,9 @@ interface IV4FeePolicy {
   // --- Fee Computation ---
 
   /// @notice Computes the protocol fee for a pool.
-  /// @dev StaticNativeMath: `pairClassFees[pair][NATIVE_MATH_FAMILY_ID]` or fee buckets.
-  /// Classified: resolve family → `pairClassFees[pair][family]` → `familyDefaults[family]`
-  /// → `defaultFee`. Unclassified (family 0) → `defaultFee` only.
+  /// @dev Resolve family, then: native math (`NATIVE_MATH_FAMILY_ID` on static pools) →
+  /// `pairClassFees[pair][family]` → `familyDefaults[family]` → `defaultFee`.
+  /// Unclassified custom-accounting / dynamic-fee pools (`family == 0`) → `defaultFee` only.
   /// Callable by anyone (no access control) for offchain tooling.
   /// @param key The pool key to compute the fee for.
   /// @return fee The computed protocol fee (two 12-bit directional components packed).
@@ -295,8 +301,8 @@ interface IV4FeePolicy {
   // --- Family Defaults (onlyFeeSetter) ---
 
   /// @notice Sets the default protocol fee for a given family ID.
-  /// @dev familyId must be > 0. Setting 0 sets explicit zero. Use clearFamilyDefault to
-  /// remove entirely.
+  /// @dev familyId must be > 0. Setting fee 0 sets explicit zero.
+  /// Use clearFamilyDefault to remove entirely.
   /// @param familyId The family to configure.
   /// @param feeValue The default fee. Must pass isValidProtocolFee if non-zero.
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external;
@@ -308,19 +314,15 @@ interface IV4FeePolicy {
   // --- Pair Class Fees (onlyFeeSetter) ---
 
   /// @notice Sets the pair class fee for a token pair and family slot.
-  /// @dev Use `NATIVE_MATH_FAMILY_ID` for StaticNativeMath pair overrides (Path A).
-  /// Use family IDs 1-255 for classified pools (Path B). Setting 0 sets explicit zero
-  /// and does not fall through. Use clearPairClassFee to remove entirely.
+  /// @dev Use `NATIVE_MATH_FAMILY_ID` for native-math pair overrides, or 1-255 for
+  /// governance families. Setting fee 0 sets explicit zero and does not fall through.
+  /// Use clearPairClassFee to remove entirely.
   /// @param currency0 The lower currency of the pair (must be < currency1).
   /// @param currency1 The higher currency of the pair.
   /// @param familyId The family slot (`NATIVE_MATH_FAMILY_ID` or 1-255).
   /// @param feeValue The protocol fee. Must pass isValidProtocolFee if non-zero.
-  function setPairClassFee(
-    Currency currency0,
-    Currency currency1,
-    uint8 familyId,
-    uint24 feeValue
-  ) external;
+  function setPairClassFee(Currency currency0, Currency currency1, uint8 familyId, uint24 feeValue)
+    external;
 
   /// @notice Sets multiple pair class fees in one transaction.
   /// @param assignments Pair/family/fee tuples. Emits `PairClassFeeUpdated` per entry.

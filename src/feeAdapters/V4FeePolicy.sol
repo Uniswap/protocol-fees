@@ -21,21 +21,23 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// @title V4FeePolicy
 /// @notice Computes protocol fees for Uniswap V4 pools using automated hook classification
 /// and a piecewise-linear schedule of fee buckets.
-/// @dev Pools are classified into two paths:
-/// - StaticNativeMath: no RETURNS_DELTA flags and static fee →
-///   `pairClassFees[pair][NATIVE_MATH_FAMILY_ID]`, else evaluate the fee-bucket schedule.
-/// - Classified: custom accounting or dynamic fee → resolve family, then
-///   `pairClassFees[pair][family]` → `familyDefaults[family]` → `defaultFee`.
-/// Hook classification is automated from address bits 0-3 (RETURNS_DELTA flags).
-/// Hooks can self-report behavioral flags via IFeeClassifiedHook.protocolFeeFlags().
-/// Governance-configured flag rules map flag patterns to families automatically.
-/// Priority: governance override → flag-rule match on self-reported flags → defaultFee.
+/// @dev Fee resolution: resolve a family ID, then apply family-specific logic.
+/// - `NATIVE_MATH_FAMILY_ID` (255) on static pools (no RETURNS_DELTA, static LP fee):
+///   `pairClassFees[pair][255]` or the fee-bucket schedule.
+/// - Governance families (1-255): `pairClassFees[pair][family]` → `familyDefaults[family]`
+///   → `defaultFee`.
+/// - Unclassified custom-accounting / dynamic-fee pools (`family == 0`): `defaultFee` only.
+/// Family resolution: governance `hookFamilyId` → static pools default to native math →
+/// hook `protocolFeeFlags()` matched against flag rules → unclassified (0).
 /// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
 
   /// @inheritdoc IV4FeePolicy
-  uint8 public constant NATIVE_MATH_FAMILY_ID = 0;
+  uint8 public constant NATIVE_MATH_FAMILY_ID = 0xFF;
+
+  /// @inheritdoc IV4FeePolicy
+  uint8 public constant UNCLASSIFIED_FAMILY_ID = 0;
 
   /// @dev Bitmask for the four RETURNS_DELTA flags (bits 0-3 of hook address).
   uint160 public constant CUSTOM_ACCOUNTING_MASK = 0xF;
@@ -79,9 +81,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @inheritdoc IV4FeePolicy
   mapping(bytes32 pairHash => mapping(uint8 familyId => uint24)) public pairClassFees;
 
-  /// @dev Ordered fee buckets for the StaticNativeMath path. Ascending by
-  /// `lpFeeFloor`. Set atomically via `setFeeBuckets`. Empty array → Path A returns 0
-  /// when no native pair class fee override exists.
+  /// @dev Ordered fee buckets for native-math pools. Ascending by `lpFeeFloor`. Set
+  /// atomically via `setFeeBuckets`. Empty array → native math returns 0 when no pair
+  /// class fee override exists.
   FeeBucket[] internal _feeBuckets;
 
   /// @dev Maximum number of flag rules to bound gas in _resolveFamily.
@@ -114,26 +116,24 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function computeFee(PoolKey calldata key) external view returns (uint24) {
-    address hook = address(key.hooks);
     bytes32 ph = _pairHash(key.currency0, key.currency1);
+    uint8 family = _resolveFamily(key);
 
-    // StaticNativeMath: no custom accounting + static fee
-    if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) {
-      uint24 stored = pairClassFees[ph][NATIVE_MATH_FAMILY_ID];
-      if (stored != 0) return _decodeFee(stored);
-      return _computeStaticNativeMathFee(key.fee);
-    }
+    // Unclassified: use defaultFee.
+    if (family == UNCLASSIFIED_FAMILY_ID) return _decodeFee(defaultFee);
 
-    // Classified: custom accounting OR dynamic fee
-    uint8 family = _resolveFamily(hook);
-    if (family == 0) return _decodeFee(defaultFee);
+    // Explicitly set family: check for pairClassFees first.
+    uint24 stored = pairClassFees[ph][family];
+    if (stored != 0) return _decodeFee(stored);
 
-    uint24 pairStored = pairClassFees[ph][family];
-    if (pairStored != 0) return _decodeFee(pairStored);
+    // Native math: use fee buckets.
+    if (family == NATIVE_MATH_FAMILY_ID) return _computeStaticNativeMathFee(key.fee);
 
+    // Fall through to familyDefaults.
     uint24 famDefault = familyDefaults[family];
     if (famDefault != 0) return _decodeFee(famDefault);
 
+    // Fall through to defaultFee.
     return _decodeFee(defaultFee);
   }
 
@@ -273,12 +273,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setPairClassFee(
-    Currency currency0,
-    Currency currency1,
-    uint8 familyId,
-    uint24 feeValue
-  ) external onlyFeeSetter {
+  function setPairClassFee(Currency currency0, Currency currency1, uint8 familyId, uint24 feeValue)
+    external
+    onlyFeeSetter
+  {
     _setPairClassFee(currency0, currency1, familyId, feeValue);
   }
 
@@ -318,12 +316,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     emit HookFamilySet(hook, familyId);
   }
 
-  function _setPairClassFee(
-    Currency currency0,
-    Currency currency1,
-    uint8 familyId,
-    uint24 feeValue
-  ) internal {
+  function _setPairClassFee(Currency currency0, Currency currency1, uint8 familyId, uint24 feeValue)
+    internal
+  {
     if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     if (feeValue != 0) _validateFee(feeValue);
     bytes32 ph = _pairHash(currency0, currency1);
@@ -344,10 +339,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     return uint160(hook) & CUSTOM_ACCOUNTING_MASK != 0;
   }
 
-  /// @dev Resolves the family ID for a hook: governance override, then flag rules.
-  function _resolveFamily(address hook) internal view returns (uint8) {
+  /// @dev Resolves the family ID for a pool: governance override, native math default for
+  /// static pools, then flag rules, then unclassified (0).
+  function _resolveFamily(PoolKey calldata key) internal view returns (uint8) {
+    address hook = address(key.hooks);
     uint8 gov = hookFamilyId[hook];
     if (gov != 0) return gov;
+
+    if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) return NATIVE_MATH_FAMILY_ID;
 
     uint256 rulesLen = _flagRules.length;
     if (rulesLen == 0) return 0;

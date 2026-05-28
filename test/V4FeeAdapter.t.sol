@@ -644,6 +644,255 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(hookKey), FEE_300);
   }
 
+  function test_computeFee_staticNativeMath_governanceFamilyUsesClassifiedWaterfall() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), 1);
+    policy.setFamilyDefault(1, FEE_200);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(hookKey), FEE_200);
+  }
+
+  function test_familyIdConstants_nativeMath255UnclassifiedZero() public view {
+    assertEq(policy.NATIVE_MATH_FAMILY_ID(), 0xFF);
+    assertEq(policy.UNCLASSIFIED_FAMILY_ID(), 0);
+  }
+
+  function test_computeFee_unclassifiedCustomAccounting_ignoresNativeMathBuckets() public {
+    address customHook = address(uint160(1 << 2));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    // family 0 (unclassified) must not read fee buckets
+    assertEq(policy.computeFee(customKey), FEE_100);
+  }
+
+  function test_computeFee_staticHook_governanceFamily255_skipsFamilyDefaultUsesBuckets() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
+    policy.setFamilyDefault(nativeFamily, FEE_500);
+    vm.stopPrank();
+
+    // family 255 uses native-math branch, not familyDefaults[255]
+    assertEq(policy.computeFee(hookKey), FEE_300);
+  }
+
+  function test_computeFee_staticHook_governanceFamily255_pairClassFeeOverridesBuckets() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
+    policy.setPairClassFee(
+      hookKey.currency0, hookKey.currency1, nativeFamily, FEE_200
+    );
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(hookKey), FEE_200);
+  }
+
+  function test_computeFee_staticHook_governanceFamily255_explicitZeroPairClassFee() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
+    policy.setPairClassFee(hookKey.currency0, hookKey.currency1, nativeFamily, 0);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(hookKey), 0);
+  }
+
+  function test_computeFee_staticHook_governanceFamilyZeroExemptViaFamilyDefault() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), 1);
+    policy.setFamilyDefault(1, 0);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(hookKey), 0);
+  }
+
+  function test_setHookFamily_and_setFamilyDefault_acceptsFamily255() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
+    policy.setFamilyDefault(nativeFamily, FEE_100);
+    vm.stopPrank();
+
+    assertEq(policy.hookFamilyId(address(hookKey.hooks)), nativeFamily);
+    assertEq(policy.familyDefaults(nativeFamily), FEE_100);
+  }
+
+  // ============ Unified resolution regression ============
+
+  function test_computeFee_dynamicFee_unclassified_ignoresNativeMathBuckets() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_100);
+  }
+
+  function test_computeFee_dynamicFee_governancePairClassFeeBeatsFamilyDefault() public {
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(0), 2);
+    policy.setFamilyDefault(2, FEE_300);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 2, FEE_100);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_100);
+  }
+
+  function test_computeFee_dynamicFee_governanceFamilyDefaultWhenNoPairFee() public {
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(0), 2);
+    policy.setFamilyDefault(2, FEE_300);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_300);
+  }
+
+  function test_computeFee_clearHookFamily_restoresNativeMathBuckets() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(address(hookKey.hooks), 1);
+    policy.setFamilyDefault(1, FEE_200);
+    policy.setHookFamily(address(hookKey.hooks), 0);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(hookKey), FEE_300);
+  }
+
+  function test_computeFee_classified_noFamilyConfigFallsToDefaultFee() public {
+    address customHook = address(uint160(1 << 2));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    vm.startPrank(feeSetter);
+    policy.setDefaultFee(FEE_100);
+    policy.setHookFamily(customHook, 4);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(customKey), FEE_100);
+  }
+
+  function test_computeFee_flagRule_family255_usesNativeMathBranchNotFamilyDefault() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(HookFeeFlags.STABLE_PAIR);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: nativeFamily});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setFamilyDefault(nativeFamily, FEE_500);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(key), FEE_300);
+  }
+
+  function test_computeFee_flagRule_family255_pairClassFeeOverridesBuckets() public {
+    uint160 addrFlags = (1 << 7) | (1 << 2);
+    address hookAddr = address(addrFlags);
+    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(HookFeeFlags.STABLE_PAIR);
+    vm.etch(hookAddr, address(impl).code);
+
+    PoolKey memory key = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(hookAddr)
+    });
+    poolManager.mockInitialize(key);
+
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    FlagRule[] memory rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: nativeFamily});
+
+    vm.startPrank(feeSetter);
+    policy.setFlagRules(rules);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setPairClassFee(key.currency0, key.currency1, nativeFamily, FEE_200);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(key), FEE_200);
+  }
+
+  function test_computeFee_governanceFamily255_onCustomAccounting_usesNativeMathBranch() public {
+    address customHook = address(uint160((1 << 7) | (1 << 2)));
+    PoolKey memory customKey = PoolKey({
+      currency0: Currency.wrap(address(token0)),
+      currency1: Currency.wrap(address(token1)),
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(customHook)
+    });
+    poolManager.mockInitialize(customKey);
+
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookFamily(customHook, nativeFamily);
+    policy.setFamilyDefault(nativeFamily, FEE_500);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(customKey), FEE_300);
+  }
+
+  function test_computeFee_standardKey_autoNativeFamily_usesBucketsWithoutGovernance() public view {
+    // address(0) hook + static fee resolves to NATIVE_MATH_FAMILY_ID internally
+    assertEq(policy.computeFee(standardKey), 0);
+  }
+
+  function test_computeFee_unclassifiedDynamicFee_notConfusedWithNativeFamily255() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setFamilyDefault(policy.NATIVE_MATH_FAMILY_ID(), FEE_500);
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_100);
+  }
+
   // ============ Policy: computeFee bucket math ============
 
   function test_computeFee_staticNativeMath_singleBucketFlat() public {
@@ -1248,15 +1497,13 @@ contract V4FeeAdapterTest is Test {
   function test_setPairClassFee_revertsCurrenciesOutOfOrder() public {
     vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
     vm.prank(feeSetter);
-    policy.setPairClassFee(standardKey.currency1, standardKey.currency0, 0, FEE_200);
+    policy.setPairClassFee(standardKey.currency1, standardKey.currency0, 1, FEE_200);
   }
 
   function test_setPairClassFee_revertsInvalidFee() public {
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
     vm.prank(feeSetter);
-    policy.setPairClassFee(
-      standardKey.currency0, standardKey.currency1, 0, (1001 << 12) | 500
-    );
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, (1001 << 12) | 500);
   }
 
   function test_batchSetPairClassFee_success() public {
@@ -1294,10 +1541,12 @@ contract V4FeeAdapterTest is Test {
     policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, FEE_300);
 
     PairClassFeeClear[] memory clears = new PairClassFeeClear[](2);
-    clears[0] =
-      PairClassFeeClear({currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: nativeFamily});
-    clears[1] =
-      PairClassFeeClear({currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: 1});
+    clears[0] = PairClassFeeClear({
+      currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: nativeFamily
+    });
+    clears[1] = PairClassFeeClear({
+      currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: 1
+    });
 
     policy.batchClearPairClassFee(clears);
     vm.snapshotGasLastCall("policy.batchClearPairClassFee");

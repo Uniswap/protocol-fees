@@ -11,6 +11,7 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {ModifyLiquidityParams, SwapParams} from "v4-core/types/PoolOperation.sol";
@@ -94,6 +95,69 @@ contract V4FeeAdapterForkTest is Deployers {
   function _singleBucketSlope(uint32 betaPips) internal pure returns (FeeBucket[] memory bs) {
     bs = new FeeBucket[](1);
     bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
+  }
+
+  // ============ Unified resolution regression (deployed policy) ============
+
+  function test_policy_familyIdConstants() public view {
+    assertEq(policy.NATIVE_MATH_FAMILY_ID(), 0xFF);
+    assertEq(policy.UNCLASSIFIED_FAMILY_ID(), 0);
+  }
+
+  function test_policy_dynamicFee_governancePairClassFee() public {
+    PoolKey memory dynamicPool = PoolKey({
+      currency0: currency0,
+      currency1: currency1,
+      fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+      tickSpacing: 60,
+      hooks: IHooks(address(0))
+    });
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(0), 2);
+    policy.setPairClassFee(currency0, currency1, 2, PROTO_FEE_100);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicPool), PROTO_FEE_100);
+  }
+
+  function test_policy_staticPool_governanceOptIn_classifiedFamilyDefault() public {
+    PoolKey memory staticHookPool = PoolKey({
+      currency0: currency0,
+      currency1: currency1,
+      fee: 3000,
+      tickSpacing: 60,
+      hooks: IHooks(address(uint160(1 << 7)))
+    });
+
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    policy.setHookFamily(address(staticHookPool.hooks), 1);
+    policy.setFamilyDefault(1, PROTO_FEE_200);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(staticHookPool), PROTO_FEE_200);
+  }
+
+  function test_fork_governanceStaticHook_optIn_triggersClassifiedFeeOnManager() public {
+    IHooks hook = IHooks(address(uint160(1 << 7)));
+    PoolKey memory staticHookPool;
+    (staticHookPool,) = initPool(currency0, currency1, hook, 3000, 60, SQRT_PRICE_1_1);
+    modifyLiquidityRouter.modifyLiquidity(
+      staticHookPool,
+      ModifyLiquidityParams({tickLower: -120, tickUpper: 120, liquidityDelta: 10e18, salt: 0}),
+      ZERO_BYTES
+    );
+
+    vm.startPrank(feeSetter);
+    policy.setHookFamily(address(staticHookPool.hooks), 1);
+    policy.setFamilyDefault(1, PROTO_FEE_200);
+    vm.stopPrank();
+
+    adapter.triggerFeeUpdate(staticHookPool);
+
+    (,, uint24 fee,) = manager.getSlot0(staticHookPool.toId());
+    assertEq(fee, PROTO_FEE_200);
   }
 
   // ============ End-to-End: Set Fee -> Swap -> Accrue -> Collect ============
