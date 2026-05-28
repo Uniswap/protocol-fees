@@ -114,9 +114,11 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 
 - `V4FeeAdapter` registered with the PoolManager as `protocolFeeController`; permissionless `triggerFeeUpdate` and `collect` calls push resolved fees to the PoolManager and route accrued revenue to the TokenJar
 - Fee resolution is split between a thin, long-lived adapter and a replaceable `V4FeePolicy`, so governance can iterate on fee strategy without re-handing PoolManager privileges
-- Piecewise-linear protocol fee schedule (per-bucket `alpha + beta × delta` over LP fee) for vanilla pools; family-based classification for hook-using and dynamic-fee pools (see [V4 Fee Resolution](#v4-fee-resolution))
+- Piecewise-linear protocol fee schedule for vanilla/static pools; family-based fees for classified hooks and dynamic-fee pools (see [V4 Fee Resolution](#v4-fee-resolution) and the [governance operator guide](docs/V4FeePolicy-governance-guide.md))
 
 #### V4 Fee Resolution
+
+**Operator guide:** [docs/V4FeePolicy-governance-guide.md](docs/V4FeePolicy-governance-guide.md) — use cases, recipes, and footguns.
 
 The adapter checks for a per-pool override first, then delegates to the policy:
 
@@ -125,33 +127,24 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
         │
         └──►  policy.computeFee(key)
                 │
-                ├── Path A: StaticNativeMath ──►  pairClassFees[pair][NATIVE_MATH_FAMILY_ID]  OR
-                │                                 walk feeBuckets backward, find largest
-                │                                 lpFeeFloor <= key.fee (snap to bucket 0
-                │                                 if key.fee < floor_0); return
-                │                                 alpha + beta × (key.fee - floor) / 1_000_000
+                ├── resolve family (_resolveFamily)
+                │      hookFamilyId[hook]  →  else static pool → 255 (native math)
+                │      else protocolFeeFlags + flagRules  →  else 0 (unclassified)
                 │
-                └── Path B: Classified ────────►  familyId resolved from
-                                                  hookFamilyId[hook]  OR  hook-reported flags
-                                                  │
-                                                  └─►  pairClassFees[pair][family]  OR
-                                                       familyDefaults[family]          OR
-                                                       defaultFee
+                └── apply fee for family
+                       0 (unclassified)     →  defaultFee
+                       pairClassFees[pair][family]  (if set)
+                       255 (native math)      →  fee buckets from key.fee
+                       1–255 (classified)   →  familyDefaults[family]  →  defaultFee
 ```
 
-A pool takes **Path A (StaticNativeMath)** when the hook has no `*_RETURNS_DELTA` flags *and* the LP fee is static (`key.fee != 0x800000`), and **Path B (Classified)** otherwise (custom-accounting hook *or* dynamic-fee pool). `key.fee` is unreliable on Path B because dynamic fees can change every swap, and custom-accounting hooks can rewrite swap deltas, so the bucket schedule doesn't apply there.
+**Native math (family 255):** pools with no `*_RETURNS_DELTA` hook bits and static LP fee (`key.fee != 0x800000`). Fee = `pairClassFees[pair][255]` if set, else piecewise-linear **fee buckets** (`alpha + beta × (lpFee - floor) / 1_000_000`, max 16 buckets).
 
-Path A's fee buckets are an ascending-by-`lpFeeFloor` array (max 16) of `(lpFeeFloor, alpha, beta)` triples. Each bucket's `alpha` is a flat per-direction base fee (≤ `MAX_PROTOCOL_FEE = 1000`), and `beta` is a slope in pips per pip of `(lpFee - floor)` (≤ 1_000_000_000). Setting `beta = 0` yields a pure step function; `alpha = 0` yields a slope-only multiplier; both nonzero yields a piecewise-linear curve. Continuity at boundaries is governance's responsibility — the contract does not enforce it. The lowest bucket's `alpha` doubles as a minimum-fee floor for very-low-LP-fee pools, since `key.fee < floor_0` snaps to bucket 0 with `delta = 0`.
+**Classified (families 1–255 via governance):** custom-accounting hooks, dynamic-fee pools, or any hook with `setHookFamily`. Waterfall: `pairClassFees` → `familyDefaults` → `defaultFee`. `key.fee` is not used for bucket math on these pools.
 
-Both paths share one denominator (`MULTIPLIER_DENOMINATOR = 1_000_000`, where `1_000_000 = 100%`) for bucket slope math. Bucket `betaPips` on Path A are capped at 1_000_000_000 (above which the per-direction `MAX_PROTOCOL_FEE = 1000` clamp always saturates). `MultiplierTooLarge` reverts bucket setters that exceed that cap. `NATIVE_MATH_FAMILY_ID` (255) in `pairClassFees` is reserved for native-math pair overrides. Governance families are 1-255; `hookFamilyId == 0` is unclassified.
+**Unclassified (family 0):** `defaultFee` only (no buckets, no family defaults).
 
-`familyId` resolution for Path B:
-
-1. `hookFamilyId[hook]` (governance override) — wins if non-zero
-2. gas-capped staticcall to `hook.protocolFeeFlags()` (optional `IFeeClassifiedHook` interface) → walk governance-configured `flagRules` first-match-wins
-3. otherwise unclassified → falls through to `defaultFee`
-
-With a governance family (1-255), the policy returns `pairClassFees[ph][family]` if set, else `familyDefaults[family]`, else falls through to `defaultFee`. An explicit-zero pair class fee still short-circuits to zero. Unclassified hooks (`family == 0`) use `defaultFee` only. Static pools resolve to `NATIVE_MATH_FAMILY_ID` (255) and use pair overrides or fee buckets.
+Constants: `NATIVE_MATH_FAMILY_ID = 255`, `UNCLASSIFIED_FAMILY_ID = 0`. After policy or override changes, call `triggerFeeUpdate` so the PoolManager picks up new fees.
 
 Permissioned roles:
 

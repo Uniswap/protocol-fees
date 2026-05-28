@@ -1,6 +1,6 @@
 {
-  "fork: batchTriggerFeeUpdate 3 pools": "67104",
-  "fork: collect 2 currencies": "58131",
-  "fork: collect single currency": "29307",
-  "fork: triggerFeeUpdate single pool": "29403"
+  "fork: batchTriggerFeeUpdate 3 pools": "98416",
+  "fork: collect 2 currencies": "99567",
+  "fork: collect single currency": "62947",
+  "fork: triggerFeeUpdate single pool": "58123"
 }
