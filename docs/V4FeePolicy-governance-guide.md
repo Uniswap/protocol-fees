@@ -97,7 +97,7 @@ Check onchain: `policy.isCustomAccounting(hook)` and `LPFeeLibrary.isDynamicFee(
 | **Different fee for one token pair** (all vanilla pools on that pair) | `setPairClassFee(c0, c1, 255, fee)`                                                                  | Policy           | `255` = `NATIVE_MATH_FAMILY_ID`. Overrides buckets for that pair only.                                                         |
 | **Force one pool’s fee** (promo, migration, emergency)                | `setPoolOverride(poolId, fee)`                                                                       | Adapter          | Highest priority; ignores policy. Use `0` for explicit zero.                                                                   |
 | **Zero fee on one pool**                                              | `setPoolOverride(poolId, 0)`                                                                         | Adapter          | Simplest per-pool exempt.                                                                                                      |
-| **Flat fee for all pools on one hook**                                | `setHookFamily(hook, F)` + `setFamilyDefault(F, fee)`                                                | Policy           | Works for **static hooks** (opt out of buckets) and classified hooks. Pick unused family **1–254** (or 255; see footguns).     |
+| **Flat fee for all pools on one hook**                                | `setHookFamily(hook, F)` + `setFamilyDefault(F, fee)`                                                | Policy           | Works for **static hooks** (opt out of buckets) and classified hooks. Use governance family **1–254** (`setFamilyDefault` rejects 255). |
 | **Zero fee for all pools on one hook**                                | `setHookFamily(hook, F)` + `setFamilyDefault(F, 0)`                                                  | Policy           | `0` encodes as explicit-zero sentinel.                                                                                         |
 | **Zero fee for one pair on a hook family**                            | `setPairClassFee(c0, c1, F, 0)`                                                                      | Policy           | Does not fall through to family default.                                                                                       |
 | **Per-pair fee within a hook family**                                 | `setPairClassFee(c0, c1, F, fee)`                                                                    | Policy           | Finer than family default.                                                                                                     |
@@ -147,7 +147,7 @@ Bucket tips:
 | ---------------------------------------- | --------------------------------------------------------- |
 | `setHookFamily(hook, familyId)`          | Manual family; `0` = clear                                |
 | `batchSetHookFamily(assignments)`        | Batch version                                             |
-| `setFamilyDefault(familyId, fee)`        | Default for family when no pair override (`familyId > 0`) |
+| `setFamilyDefault(familyId, fee)`        | Default for governance families **1–254** (rejects 0 and 255) |
 | `setPairClassFee(c0, c1, familyId, fee)` | Pair + family slot                                        |
 | `setFlagRules(rules)`                    | Map `protocolFeeFlags()` → family                         |
 | `clearFlagRules()`                       | Remove all rules                                          |
@@ -243,7 +243,7 @@ triggerFeeUpdate(key)
 ## Footguns
 
 1. **Config ≠ live fee** — Changing policy or overrides does not update PoolManager until `triggerFeeUpdate` (anyone can call).
-2. `**setHookFamily(hook, 255)` on static pools** — Family 255 runs the **native-math branch** (buckets / `pairClassFees[pair][255]`), not `familyDefaults[255]`. To store a literal default at slot 255, use pair class fees or buckets; `setFamilyDefault(255, …)` does not apply on that code path.
+2. **Family 255 and `familyDefaults`** — Native math uses buckets and `pairClassFees[pair][255]`. `setFamilyDefault(255, …)` and `clearFamilyDefault(255)` **revert** (`InvalidFamilyId`). `setHookFamily(hook, 255)` is still allowed to force the native-math branch on classified pools.
 3. **Unclassified ≠ native math** — `family == 0` uses only `defaultFee`. It never reads fee buckets, even if buckets are configured.
 4. **Explicit zero vs unset** — `setFamilyDefault(F, 0)` and `setPairClassFee(..., 0)` mean **zero fee**. To remove config, use `clearFamilyDefault` / `clearPairClassFee`.
 5. **Pair ordering** — `setPairClassFee` requires `currency0 < currency1` (sorted addresses).

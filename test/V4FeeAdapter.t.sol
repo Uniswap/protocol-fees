@@ -685,10 +685,9 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    policy.setFamilyDefault(nativeFamily, FEE_500);
     vm.stopPrank();
 
-    // family 255 uses native-math branch, not familyDefaults[255]
+    // family 255 uses native-math branch (buckets), not familyDefaults[255]
     assertEq(policy.computeFee(hookKey), FEE_300);
   }
 
@@ -726,16 +725,13 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(hookKey), 0);
   }
 
-  function test_setHookFamily_and_setFamilyDefault_acceptsFamily255() public {
+  function test_setHookFamily_acceptsFamily255() public {
     uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
 
-    vm.startPrank(feeSetter);
+    vm.prank(feeSetter);
     policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    policy.setFamilyDefault(nativeFamily, FEE_100);
-    vm.stopPrank();
 
     assertEq(policy.hookFamilyId(address(hookKey.hooks)), nativeFamily);
-    assertEq(policy.familyDefaults(nativeFamily), FEE_100);
   }
 
   // ============ Unified resolution regression ============
@@ -820,7 +816,6 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setFlagRules(rules);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setFamilyDefault(nativeFamily, FEE_500);
     vm.stopPrank();
 
     assertEq(policy.computeFee(key), FEE_300);
@@ -870,7 +865,6 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setHookFamily(customHook, nativeFamily);
-    policy.setFamilyDefault(nativeFamily, FEE_500);
     vm.stopPrank();
 
     assertEq(policy.computeFee(customKey), FEE_300);
@@ -884,7 +878,6 @@ contract V4FeeAdapterTest is Test {
   function test_computeFee_unclassifiedDynamicFee_notConfusedWithNativeFamily255() public {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setFamilyDefault(policy.NATIVE_MATH_FAMILY_ID(), FEE_500);
     policy.setDefaultFee(FEE_100);
     vm.stopPrank();
 
@@ -1479,6 +1472,20 @@ contract V4FeeAdapterTest is Test {
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
     policy.setFamilyDefault(0, FEE_100);
+  }
+
+  function test_setFamilyDefault_revertsNativeMathFamily() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    policy.setFamilyDefault(nativeFamily, FEE_100);
+  }
+
+  function test_clearFamilyDefault_revertsNativeMathFamily() public {
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    policy.clearFamilyDefault(nativeFamily);
   }
 
   function test_setPairClassFee_success() public {

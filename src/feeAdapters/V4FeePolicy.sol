@@ -24,8 +24,8 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// @dev Fee resolution: resolve a family ID, then apply family-specific logic.
 /// - `NATIVE_MATH_FAMILY_ID` (255) on static pools (no RETURNS_DELTA, static LP fee):
 ///   `pairClassFees[pair][255]` or the fee-bucket schedule.
-/// - Governance families (1-255): `pairClassFees[pair][family]` → `familyDefaults[family]`
-///   → `defaultFee`.
+/// - Governance families (1-254): `pairClassFees[pair][family]` → `familyDefaults[family]`
+///   → `defaultFee`. Family 255 uses buckets only (`familyDefaults[255]` is rejected).
 /// - Unclassified custom-accounting / dynamic-fee pools (`family == 0`): `defaultFee` only.
 /// Family resolution: governance `hookFamilyId` → static pools default to native math →
 /// hook `protocolFeeFlags()` matched against flag rules → unclassified (0).
@@ -259,7 +259,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external onlyFeeSetter {
-    if (familyId == 0) revert InvalidFamilyId();
+    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
     if (feeValue != 0) _validateFee(feeValue);
     uint24 stored = _encodeFee(feeValue);
     familyDefaults[familyId] = stored;
@@ -268,6 +268,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function clearFamilyDefault(uint8 familyId) external onlyFeeSetter {
+    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
     delete familyDefaults[familyId];
     emit FamilyDefaultUpdated(familyId, 0);
   }

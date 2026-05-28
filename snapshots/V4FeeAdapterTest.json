@@ -16,7 +16,7 @@
   "policy.computeFee - flag-rule single flag match": "17486",
   "policy.computeFee - static native math buckets": "11149",
   "policy.computeFee - static native math pair class fee": "5938",
-  "policy.setFamilyDefault": "47815",
+  "policy.setFamilyDefault": "47850",
   "policy.setFeeBuckets - 1 bucket": "71511",
   "policy.setFeeBuckets - 5 buckets (configuration B)": "148719",
   "policy.setFlagRules - 32 rules (max)": "1499897",

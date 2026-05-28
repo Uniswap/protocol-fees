@@ -75,7 +75,7 @@ interface IV4FeePolicy {
   /// @notice Thrown when a fee value fails ProtocolFeeLibrary.isValidProtocolFee.
   error InvalidFeeValue();
 
-  /// @notice Thrown when familyId == 0 is passed to a function that requires > 0.
+  /// @notice Thrown when familyId is 0 or `NATIVE_MATH_FAMILY_ID` on family-default setters.
   error InvalidFamilyId();
 
   /// @notice Thrown when a fee bucket's `betaPips` exceeds 1_000_000_000.
@@ -300,14 +300,15 @@ interface IV4FeePolicy {
 
   // --- Family Defaults (onlyFeeSetter) ---
 
-  /// @notice Sets the default protocol fee for a given family ID.
-  /// @dev familyId must be > 0. Setting fee 0 sets explicit zero.
-  /// Use clearFamilyDefault to remove entirely.
+  /// @notice Sets the default protocol fee for a governance family (1-254).
+  /// @dev Reverts for 0 and `NATIVE_MATH_FAMILY_ID` (use pair class fees / buckets for 255).
+  /// Setting fee 0 sets explicit zero. Use clearFamilyDefault to remove entirely.
   /// @param familyId The family to configure.
   /// @param feeValue The default fee. Must pass isValidProtocolFee if non-zero.
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external;
 
-  /// @notice Removes the default fee for a family, falling through in the waterfall.
+  /// @notice Removes the default fee for a governance family (1-254).
+  /// @dev Reverts for 0 and `NATIVE_MATH_FAMILY_ID`.
   /// @param familyId The family to clear.
   function clearFamilyDefault(uint8 familyId) external;
 
