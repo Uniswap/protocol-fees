@@ -698,9 +698,7 @@ contract V4FeeAdapterTest is Test {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
     policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    policy.setPairClassFee(
-      hookKey.currency0, hookKey.currency1, nativeFamily, FEE_200
-    );
+    policy.setPairClassFee(hookKey.currency0, hookKey.currency1, nativeFamily, FEE_200);
     vm.stopPrank();
 
     assertEq(policy.computeFee(hookKey), FEE_200);
