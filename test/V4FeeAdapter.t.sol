@@ -20,7 +20,7 @@ import {
   PairClassFeeAssignment,
   PairClassFeeClear
 } from "../src/interfaces/IV4FeePolicy.sol";
-import {HookFeeFlags} from "../src/libraries/HookFeeFlags.sol";
+import {HookFeeFlags} from "./utils/HookFeeFlags.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {
   MockFeeClassifiedHook,

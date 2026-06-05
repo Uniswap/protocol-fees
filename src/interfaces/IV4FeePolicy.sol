@@ -26,7 +26,8 @@ struct FeeBucket {
 /// whose requiredFlags are all present in the hook's self-reported flags wins.
 struct FlagRule {
   /// @dev Bitmask of flags that must ALL be set in the hook's protocolFeeFlags() return
-  /// value for this rule to match. Use OR'd constants from HookFeeFlags.
+  /// value for this rule to match. The bits are an opaque convention between governance
+  /// and hooks; see the governance guide for the values in active use.
   uint256 requiredFlags;
   /// @dev The family ID assigned when this rule matches. Must be > 0.
   uint8 familyId;

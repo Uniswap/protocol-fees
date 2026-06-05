@@ -165,19 +165,34 @@ Bucket tips:
 
 ---
 
-## Flag rules and `HookFeeFlags`
+## Flag rules
 
-Hooks that implement `protocolFeeFlags()` return a `uint256` of behavioral bits (see `HookFeeFlags.sol`). Governance lists rules:
+Hooks that implement `protocolFeeFlags()` return an opaque `uint256` bitfield. The policy
+ascribes **no** meaning to any individual bit — per rule, it only checks that all of a
+rule's `requiredFlags` bits are set in the hook's returned value. The meaning of each bit
+is a convention agreed between governance (which writes the rules) and hooks (which set the
+bits); it is **not** enumerated onchain.
 
 ```solidity
-FlagRule({ requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 3 })
+// bit 11 (1 << 11) is the aggregator convention — see the table below
+FlagRule({ requiredFlags: 1 << 11, familyId: 3 })
 ```
 
-- `requiredFlags` must be non-zero; all listed bits must be set on the hook’s report.
+- `requiredFlags` must be non-zero; all listed bits must be set on the hook's report.
 - `familyId` must be **> 0** in rules (use family 3, not 0).
 - Order rules from **most specific** to **least** (decreasing popcount of `requiredFlags`).
 
-`HookFeeFlags` does **not** affect `family` by itself — only `flagRules` + the hook’s returned flags do.
+Flag rules do **not** affect `family` by themselves — only the combination of `flagRules`
+and the hook's returned bits does.
+
+### Bit conventions in active use
+
+| Bit       | Value  | Convention      | Notes                                              |
+| --------- | ------ | --------------- | -------------------------------------------------- |
+| `1 << 11` | `2048` | Aggregator hook | Only convention currently relied on in production. |
+
+Bits not listed here have no agreed meaning. Before publishing a rule against a new bit,
+add it to this table so hook authors and governance share one source of truth.
 
 ---
 
@@ -282,7 +297,6 @@ Fallback for odd hooks / dynamic fee / no rules match?
 
 - `src/feeAdapters/V4FeePolicy.sol` — `computeFee`, `_resolveFamily`
 - `src/feeAdapters/V4FeeAdapter.sol` — `getFee`, overrides
-- `src/libraries/HookFeeFlags.sol` — flag vocabulary
 - `src/interfaces/IFeeClassifiedHook.sol` — hook self-report interface
 - `test/V4FeeAdapter.t.sol` — unit tests (search `Unified resolution regression`)
 
