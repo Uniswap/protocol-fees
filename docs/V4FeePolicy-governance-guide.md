@@ -255,6 +255,40 @@ triggerFeeUpdate(key)
 
 ---
 
+## Deploying or replacing a policy
+
+A freshly deployed `V4FeePolicy` is **empty**: the constructor only sets `POOL_MANAGER`.
+`feeSetter`, `defaultFee`, the fee buckets, and the flag rules all start at zero, so
+`computeFee` returns **0 for every pool** until governance has configured it. Because
+`triggerFeeUpdate` is permissionless, anyone can push that zero into the PoolManager for
+any pool during the window between wiring the policy in and configuring it.
+
+Avoid the window entirely by making `adapter.setPolicy(newPolicy)` the **last** step.
+Until `setPolicy` lands, `adapter.getFee` keeps using the previous policy (or returns the
+existing pool overrides), so an unconfigured new policy can do no harm while it is being
+set up. Sequence the whole rollout as a single atomic governance batch:
+
+```text
+1. deploy V4FeePolicy(poolManager)            // owner = deployer
+2. policy.setFeeSetter(govFeeSetter)          // owner — required before any config call
+3. policy.setDefaultFee / setFeeBuckets /     // feeSetter — full configuration
+        setFlagRules / setHookFamily / ...
+4. adapter.setPolicy(policy)                   // owner — flips reads to the new policy
+5. adapter.batchTriggerFeeUpdate(keys)         // push the new fees onchain
+```
+
+Steps 1–3 are observable but inert: no pool reads the new policy until step 4. If steps
+4 and 5 cannot share one atomic batch with 1–3, at minimum keep 4 strictly after 3 — a
+zero pushed in the gap is not permanent and is corrected by re-triggering the affected
+pools, but a fully-configured policy at the moment of `setPolicy` avoids the issue
+outright.
+
+> The new policy's `feeSetter` is independent of the adapter's and starts at zero. The
+> policy `owner` (the deployer) must call `policy.setFeeSetter` (step 2) before any
+> `onlyFeeSetter` configuration call will succeed.
+
+---
+
 ## Footguns
 
 1. **Config ≠ live fee** — Changing policy or overrides does not update PoolManager until `triggerFeeUpdate` (anyone can call).
@@ -264,7 +298,7 @@ triggerFeeUpdate(key)
 5. **Pair ordering** — `setPairClassFee` requires `currency0 < currency1` (sorted addresses).
 6. **Dynamic LP fee** — Do not rely on `key.fee` for amount on dynamic pools; assign a family and use family/pair defaults.
 7. **Return-delta hooks** — Address bits 0–3 force classified path unless you `setHookFamily`. `beforeSwap`-only hooks (bit 7, etc.) stay on native math by default.
-8. **Policy swap** — `adapter.setPolicy(newPolicy)` requires retrigger on all pools; consider batch.
+8. **Policy swap** — `adapter.setPolicy(newPolicy)` requires retrigger on all pools; consider batch. A freshly deployed policy returns **zero everywhere** until configured, and `triggerFeeUpdate` is permissionless — configure fully *before* `setPolicy` (see [Deploying or replacing a policy](#deploying-or-replacing-a-policy)).
 
 ---
 
