@@ -126,8 +126,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint24 stored = pairClassFees[ph][family];
     if (stored != 0) return _decodeFee(stored);
 
-    // Native math: use fee buckets.
-    if (family == NATIVE_MATH_FAMILY_ID) return _computeStaticNativeMathFee(key.fee);
+    // Native math: use fee buckets. Dynamic-fee keys carry the 0x800000 sentinel, not an
+    // LP fee, so they cannot be priced from buckets — fall through to defaultFee. A dynamic
+    // pool only reaches family 255 when governance forces it (setHookFamily / a flag rule);
+    // the auto-resolution gate in _resolveFamily already excludes dynamic pools.
+    if (family == NATIVE_MATH_FAMILY_ID) {
+      if (key.fee.isDynamicFee()) return _decodeFee(defaultFee);
+      return _computeStaticNativeMathFee(key.fee);
+    }
 
     // Fall through to familyDefaults.
     uint24 famDefault = familyDefaults[family];
@@ -320,6 +326,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   function _setPairClassFee(Currency currency0, Currency currency1, uint8 familyId, uint24 feeValue)
     internal
   {
+    // family 0 is never read by computeFee (it returns defaultFee before the pairClassFees
+    // lookup), so a family-0 override would be silent dead storage.
+    if (familyId == UNCLASSIFIED_FAMILY_ID) revert InvalidFamilyId();
     if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     if (feeValue != 0) _validateFee(feeValue);
     bytes32 ph = _pairHash(currency0, currency1);
@@ -329,6 +338,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   function _clearPairClassFee(Currency currency0, Currency currency1, uint8 familyId) internal {
+    if (familyId == UNCLASSIFIED_FAMILY_ID) revert InvalidFamilyId();
     if (currency0 >= currency1) revert CurrenciesOutOfOrder();
     bytes32 ph = _pairHash(currency0, currency1);
     delete pairClassFees[ph][familyId];

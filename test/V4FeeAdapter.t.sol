@@ -1056,6 +1056,36 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(dynamicKey), FEE_100);
   }
 
+  function test_computeFee_dynamicFee_forcedToNativeFamily_fallsThroughToDefault() public {
+    // Regression (audit item 1): governance can force a pool to family 255 via
+    // setHookFamily. For a dynamic-fee pool that means key.fee == DYNAMIC_FEE_FLAG
+    // (0x800000) would be fed into the bucket curve, which clamps to MAX_PROTOCOL_FEE.
+    // The native-math branch must instead fall through to defaultFee for dynamic keys.
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_bucketsConfigB());
+    policy.setDefaultFee(FEE_100);
+    // dynamicKey.hooks == address(0); force its (hook-keyed) family to native math.
+    policy.setHookFamily(address(dynamicKey.hooks), policy.NATIVE_MATH_FAMILY_ID());
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_100); // defaultFee, not bucket-clamped
+    assertTrue(policy.computeFee(dynamicKey) != FEE_1000); // not MAX_PROTOCOL_FEE
+  }
+
+  function test_computeFee_dynamicFee_forcedToNativeFamily_pairOverrideStillWins() public {
+    // The dynamic-key guard must not shadow an explicit pairClassFees[pair][255]
+    // override: that check runs before the native-math branch.
+    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_bucketsConfigB());
+    policy.setDefaultFee(FEE_100);
+    policy.setHookFamily(address(dynamicKey.hooks), nativeFamily);
+    policy.setPairClassFee(dynamicKey.currency0, dynamicKey.currency1, nativeFamily, FEE_200);
+    vm.stopPrank();
+
+    assertEq(policy.computeFee(dynamicKey), FEE_200); // explicit pair override honored
+  }
+
   function testFuzz_computeFee_staticNativeMath_buckets(uint24 lpFee) public {
     lpFee = uint24(bound(lpFee, 0, LPFeeLibrary.MAX_LP_FEE));
     vm.prank(feeSetter);
@@ -1511,6 +1541,20 @@ contract V4FeeAdapterTest is Test {
     policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, (1001 << 12) | 500);
   }
 
+  function test_setPairClassFee_revertsFamilyZero() public {
+    // Regression (audit item 1): pairClassFees[pair][0] is never read by computeFee
+    // (family 0 returns defaultFee first), so a family-0 override would be dead storage.
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    vm.prank(feeSetter);
+    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 0, FEE_200);
+  }
+
+  function test_clearPairClassFee_revertsFamilyZero() public {
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    vm.prank(feeSetter);
+    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, 0);
+  }
+
   function test_batchSetPairClassFee_success() public {
     bytes32 ph = _pairHash();
     uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
@@ -1686,7 +1730,7 @@ contract V4FeeAdapterTest is Test {
   function test_clearPairClassFee_revertsCurrenciesOutOfOrder() public {
     vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
     vm.prank(feeSetter);
-    policy.clearPairClassFee(standardKey.currency1, standardKey.currency0, 0);
+    policy.clearPairClassFee(standardKey.currency1, standardKey.currency0, 1);
   }
 
   // ============ Integration: Full Waterfall ============

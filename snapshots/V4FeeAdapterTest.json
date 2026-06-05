@@ -1,12 +1,12 @@
 {
-  "adapter.batchTriggerFeeUpdate - two pools": "80457",
+  "adapter.batchTriggerFeeUpdate - two pools": "80861",
   "adapter.collect - single currency": "58078",
   "adapter.getFee - pool override hit": "3330",
   "adapter.setPoolOverride": "48093",
-  "adapter.triggerFeeUpdate - single pool": "58067",
-  "policy.batchClearPairClassFee": "33112",
+  "adapter.triggerFeeUpdate - single pool": "58269",
+  "policy.batchClearPairClassFee": "33148",
   "policy.batchSetHookFamily": "72791",
-  "policy.batchSetPairClassFee": "76564",
+  "policy.batchSetPairClassFee": "76610",
   "policy.computeFee - classified family default": "7928",
   "policy.computeFee - classified flag-rule self-report": "17486",
   "policy.computeFee - classified griefing hook -> defaultFee": "7723",
@@ -14,7 +14,7 @@
   "policy.computeFee - classified unclassified -> defaultFee": "7723",
   "policy.computeFee - flag-rule multi-flag match": "17486",
   "policy.computeFee - flag-rule single flag match": "17486",
-  "policy.computeFee - static native math buckets": "11149",
+  "policy.computeFee - static native math buckets": "11351",
   "policy.computeFee - static native math pair class fee": "5938",
   "policy.setFamilyDefault": "47850",
   "policy.setFeeBuckets - 1 bucket": "71511",
@@ -22,5 +22,5 @@
   "policy.setFlagRules - 32 rules (max)": "1499897",
   "policy.setFlagRules - two rules": "138137",
   "policy.setHookFamily": "47601",
-  "policy.setPairClassFee": "49453"
+  "policy.setPairClassFee": "49476"
 }
