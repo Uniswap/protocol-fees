@@ -141,6 +141,10 @@ interface IV4FeePolicy {
   /// @param feeValue The new encoded default fee.
   event DefaultFeeUpdated(uint24 feeValue);
 
+  /// @notice Emitted when the hooked native-math fee switch is toggled.
+  /// @param enabled True if hooked native-math pools are now classified as native math.
+  event HookedNativeMathFeeOnUpdated(bool enabled);
+
   /// @notice Emitted when the flag rules array is replaced.
   /// @param ruleCount The number of rules in the new array.
   event FlagRulesUpdated(uint256 ruleCount);
@@ -179,6 +183,15 @@ interface IV4FeePolicy {
   /// @dev Also used for unclassified hooks (familyId == 0). Sentinel-encoded in storage.
   /// @return The sentinel-encoded default fee.
   function defaultFee() external view returns (uint24);
+
+  /// @notice Whether native-math pools that carry a hook are classified as native math.
+  /// @dev Hookless native-math pools are always native math. When false (the default),
+  /// hooked native-math pools bypass the native-math family and fall through to flag-rule
+  /// classification / `defaultFee`, so the bucket schedule does not apply to them. Flip to
+  /// true to bring hooked native-math pools onto the same native-math fee path as hookless
+  /// pools.
+  /// @return True if hooked native-math pools are treated as native math.
+  function isHookedNativeMathFeeOn() external view returns (bool);
 
   /// @notice Returns the governance-assigned family ID for a hook.
   /// @dev 0 = unclassified on the classified path. StaticNativeMath pools do not use this.
@@ -283,6 +296,14 @@ interface IV4FeePolicy {
 
   /// @notice Removes the default fee, so unclassified pools return 0.
   function clearDefaultFee() external;
+
+  /// @notice Toggles whether hooked native-math pools are classified as native math.
+  /// @dev Only callable by feeSetter. When enabled, native-math pools that carry a hook
+  /// resolve to `NATIVE_MATH_FAMILY_ID` and follow the same pair-class-fee / bucket schedule
+  /// as hookless pools. When disabled (the default), they fall through to flag-rule
+  /// classification / `defaultFee`. Hookless native-math pools are unaffected.
+  /// @param enabled True to bring hooked native-math pools onto the native-math fee path.
+  function setHookedNativeMathFeeOn(bool enabled) external;
 
   // --- Fee Bucket Configuration (onlyFeeSetter) ---
 

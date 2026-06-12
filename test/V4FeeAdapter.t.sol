@@ -347,8 +347,10 @@ contract V4FeeAdapterTest is Test {
   }
 
   function test_batchTriggerFeeUpdate_success() public {
-    vm.prank(feeSetter);
+    vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookedNativeMathFeeOn(true); // price the hooked pool too
+    vm.stopPrank();
 
     PoolKey[] memory keys = new PoolKey[](2);
     keys[0] = standardKey;
@@ -636,12 +638,40 @@ contract V4FeeAdapterTest is Test {
     assertEq(policy.computeFee(standardKey), 0);
   }
 
-  function test_computeFee_staticNativeMath_hookWithoutDeltaFlags() public {
+  function test_computeFee_hookedNativeMath_disabledByDefaultFallsThrough() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setDefaultFee(FEE_100);
+    vm.stopPrank();
+
+    // hookKey is native math (bits 0-3 clear) but carries a hook (bit 7). With
+    // isHookedNativeMathFeeOn disabled (the default) it bypasses the native-math bucket
+    // path and falls through to defaultFee.
+    assertFalse(policy.isHookedNativeMathFeeOn());
+    assertEq(policy.computeFee(hookKey), FEE_100);
+  }
+
+  function test_computeFee_hookedNativeMath_enabledUsesBuckets() public {
+    vm.startPrank(feeSetter);
+    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookedNativeMathFeeOn(true);
+    vm.stopPrank();
+
+    // Once enabled, a hooked native-math pool follows the same bucket schedule as a hookless
+    // pool: 0 + 100_000 * 3000 / 1_000_000 = 300 pips per direction.
+    assertEq(policy.computeFee(hookKey), FEE_300);
+  }
+
+  function test_computeFee_hooklessNativeMath_unaffectedByHookedSwitch() public {
     vm.prank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
 
-    // hookKey has address with bit 7 set but bits 0-3 clear -> StaticNativeMath path
-    assertEq(policy.computeFee(hookKey), FEE_300);
+    // Hookless native-math pool prices from buckets regardless of the hooked switch.
+    assertEq(policy.computeFee(standardKey), FEE_300);
+
+    vm.prank(feeSetter);
+    policy.setHookedNativeMathFeeOn(true);
+    assertEq(policy.computeFee(standardKey), FEE_300);
   }
 
   function test_computeFee_staticNativeMath_governanceFamilyUsesClassifiedWaterfall() public {
@@ -767,6 +797,7 @@ contract V4FeeAdapterTest is Test {
   function test_computeFee_clearHookFamily_restoresNativeMathBuckets() public {
     vm.startPrank(feeSetter);
     policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    policy.setHookedNativeMathFeeOn(true);
     policy.setHookFamily(address(hookKey.hooks), 1);
     policy.setFamilyDefault(1, FEE_200);
     policy.setHookFamily(address(hookKey.hooks), 0);
@@ -1487,6 +1518,30 @@ contract V4FeeAdapterTest is Test {
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
     policy.setDefaultFee((2000 << 12) | 2000);
+  }
+
+  function test_setHookedNativeMathFeeOn_defaultsFalse() public view {
+    assertFalse(policy.isHookedNativeMathFeeOn());
+  }
+
+  function test_setHookedNativeMathFeeOn_togglesAndEmits() public {
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.HookedNativeMathFeeOnUpdated(true);
+    vm.prank(feeSetter);
+    policy.setHookedNativeMathFeeOn(true);
+    assertTrue(policy.isHookedNativeMathFeeOn());
+
+    vm.expectEmit(false, false, false, true, address(policy));
+    emit IV4FeePolicy.HookedNativeMathFeeOnUpdated(false);
+    vm.prank(feeSetter);
+    policy.setHookedNativeMathFeeOn(false);
+    assertFalse(policy.isHookedNativeMathFeeOn());
+  }
+
+  function test_setHookedNativeMathFeeOn_revertsUnauthorized() public {
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.setHookedNativeMathFeeOn(true);
   }
 
   function test_setFamilyDefault_success() public {

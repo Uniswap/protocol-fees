@@ -27,8 +27,9 @@ import {IFeeClassifiedHook} from "../interfaces/IFeeClassifiedHook.sol";
 /// - Governance families (1-254): `pairClassFees[pair][family]` → `familyDefaults[family]`
 ///   → `defaultFee`. Family 255 uses buckets only (`familyDefaults[255]` is rejected).
 /// - Unclassified custom-accounting / dynamic-fee pools (`family == 0`): `defaultFee` only.
-/// Family resolution: governance `hookFamilyId` → static pools default to native math →
-/// hook `protocolFeeFlags()` matched against flag rules → unclassified (0).
+/// Family resolution: governance `hookFamilyId` → hookless static pools default to native
+/// math (hooked static pools join native math only when `isHookedNativeMathFeeOn` is set)
+/// → hook `protocolFeeFlags()` matched against flag rules → unclassified (0).
 /// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
@@ -71,6 +72,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   uint24 public defaultFee;
+
+  /// @inheritdoc IV4FeePolicy
+  bool public isHookedNativeMathFeeOn;
 
   /// @inheritdoc IV4FeePolicy
   mapping(address hook => uint8) public hookFamilyId;
@@ -237,6 +241,12 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
+  function setHookedNativeMathFeeOn(bool enabled) external onlyFeeSetter {
+    isHookedNativeMathFeeOn = enabled;
+    emit HookedNativeMathFeeOnUpdated(enabled);
+  }
+
+  /// @inheritdoc IV4FeePolicy
   function setFeeBuckets(FeeBucket[] calldata buckets) external onlyFeeSetter {
     uint256 len = buckets.length;
     if (len == 0) revert EmptyBuckets();
@@ -357,7 +367,13 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     uint8 gov = hookFamilyId[hook];
     if (gov != 0) return gov;
 
-    if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) return NATIVE_MATH_FAMILY_ID;
+    // Native math: always for hookless pools; for hooked pools only once governance has
+    // enabled fees on hooked native-math pools. A hooked pool left disabled falls through to
+    // the classification path below (flag rules → defaultFee), exactly like any other hook.
+    if (
+      hook == address(0)
+        || (isHookedNativeMathFeeOn && !_isCustomAccounting(hook) && !key.fee.isDynamicFee())
+    ) return NATIVE_MATH_FAMILY_ID;
 
     uint256 rulesLen = _flagRules.length;
     if (rulesLen == 0) return 0;
