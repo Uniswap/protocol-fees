@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.29;
+
+library Ethereum {
+  address constant OMNICHAIN_PROPOSAL_SENDER = 0xeb0BCF27D1Fb4b25e708fBB815c421Aeb51eA9fc;
+  address constant LZ_ENDPOINT = 0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675;
+}
+
+library Avalanche {
+  address constant OMNICHAIN_GOVERNANCE_EXECUTOR = 0xeb0BCF27D1Fb4b25e708fBB815c421Aeb51eA9fc;
+  address constant LZ_ENDPOINT = 0x3c2269811836af69497E5F486A85D7316753cf62;
+  address constant WORMHOLE_RECEIVER = 0x47eB0Cf11a1626462Da3C830bCDe64c3F582B5a6;
+}
+
+library MegaEth {
+  address constant OMNICHAIN_GOVERNANCE_EXECUTOR = 0x8819b86ddF592c3aaAa6f9ec7cE1A0f99FC4322c;
+  address constant LZ_ENDPOINT = 0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7;
+  address constant WORMHOLE_RECEIVER = 0xa107580F73BD797Bd8b87Ff24e98346D99F93DdB;
+}
+
+library Soneium {
+  address constant OPTIMISM_PORTAL2 = 0x88e529A6ccd302c948689Cd5156C83D4614FAE92;
+  address constant CROSS_CHAIN_ACCOUNT = 0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7;
+}
+
+library XLayer {
+  address constant OPTIMISM_PORTAL2 = 0x64057ad1DdAc804d0D26A7275b193D9DACa19993;
+  address constant CROSS_CHAIN_ACCOUNT = 0x044aAF330d7fD6AE683EEc5c1C1d1fFf5196B6b7;
+}
+
+library LayerZero {
+  uint16 constant ETH_CHAIN_ID = 101;
+  uint16 constant AVAX_CHAIN_ID = 106;
+  uint16 constant MEGA_CHAIN_ID = 398;
+}
