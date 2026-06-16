@@ -15,7 +15,10 @@ compilation_restrictions = [
     { paths = "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol", optimizer_runs = 200 }
 ]
 
-fs_permissions = [{ access = "read", path = "./broadcast"}]
+fs_permissions = [
+  { access = "read", path = "./broadcast"},
+  { access = "write", path = "./out/.seatbelt"}
+]
 
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"

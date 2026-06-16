@@ -31,3 +31,6 @@
 [submodule "lib/native-token-transfers"]
 	path = lib/native-token-transfers
 	url = https://github.com/wormhole-foundation/native-token-transfers
+[submodule "lib/govkit"]
+	path = lib/govkit
+	url = https://github.com/Uniswap/govkit
