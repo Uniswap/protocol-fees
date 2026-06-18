@@ -33,3 +33,7 @@ library LayerZero {
   uint16 constant AVAX_CHAIN_ID = 106;
   uint16 constant MEGA_CHAIN_ID = 398;
 }
+
+library OpStack {
+  uint160 constant ALIAS = uint160(0x1111000000000000000000000000000000001111);
+}

@@ -7,4 +7,6 @@ interface IOmnichainProposalSender {
     payable;
 
   function setTrustedRemoteAddress(uint16 remoteChainId, bytes calldata remoteAddress) external;
+
+  function trustedRemoteLookup(uint16 remoteChainId) external view returns (bytes memory);
 }
