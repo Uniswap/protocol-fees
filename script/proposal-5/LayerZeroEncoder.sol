@@ -21,12 +21,15 @@ library LayerZeroEncoder {
     (address[] memory targets, uint256[] memory values, bytes[] memory datas) =
       LibCall.decompose(remoteCalls);
 
+    // govkit always sets signatures as empty strings
+    string[] memory signatures = new string[](targets.length);
+
     return Call({
       target: omnichainProposalSender,
       value: 0,
       data: abi.encodeCall(
         IOmnichainProposalSender.execute,
-        (layerZeroChainId, abi.encode(targets, values, datas), new bytes(0))
+        (layerZeroChainId, abi.encode(targets, values, signatures, datas), new bytes(0))
       )
     });
   }
