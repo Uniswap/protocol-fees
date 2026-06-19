@@ -12,13 +12,14 @@ import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 import {GovernanceSeatbelt} from "govkit/forge/GovernanceSeatbelt.sol";
 import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol";
 
+import {DESCRIPTION} from "./Description.sol";
 import "./Constants.sol" as Constants;
 import {IOmnichainProposalSender} from "./Interfaces.sol";
 import {LayerZeroEncoder} from "./LayerZeroEncoder.sol";
 
 function buildMaintenanceProposal(Uniswap storage uniswap) view returns (Proposal memory) {
   return Proposal({
-    description: "TODO",
+    description: DESCRIPTION,
     calls: LibCall.newCalls(
       [
         // -----------------------------------------------------------------------------------------
