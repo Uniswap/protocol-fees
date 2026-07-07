@@ -1,6 +1,6 @@
 # Uniswap Fee Collection
 
-_A unified system for collecting and converting fees from arbitrary revenue sources on arbitrary chains._
+*A unified system for collecting and converting fees from arbitrary revenue sources on arbitrary chains.*
 
 ## Table of Contents
 
@@ -110,10 +110,46 @@ Fee Sources are adapter contracts that channel fees from various protocols into 
 - Permissionless protocol fee collection
 - Configurable fee rates per fee tier
 
-**Uniswap V4 (TBD)**
+**Uniswap V4**
 
-- V4FeeAdapter as ProtocolFeeAdapter
-- Not included as part of the initial fee enablement
+- `V4FeeAdapter` registered with the PoolManager as `protocolFeeController`; permissionless `triggerFeeUpdate` and `collect` calls push resolved fees to the PoolManager and route accrued revenue to the TokenJar
+- Fee resolution is split between a thin, long-lived adapter and a replaceable `V4FeePolicy`, so governance can iterate on fee strategy without re-handing PoolManager privileges
+- Piecewise-linear protocol fee schedule for vanilla/static pools; family-based fees for classified hooks and dynamic-fee pools (see [V4 Fee Resolution](#v4-fee-resolution) and the [governance operator guide](docs/V4FeePolicy-governance-guide.md))
+
+#### V4 Fee Resolution
+
+**Operator guide:** [docs/V4FeePolicy-governance-guide.md](docs/V4FeePolicy-governance-guide.md) — use cases, recipes, and footguns.
+
+The adapter checks for a per-pool override first, then delegates to the policy:
+
+```
+adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
+        │
+        └──►  policy.computeFee(key)
+                │
+                ├── resolve family (_resolveFamily)
+                │      hookFamilyId[hook]  →  else static pool → 255 (native math)
+                │      else protocolFeeFlags + flagRules  →  else 0 (unclassified)
+                │
+                └── apply fee for family
+                       0 (unclassified)     →  defaultFee
+                       pairClassFees[pair][family]  (if set)
+                       255 (native math)      →  fee buckets from key.fee
+                       1–255 (classified)   →  familyDefaults[family]  →  defaultFee
+```
+
+**Native math (family 255):** pools with no `*_RETURNS_DELTA` hook bits and static LP fee (`key.fee != 0x800000`). Fee = `pairClassFees[pair][255]` if set, else piecewise-linear **fee buckets** (`alpha + beta × (lpFee - floor) / 1_000_000`, max 16 buckets).
+
+**Classified (families 1–255 via governance):** custom-accounting hooks, dynamic-fee pools, or any hook with `setHookFamily`. Waterfall: `pairClassFees` → `familyDefaults` → `defaultFee`. `key.fee` is not used for bucket math on these pools.
+
+**Unclassified (family 0):** `defaultFee` only (no buckets, no family defaults).
+
+Constants: `NATIVE_MATH_FAMILY_ID = 255`, `UNCLASSIFIED_FAMILY_ID = 0`. After policy or override changes, call `triggerFeeUpdate` so the PoolManager picks up new fees.
+
+Permissioned roles:
+
+- **owner** — swaps the policy, sets the fee-setter
+- **feeSetter** — configures pool overrides, pair class fees, hook families, flag rules, family defaults, the fee buckets, and `defaultFee`
 
 ### 3. Releasers
 
@@ -403,8 +439,10 @@ src/
 │   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
 │   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
 ├── feeAdapters
-│   ├── V3FeeAdapter.sol   // Logic for Uniswap v3 fee-setting and collection
-│   └── V4FeeAdapter.sol   // Work-in-progress logic for Uniswap v4 fee-setting and collection
+│   ├── V3FeeAdapter.sol     // Logic for Uniswap v3 fee-setting and collection
+│   ├── V3OpenFeeAdapter.sol // Permissionless v3 adapter for non-mainnet chains
+│   ├── V4FeeAdapter.sol     // V4 protocolFeeController: pool overrides + policy delegation
+│   └── V4FeePolicy.sol      // V4 fee resolution: LP-fee multiplier + family-based classification
 ├── interfaces/               // interfaces
 ├── libraries
 │   ├── ArrayLib.sol          // Utility library
@@ -422,6 +460,7 @@ test
 ├── ProtocolFees.fork.t.sol               // Fork tests against Ethereum Mainnet, using Deployer.sol
 ├── V3FeeAdapter.t.sol
 ├── V4FeeAdapter.t.sol
+├── V4FeeAdapter.fork.t.sol               // V4 integration tests against a real PoolManager
 ├── interfaces/                           // interfaces for integrations
 ├── mocks/                                // mocks and examples
 └── utils
@@ -456,7 +495,6 @@ Advanced mechanism design for optimizing fee collection efficiency through aucti
 
 ### Additional Protocol Support
 
-- Uniswap v4
 - UniswapX fee integration
 - Interface fee collection
 - Third-party protocol adapters
