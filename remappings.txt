@@ -7,3 +7,4 @@ src/AgreementAnchorFactory.sol=lib/dao-signer/src/AgreementAnchorFactory.sol
 src/AgreementAnchor.sol=lib/dao-signer/src/AgreementAnchor.sol
 src/interfaces/IAgreementAnchorFactory.sol=lib/dao-signer/src/interfaces/IAgreementAnchorFactory.sol
 openzeppelin-contracts/contracts/=lib/native-token-transfers/evm/lib/openzeppelin-contracts/contracts/
+govkit/=lib/govkit/src/
