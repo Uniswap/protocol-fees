@@ -49,8 +49,7 @@ contract MockL2GatewayRouter is IL2GatewayRouter {
 // Mock Gateway for token approval
 contract MockGateway {
   // Just needs to exist for approval testing
-
-  }
+}
 
 // Concrete implementation for testing
 contract TestArbitrumBridgedResourceFirepit is ArbitrumBridgedResourceFirepit {
