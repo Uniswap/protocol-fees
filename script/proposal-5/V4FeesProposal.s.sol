@@ -27,6 +27,8 @@ contract V4FeeActivationProposal is Script {
 
         Call memory PLACEHOLDER = Call(address(0), 0, new bytes(0));
 
+        V4FeeController.smokeCheck();
+
         uniswap.loadLatest();
         {
             // ---------------------------------------------------------------------------------------------

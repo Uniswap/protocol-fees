@@ -30,9 +30,20 @@ contract DeployV4FeeInfra is Script {
         stableStablePairs.initialize();
 
         vm.startBroadcast();
+
         deployAndConfigureV4Infra(ChainId.Ethereum, uniswap.ethereum.poolManager, uniswap.ethereum.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Arbitrum, uniswap.arbitrum.poolManager, uniswap.arbitrum.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Base, uniswap.base.poolManager, uniswap.base.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Celo, uniswap.celo.poolManager, uniswap.celo.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Optimism, uniswap.optimism.poolManager, uniswap.optimism.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Soneium, uniswap.soneium.poolManager, uniswap.soneium.tokenJar);
+        deployAndConfigureV4Infra(ChainId.XLayer, uniswap.xLayer.poolManager, uniswap.xLayer.tokenJar);
+        deployAndConfigureV4Infra(ChainId.WorldChain, uniswap.worldChain.poolManager, uniswap.worldChain.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Zora, uniswap.zora.poolManager, uniswap.zora.tokenJar);
+        deployAndConfigureV4Infra(ChainId.BNBChain, uniswap.bnbChain.poolManager, uniswap.bnbChain.tokenJar);
+        deployAndConfigureV4Infra(ChainId.Polygon, uniswap.polygon.poolManager, uniswap.polygon.tokenJar);
+
         vm.stopBroadcast();
-        // Ethereum, Arbitrum, Base, Celo, OP Mainnet, Soneium, X Layer, Worldchain, Zora, BNB Chain, and Polygon
     }
 
     function deployAndConfigureV4Infra(
