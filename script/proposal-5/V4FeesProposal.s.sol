@@ -25,8 +25,6 @@ contract V4FeeActivationProposal is Script {
     function run() public {
         vm.createDir("./out/.seatbelt/", true);
 
-        Call memory PLACEHOLDER = Call(address(0), 0, new bytes(0));
-
         V4FeeController.smokeCheck();
 
         uniswap.loadLatest();
@@ -116,7 +114,7 @@ contract V4FeeActivationProposal is Script {
                 });
 
             // ---------------------------------------------------------------------------------------------
-            // 05: Activate V4 Fees for OP Mainnet
+            // 05: Activate V4 Fees for Optimism
             //
             Call memory activateV4FeesOPMainnet = L1CrossDomainMessengerEncoder
                 .encode({
@@ -178,7 +176,19 @@ contract V4FeeActivationProposal is Script {
             // ---------------------------------------------------------------------------------------------
             // 07: Activate V4 Fees for Soneium.
             //
-            Call memory activateV4FeesSoneium = PLACEHOLDER;
+            Call memory activateV4FeesSoneium = L1CrossDomainMessengerEncoder
+                .encode({
+                    l1CrossDomainMessenger: uniswap.ethereum.bridge.soneium,
+                    crossChainAccount: uniswap.soneium.crossChainAccount,
+                    remoteCall: Call({
+                        target: uniswap.soneium.poolManager,
+                        value: 0,
+                        data: abi.encodeCall(
+                            IPoolManager.setProtocolFeeController,
+                            (V4FeeController.Soneium)
+                        )
+                    })
+                });
 
             // ---------------------------------------------------------------------------------------------
             // 08: Activate V4 Fees for Worldchain.
@@ -199,12 +209,35 @@ contract V4FeeActivationProposal is Script {
             // ---------------------------------------------------------------------------------------------
             // 09: Activate V4 Fees for X Layer
             //
-            Call memory activateV4FeesXLayer = PLACEHOLDER;
+            Call memory activateV4FeesXLayer = OptimismPortal2Encoder
+                .encode({
+                    portal: uniswap.ethereum.bridge.xLayer,
+                    remoteCall: Call({
+                        target: uniswap.xLayer.poolManager,
+                        value: 0,
+                        data: abi.encodeCall(
+                            IPoolManager.setProtocolFeeController,
+                            (V4FeeController.XLayer)
+                        )
+                    })
+                });
 
             // ---------------------------------------------------------------------------------------------
             // 10: Activate V4 Fees for Zora.
             //
-            Call memory activateV4FeesZora = PLACEHOLDER;
+            Call memory activateV4FeesZora = L1CrossDomainMessengerEncoder
+                .encode({
+                    l1CrossDomainMessenger: uniswap.ethereum.bridge.zora,
+                    crossChainAccount: uniswap.zora.crossChainAccount,
+                    remoteCall: Call({
+                        target: uniswap.zora.poolManager,
+                        value: 0,
+                        data: abi.encodeCall(
+                            IPoolManager.setProtocolFeeController,
+                            (V4FeeController.Zora)
+                        )
+                    })
+                });
 
             Proposal memory v4FeeActivationProposalPartTwo = Proposal({
                 description: string.concat("Part 2/2:\n", DESCRIPTION),
