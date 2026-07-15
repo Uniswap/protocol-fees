@@ -23,8 +23,6 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 contract ArbitrumOrbitResourceFirepit is ExchangeReleaser {
   using SafeTransferLib for ERC20;
 
-  error ZeroAddress();
-
   /// @dev The L2 Gateway Router address on the Arbitrum Orbit chain
   address public immutable L2_GATEWAY_ROUTER;
 
