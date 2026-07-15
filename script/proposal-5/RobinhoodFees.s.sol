@@ -32,6 +32,8 @@ contract RobinhoodFees is Script {
 
     address tokenJar =
       recorder.read({chainId: Constants.Robinhood.CHAIN_ID, deploymentName: "TokenJar"});
+    address v3OpenFeeAdapter =
+      recorder.read({chainId: Constants.Robinhood.CHAIN_ID, deploymentName: "V3OpenFeeAdapter"});
 
     // ---------------------------------------------------------------------------------------------
     // 00: Set Fee Receiver on V2 Factor to  on Robinhood
@@ -55,7 +57,7 @@ contract RobinhoodFees is Script {
       remoteCall: Call({
         target: Constants.Robinhood.V3_FACTORY,
         value: 0,
-        data: abi.encodeCall(IUniswapV3Factory.setOwner, (tokenJar))
+        data: abi.encodeCall(IUniswapV3Factory.setOwner, (v3OpenFeeAdapter))
       })
     });
 
