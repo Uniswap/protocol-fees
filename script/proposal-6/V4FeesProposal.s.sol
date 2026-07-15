@@ -16,8 +16,6 @@ import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol"
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
-import {V4FeeController} from "./Constants.sol";
-
 string constant DESCRIPTION = "TODO";
 
 contract V4FeeActivationProposal is Script {
