@@ -258,7 +258,11 @@ contract DeployV4FeeInfra is Script {
     }
 
     if (chainId == Constants.Robinhood.CHAIN_ID) {
-      return (Constants.Robinhood.POOL_MANAGER, Constants.Robinhood.TOKEN_JAR, InboxEncoder.arbitrumAlias(uniswap.ethereum.timelock));
+      return (
+        Constants.Robinhood.POOL_MANAGER,
+        Constants.Robinhood.TOKEN_JAR,
+        InboxEncoder.arbitrumAlias(uniswap.ethereum.timelock)
+      );
     }
 
     revert("invalid chain id");

@@ -11,9 +11,7 @@ import {Call, LibCall} from "govkit/types/Call.sol";
 import {GovernanceSeatbelt} from "govkit/forge/GovernanceSeatbelt.sol";
 import {FxRootEncoder} from "govkit/bridges/FxRootEncoder.sol";
 import {InboxEncoder} from "govkit/bridges/InboxEncoder.sol";
-import {
-  L1CrossDomainMessengerEncoder
-} from "govkit/bridges/L1CrossDomainMessengerEncoder.sol";
+import {L1CrossDomainMessengerEncoder} from "govkit/bridges/L1CrossDomainMessengerEncoder.sol";
 import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol";
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
@@ -37,7 +35,9 @@ contract V4FeeActivationProposal is Script {
       Call memory activateV4FeesEthereum = Call({
         target: uniswap.ethereum.poolManager,
         value: 0,
-        data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Ethereum, "V4FeeAdapter")))
+        data: abi.encodeCall(
+          IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Ethereum, "V4FeeAdapter"))
+        )
       });
 
       // ---------------------------------------------------------------------------------------------
@@ -49,7 +49,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.arbitrum.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Arbitrum, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Arbitrum, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -62,7 +64,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.base.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Base, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Base, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -79,7 +83,8 @@ contract V4FeeActivationProposal is Script {
               target: uniswap.bnbChain.poolManager,
               value: 0,
               data: abi.encodeCall(
-                IPoolManager.setProtocolFeeController, (recorder.read(ChainId.BNBChain, "V4FeeAdapter"))
+                IPoolManager.setProtocolFeeController,
+                (recorder.read(ChainId.BNBChain, "V4FeeAdapter"))
               )
             })]
         )
@@ -94,7 +99,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.celo.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Celo, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Celo, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -107,7 +114,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.optimism.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Optimism, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Optimism, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -143,7 +152,10 @@ contract V4FeeActivationProposal is Script {
           [Call({
               target: uniswap.polygon.poolManager,
               value: 0,
-              data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Polygon, "V4FeeAdapter")))
+              data: abi.encodeCall(
+                IPoolManager.setProtocolFeeController,
+                (recorder.read(ChainId.Polygon, "V4FeeAdapter"))
+              )
             })]
         )
       });
@@ -157,7 +169,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.soneium.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Soneium, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Soneium, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -169,7 +183,10 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.worldChain.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.WorldChain, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController,
+            (recorder.read(ChainId.WorldChain, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -181,7 +198,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.xLayer.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.XLayer, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.XLayer, "V4FeeAdapter"))
+          )
         })
       });
 
@@ -194,7 +213,9 @@ contract V4FeeActivationProposal is Script {
         remoteCall: Call({
           target: uniswap.zora.poolManager,
           value: 0,
-          data: abi.encodeCall(IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Zora, "V4FeeAdapter")))
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Zora, "V4FeeAdapter"))
+          )
         })
       });
 
