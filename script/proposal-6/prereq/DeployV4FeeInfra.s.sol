@@ -112,7 +112,7 @@ contract DeployV4FeeInfra is Script {
       uint24 defaultFeeValue = chainId == ChainId.Base ? 300 : 1000;
       uint24 stableStableFeeValue = chainId == ChainId.Base ? 100 : 300;
 
-      policy.setFamilyDefault({familyId: AGG_HOOK_ID, feeValue: defaultFeeValue});
+      policy.setFamilyDefault({familyId: AGG_HOOK_ID, feeValue: encodeFee(defaultFeeValue)});
 
       uint256 length = stableStablePairs.chainPairs[chainId].length;
 
@@ -127,7 +127,7 @@ contract DeployV4FeeInfra is Script {
           currency0: Currency.wrap(token0),
           currency1: Currency.wrap(token1),
           familyId: AGG_HOOK_ID,
-          feeValue: stableStableFeeValue
+          feeValue: encodeFee(stableStableFeeValue)
         });
       }
       policy.batchSetPairClassFee(assignments);
@@ -318,6 +318,11 @@ contract DeployV4FeeInfra is Script {
     }
 
     revert("invalid chain id");
+  }
+
+  /// @dev Handles v4 fee two way encoding
+  function encodeFee(uint24 fee) internal pure returns (uint24) {
+    return fee << 12 | fee;
   }
 
   /// @dev sort addresses for pool fee assignment.
