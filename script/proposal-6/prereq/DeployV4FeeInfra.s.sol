@@ -109,8 +109,8 @@ contract DeployV4FeeInfra is Script {
     // Set Aggregator Hook Fees
     //
     {
-      uint24 defaultFeeValue = chainId == ChainId.Base ? 300 : 1000;
-      uint24 stableStableFeeValue = chainId == ChainId.Base ? 100 : 300;
+      uint24 defaultFeeValue = (chainId == ChainId.Base ? 300 : 1000) / 25;
+      uint24 stableStableFeeValue = (chainId == ChainId.Base ? 100 : 300) / 25;
 
       policy.setFamilyDefault({familyId: AGG_HOOK_ID, feeValue: encodeFee(defaultFeeValue)});
 
