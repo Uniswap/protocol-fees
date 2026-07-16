@@ -19,8 +19,7 @@ import {IReleaser} from "govkit/interfaces/IReleaser.sol";
 import {IV3OpenFeeAdapter} from "govkit/interfaces/IV3OpenFeeAdapter.sol";
 
 import "./Constants.sol" as Constants;
-
-string constant DESCRIPTION = "TODO";
+import {DESCRIPTION} from "./Description.sol";
 
 contract RobinhoodFees is Script {
   Recorder internal recorder;
