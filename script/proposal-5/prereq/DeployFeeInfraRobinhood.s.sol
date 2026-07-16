@@ -13,6 +13,7 @@ import {IReleaser} from "govkit/interfaces/IReleaser.sol";
 import {IV3OpenFeeAdapter} from "govkit/interfaces/IV3OpenFeeAdapter.sol";
 
 import {ArbitrumOrbitDeployer} from "../../deployers/ArbitrumOrbitDeployer.sol";
+import {IL1ERC20Gateway} from "../Interfaces.sol";
 import "../Constants.sol" as Constants;
 
 string constant DEPLOYER_NAME = "ArbitrumOrbitDeployer";
@@ -26,6 +27,11 @@ contract DeployFeeInfraRobinhood is Script {
   function run() external {
     uniswap.loadLatest();
     recorder.initialize({scriptName: "DeployFeeInfraRobinhood"});
+
+    address expectedRobinhoodUni = IL1ERC20Gateway(Constants.Ethereum.RH_L1_ERC20_GATEWAY)
+      .calculateL2TokenAddress(uniswap.ethereum.uni);
+
+    require(expectedRobinhoodUni == Constants.Robinhood.UNI);
 
     address timelockAlias = InboxEncoder.arbitrumAlias(uniswap.ethereum.timelock);
 
