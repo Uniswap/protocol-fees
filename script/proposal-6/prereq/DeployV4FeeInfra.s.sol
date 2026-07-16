@@ -147,24 +147,37 @@ contract DeployV4FeeInfra is Script {
     //
     if (chainId == ChainId.Ethereum) {
       HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](4);
-      assignments[0] = HookFamilyAssignment({hook: 0xd53006d1e3110fD319a79AEEc4c527a0d265E080, familyId: 255}); // aztec (CCA)
-      assignments[1] = HookFamilyAssignment({hook: 0x890681CfF5AD2069F020027f41f5f68F6a292000, familyId: 255}); // octra (CCA)
-      assignments[2] = HookFamilyAssignment({hook: 0x358Ac5a3FA0d5A80d78013DBe6A4f290438cA000, familyId: 255}); // strato (CCA)
-      assignments[3] = HookFamilyAssignment({hook: 0xb98766A35cdc28415be0767D4EA41e39fBA3e000, familyId: 255}); // LBP
+      assignments[0] =
+        HookFamilyAssignment({hook: 0xd53006d1e3110fD319a79AEEc4c527a0d265E080, familyId: 255}); // aztec
+      // (CCA)
+      assignments[1] =
+        HookFamilyAssignment({hook: 0x890681CfF5AD2069F020027f41f5f68F6a292000, familyId: 255}); // octra
+      // (CCA)
+      assignments[2] =
+        HookFamilyAssignment({hook: 0x358Ac5a3FA0d5A80d78013DBe6A4f290438cA000, familyId: 255}); // strato
+      // (CCA)
+      assignments[3] =
+        HookFamilyAssignment({hook: 0xb98766A35cdc28415be0767D4EA41e39fBA3e000, familyId: 255}); // LBP
       policy.batchSetHookFamily(assignments);
     }
 
     if (chainId == ChainId.Base) {
       HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
-      assignments[0] = HookFamilyAssignment({hook: 0xeA9346e83952840E69Beb36Df365C4e68DE0E080, familyId: 255}); // flow (CCA)
-      assignments[1] = HookFamilyAssignment({hook: 0x5bB4bAfafEc57BEd50D864AAA9D1ef992611e000, familyId: 255}); // LBP
+      assignments[0] =
+        HookFamilyAssignment({hook: 0xeA9346e83952840E69Beb36Df365C4e68DE0E080, familyId: 255}); // flow
+      // (CCA)
+      assignments[1] =
+        HookFamilyAssignment({hook: 0x5bB4bAfafEc57BEd50D864AAA9D1ef992611e000, familyId: 255}); // LBP
       policy.batchSetHookFamily(assignments);
     }
 
     if (chainId == Constants.Robinhood.CHAIN_ID) {
       HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
-      assignments[0] = HookFamilyAssignment({hook: 0x05d552391067389EE44fec3924157ed33F976000, familyId: 255}); // LBP
-      assignments[1] = HookFamilyAssignment({hook: 0xD462a559337859369EF271814851A18F496ba000, familyId: 255}); // new hook
+      assignments[0] =
+        HookFamilyAssignment({hook: 0x05d552391067389EE44fec3924157ed33F976000, familyId: 255}); // LBP
+      assignments[1] =
+        HookFamilyAssignment({hook: 0xD462a559337859369EF271814851A18F496ba000, familyId: 255}); // new
+      // hook
       policy.batchSetHookFamily(assignments);
     }
 
