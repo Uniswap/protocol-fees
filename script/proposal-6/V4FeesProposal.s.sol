@@ -16,6 +16,8 @@ import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol"
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
+import "./Constants.sol" as Constants;
+
 import {DESCRIPTION} from "./Description.sol";
 
 contract V4FeeActivationProposal is Script {
@@ -118,6 +120,22 @@ contract V4FeeActivationProposal is Script {
         })
       });
 
+      // ---------------------------------------------------------------------------------------------
+      // 06: Activate V4 Fees for Robinhood
+      //
+      Call memory activateV4FeesRobinhood = InboxEncoder.encode({
+        inbox: Constants.Ethereum.RH_INBOX,
+        timelock: uniswap.ethereum.timelock,
+        remoteCall: Call({
+          target: Constants.Robinhood.POOL_MANAGER,
+          value: 0,
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController,
+            (recorder.read(Constants.Robinhood.CHAIN_ID, "V4FeeAdapter"))
+          )
+        })
+      });
+
       Proposal memory v4FeeActivationProposalPartOne = Proposal({
         description: string.concat("# Activate v4 Protocol Fees (Part 2/2) \n\n", DESCRIPTION),
         calls: LibCall.newCalls(
@@ -127,7 +145,8 @@ contract V4FeeActivationProposal is Script {
             activateV4FeesBase,
             activateV4FeesBNBChain,
             activateV4FeesCelo,
-            activateV4FeesOPMainnet
+            activateV4FeesOPMainnet,
+            activateV4FeesRobinhood
           ]
         )
       });
