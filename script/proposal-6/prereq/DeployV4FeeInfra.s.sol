@@ -146,7 +146,7 @@ contract DeployV4FeeInfra is Script {
     // Set LBP & CCA Hooks
     //
     if (chainId == ChainId.Ethereum) {
-      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](4);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](5);
       assignments[0] =
         HookFamilyAssignment({hook: 0xd53006d1e3110fD319a79AEEc4c527a0d265E080, familyId: 255}); // aztec
       // (CCA)
@@ -157,16 +157,20 @@ contract DeployV4FeeInfra is Script {
         HookFamilyAssignment({hook: 0x358Ac5a3FA0d5A80d78013DBe6A4f290438cA000, familyId: 255}); // strato
       // (CCA)
       assignments[3] =
+        HookFamilyAssignment({hook: 0xb98766A35cdc28415be0767D4EA41e39fBA3e000, familyId: 255}); // LBP
+      assignments[4] =
         HookFamilyAssignment({hook: 0x49380c4EfaB1b491006aF7FabAB8B3459F0E6000, familyId: 255}); // LBP
       policy.batchSetHookFamily(assignments);
     }
 
     if (chainId == ChainId.Base) {
-      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](3);
       assignments[0] =
         HookFamilyAssignment({hook: 0xeA9346e83952840E69Beb36Df365C4e68DE0E080, familyId: 255}); // flow
       // (CCA)
       assignments[1] =
+        HookFamilyAssignment({hook: 0x5bB4bAfafEc57BEd50D864AAA9D1ef992611e000, familyId: 255}); // LBP
+      assignments[2] =
         HookFamilyAssignment({hook: 0x34385dD739FE5464892BF0bA4CC42492804dA000, familyId: 255}); // LBP
       policy.batchSetHookFamily(assignments);
     }
@@ -182,13 +186,25 @@ contract DeployV4FeeInfra is Script {
     }
 
     if (chainId == ChainId.UniChain) {
-      policy.setHookFamily(0x298eA05D0356B2Ae5cCAa3169E471783ee9EA000, 255);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+      assignments[0] =
+        HookFamilyAssignment({hook: 0x824A3eCDe463DD45cC156b64CEfA132596C9A000, familyId: 255}); // LBP
+      assignments[1] =
+        HookFamilyAssignment({hook: 0x298eA05D0356B2Ae5cCAa3169E471783ee9EA000, familyId: 255}); // LBP
     }
     if (chainId == ChainId.Arbitrum) {
-      policy.setHookFamily(0x8Af0775a70Cc94D71DFc0fE809435e833F2Fe000, 255);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+      assignments[0] =
+        HookFamilyAssignment({hook: 0x18608AD558dcD233F7854242bbAef73988Bee000, familyId: 255}); // LBP
+      assignments[1] =
+        HookFamilyAssignment({hook: 0x8Af0775a70Cc94D71DFc0fE809435e833F2Fe000, familyId: 255}); // LBP
     }
     if (chainId == ChainId.XLayer) {
-      policy.setHookFamily(0x58DF162fF41e5cB42B8515f75F90C1841938A000, 255);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+      assignments[0] =
+        HookFamilyAssignment({hook: 0x95bcb80e3804a085d23778F2956c305d6488e000, familyId: 255}); // LBP
+      assignments[1] =
+        HookFamilyAssignment({hook: 0x58DF162fF41e5cB42B8515f75F90C1841938A000, familyId: 255}); // LBP
     }
 
     // -----------------------------------------------------------------------------------------
@@ -207,7 +223,6 @@ contract DeployV4FeeInfra is Script {
     // -----------------------------------------------------------------------------------------
     // Run Checks
     //
-
     console.log("Checking ...");
 
     require(address(adapter.POOL_MANAGER()) == poolManager);
@@ -257,6 +272,7 @@ contract DeployV4FeeInfra is Script {
     }
   }
 
+  /// @dev Resovles the addresses of the pool manager, token jar, and timelock based on chain id.
   function getAddresses(uint256 chainId) internal view returns (address, address, address) {
     if (chainId == ChainId.Ethereum) {
       return (uniswap.ethereum.poolManager, uniswap.ethereum.tokenJar, uniswap.ethereum.timelock);
@@ -318,6 +334,7 @@ contract DeployV4FeeInfra is Script {
     revert("invalid chain id");
   }
 
+  /// @dev sort addresses for pool fee assignment.
   function sort(address a, address b) internal pure returns (address, address) {
     return uint160(a) >= uint160(b) ? (b, a) : (a, b);
   }
