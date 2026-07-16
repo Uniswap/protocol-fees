@@ -87,7 +87,7 @@ contract DeployV4FeeInfra is Script {
     feeBuckets[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1, betaPips: 0});
     feeBuckets[1] = FeeBucket({lpFeeFloor: 3, alphaPips: 1, betaPips: 263_889});
     feeBuckets[2] = FeeBucket({lpFeeFloor: 75, alphaPips: 20, betaPips: 200_000});
-    feeBuckets[3] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 272_727});
+    feeBuckets[3] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 272_728});
     feeBuckets[4] = FeeBucket({lpFeeFloor: 375, alphaPips: 100, betaPips: 200_000});
     feeBuckets[5] = FeeBucket({lpFeeFloor: 500, alphaPips: 125, betaPips: 137_500});
     feeBuckets[6] = FeeBucket({lpFeeFloor: 2500, alphaPips: 400, betaPips: 200_000});
