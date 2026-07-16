@@ -16,7 +16,7 @@ import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol"
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
-string constant DESCRIPTION = "TODO";
+import {DESCRIPTION} from "./Description.sol";
 
 contract V4FeeActivationProposal is Script {
   Recorder internal recorder;
@@ -119,7 +119,7 @@ contract V4FeeActivationProposal is Script {
       });
 
       Proposal memory v4FeeActivationProposalPartOne = Proposal({
-        description: string.concat("Part 1/2:\n", DESCRIPTION),
+        description: string.concat("# Activate v4 Protocol Fees (Part 2/2) \n\n", DESCRIPTION),
         calls: LibCall.newCalls(
           [
             activateV4FeesEthereum,
@@ -218,7 +218,7 @@ contract V4FeeActivationProposal is Script {
       });
 
       Proposal memory v4FeeActivationProposalPartTwo = Proposal({
-        description: string.concat("Part 2/2:\n", DESCRIPTION),
+        description: string.concat("# Activate v4 Protocol Fees (Part 2/2) \n\n", DESCRIPTION),
         calls: LibCall.newCalls(
           [
             activateV4FeesPolygon,
