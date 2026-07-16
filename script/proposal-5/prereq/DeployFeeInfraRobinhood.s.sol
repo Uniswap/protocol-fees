@@ -29,6 +29,11 @@ contract DeployFeeInfraRobinhood is Script {
 
     address timelockAlias = InboxEncoder.arbitrumAlias(uniswap.ethereum.timelock);
 
+    // -----------------------------------------------------------------------------------------
+    // Deploy ArbitrumOrbitDeployer
+    //
+    // Deploys the fee infra, configures it, and transfers it to the aliased timelock.
+    //
     if (!recorder.exists(Constants.Robinhood.CHAIN_ID, DEPLOYER_NAME)) {
       vm.startBroadcast();
 
@@ -60,12 +65,24 @@ contract DeployFeeInfraRobinhood is Script {
     address releaser = address(deployer.RELEASER());
     address v3OpenFeeAdapter = address(deployer.V3_OPEN_FEE_ADAPTER());
 
+    // -----------------------------------------------------------------------------------------
+    // Run checks
+    //
+
     require(ITokenJar(tokenJar).owner() == timelockAlias);
     require(IReleaser(releaser).thresholdSetter() == timelockAlias);
     require(IReleaser(releaser).owner() == timelockAlias);
     require(IV3OpenFeeAdapter(v3OpenFeeAdapter).owner() == timelockAlias);
     require(IV3OpenFeeAdapter(v3OpenFeeAdapter).feeSetter() == timelockAlias);
 
+    // -----------------------------------------------------------------------------------------
+    // Write deployments to disk
+    //
+    recorder.write({
+      chainId: Constants.Robinhood.CHAIN_ID,
+      deploymentName: DEPLOYER_NAME,
+      deployment: address(deployer)
+    });
     recorder.write({
       chainId: Constants.Robinhood.CHAIN_ID, deploymentName: "TokenJar", deployment: tokenJar
     });
