@@ -24,8 +24,6 @@ import "../Constants.sol" as Constants;
 
 uint256 constant AGG_HOOK_FAMILY = 1 << 11;
 uint8 constant AGG_HOOK_ID = 11;
-uint256 constant PARITY_HOOK_FAMILY = 1 << 12;
-uint8 constant PARITY_HOOK_ID = 12;
 
 contract DeployV4FeeInfra is Script {
   Recorder internal recorder;
@@ -100,12 +98,10 @@ contract DeployV4FeeInfra is Script {
     // | Name             | ID   | Flags     |
     // | ---------------- | ---- | --------- |
     // | Aggregator Hooks | `11` | `1 << 11` |
-    // | Parity Hooks     | `12` | `1 << 12` |
     //
     {
-      FlagRule[] memory flagRules = new FlagRule[](2);
+      FlagRule[] memory flagRules = new FlagRule[](1);
       flagRules[0] = FlagRule({requiredFlags: AGG_HOOK_FAMILY, familyId: AGG_HOOK_ID});
-      flagRules[1] = FlagRule({requiredFlags: PARITY_HOOK_FAMILY, familyId: PARITY_HOOK_ID});
       policy.setFlagRules(flagRules);
     }
 
@@ -136,11 +132,6 @@ contract DeployV4FeeInfra is Script {
       }
       policy.batchSetPairClassFee(assignments);
     }
-
-    // -----------------------------------------------------------------------------------------
-    // Set Parity Hook Fees
-    //
-    policy.setFamilyDefault({familyId: PARITY_HOOK_ID, feeValue: 0});
 
     // -----------------------------------------------------------------------------------------
     // Set LBP & CCA Hooks
@@ -247,11 +238,6 @@ contract DeployV4FeeInfra is Script {
       (uint256 hookFamily, uint8 hookId) = policy.flagRules(0);
       require(hookFamily == AGG_HOOK_FAMILY);
       require(hookId == AGG_HOOK_ID);
-    }
-    {
-      (uint256 hookFamily, uint8 hookId) = policy.flagRules(1);
-      require(hookFamily == PARITY_HOOK_FAMILY);
-      require(hookId == PARITY_HOOK_ID);
     }
 
     if (chainId == ChainId.Base) require(policy.familyDefaults(AGG_HOOK_ID) == 300);
