@@ -27,6 +27,7 @@ contract V4FeeProposal is Script {
 
   function run() public {
     require(Constants.Robinhood.TOKEN_JAR != address(0x00));
+    require(keccak256(bytes(DESCRIPTION)) != keccak256(bytes("TODO")));
 
     vm.createDir("./out/.seatbelt/", true);
     recorder.initialize("DeployV4FeeInfra");

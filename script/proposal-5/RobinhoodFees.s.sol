@@ -29,6 +29,8 @@ contract RobinhoodFees is Script {
     uniswap.loadLatest();
     recorder.initialize({scriptName: "DeployFeeInfraRobinhood"});
 
+    require(keccak256(bytes(DESCRIPTION)) != keccak256(bytes("TODO")));
+
     address tokenJar =
       recorder.read({chainId: Constants.Robinhood.CHAIN_ID, deploymentName: "TokenJar"});
     address v3OpenFeeAdapter =
