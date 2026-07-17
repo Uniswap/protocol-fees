@@ -2,8 +2,6 @@
 pragma solidity 0.8.29;
 
 string constant DESCRIPTION =
-"# Activate v4 Protocol Fees: 1/2 \n"
-"\n"
 "## Summary\n"
 "\n"
 "This proposal continues the protocol fee rollout approved in UNIfication, following proposals [#93](https://vote.uniswapfoundation.org/proposals/93), [#94](https://vote.uniswapfoundation.org/proposals/94), [#95](https://vote.uniswapfoundation.org/proposals/95), and [#96](https://vote.uniswapfoundation.org/proposals/96). It uses the expedited governance process where fee parameter update proposals go directly to a five-day Snapshot followed by an onchain vote.\n"
