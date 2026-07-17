@@ -14,5 +14,5 @@ library Robinhood {
   address constant POOL_MANAGER = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
   address constant UNI = 0xF177d86a28b520e3E396E4F3B96cd8e72D7dabd8;
   address constant L2_GATEWAY_ROUTER = 0x1E324B9316138CA9a73F960213621AD1aaf01B89;
-  address constant TOKEN_JAR = address(0x00);
+  address constant TOKEN_JAR = 0x2aC03e14Cfe755426DaAEe0a4994184Ce81482F8;
 }
