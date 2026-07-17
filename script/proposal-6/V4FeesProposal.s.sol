@@ -161,7 +161,7 @@ contract V4FeeProposal is Script {
     }
     {
       // ---------------------------------------------------------------------------------------------
-      // 06: Activate V4 Fees for Polygon.
+      // 00: Activate V4 Fees for Polygon.
       //
       Call memory activateV4FeesPolygon = FxRootEncoder.encode({
         fxRoot: uniswap.ethereum.bridge.polygon,
@@ -179,7 +179,7 @@ contract V4FeeProposal is Script {
       });
 
       // ---------------------------------------------------------------------------------------------
-      // 07: Activate V4 Fees for Soneium.
+      // 01: Activate V4 Fees for Soneium.
       //
       Call memory activateV4FeesSoneium = L1CrossDomainMessengerEncoder.encode({
         l1CrossDomainMessenger: uniswap.ethereum.bridge.soneium,
@@ -194,7 +194,7 @@ contract V4FeeProposal is Script {
       });
 
       // ---------------------------------------------------------------------------------------------
-      // 08: Activate V4 Fees for Worldchain.
+      // 02: Activate V4 Fees for Worldchain.
       //
       Call memory activateV4FeesWorldchain = OptimismPortal2Encoder.encode({
         portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.worldChain).portal(),
@@ -209,7 +209,7 @@ contract V4FeeProposal is Script {
       });
 
       // ---------------------------------------------------------------------------------------------
-      // 09: Activate V4 Fees for X Layer
+      // 03: Activate V4 Fees for X Layer
       //
       Call memory activateV4FeesXLayer = OptimismPortal2Encoder.encode({
         portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.xLayer).portal(),
@@ -223,7 +223,7 @@ contract V4FeeProposal is Script {
       });
 
       // ---------------------------------------------------------------------------------------------
-      // 10: Activate V4 Fees for Zora.
+      // 04: Activate V4 Fees for Zora.
       //
       Call memory activateV4FeesZora = L1CrossDomainMessengerEncoder.encode({
         l1CrossDomainMessenger: uniswap.ethereum.bridge.zora,
