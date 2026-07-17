@@ -176,19 +176,14 @@ contract DeployV4FeeInfra is Script {
       policy.batchSetHookFamily(assignments);
     }
 
-    if (chainId == ChainId.UniChain) {
-      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
-      assignments[0] =
-        HookFamilyAssignment({hook: 0x824A3eCDe463DD45cC156b64CEfA132596C9A000, familyId: 255}); // LBP
-      assignments[1] =
-        HookFamilyAssignment({hook: 0x298eA05D0356B2Ae5cCAa3169E471783ee9EA000, familyId: 255}); // LBP
-    }
     if (chainId == ChainId.Arbitrum) {
       HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
       assignments[0] =
         HookFamilyAssignment({hook: 0x18608AD558dcD233F7854242bbAef73988Bee000, familyId: 255}); // LBP
       assignments[1] =
         HookFamilyAssignment({hook: 0x8Af0775a70Cc94D71DFc0fE809435e833F2Fe000, familyId: 255}); // LBP
+
+      policy.batchSetHookFamily(assignments);
     }
     if (chainId == ChainId.XLayer) {
       HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
@@ -196,6 +191,8 @@ contract DeployV4FeeInfra is Script {
         HookFamilyAssignment({hook: 0x95bcb80e3804a085d23778F2956c305d6488e000, familyId: 255}); // LBP
       assignments[1] =
         HookFamilyAssignment({hook: 0x58DF162fF41e5cB42B8515f75F90C1841938A000, familyId: 255}); // LBP
+
+      policy.batchSetHookFamily(assignments);
     }
 
     // -----------------------------------------------------------------------------------------
