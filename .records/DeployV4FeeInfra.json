@@ -26,5 +26,9 @@
   "4663": {
     "V4FeeAdapter": "0x6d0009504D129CF5002Dba61D9Ae8575AA79314c",
     "V4FeePolicy": "0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc"
+  },
+  "137": {
+    "V4FeeAdapter": "0x59e84309Afa65F084F9c03668583d231afB12cc6",
+    "V4FeePolicy": "0x600c29d3Ce95Ce503FAb43753cbcb5Fa87EE6093"
   }
 }
