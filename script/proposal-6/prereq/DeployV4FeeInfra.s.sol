@@ -237,8 +237,11 @@ contract DeployV4FeeInfra is Script {
       require(hookId == AGG_HOOK_ID);
     }
 
-    if (chainId == ChainId.Base) require(policy.familyDefaults(AGG_HOOK_ID) == 300);
-    else require(policy.familyDefaults(AGG_HOOK_ID) == 1000);
+    if (chainId == ChainId.Base) {
+      require(policy.familyDefaults(AGG_HOOK_ID) == encodeFee(300 / 25));
+    } else {
+      require(policy.familyDefaults(AGG_HOOK_ID) == encodeFee(1000 / 25));
+    }
 
     uint256 len = stableStablePairs.chainPairs[chainId].length;
 
@@ -250,8 +253,11 @@ contract DeployV4FeeInfra is Script {
 
       bytes32 hash = keccak256(abi.encodePacked(token0, token1));
 
-      if (chainId == ChainId.Base) require(policy.pairClassFees(hash, AGG_HOOK_ID) == 100);
-      else require(policy.pairClassFees(hash, AGG_HOOK_ID) == 300);
+      if (chainId == ChainId.Base) {
+        require(policy.pairClassFees(hash, AGG_HOOK_ID) == encodeFee(100 / 25));
+      } else {
+        require(policy.pairClassFees(hash, AGG_HOOK_ID) == encodeFee(300 / 25));
+      }
     }
   }
 
