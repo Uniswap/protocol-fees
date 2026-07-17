@@ -13,7 +13,6 @@ import {IReleaser} from "govkit/interfaces/IReleaser.sol";
 import {IV3OpenFeeAdapter} from "govkit/interfaces/IV3OpenFeeAdapter.sol";
 
 import {ArbitrumOrbitDeployer} from "../../deployers/ArbitrumOrbitDeployer.sol";
-import {IL1ERC20Gateway} from "../Interfaces.sol";
 import "../Constants.sol" as Constants;
 
 string constant DEPLOYER_NAME = "ArbitrumOrbitDeployer";
