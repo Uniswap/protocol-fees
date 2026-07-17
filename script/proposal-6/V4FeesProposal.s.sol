@@ -19,6 +19,14 @@ import "../proposal-5/Constants.sol" as Constants;
 
 import {DESCRIPTION} from "./Description.sol";
 
+enum Part {
+  One,
+  Two
+}
+
+/// @dev Toggle this to run part 1 or 2.
+Part constant V4_FEE_PROPOSAL_PART = Part.One;
+
 contract V4FeeProposal is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;
@@ -30,7 +38,8 @@ contract V4FeeProposal is Script {
     vm.createDir("./out/.seatbelt/", true);
     recorder.initialize("DeployV4FeeInfra");
     uniswap.loadLatest();
-    {
+
+    if (V4_FEE_PROPOSAL_PART == Part.One) {
       // ---------------------------------------------------------------------------------------------
       // 00: Activate V4 Fees for Ethereum.
       //
@@ -93,18 +102,21 @@ contract V4FeeProposal is Script {
       });
 
       // ---------------------------------------------------------------------------------------------
-      // 04: Activate V4 Fees for Celo.
+      // 04: Activate V4 Fees for Polygon.
       //
-      Call memory activateV4FeesCelo = L1CrossDomainMessengerEncoder.encode({
-        l1CrossDomainMessenger: uniswap.ethereum.bridge.celo,
-        crossChainAccount: uniswap.celo.crossChainAccount,
-        remoteCall: Call({
-          target: uniswap.celo.poolManager,
-          value: 0,
-          data: abi.encodeCall(
-            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Celo, "V4FeeAdapter"))
-          )
-        })
+      Call memory activateV4FeesPolygon = FxRootEncoder.encode({
+        fxRoot: uniswap.ethereum.bridge.polygon,
+        fxReceiver: uniswap.polygon.fxReceiver,
+        remoteCalls: LibCall.newCalls(
+          [Call({
+              target: uniswap.polygon.poolManager,
+              value: 0,
+              data: abi.encodeCall(
+                IPoolManager.setProtocolFeeController,
+                (recorder.read(ChainId.Polygon, "V4FeeAdapter"))
+              )
+            })]
+        )
       });
 
       // ---------------------------------------------------------------------------------------------
@@ -146,7 +158,7 @@ contract V4FeeProposal is Script {
             activateV4FeesArbitrum,
             activateV4FeesBase,
             activateV4FeesBNBChain,
-            activateV4FeesCelo,
+            activateV4FeesPolygon,
             activateV4FeesOPMainnet,
             activateV4FeesRobinhood
           ]
@@ -160,23 +172,21 @@ contract V4FeeProposal is Script {
         })
       });
     }
-    {
+
+    if (V4_FEE_PROPOSAL_PART == Part.Two) {
       // ---------------------------------------------------------------------------------------------
-      // 00: Activate V4 Fees for Polygon.
+      // 00: Activate V4 Fees for Celo.
       //
-      Call memory activateV4FeesPolygon = FxRootEncoder.encode({
-        fxRoot: uniswap.ethereum.bridge.polygon,
-        fxReceiver: uniswap.polygon.fxReceiver,
-        remoteCalls: LibCall.newCalls(
-          [Call({
-              target: uniswap.polygon.poolManager,
-              value: 0,
-              data: abi.encodeCall(
-                IPoolManager.setProtocolFeeController,
-                (recorder.read(ChainId.Polygon, "V4FeeAdapter"))
-              )
-            })]
-        )
+      Call memory activateV4FeesCelo = L1CrossDomainMessengerEncoder.encode({
+        l1CrossDomainMessenger: uniswap.ethereum.bridge.celo,
+        crossChainAccount: uniswap.celo.crossChainAccount,
+        remoteCall: Call({
+          target: uniswap.celo.poolManager,
+          value: 0,
+          data: abi.encodeCall(
+            IPoolManager.setProtocolFeeController, (recorder.read(ChainId.Celo, "V4FeeAdapter"))
+          )
+        })
       });
 
       // ---------------------------------------------------------------------------------------------
@@ -244,7 +254,7 @@ contract V4FeeProposal is Script {
         description: string.concat("# Activate v4 Protocol Fees (Part 2/2) \n\n", DESCRIPTION),
         calls: LibCall.newCalls(
           [
-            activateV4FeesPolygon,
+            activateV4FeesCelo,
             activateV4FeesSoneium,
             activateV4FeesWorldchain,
             activateV4FeesXLayer,
