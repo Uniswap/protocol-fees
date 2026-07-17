@@ -17,7 +17,7 @@ import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 import {IL1CrossDomainMessenger} from "govkit/interfaces/bridges/IL1CrossDomainMessenger.sol";
 
-import "./Constants.sol" as Constants;
+import "../proposal-5/Constants.sol" as Constants;
 
 import {DESCRIPTION} from "./Description.sol";
 

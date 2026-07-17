@@ -20,7 +20,7 @@ import {
 } from "../../../src/interfaces/IV4FeePolicy.sol";
 import {StableStablePairs} from "../StableStablePairs.sol";
 
-import "../Constants.sol" as Constants;
+import "../../proposal-5/Constants.sol" as Constants;
 
 uint256 constant AGG_HOOK_FAMILY = 1 << 11;
 uint8 constant AGG_HOOK_ID = 11;

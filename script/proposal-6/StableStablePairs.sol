@@ -2,7 +2,7 @@
 pragma solidity 0.8.29;
 
 import {ChainId} from "lib/govkit/src/constants/ChainId.sol";
-import "./Constants.sol" as Constants;
+import "../proposal-5/Constants.sol" as Constants;
 
 struct Pair {
   address token0;
