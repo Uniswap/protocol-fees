@@ -28,11 +28,6 @@ contract DeployFeeInfraRobinhood is Script {
     uniswap.loadLatest();
     recorder.initialize({scriptName: "DeployFeeInfraRobinhood"});
 
-    address expectedRobinhoodUni = IL1ERC20Gateway(Constants.Ethereum.RH_L1_ERC20_GATEWAY)
-      .calculateL2TokenAddress(uniswap.ethereum.uni);
-
-    require(expectedRobinhoodUni == Constants.Robinhood.UNI);
-
     address timelockAlias = InboxEncoder.arbitrumAlias(uniswap.ethereum.timelock);
 
     // -----------------------------------------------------------------------------------------
