@@ -171,12 +171,14 @@ contract DeployV4FeeInfra is Script {
     }
 
     if (chainId == Constants.Robinhood.CHAIN_ID) {
-      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
+      HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](3);
       assignments[0] =
         HookFamilyAssignment({hook: 0x05d552391067389EE44fec3924157ed33F976000, familyId: 255}); // LBP
       assignments[1] =
         HookFamilyAssignment({hook: 0xD462a559337859369EF271814851A18F496ba000, familyId: 255}); // new
       // hook
+      assignments[2] =
+        HookFamilyAssignment({hook: 0x095e38a2135aeBcfFa98A5B6911591937f912000, familyId: 255}); // LBP
       policy.batchSetHookFamily(assignments);
     }
 
