@@ -59,5 +59,4 @@ string constant DESCRIPTION = "# Protocol Fee Expansion: Robinhood Chain\n"
 "## Next Steps / Timeline\n"
 "\n"
 "- **Onchain vote begins:** Jul 19, 2026\n"
-"- **Onchain ends:** Jul 26, 2026\n"
-"*This proposal is part of the protocol fee rollout, following proposals [#93](https://vote.uniswapfoundation.org/proposals/93), [#94](https://vote.uniswapfoundation.org/proposals/94), [#95](https://vote.uniswapfoundation.org/proposals/95), and [#96](https://vote.uniswapfoundation.org/proposals/96). It uses the expedited governance process [approved](https://gov.uniswap.org/t/unification-proposal/25881#p-57882-protocol-fee-rollout-4) in UNIfication, where fee parameter update proposals can bypass the RFC stage and go directly to a five-day Snapshot followed by an onchain vote.*\n";
+"- **Onchain ends:** Jul 26, 2026\n";
