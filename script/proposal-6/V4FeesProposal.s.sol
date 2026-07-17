@@ -26,6 +26,8 @@ contract V4FeeProposal is Script {
   Uniswap internal uniswap;
 
   function run() public {
+    require(Constants.Robinhood.TOKEN_JAR != address(0x00));
+
     vm.createDir("./out/.seatbelt/", true);
     recorder.initialize("DeployV4FeeInfra");
     uniswap.loadLatest();

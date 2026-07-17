@@ -40,6 +40,10 @@ contract DeployV4FeeInfra is Script {
 
     (address poolManager, address tokenJar, address postConfigOwner) = getAddresses(chainId);
 
+    if (chainId == Constants.Robinhood.CHAIN_ID) {
+      require(Constants.Robinhood.TOKEN_JAR != address(0x00));
+    }
+
     vm.startBroadcast();
 
     // -----------------------------------------------------------------------------------------
