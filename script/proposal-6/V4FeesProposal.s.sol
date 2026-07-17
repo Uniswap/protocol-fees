@@ -12,10 +12,8 @@ import {GovernanceSeatbelt} from "govkit/forge/GovernanceSeatbelt.sol";
 import {FxRootEncoder} from "govkit/bridges/FxRootEncoder.sol";
 import {InboxEncoder} from "govkit/bridges/InboxEncoder.sol";
 import {L1CrossDomainMessengerEncoder} from "govkit/bridges/L1CrossDomainMessengerEncoder.sol";
-import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol";
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
-import {IL1CrossDomainMessenger} from "govkit/interfaces/bridges/IL1CrossDomainMessenger.sol";
 
 import "../proposal-5/Constants.sol" as Constants;
 
@@ -199,8 +197,9 @@ contract V4FeeProposal is Script {
       // ---------------------------------------------------------------------------------------------
       // 02: Activate V4 Fees for Worldchain.
       //
-      Call memory activateV4FeesWorldchain = OptimismPortal2Encoder.encode({
-        portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.worldChain).portal(),
+      Call memory activateV4FeesWorldchain = L1CrossDomainMessengerEncoder.encode({
+        l1CrossDomainMessenger: uniswap.ethereum.bridge.worldChain,
+        crossChainAccount: uniswap.worldChain.crossChainAccount,
         remoteCall: Call({
           target: uniswap.worldChain.poolManager,
           value: 0,
@@ -214,8 +213,9 @@ contract V4FeeProposal is Script {
       // ---------------------------------------------------------------------------------------------
       // 03: Activate V4 Fees for X Layer
       //
-      Call memory activateV4FeesXLayer = OptimismPortal2Encoder.encode({
-        portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.xLayer).portal(),
+      Call memory activateV4FeesXLayer = L1CrossDomainMessengerEncoder.encode({
+        l1CrossDomainMessenger: uniswap.ethereum.bridge.xLayer,
+        crossChainAccount: uniswap.xLayer.crossChainAccount,
         remoteCall: Call({
           target: uniswap.xLayer.poolManager,
           value: 0,
