@@ -230,7 +230,7 @@ contract DeployV4FeeInfra is Script {
       require(betaPips == feeBuckets[i].betaPips);
     }
 
-    require(policy.flagRulesLength() == 2);
+    require(policy.flagRulesLength() == 1);
     {
       (uint256 hookFamily, uint8 hookId) = policy.flagRules(0);
       require(hookFamily == AGG_HOOK_FAMILY);
