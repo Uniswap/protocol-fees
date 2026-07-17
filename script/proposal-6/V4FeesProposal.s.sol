@@ -21,7 +21,7 @@ import "../proposal-5/Constants.sol" as Constants;
 
 import {DESCRIPTION} from "./Description.sol";
 
-contract V4FeeActivationProposal is Script {
+contract V4FeeProposal is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;
 
@@ -138,7 +138,7 @@ contract V4FeeActivationProposal is Script {
       });
 
       Proposal memory v4FeeActivationProposalPartOne = Proposal({
-        description: string.concat("# Activate v4 Protocol Fees (Part 2/2) \n\n", DESCRIPTION),
+        description: string.concat("# Activate v4 Protocol Fees (Part 1/2) \n\n", DESCRIPTION),
         calls: LibCall.newCalls(
           [
             activateV4FeesEthereum,
