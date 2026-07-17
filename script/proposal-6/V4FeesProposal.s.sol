@@ -15,6 +15,7 @@ import {L1CrossDomainMessengerEncoder} from "govkit/bridges/L1CrossDomainMesseng
 import {OptimismPortal2Encoder} from "govkit/bridges/OptimismPortal2Encoder.sol";
 import {WormholeEncoder} from "govkit/bridges/WormholeEncoder.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
+import {IL1CrossDomainMessenger} from "govkit/interfaces/bridges/IL1CrossDomainMessenger.sol";
 
 import "./Constants.sol" as Constants;
 
@@ -196,7 +197,7 @@ contract V4FeeActivationProposal is Script {
       // 08: Activate V4 Fees for Worldchain.
       //
       Call memory activateV4FeesWorldchain = OptimismPortal2Encoder.encode({
-        portal: uniswap.ethereum.bridge.worldChain,
+        portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.worldChain).portal(),
         remoteCall: Call({
           target: uniswap.worldChain.poolManager,
           value: 0,
@@ -211,7 +212,7 @@ contract V4FeeActivationProposal is Script {
       // 09: Activate V4 Fees for X Layer
       //
       Call memory activateV4FeesXLayer = OptimismPortal2Encoder.encode({
-        portal: uniswap.ethereum.bridge.xLayer,
+        portal: IL1CrossDomainMessenger(uniswap.ethereum.bridge.xLayer).portal(),
         remoteCall: Call({
           target: uniswap.xLayer.poolManager,
           value: 0,
