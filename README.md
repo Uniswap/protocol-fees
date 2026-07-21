@@ -13,6 +13,7 @@
     - [2. Fee Sources](#2-fee-sources)
       - [Push vs Pull Models](#push-vs-pull-models)
       - [Supported Protocols](#supported-protocols)
+      - [V4 Fee Resolution](#v4-fee-resolution)
     - [3. Releasers](#3-releasers)
       - [UNI Burn (Mainnet)](#uni-burn-mainnet)
       - [Cross-Chain UNI Burn (OP Stack L2s)](#cross-chain-uni-burn-op-stack-l2s)
@@ -33,6 +34,7 @@
     - [Base (Chain ID: 8453)](#base-chain-id-8453)
     - [Polygon (Chain ID: 137)](#polygon-chain-id-137)
     - [BNB Chain (Chain ID: 56)](#bnb-chain-chain-id-56)
+    - [Robinhood Chain (Chain ID: 4663)](#robinhood-chain-chain-id-4663)
   - [Development](#development)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
@@ -289,6 +291,8 @@ Ethereum Mainnet
 | Agreement Anchor 3   | [`0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1`](https://etherscan.io/address/0xF9F85a17cC6De9150Cd139f64b127976a1dE91D1) |
 | Ntt Manager          | [`0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44`](https://etherscan.io/address/0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44) |
 | Wormhole Transceiver | [`0x7597C40Fd3df66b750C14ad4D90524e247499011`](https://etherscan.io/address/0x7597C40Fd3df66b750C14ad4D90524e247499011) |
+| V4FeeAdapter         | [`0x89A5D5bF00a27D55c02951E49078a5C5771051dB`](https://etherscan.io/address/0x89A5D5bF00a27D55c02951E49078a5C5771051dB) |
+| V4FeePolicy          | [`0x1cd822b70a0591420F65E94b9B3A0D0b0fB3a314`](https://etherscan.io/address/0x1cd822b70a0591420F65E94b9B3A0D0b0fB3a314) |
 
 ### Unichain (Chain ID: 130)
 
@@ -326,6 +330,8 @@ Ethereum Mainnet
 | TokenJar                                  | [`0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B`](https://celoscan.io/address/0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25`](https://celoscan.io/address/0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25) |
 | V3OpenFeeAdapter                          | [`0xB9952C01830306ea2fAAe1505f6539BD260Bfc48`](https://celoscan.io/address/0xB9952C01830306ea2fAAe1505f6539BD260Bfc48) |
+| V4FeeAdapter                              | [`0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233`](https://celoscan.io/address/0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233) |
+| V4FeePolicy                               | [`0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16`](https://celoscan.io/address/0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16) |
 
 ### Zora (Chain ID: 7777777)
 
@@ -354,6 +360,9 @@ Ethereum Mainnet
 | TokenJar         | [`0x95E337C5B155385945D407f5396387D0c2a3A263`](https://arbiscan.io/address/0x95E337C5B155385945D407f5396387D0c2a3A263) |
 | Releaser         | [`0xB8018422bcE25D82E70cB98FdA96a4f502D89427`](https://arbiscan.io/address/0xB8018422bcE25D82E70cB98FdA96a4f502D89427) |
 | V3OpenFeeAdapter | [`0xFF7aD5dA31fECdC678796c88B05926dB896b0699`](https://arbiscan.io/address/0xFF7aD5dA31fECdC678796c88B05926dB896b0699) |
+| V4FeeAdapter     | [`0x66276D2e80784180E4B9b859e4327b9C5646B87c`](https://arbiscan.io/address/0x66276D2e80784180E4B9b859e4327b9C5646B87c) |
+| V4FeePolicy      | [`0x020B1Ad79037f02feC357Ec4601fFbe5f7ED6872`](https://arbiscan.io/address/0x8F6a5A19Ff1adc6AA9456d6b201fA4FC7589BD0B) |
+
 
 ### OP Mainnet (Chain ID: 10)
 
@@ -363,6 +372,8 @@ Ethereum Mainnet
 | TokenJar                                  | [`0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3`](https://optimistic.etherscan.io/address/0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0x94460443Ca27FFC1baeCa61165fde18346C91AbD`](https://optimistic.etherscan.io/address/0x94460443Ca27FFC1baeCa61165fde18346C91AbD) |
 | V3OpenFeeAdapter                          | [`0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4`](https://optimistic.etherscan.io/address/0xec23Cf5A1db3dcC6595385D28B2a4D9B52503Be4) |
+| V4FeeAdapter                              | [`0xd85393784234fB2ee4f077867A8B78E1aD4cE56B`](https://optimistic.etherscan.io/address/0xd85393784234fB2ee4f077867A8B78E1aD4cE56B) |
+| V4FeePolicy                               | [`0x13d9D19802660b8167B3c84C1fcDCD0163672eB8`](https://optimistic.etherscan.io/address/0x13d9D19802660b8167B3c84C1fcDCD0163672eB8) |
 
 ### Base (Chain ID: 8453)
 
@@ -372,6 +383,8 @@ Ethereum Mainnet
 | TokenJar                                  | [`0x9bD25e67bF390437C8fAF480AC735a27BcF6168c`](https://basescan.org/address/0x9bD25e67bF390437C8fAF480AC735a27BcF6168c) |
 | Releaser (OptimismBridgedResourceFirepit) | [`0xFf77c0ED0B6b13A20446969107E5867abc46f53a`](https://basescan.org/address/0xFf77c0ED0B6b13A20446969107E5867abc46f53a) |
 | V3OpenFeeAdapter                          | [`0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1`](https://basescan.org/address/0xaBEA76658b205696d49B5F91b2a03536cB8A3bE1) |
+| V4FeeAdapter                              | [`0xc53DD825dedBE7814562528A1A30e8e5BCbB4b55`](https://basescan.org/address/0xc53DD825dedBE7814562528A1A30e8e5BCbB4b55) |
+| V4FeePolicy                               | [`0xf963bdbe8BA2aABBB3190fF2268F3d833393ab71`](https://basescan.org/address/0xf963bdbe8BA2aABBB3190fF2268F3d833393ab71) |
 
 ### Polygon (Chain ID: 137)
 
@@ -383,6 +396,8 @@ Ethereum Mainnet
 | tokenJar            | [`0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A`](https://polygonscan.com/address/0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A) |
 | wormholeReleaser    | [`0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2`](https://polygonscan.com/address/0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2) |
 | v3OpenFeeAdapter    | [`0x3F07F08b45912dCd6691C5B9412975D5113B2910`](https://polygonscan.com/address/0x3F07F08b45912dCd6691C5B9412975D5113B2910) |
+| V4FeeAdapter        | [`0x59e84309Afa65F084F9c03668583d231afB12cc6`](https://polygonscan.com/address/0x59e84309Afa65F084F9c03668583d231afB12cc6) |
+| V4FeePolicy         | [`0x600c29d3Ce95Ce503FAb43753cbcb5Fa87EE6093`](https://polygonscan.com/address/0x600c29d3Ce95Ce503FAb43753cbcb5Fa87EE6093) |
 
 ### BNB Chain (Chain ID: 56)
 
@@ -394,6 +409,19 @@ Ethereum Mainnet
 | tokenJar            | [`0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A`](https://bscscan.com/address/0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A) |
 | wormholeReleaser    | [`0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2`](https://bscscan.com/address/0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2) |
 | v3OpenFeeAdapter    | [`0x3F07F08b45912dCd6691C5B9412975D5113B2910`](https://bscscan.com/address/0x3F07F08b45912dCd6691C5B9412975D5113B2910) |
+| V4FeeAdapter        | [`0x66276D2e80784180E4B9b859e4327b9C5646B87c`](https://bscscan.com/address/0x66276D2e80784180E4B9b859e4327b9C5646B87c) |
+| V4FeePolicy         | [`0x020B1Ad79037f02feC357Ec4601fFbe5f7ED6872`](https://bscscan.com/address/0x020B1Ad79037f02feC357Ec4601fFbe5f7ED6872) |
+
+### Robinhood Chain (Chain ID: 4663)
+
+| Contract         | Address                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Deployer         | [`0x81405C50595f09175d282ccEc657e090EE54AB2E`](https://robinhoodchain.blockscout.com/address/0x81405C50595f09175d282ccEc657e090EE54AB2E) |
+| TokenJar         | [`0x2aC03e14Cfe755426DaAEe0a4994184Ce81482F8`](https://robinhoodchain.blockscout.com/address/0x2aC03e14Cfe755426DaAEe0a4994184Ce81482F8) |
+| Releaser         | [`0x7a8f74C2585F84c781F951B7f2FF21337D5b630b`](https://robinhoodchain.blockscout.com/address/0x7a8f74C2585F84c781F951B7f2FF21337D5b630b) |
+| V3OpenFeeAdapter | [`0x05C420bC4823e039AA4dA645eDde743486dAAA25`](https://robinhoodchain.blockscout.com/address/0x05C420bC4823e039AA4dA645eDde743486dAAA25) |
+| V4FeeAdapter     | [`0x6d0009504D129CF5002Dba61D9Ae8575AA79314c`](https://robinhoodchain.blockscout.com/address/0x6d0009504D129CF5002Dba61D9Ae8575AA79314c) |
+| V4FeePolicy      | [`0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc`](https://robinhoodchain.blockscout.com/address/0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc) |
 
 ## Development
 
