@@ -1,9 +1,62 @@
-// SPDX-License-Identifier: AGPl-3.0-only
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
-/// @dev Body for "Activate v4 Protocol Fees (Part 2/2)". The proposal script refuses to run
-/// while this is "TODO" — paste the final governance text before the warroom.
-string constant PART_TWO_DESCRIPTION = "TODO";
+string constant PART_TWO_DESCRIPTION = "## Summary\n" "\n"
+  "This proposal completes the v4 protocol fee rollout described in the [v4 fee activation temp check](https://gov.uniswap.org/t/temp-check-activate-v4-protocol-fees/26162), following the UNIfication fee rollout (proposals [#93](https://vote.uniswapfoundation.org/proposals/93), [#94](https://vote.uniswapfoundation.org/proposals/94), [#95](https://vote.uniswapfoundation.org/proposals/95), and [#96](https://vote.uniswapfoundation.org/proposals/96)). It uses the expedited governance process where fee parameter update proposals go directly to a five-day Snapshot followed by an onchain vote.\n"
+  "\n"
+  "Part 1 activated v4 protocol fees on Ethereum, Arbitrum, Base, BNB Chain, Polygon, OP Mainnet, and Robinhood Chain. Because of GovernorBravo's limit of 10 actions per proposal, the remaining chains were deferred to this vote. This proposal activates v4 fees on those five chains: Celo, Soneium, Worldchain, X Layer, and Zora.\n"
+  "\n"
+  "These chains activate with the newest fee policy configuration, which includes everything from part 1 plus a set of self-service **fee tier families** and a **native-math opt-in** described below. A companion proposal upgrades the part 1 chains to this same configuration.\n"
+  "\n" "---\n" "\n" "## Implementation Details\n" "\n"
+  "The V4 Fee Controller system (V4FeeAdapter + V4FeePolicy) is described in the part 1 proposal: governance sets a small number of rules, and the policy computes the fee for any pool on demand. Pools are sorted into families - by governance assignment, by flags the hook self-reports, or by pool characteristics - and each family carries its own fee logic.\n"
+  "\n"
+  "On these five chains, fees activate with the same family configuration approved in part 1 - the static-pool fee curve, CCA/LBP hooks opted into that curve, and the aggregator hook family - plus two additions:\n"
+  "\n"
+  "* **Fee tier families.** Twelve families with flat protocol fees from 0.1bp to 10bp (the PoolManager's cap), listed in the appendix. A hook that does not fit an existing family can opt its pools into a tier immediately by self-reporting the tier's flag, without waiting for a governance vote. Governance can always override any hook's family assignment by vote. A hook that signals multiple tiers is assigned the highest.\n"
+  "* **Native-math opt-in.** A dedicated flag lets a hook whose pools use the PoolManager's native swap math opt into the same fee curve that applies to hookless pools.\n"
+  "\n"
+  "**This proposal does not enable the protocol fee for any pools other than those in the families mentioned above.**\n"
+  "\n"
+  "Fees will flow to the TokenJar on each chain. UNI burned on L2s and alt-L1s will be bridged back to Ethereum mainnet and sent to `0xdead`.\n"
+  "\n" "---\n" "\n" "## Onchain Proposal Spec\n" "\n"
+  "**Pre-proposal** (to be completed by Uniswap Labs prior to an onchain vote)\n" "\n"
+  "* Deploy V4FeeAdapter and V4FeePolicy contracts on Celo, Soneium, Worldchain, X Layer, and Zora\n"
+  "* Configure the V4FeePolicy contracts with the native math protocol fee curve, CCA hook and aggregator hook family fee logic approved in part 1, and the fee tier families and native-math opt-in described above\n"
+  "* Transfer ownership of both contracts to governance, verified by the deployment scripts before the vote\n"
+  "\n"
+  "These contracts can be found [here](https://github.com/Uniswap/protocol-fees/tree/main/src/feeAdapters), and this post will be updated with addresses and explorer links when they have been deployed.\n"
+  "\n" "**In this proposal** (executed if the vote passes):\n" "\n"
+  "* Set the `V4FeeAdapter` as the `ProtocolFeeController` on the PoolManager on each chain (five actions, each a cross-chain governance message)\n"
+  "\n" "---\n" "\n" "## Appendix - Fee Tier Families\n" "\n"
+  "Fees are flat per family and expressed the same way as the static fee curve in part 1. The family ID doubles as the flag bit a hook self-reports to opt in.\n"
+  "\n" "| *Family ID / Flag Bit* | *Protocol Fee (bps)* |\n" "| :---- | :---- |\n" "| 20 | 0.1 |\n"
+  "| 21 | 0.5 |\n" "| 22 | 1 |\n" "| 23 | 2 |\n" "| 24 | 3 |\n" "| 25 | 4 |\n" "| 26 | 5 |\n"
+  "| 27 | 6 |\n" "| 28 | 7 |\n" "| 29 | 8 |\n" "| 30 | 9 |\n" "| 31 | 10 |\n";
 
-/// @dev Body for "Activate v4 Hook Fee Families (Part 1 Chains)". Same TODO guard.
-string constant FAMILY_UPGRADE_DESCRIPTION = "TODO";
+string constant FAMILY_UPGRADE_DESCRIPTION = "## Summary\n" "\n"
+  "This proposal extends the v4 protocol fee system activated by the part 1 vote (Ethereum, Arbitrum, Base, BNB Chain, Polygon, OP Mainnet, and Robinhood Chain) with self-service **fee tier families** and a **native-math opt-in**. It uses the expedited governance process where fee parameter update proposals go directly to a five-day Snapshot followed by an onchain vote.\n"
+  "\n"
+  "Today, a hook that wants its pools to pay protocol fees but does not fit one of the approved families (static curve, CCA, aggregator) has no path other than a bespoke governance vote. This proposal adds twelve pre-approved fee tiers, from 0.1bp to 10bp, that any hook can opt into immediately by self-reporting a flag - no vote required. Governance keeps the last word: it can override any hook's family assignment at any time.\n"
+  "\n"
+  "**This proposal does not change any fee currently being charged.** Every pool paying fees today pays exactly the same fee after execution; the vote only adds the new opt-in families.\n"
+  "\n" "---\n" "\n" "## Implementation Details\n" "\n"
+  "* **Fee tier families.** Twelve families with flat protocol fees, listed in the appendix. A hook opts in by self-reporting the tier's flag via the fee classification interface. A hook that signals multiple tiers is assigned the highest.\n"
+  "* **Native-math opt-in.** A dedicated flag lets a hook whose pools use the PoolManager's native swap math opt into the same fee curve that applies to hookless pools.\n"
+  "\n"
+  "**Why a controller swap.** The V4 Fee Controller system was designed so its fee logic can be replaced wholesale rather than reconfigured piecemeal. Instead of sending many configuration calls through cross-chain governance messages, Uniswap Labs deploys a freshly configured V4FeeAdapter and V4FeePolicy pair on each chain ahead of the vote. The deployment scripts assert onchain that the new policy reproduces the live policy's fee outcomes exactly - same curve, same aggregator fees, same hook assignments - before ownership is transferred to governance. The proposal itself then executes a single action per chain: pointing the PoolManager at the new controller. The previous controller keeps serving fees until the moment of execution, so the swap is atomic.\n"
+  "\n"
+  "The new contracts also add batch admin functions (batch pool overrides and batch family defaults), making future fee votes cheaper to construct and easier to review.\n"
+  "\n" "Fees continue to flow to the TokenJar on each chain, and the UNI burn path is unchanged.\n"
+  "\n" "---\n" "\n" "## Onchain Proposal Spec\n" "\n"
+  "**Pre-proposal** (to be completed by Uniswap Labs prior to an onchain vote)\n" "\n"
+  "* Deploy V4FeeAdapter and V4FeePolicy contracts on Ethereum, Arbitrum, Base, BNB Chain, Polygon, OP Mainnet, and Robinhood Chain\n"
+  "* Configure the V4FeePolicy contracts identically to the live policies, plus the fee tier families and native-math opt-in described above, with parity verified onchain by the deployment scripts\n"
+  "* Transfer ownership of both contracts to governance\n" "\n"
+  "These contracts can be found [here](https://github.com/Uniswap/protocol-fees/tree/main/src/feeAdapters), and this post will be updated with addresses and explorer links when they have been deployed.\n"
+  "\n" "**In this proposal** (executed if the vote passes):\n" "\n"
+  "* Set the new `V4FeeAdapter` as the `ProtocolFeeController` on the PoolManager on each chain (seven actions: one direct call on Ethereum and six cross-chain governance messages)\n"
+  "\n" "---\n" "\n" "## Appendix - Fee Tier Families\n" "\n"
+  "Fees are flat per family and expressed the same way as the static fee curve in part 1. The family ID doubles as the flag bit a hook self-reports to opt in.\n"
+  "\n" "| *Family ID / Flag Bit* | *Protocol Fee (bps)* |\n" "| :---- | :---- |\n" "| 20 | 0.1 |\n"
+  "| 21 | 0.5 |\n" "| 22 | 1 |\n" "| 23 | 2 |\n" "| 24 | 3 |\n" "| 25 | 4 |\n" "| 26 | 5 |\n"
+  "| 27 | 6 |\n" "| 28 | 7 |\n" "| 29 | 8 |\n" "| 30 | 9 |\n" "| 31 | 10 |\n";
