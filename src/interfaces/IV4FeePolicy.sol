@@ -39,6 +39,12 @@ struct HookFamilyAssignment {
   uint8 familyId;
 }
 
+/// @dev Family slot and fee for `batchSetFamilyDefault`.
+struct FamilyDefaultAssignment {
+  uint8 familyId;
+  uint24 feeValue;
+}
+
 /// @dev Token pair, family slot, and fee for `batchSetPairClassFee`.
 struct PairClassFeeAssignment {
   Currency currency0;
@@ -329,10 +335,21 @@ interface IV4FeePolicy {
   /// @param feeValue The default fee. Must pass isValidProtocolFee if non-zero.
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external;
 
+  /// @notice Sets multiple family defaults in one transaction.
+  /// @dev Same per-entry rules as setFamilyDefault. Emits `FamilyDefaultUpdated` per entry.
+  /// @param assignments Family/fee tuples to set.
+  function batchSetFamilyDefault(FamilyDefaultAssignment[] calldata assignments) external;
+
   /// @notice Removes the default fee for a governance family (1-254).
   /// @dev Reverts for 0 and `NATIVE_MATH_FAMILY_ID`.
   /// @param familyId The family to clear.
   function clearFamilyDefault(uint8 familyId) external;
+
+  /// @notice Removes multiple family defaults in one transaction.
+  /// @dev Same per-entry rules as clearFamilyDefault. Emits `FamilyDefaultUpdated` with fee 0
+  /// per entry.
+  /// @param familyIds The families to clear.
+  function batchClearFamilyDefault(uint8[] calldata familyIds) external;
 
   // --- Pair Class Fees (onlyFeeSetter) ---
 

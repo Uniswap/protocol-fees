@@ -17,6 +17,7 @@ import {
   FlagRule,
   FeeBucket,
   HookFamilyAssignment,
+  FamilyDefaultAssignment,
   PairClassFeeAssignment,
   PairClassFeeClear
 } from "../src/interfaces/IV4FeePolicy.sol";
@@ -292,7 +293,9 @@ contract V4FeeAdapterTest is Test {
     // Fee with 12-bit component > 1000
     uint24 badFee = (1001 << 12) | 500;
     vm.prank(feeSetter);
-    vm.expectRevert(IV4FeeAdapter.InvalidFeeValue.selector);
+    vm.expectRevert(
+      abi.encodeWithSelector(IV4FeeAdapter.InvalidFeeValue.selector, standardKey.toId(), badFee)
+    );
     adapter.setPoolOverride(standardKey.toId(), badFee);
   }
 
@@ -306,6 +309,106 @@ contract V4FeeAdapterTest is Test {
 
     assertEq(adapter.getFee(standardKey), FEE_500);
     vm.snapshotGasLastCall("adapter.getFee - pool override hit");
+  }
+
+  // ============ Adapter: Batch Pool Overrides ============
+
+  function test_batchSetPoolOverride_success() public {
+    IV4FeeAdapter.PoolOverrideAssignment[] memory assignments =
+      new IV4FeeAdapter.PoolOverrideAssignment[](3);
+    assignments[0] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: standardKey.toId(), feeValue: FEE_100});
+    assignments[1] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: hookKey.toId(), feeValue: FEE_200});
+    assignments[2] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: dynamicKey.toId(), feeValue: FEE_500});
+
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(standardKey.toId(), FEE_100);
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(hookKey.toId(), FEE_200);
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(dynamicKey.toId(), FEE_500);
+
+    vm.prank(feeSetter);
+    adapter.batchSetPoolOverride(assignments);
+    vm.snapshotGasLastCall("adapter.batchSetPoolOverride - 3 pools");
+
+    assertEq(adapter.getFee(standardKey), FEE_100);
+    assertEq(adapter.getFee(hookKey), FEE_200);
+    assertEq(adapter.getFee(dynamicKey), FEE_500);
+  }
+
+  function test_batchSetPoolOverride_encodesExplicitZero() public {
+    IV4FeeAdapter.PoolOverrideAssignment[] memory assignments =
+      new IV4FeeAdapter.PoolOverrideAssignment[](1);
+    assignments[0] = IV4FeeAdapter.PoolOverrideAssignment({poolId: standardKey.toId(), feeValue: 0});
+
+    vm.prank(feeSetter);
+    adapter.batchSetPoolOverride(assignments);
+
+    // Explicit zero: sentinel in storage, fee 0 without falling through to policy
+    assertEq(adapter.poolOverrides(standardKey.toId()), adapter.ZERO_FEE_SENTINEL());
+    assertEq(adapter.getFee(standardKey), 0);
+  }
+
+  function test_batchSetPoolOverride_revertsInvalidFee_identifiesEntry() public {
+    uint24 badFee = (1001 << 12) | 500;
+    IV4FeeAdapter.PoolOverrideAssignment[] memory assignments =
+      new IV4FeeAdapter.PoolOverrideAssignment[](2);
+    assignments[0] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: standardKey.toId(), feeValue: FEE_100});
+    assignments[1] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: hookKey.toId(), feeValue: badFee});
+
+    vm.prank(feeSetter);
+    vm.expectRevert(
+      abi.encodeWithSelector(IV4FeeAdapter.InvalidFeeValue.selector, hookKey.toId(), badFee)
+    );
+    adapter.batchSetPoolOverride(assignments);
+  }
+
+  function test_batchSetPoolOverride_revertsUnauthorized() public {
+    IV4FeeAdapter.PoolOverrideAssignment[] memory assignments =
+      new IV4FeeAdapter.PoolOverrideAssignment[](1);
+    assignments[0] =
+      IV4FeeAdapter.PoolOverrideAssignment({poolId: standardKey.toId(), feeValue: FEE_100});
+
+    vm.prank(alice);
+    vm.expectRevert(IV4FeeAdapter.Unauthorized.selector);
+    adapter.batchSetPoolOverride(assignments);
+  }
+
+  function test_batchClearPoolOverride_success() public {
+    vm.startPrank(feeSetter);
+    adapter.setPoolOverride(standardKey.toId(), FEE_100);
+    adapter.setPoolOverride(hookKey.toId(), FEE_200);
+    vm.stopPrank();
+
+    PoolId[] memory poolIds = new PoolId[](2);
+    poolIds[0] = standardKey.toId();
+    poolIds[1] = hookKey.toId();
+
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(standardKey.toId(), 0);
+    vm.expectEmit(true, false, false, true, address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(hookKey.toId(), 0);
+
+    vm.prank(feeSetter);
+    adapter.batchClearPoolOverride(poolIds);
+    vm.snapshotGasLastCall("adapter.batchClearPoolOverride - 2 pools");
+
+    assertEq(adapter.poolOverrides(standardKey.toId()), 0);
+    assertEq(adapter.poolOverrides(hookKey.toId()), 0);
+  }
+
+  function test_batchClearPoolOverride_revertsUnauthorized() public {
+    PoolId[] memory poolIds = new PoolId[](1);
+    poolIds[0] = standardKey.toId();
+
+    vm.prank(alice);
+    vm.expectRevert(IV4FeeAdapter.Unauthorized.selector);
+    adapter.batchClearPoolOverride(poolIds);
   }
 
   // ============ Adapter: Fee Triggering ============
@@ -1571,6 +1674,89 @@ contract V4FeeAdapterTest is Test {
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
     policy.clearFamilyDefault(nativeFamily);
+  }
+
+  function test_batchSetFamilyDefault_success() public {
+    FamilyDefaultAssignment[] memory assignments = new FamilyDefaultAssignment[](3);
+    assignments[0] = FamilyDefaultAssignment({familyId: 1, feeValue: FEE_100});
+    assignments[1] = FamilyDefaultAssignment({familyId: 2, feeValue: FEE_300});
+    assignments[2] = FamilyDefaultAssignment({familyId: 3, feeValue: FEE_500});
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(1, FEE_100);
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(2, FEE_300);
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(3, FEE_500);
+
+    vm.prank(feeSetter);
+    policy.batchSetFamilyDefault(assignments);
+    vm.snapshotGasLastCall("policy.batchSetFamilyDefault - 3 families");
+
+    assertEq(policy.familyDefaults(1), FEE_100);
+    assertEq(policy.familyDefaults(2), FEE_300);
+    assertEq(policy.familyDefaults(3), FEE_500);
+  }
+
+  function test_batchSetFamilyDefault_revertsZeroFamily() public {
+    FamilyDefaultAssignment[] memory assignments = new FamilyDefaultAssignment[](2);
+    assignments[0] = FamilyDefaultAssignment({familyId: 1, feeValue: FEE_100});
+    assignments[1] = FamilyDefaultAssignment({familyId: 0, feeValue: FEE_100});
+
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    policy.batchSetFamilyDefault(assignments);
+  }
+
+  function test_batchSetFamilyDefault_revertsNativeMathFamily() public {
+    FamilyDefaultAssignment[] memory assignments = new FamilyDefaultAssignment[](1);
+    assignments[0] =
+      FamilyDefaultAssignment({familyId: policy.NATIVE_MATH_FAMILY_ID(), feeValue: FEE_100});
+
+    vm.prank(feeSetter);
+    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
+    policy.batchSetFamilyDefault(assignments);
+  }
+
+  function test_batchSetFamilyDefault_revertsUnauthorized() public {
+    FamilyDefaultAssignment[] memory assignments = new FamilyDefaultAssignment[](1);
+    assignments[0] = FamilyDefaultAssignment({familyId: 1, feeValue: FEE_100});
+
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.batchSetFamilyDefault(assignments);
+  }
+
+  function test_batchClearFamilyDefault_success() public {
+    vm.startPrank(feeSetter);
+    policy.setFamilyDefault(1, FEE_100);
+    policy.setFamilyDefault(2, FEE_300);
+    vm.stopPrank();
+
+    uint8[] memory familyIds = new uint8[](2);
+    familyIds[0] = 1;
+    familyIds[1] = 2;
+
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(1, 0);
+    vm.expectEmit(true, false, false, true, address(policy));
+    emit IV4FeePolicy.FamilyDefaultUpdated(2, 0);
+
+    vm.prank(feeSetter);
+    policy.batchClearFamilyDefault(familyIds);
+    vm.snapshotGasLastCall("policy.batchClearFamilyDefault - 2 families");
+
+    assertEq(policy.familyDefaults(1), 0);
+    assertEq(policy.familyDefaults(2), 0);
+  }
+
+  function test_batchClearFamilyDefault_revertsUnauthorized() public {
+    uint8[] memory familyIds = new uint8[](1);
+    familyIds[0] = 1;
+
+    vm.prank(alice);
+    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
+    policy.batchClearFamilyDefault(familyIds);
   }
 
   function test_setPairClassFee_success() public {

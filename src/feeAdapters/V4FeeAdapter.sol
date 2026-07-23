@@ -112,16 +112,32 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
 
   /// @inheritdoc IV4FeeAdapter
   function setPoolOverride(PoolId poolId, uint24 feeValue) external onlyFeeSetter {
-    if (feeValue != 0) _validateFee(feeValue);
-    uint24 stored = _encodeFee(feeValue);
-    poolOverrides[poolId] = stored;
-    emit PoolOverrideUpdated(poolId, stored);
+    _setPoolOverride(poolId, feeValue);
+  }
+
+  /// @inheritdoc IV4FeeAdapter
+  function batchSetPoolOverride(PoolOverrideAssignment[] calldata assignments)
+    external
+    onlyFeeSetter
+  {
+    uint256 length = assignments.length;
+    for (uint256 i; i < length; ++i) {
+      PoolOverrideAssignment calldata a = assignments[i];
+      _setPoolOverride(a.poolId, a.feeValue);
+    }
   }
 
   /// @inheritdoc IV4FeeAdapter
   function clearPoolOverride(PoolId poolId) external onlyFeeSetter {
-    delete poolOverrides[poolId];
-    emit PoolOverrideUpdated(poolId, 0);
+    _clearPoolOverride(poolId);
+  }
+
+  /// @inheritdoc IV4FeeAdapter
+  function batchClearPoolOverride(PoolId[] calldata poolIds) external onlyFeeSetter {
+    uint256 length = poolIds.length;
+    for (uint256 i; i < length; ++i) {
+      _clearPoolOverride(poolIds[i]);
+    }
   }
 
   // ─── Internal ───
@@ -142,6 +158,23 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
     emit FeeUpdateTriggered(msg.sender, id, feeValue);
   }
 
+  /// @dev Sets a pool override after validating the fee.
+  /// @param poolId The pool to override.
+  /// @param feeValue The protocol fee to set (0 = explicit zero).
+  function _setPoolOverride(PoolId poolId, uint24 feeValue) internal {
+    if (feeValue != 0) _validateFee(poolId, feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    poolOverrides[poolId] = stored;
+    emit PoolOverrideUpdated(poolId, stored);
+  }
+
+  /// @dev Removes a pool override.
+  /// @param poolId The pool to clear the override for.
+  function _clearPoolOverride(PoolId poolId) internal {
+    delete poolOverrides[poolId];
+    emit PoolOverrideUpdated(poolId, 0);
+  }
+
   /// @dev Encodes a fee for storage. Converts 0 to ZERO_FEE_SENTINEL so that 0 in
   /// storage means "not set" rather than "explicitly zero".
   /// @param feeValue The actual fee value (0 = explicit zero).
@@ -158,9 +191,11 @@ contract V4FeeAdapter is IV4FeeAdapter, Owned {
   }
 
   /// @dev Validates that a protocol fee is within v4-core bounds (each 12-bit directional
-  /// component must be <= MAX_PROTOCOL_FEE = 1000).
+  /// component must be <= MAX_PROTOCOL_FEE = 1000). The poolId is included in the error so
+  /// a revert mid-batch identifies the offending entry.
+  /// @param poolId The pool the fee is being set for.
   /// @param feeValue The fee to validate.
-  function _validateFee(uint24 feeValue) internal pure {
-    if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue();
+  function _validateFee(PoolId poolId, uint24 feeValue) internal pure {
+    if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue(poolId, feeValue);
   }
 }
