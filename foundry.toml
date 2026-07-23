@@ -15,7 +15,11 @@ compilation_restrictions = [
     { paths = "lib/native-token-transfers/evm/src/NttManager/NttManagerNoRateLimiting.sol", optimizer_runs = 200 }
 ]
 
-fs_permissions = [{ access = "read", path = "./broadcast"}]
+fs_permissions = [
+  { access = "read", path = "./broadcast"},
+  { access = "read-write", path = "./.records/" },
+  { access = "read-write", path = "out/.seatbelt" }
+]
 
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
@@ -56,7 +60,11 @@ quote_style = "double"
 single_line_statement_blocks = "single"
 tab_width = 2
 wrap_comments = true
-ignore = ["script/proposal-4/ProposalDescription.sol"]
+ignore = [
+  "script/proposal-4/ProposalDescription.sol",
+  "script/proposal-5/Description.sol",
+  "script/proposal-6/Description.sol"
+  ]
 
 [lint]
 exclude_lints = ["mixed-case-variable", "mixed-case-function"]
