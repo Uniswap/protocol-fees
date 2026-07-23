@@ -22,7 +22,9 @@ interface IV4FeeAdapter {
   error ZeroAddress();
 
   /// @notice Thrown when a fee value fails ProtocolFeeLibrary.isValidProtocolFee.
-  error InvalidFeeValue();
+  /// @param poolId The pool the fee was being set for.
+  /// @param feeValue The rejected fee value.
+  error InvalidFeeValue(PoolId poolId, uint24 feeValue);
 
   // --- Events ---
 
@@ -62,6 +64,14 @@ interface IV4FeeAdapter {
     Currency currency;
     /// @dev The amount to collect. 0 = collect all accrued.
     uint256 amount;
+  }
+
+  /// @notice Pool and fee for `batchSetPoolOverride`.
+  struct PoolOverrideAssignment {
+    /// @dev The pool to override.
+    PoolId poolId;
+    /// @dev The protocol fee to set. Must pass isValidProtocolFee if non-zero.
+    uint24 feeValue;
   }
 
   // --- Immutables ---
@@ -114,9 +124,19 @@ interface IV4FeeAdapter {
   /// @param feeValue The protocol fee to set. Must pass isValidProtocolFee if non-zero.
   function setPoolOverride(PoolId poolId, uint24 feeValue) external;
 
+  /// @notice Sets multiple pool-specific fee overrides in one transaction.
+  /// @dev Same per-entry rules as setPoolOverride. Emits `PoolOverrideUpdated` per entry.
+  /// @param assignments Pool/fee tuples to set.
+  function batchSetPoolOverride(PoolOverrideAssignment[] calldata assignments) external;
+
   /// @notice Removes a pool-specific fee override, falling through to policy.
   /// @param poolId The pool to clear the override for.
   function clearPoolOverride(PoolId poolId) external;
+
+  /// @notice Removes multiple pool-specific fee overrides in one transaction.
+  /// @dev Emits `PoolOverrideUpdated` with fee 0 per entry.
+  /// @param poolIds The pools to clear overrides for.
+  function batchClearPoolOverride(PoolId[] calldata poolIds) external;
 
   // --- Fee Resolution ---
 

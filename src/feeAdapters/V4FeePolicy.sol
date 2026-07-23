@@ -13,6 +13,7 @@ import {
   FlagRule,
   FeeBucket,
   HookFamilyAssignment,
+  FamilyDefaultAssignment,
   PairClassFeeAssignment,
   PairClassFeeClear
 } from "../interfaces/IV4FeePolicy.sol";
@@ -275,18 +276,32 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function setFamilyDefault(uint8 familyId, uint24 feeValue) external onlyFeeSetter {
-    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
-    if (feeValue != 0) _validateFee(feeValue);
-    uint24 stored = _encodeFee(feeValue);
-    familyDefaults[familyId] = stored;
-    emit FamilyDefaultUpdated(familyId, stored);
+    _setFamilyDefault(familyId, feeValue);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function batchSetFamilyDefault(FamilyDefaultAssignment[] calldata assignments)
+    external
+    onlyFeeSetter
+  {
+    uint256 len = assignments.length;
+    for (uint256 i; i < len; ++i) {
+      FamilyDefaultAssignment calldata a = assignments[i];
+      _setFamilyDefault(a.familyId, a.feeValue);
+    }
   }
 
   /// @inheritdoc IV4FeePolicy
   function clearFamilyDefault(uint8 familyId) external onlyFeeSetter {
-    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
-    delete familyDefaults[familyId];
-    emit FamilyDefaultUpdated(familyId, 0);
+    _clearFamilyDefault(familyId);
+  }
+
+  /// @inheritdoc IV4FeePolicy
+  function batchClearFamilyDefault(uint8[] calldata familyIds) external onlyFeeSetter {
+    uint256 len = familyIds.length;
+    for (uint256 i; i < len; ++i) {
+      _clearFamilyDefault(familyIds[i]);
+    }
   }
 
   /// @inheritdoc IV4FeePolicy
@@ -331,6 +346,20 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   function _setHookFamily(address hook, uint8 familyId) internal {
     hookFamilyId[hook] = familyId;
     emit HookFamilySet(hook, familyId);
+  }
+
+  function _setFamilyDefault(uint8 familyId, uint24 feeValue) internal {
+    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
+    if (feeValue != 0) _validateFee(feeValue);
+    uint24 stored = _encodeFee(feeValue);
+    familyDefaults[familyId] = stored;
+    emit FamilyDefaultUpdated(familyId, stored);
+  }
+
+  function _clearFamilyDefault(uint8 familyId) internal {
+    if (familyId == 0 || familyId == NATIVE_MATH_FAMILY_ID) revert InvalidFamilyId();
+    delete familyDefaults[familyId];
+    emit FamilyDefaultUpdated(familyId, 0);
   }
 
   function _setPairClassFee(Currency currency0, Currency currency1, uint8 familyId, uint24 feeValue)
