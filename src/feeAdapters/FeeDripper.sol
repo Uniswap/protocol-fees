@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity 0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
@@ -12,22 +12,6 @@ import {IFeeDripper} from "../interfaces/IFeeDripper.sol";
 ///      PoolManager and CCA auctions, which also assume exact-amount transfers.
 /// @custom:security-contact security@uniswap.org
 contract FeeDripper is Owned, IFeeDripper {
-  /// @notice Basis points denominator
-  uint24 public constant BPS = 10_000;
-
-  // masks for the perBlockRate, endReleaseBlock, and latestReleaseBlock
-  uint256 constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-  uint256 constant UINT48_MASK = 0xFFFFFFFFFFFF;
-  uint256 constant UINT16_MASK = 0xFFFF;
-
-  // token jar address to receive the dripped fees
-  address public immutable TOKEN_JAR;
-  // the window of blocks over which the fees are released
-  ReleaseSettings public releaseSettings =
-    ReleaseSettings({releaseWindow: 2000, windowResetBps: 50});
-  // mapping of currency to drip
-  mapping(Currency => Drip) public drips;
-
   struct ReleaseSettings {
     uint16 releaseWindow; // the window of blocks over which the fees are released
     uint16 windowResetBps; // min new-deposit-to-previous-balance ratio (in bps) to reset the window
@@ -39,9 +23,24 @@ contract FeeDripper is Owned, IFeeDripper {
     uint48 latestReleaseBlock;
   }
 
-  constructor(address tokenJar, address owner) Owned(owner) {
-    if (owner == address(0)) revert InvalidOwner();
-    if (tokenJar == address(0)) revert InvalidTokenJar();
+  /// @notice Basis points denominator
+  uint16 public constant BPS = 10_000;
+
+  // masks for the perBlockRate, endReleaseBlock, and latestReleaseBlock
+  uint256 private constant UINT160_MASK = 0x00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+  uint256 private constant UINT48_MASK = 0xFFFFFFFFFFFF;
+  uint256 private constant UINT16_MASK = 0xFFFF;
+
+  // token jar address to receive the dripped fees
+  address public immutable TOKEN_JAR;
+  // the window of blocks over which the fees are released
+  ReleaseSettings public releaseSettings =
+    ReleaseSettings({releaseWindow: 2000, windowResetBps: 50});
+  // mapping of currency to drip
+  mapping(Currency => Drip) public drips;
+
+  constructor(address tokenJar) Owned(msg.sender) {
+    require(tokenJar != address(0), InvalidTokenJar());
     TOKEN_JAR = tokenJar;
   }
 
@@ -103,8 +102,8 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @inheritdoc IFeeDripper
   function setReleaseSettings(uint16 releaseWindow, uint16 windowResetBps) external onlyOwner {
-    if (releaseWindow == 0) revert InvalidReleaseWindow();
-    if (windowResetBps > BPS) revert InvalidWindowResetBps();
+    require(releaseWindow > 0, InvalidReleaseWindow());
+    require(windowResetBps <= BPS, InvalidWindowResetBps());
     releaseSettings =
       ReleaseSettings({releaseWindow: releaseWindow, windowResetBps: windowResetBps});
     emit ReleaseSettingsSet(releaseWindow, windowResetBps);
@@ -113,7 +112,7 @@ contract FeeDripper is Owned, IFeeDripper {
   receive() external payable {}
 
   /// @dev Transfers tokens to the token jar. Emits the Released event.
-  function _releaseTokens(Currency currency, uint256 releasedAmount) internal {
+  function _releaseTokens(Currency currency, uint256 releasedAmount) private {
     // Transfer released tokens to the token jar
     if (releasedAmount > 0) {
       currency.transfer(TOKEN_JAR, releasedAmount);
@@ -127,7 +126,7 @@ contract FeeDripper is Owned, IFeeDripper {
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  ) internal {
+  ) private {
     // Used assembly to pack and store values directly from stack and skip memory allocation.
     assembly ("memory-safe") {
       mstore(0x00, currency)
@@ -146,7 +145,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @dev Reads the drip state from storage. Skips memory and reads directly to stack
   function _readDripState(Currency currency)
-    internal
+    private
     view
     returns (uint160 perBlockRate, uint48 endReleaseBlock, uint48 latestReleaseBlock)
   {
@@ -164,7 +163,7 @@ contract FeeDripper is Owned, IFeeDripper {
 
   /// @dev Reads the release settings from storage. Skips memory and reads directly to stack
   function _readReleaseSettings()
-    internal
+    private
     view
     returns (uint16 releaseWindow, uint16 windowResetBps)
   {
@@ -181,7 +180,7 @@ contract FeeDripper is Owned, IFeeDripper {
     uint160 perBlockRate,
     uint48 endReleaseBlock,
     uint48 latestReleaseBlock
-  ) internal view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) {
+  ) private view returns (uint256 postDripBalance, uint256 releasedAmount, uint16 releaseWindow) {
     // Calculate the previous balance of the currency at last call
     uint256 previousBalance = (endReleaseBlock - latestReleaseBlock) * perBlockRate;
 
@@ -214,13 +213,12 @@ contract FeeDripper is Owned, IFeeDripper {
       }
     }
 
-    // If the remaining balance is less than the release window, immediately release the remaining
-    // balance to skip dust accumulation
+    // Flush when postDripBalance / originalReleaseWindow truncates to 0 (perBlockRate = 0).
+    // Without this, sub-divisor amounts are locked in the dripper.
+    // Note: compares token units against block count.
     if (postDripBalance < originalReleaseWindow) {
       releasedAmount += postDripBalance;
       postDripBalance = 0;
     }
-
-    return (postDripBalance, releasedAmount, releaseWindow);
   }
 }
