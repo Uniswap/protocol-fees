@@ -1,0 +1,132 @@
+# review-cli config for Uniswap/protocol-fees.
+# Schema reference: packages/review-cli/src/config.ts in Uniswap/internal-tools.
+#
+# Foundry Solidity repo: the Uniswap fee collection system. Immutable,
+# non-upgradeable contracts already deployed on thirteen chains, plus the
+# Forge scripts that build the governance proposals which activate them.
+
+# ─── Post Policy ───────────────────────────────────
+# Only CI may write to GitHub. Without this, any local `gh` token with
+# repo scope could post a review into a teammate's PR.
+post:
+  allowed_actors:
+    - github-actions
+    - github-actions[bot]
+
+# ─── Model ─────────────────────────────────────────
+# Opus for every reviewer. The bundled agents declare `model: sonnet` in
+# frontmatter, which resolve-model treats as "unpinned", so this default
+# is what actually selects the model. The retired caller pinned
+# claude-opus-4-5; this keeps the same top-tier intent on a current
+# model. Deployed immutable contracts holding protocol fees justify it —
+# a missed finding here is not a bug report, it is a redeploy plus a
+# governance vote.
+model:
+  default: claude-opus-5
+
+# ─── Budget ────────────────────────────────────────
+# Well above the $5/$2 defaults. Small codebase, high consequence —
+# reviewers should be free to read every adapter, releaser, and test
+# rather than stopping early.
+max_budget_usd: 15.0
+agent_budget_usd: 10.0
+
+# Turn ceiling set high so the budget is always the binding cap, never
+# turns.
+agent_max_turns: 500
+
+# ─── Limits ────────────────────────────────────────
+# Review every PR regardless of size. A one-line change to a threshold,
+# a nonce check, a fee bucket, or an asset loop is exactly the kind of
+# diff that is both tiny and load-bearing here.
+trivial_threshold: 0
+
+# ─── Investigation Gate ────────────────────────────
+# An empty-findings APPROVE must be backed by evidence that the
+# reviewers actually opened the changed files. Raised above the defaults
+# (0.25 standard / 0.5 thorough) because "looks fine" is not an
+# acceptable review outcome for deployed contract code.
+investigation:
+  min_approve_coverage:
+    light: 0.5
+    standard: 0.75
+    thorough: 0.9
+
+# ─── Triage ────────────────────────────────────────
+# Guidance for the triage agent, which decides which reviewers to staff.
+triage:
+  guidance: |
+    Solidity/Foundry repo — the Uniswap fee collection system. Fees from
+    v2/v3/v4 flow into a per-chain immutable TokenJar; a Releaser
+    exchanges the jar's assets for a fixed amount of a RESOURCE token
+    (UNI), which is burned on mainnet or bridged to L1 and burned for
+    L2s. Contracts are non-upgradeable and already deployed across
+    Ethereum, Unichain, OP Mainnet, Base, Arbitrum, Polygon, BNB Chain,
+    Celo, Zora, Soneium, World Chain, X Layer, and Robinhood Chain.
+    Audit reports from OpenZeppelin and Cantina live under audit/.
+    Fixing a live contract requires a redeployment plus a governance
+    action, not just a source patch. Bias toward staffing more
+    reviewers rather than fewer.
+
+    Always staff contract-security-reviewer and defi-risk-reviewer on
+    any change under src/. Both are the point of this repo, not
+    optional extras:
+
+    - contract-security-reviewer owns the EVM-level surface: TokenJar
+      `owner`/`releaser` authority and the deploy-time handoff;
+      ResourceManager `owner`/`thresholdSetter`; V4FeeAdapter and
+      V4FeePolicy `owner`/`feeSetter`; the sequential `Nonce` guard and
+      its front-running assumptions; hostile and non-standard token
+      behavior in the `Currency`-based asset loop (fee-on-transfer,
+      missing return values, reverting transfers, native ETH via
+      `receive`); the `CrossChainAccount.forward` messenger and
+      `l1Owner` checks; and the external calls into the OP Stack
+      L2StandardBridge, the Arbitrum gateway router, and the Wormhole
+      NTT manager.
+
+    - defi-risk-reviewer owns the economic surface: the fixed-threshold
+      exchange is deliberately a searcher race, so changes to
+      `RESOURCE`, `RESOURCE_RECIPIENT`, `threshold`,
+      `MAX_RELEASE_LENGTH`, nonce sequencing, or the selected asset set
+      change execution terms and profitability. ExchangeReleaser's
+      docstring flags MEV and stranded-asset risk explicitly; treat that
+      as an open risk area. The v4 fee resolution path is equally
+      economic — `V4FeePolicy` family classification
+      (`hookFamilyId`, the flag rules, `familyDefaults`,
+      `pairClassFees`), the piecewise-linear fee buckets for native-math
+      family 255, and `defaultFee` all set what the protocol actually
+      charges. Changes
+      to that waterfall, or to the `V4FeeAdapter.poolOverrides` sentinel
+      encoding, deserve arithmetic-level scrutiny.
+
+    Add correctness-reviewer on non-trivial logic changes, especially
+    the asset release loop, fee rounding and bucket interpolation, nonce
+    arithmetic, deployer ownership handoff, and the two-stage bridged
+    burn where a revert in the bridge leg must unwind the jar sweep.
+
+    Changes under script/ deploy nothing by themselves but build the
+    calldata that governance executes on mainnet. Review deployer
+    scripts, per-proposal constants, target addresses, chain ids, and
+    encoded calldata with the same care as src/ — a wrong address or
+    selector in a proposal is unrecoverable once voted through. Check
+    the proposal's Description.sol against what the script actually
+    encodes.
+
+    Add security-reviewer for CI/workflow changes under .github/ and for
+    anything handling secrets or RPC URLs. Skip it for pure Solidity
+    diffs — contract-security-reviewer covers that surface better.
+
+    merkle-generator/ is a small TypeScript CLI producing OpenZeppelin
+    Merkle proofs consumed on-chain by V3FeeAdapter. Correctness of leaf
+    encoding and hashing there is a contract-facing concern, not just a
+    tooling one; keep the encoding in sync with the Solidity verifier.
+
+    Add patterns-reviewer only on larger refactors. The contracts are
+    deliberately minimal; structural advice on a 45-line contract is
+    usually noise.
+
+    Documentation-only diffs (README.md, docs/, proposals/, vocs/,
+    audit/) usually warrant general-reviewer alone. Deployed addresses,
+    chain ids, fee behavior, and governance calldata tables still need
+    checking against the source and the deployment records in
+    .records/.
