@@ -18,7 +18,8 @@ compilation_restrictions = [
 fs_permissions = [
   { access = "read", path = "./broadcast"},
   { access = "read-write", path = "./.records/" },
-  { access = "read-write", path = "out/.seatbelt" }
+  { access = "read-write", path = "out/.seatbelt" },
+  { access = "read", path = "./script/proposal-7/params/" }
 ]
 
 [rpc_endpoints]

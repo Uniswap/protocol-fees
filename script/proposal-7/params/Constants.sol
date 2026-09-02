@@ -11,21 +11,19 @@ pragma solidity 0.8.29;
 // `smokeCheck` is called at the top of every proposal 7 script, so no script can run against a
 // value that is still outstanding.
 
-/// @dev Record file shared by both prerequisite scripts and the proposal, at
-/// `.records/HyperEVM.json`. Each script writes the deployments it makes under the keys in
-/// `Records` and reads back whatever ran before it.
+/// @dev Record file shared by the prerequisite script and the proposal, at
+/// `.records/HyperEVM.json`. The prerequisite script writes its deployments under the keys in
+/// `Records` and the proposal reads them back.
 string constant RECORD_NAME = "HyperEVM";
 
 /// @dev Keys in the record file, one per deployment.
 library Records {
-  // Written by `DeployWormholeInfraHyperEVM`.
   string constant SYNTHETIC_NTT_UNI = "SyntheticNttUni";
   string constant NTT_MANAGER_IMPLEMENTATION = "NttManagerImplementation";
   string constant NTT_MANAGER = "NttManager";
   string constant WORMHOLE_TRANSCEIVER_IMPLEMENTATION = "WormholeTransceiverImplementation";
   string constant WORMHOLE_TRANSCEIVER = "WormholeTransceiver";
 
-  // Written by `DeployAndConfigureFeeInfraHyperEVM`.
   string constant TOKEN_JAR = "TokenJar";
   string constant RELEASER = "Releaser";
   string constant V3_OPEN_FEE_ADAPTER = "V3OpenFeeAdapter";
@@ -96,6 +94,26 @@ library HyperEVM {
   /// intended fee divided by 25. Proposal 6 divides the same way; the division lives here so the
   /// undivided figure cannot be stored by mistake, since `V4FeePolicy` would accept it as valid.
   uint24 constant AGG_HOOK_DEFAULT_FEE = AGG_HOOK_FEE_PIPS / 25;
+
+  /// @dev Protocol fee that stable-stable aggregator hook pools should end up charging, in pips.
+  /// Proposal 6 set 300 on every chain but Base, which got 100. Applies to the pairs listed in
+  /// `STABLE_STABLE_PAIRS_CSV`.
+  ///
+  /// TODO: awaiting confirmation of which applies to HyperEVM.
+  uint24 constant STABLE_STABLE_FEE_PIPS = 0;
+
+  /// @dev Value stored in `V4FeePolicy` for each stable-stable pair, divided by 25 for the reason
+  /// given on `AGG_HOOK_DEFAULT_FEE`.
+  uint24 constant STABLE_STABLE_FEE = STABLE_STABLE_FEE_PIPS / 25;
+
+  /// @dev Hooks assigned to a fee family by address, read by `Lists.hookFamilies`. Header-only
+  /// until HyperEVM hooks exist to list.
+  string constant HOOK_FAMILIES_CSV = "script/proposal-7/params/hyperevm/hook-families.csv";
+
+  /// @dev Stable-stable pairs, read by `Lists.stableStablePairs`. Header-only until the list is
+  /// chosen.
+  string constant STABLE_STABLE_PAIRS_CSV =
+    "script/proposal-7/params/hyperevm/stable-stable-pairs.csv";
 }
 
 /// @dev Reverts unless every outstanding value above has been filled in.
@@ -106,4 +124,5 @@ function smokeCheck() pure {
   require(HyperEVM.WORMHOLE_RECEIVER != address(0x00), "HyperEVM.WORMHOLE_RECEIVER unset");
   require(HyperEVM.RELEASER_THRESHOLD != 0, "HyperEVM.RELEASER_THRESHOLD unset");
   require(HyperEVM.AGG_HOOK_FEE_PIPS != 0, "HyperEVM.AGG_HOOK_FEE_PIPS unset");
+  require(HyperEVM.STABLE_STABLE_FEE_PIPS != 0, "HyperEVM.STABLE_STABLE_FEE_PIPS unset");
 }
