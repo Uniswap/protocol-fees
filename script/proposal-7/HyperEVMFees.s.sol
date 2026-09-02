@@ -23,7 +23,7 @@ import {
   IWormhole,
   IWormholeTransceiver
 } from "./Interfaces.sol";
-import "./Constants.sol" as Constants;
+import "./params/Constants.sol" as Constants;
 import {DESCRIPTION} from "./Description.sol";
 
 // -------------------------------------------------------------------------------------------------
