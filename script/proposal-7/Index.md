@@ -12,7 +12,7 @@ Unchanged from proposal 4. See its [Wormhole Context](../proposal-4/Index.md#wor
 
 HyperEVM produces two kinds of blocks. Small blocks land every second with a 3M gas limit; big blocks land once a minute with a 30M limit. Which kind a transaction lands in is a flag on the sender's HyperCore account, not a property of the transaction.
 
-Deploying the `NttManager` implementation alone costs about 4.5M gas, which no small block can hold. Before running the prerequisite script the deployer must opt in:
+The prerequisite deployment is one transaction of about 15M gas, which no small block can hold. Before running the prerequisite script the deployer must opt in:
 
 ```json
 {"type": "evmUserModify", "usingBigBlocks": true}
@@ -42,15 +42,15 @@ These are permissionless and must all be done before governance can act. Step 1 
 
 **Overview**:
 
-On HyperEVM we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter. We initialize the proxies, register the transceiver with the manager, set `SyntheticNttUni`'s minting authority to the manager, and register Ethereum as a peer on both. We then transfer everything to the governance receiver and renounce the pauser capability on both proxies.
+One contract, [`FeeInfraDeployerWormhole`](../deployers/FeeInfraDeployerWormhole.sol), does all of it from its constructor. On HyperEVM it deploys `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter two, initializes the proxies, registers the transceiver with the manager, sets `SyntheticNttUni`'s minting authority to the manager, registers Ethereum as a peer on both, transfers everything to the governance receiver, and renounces the pauser capability on both proxies. It then deploys `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter`, and `V4FeePolicy`, configures them with itself as the interim fee setter, and hands both ownership and the fee-setter role to the governance receiver, all before the constructor returns.
 
-We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter`, and `V4FeePolicy`. Each contract keeps deployer authority only for as long as its own configuration needs, then hands both ownership and the fee-setter role to the governance receiver.
+The deployer holds no values. The script builds every fee, tier, bucket, rule, and list and passes them in, so the calldata of the deployment transaction is the whole configuration. The two Wormhole implementations are created from creation code the script passes in as well, since compiling them into the deployer would exceed the 48KB initcode limit; the deployer appends their constructor arguments itself.
 
-The script holds HyperEVM's parameters and nothing else. The work is in [`DeployFeeInfra`](./prereq/DeployFeeInfra.sol), the fee phase (transactions `F.00` to `F.31`: TokenJar, releaser, v3 and v4 adapters), and [`DeployFeeInfraWormhole`](./prereq/DeployFeeInfraWormhole.sol), which puts the Wormhole phase in front of it (`W.00` to `W.15`: synthetic UNI and the NTT stack) and supplies the releaser through `_deployReleaser`. Transaction labels stay with their phase, so `F.07` is the same transaction on any chain.
+Two properties follow from being a constructor. A failure anywhere leaves nothing behind. And no account other than the deployer contract ever holds authority over what it deploys, and it holds that only until its constructor returns.
 
-Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
+The bridge-agnostic half is [`FeeInfraDeployer`](../deployers/FeeInfraDeployer.sol), which takes the releaser from a bridge-specific subclass through `_deployReleaser`. It is the shape of the existing `OPStackDeployer` and `ArbitrumOrbitDeployer` with the releaser factored out, and would serve an OP Stack or Orbit chain with a subclass of a few lines.
 
-The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Both come from [`script/shared/FeeSchedule.sol`](../shared/FeeSchedule.sol). Proposal 6's two per-chain lists, hook family assignments and stable-stable pairs, are CSV files in [`params/hyperevm/`](./params/hyperevm/), read at run time through [`script/shared/Lists.sol`](../shared/Lists.sol). Both are header-only for HyperEVM, and the transaction that applies each is skipped while its list is empty.
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Both come from [`script/shared/FeeSchedule.sol`](../shared/FeeSchedule.sol), which the script passes to the deployer. Proposal 6's two per-chain lists, hook family assignments and stable-stable pairs, are CSV files in [`params/hyperevm/`](./params/hyperevm/), read at run time through [`script/shared/Lists.sol`](../shared/Lists.sol). Both are header-only for HyperEVM, and the deployer skips the step that applies each while its list is empty.
 
 **Foundry Script**:
 
@@ -63,33 +63,39 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyperevm --broadcast
 ```
 
-**Transactions**, Wormhole phase:
+**Transactions**:
 
 | Index | Action                                                                              |
 | ----- | ----------------------------------------------------------------------------------- |
-| W.00  | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
-| W.01  | Deploy `SyntheticNttUni`.                                                           |
-| W.02  | Deploy `NttManager` implementation.                                                 |
-| W.03  | Deploy `NttManager` proxy.                                                          |
-| W.04  | Initialize `NttManager` proxy.                                                      |
-| W.05  | Deploy `WormholeTransceiver` implementation.                                        |
-| W.06  | Deploy `WormholeTransceiver` proxy.                                                 |
-| W.07  | Initialize `WormholeTransceiver` proxy.                                             |
-| W.08  | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
-| W.09  | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
-| W.10  | Set the Ethereum `WormholeTransceiver` as a peer.                                   |
-| W.11  | Set the Ethereum `NttManager` as a peer.                                            |
-| W.12  | Transfer ownership of `SyntheticNttUni` to governance.                              |
-| W.13  | Transfer ownership of `NttManager`, and with it the transceiver, to governance.     |
-| W.14  | Renounce pauser capability on the `WormholeTransceiver` proxy.                      |
-| W.15  | Renounce pauser capability on the `NttManager` proxy.                               |
+| 00    | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| 01    | Deploy `FeeInfraDeployerWormhole`, about 15M gas, whose constructor does the below.  |
 
-**Transactions**, fee phase:
+**Steps inside transaction 01**, Wormhole phase:
 
-| Index                  | Action                                                                          |
+| Step | Action                                                                                |
+| ---- | ------------------------------------------------------------------------------------- |
+| W.01 | Deploy `SyntheticNttUni`.                                                             |
+| W.02 | Deploy `NttManager` implementation, from creation code the script passed in.          |
+| W.03 | Deploy `NttManager` proxy.                                                            |
+| W.04 | Initialize `NttManager` proxy.                                                        |
+| W.05 | Deploy `WormholeTransceiver` implementation, from creation code the script passed in. |
+| W.06 | Deploy `WormholeTransceiver` proxy.                                                   |
+| W.07 | Initialize `WormholeTransceiver` proxy.                                               |
+| W.08 | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.              |
+| W.09 | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                           |
+| W.10 | Set the Ethereum `WormholeTransceiver` as a peer.                                     |
+| W.11 | Set the Ethereum `NttManager` as a peer.                                              |
+| W.12 | Transfer ownership of `SyntheticNttUni` to governance.                                |
+| W.13 | Transfer ownership of `NttManager`, and with it the transceiver, to governance.       |
+| W.14 | Renounce pauser capability on the `WormholeTransceiver` proxy.                        |
+| W.15 | Renounce pauser capability on the `NttManager` proxy.                                 |
+
+**Steps inside transaction 01**, fee phase:
+
+| Step                   | Action                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------- |
 | F.00                   | Deploy `TokenJar`.                                                              |
-| F.01                   | Deploy the releaser, `WormholeReleaser` here, through `_deployReleaser`.        |
+| F.01                   | Deploy `WormholeReleaser`, through `_deployReleaser`.                           |
 | F.02                   | Set the releaser on `TokenJar`.                                                 |
 | F.03                   | Transfer `TokenJar` ownership to governance.                                    |
 | F.04                   | Set the releaser's threshold-setter to governance.                              |
@@ -115,11 +121,11 @@ forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyp
 | F.30                   | Transfer `V4FeeAdapter` fee-setter permission to governance.                    |
 | F.31                   | Transfer `V4FeeAdapter` ownership to governance.                                |
 
-> Note: proposal 4 and Wormhole's own script call `setThreshold(1)` after registering the transceiver. It is a no-op, because registering the first transceiver already raises the threshold from 0 to 1 and the manager rejects any value above the number of enabled transceivers. Here, we omit the transaction and assert the property instead.
+> Note: proposal 4 and Wormhole's own script call `setThreshold(1)` after registering the transceiver. It is a no-op, because registering the first transceiver already raises the threshold from 0 to 1 and the manager rejects any value above the number of enabled transceivers. Here, we omit the step and assert the property instead.
 
 **Verification**:
 
-Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record. The assertions live in [`script/shared/FeeInfraChecks.sol`](../shared/FeeInfraChecks.sol) and [`WormholeInfraChecks.sol`](../shared/WormholeInfraChecks.sol), and compare the deployment against the params the script gave it:
+Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record. The assertions live in [`script/shared/FeeInfraChecks.sol`](../shared/FeeInfraChecks.sol) and [`WormholeInfraChecks.sol`](../shared/WormholeInfraChecks.sol), and compare what the deployer deployed against the params the script gave it:
 
 ```bash
 forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --sig "check()" --rpc-url hyperevm

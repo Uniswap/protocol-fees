@@ -18,6 +18,7 @@ string constant RECORD_NAME = "HyperEVM";
 
 /// @dev Keys in the record file, one per deployment.
 library Records {
+  string constant FEE_INFRA_DEPLOYER = "FeeInfraDeployerWormhole";
   string constant SYNTHETIC_NTT_UNI = "SyntheticNttUni";
   string constant NTT_MANAGER_IMPLEMENTATION = "NttManagerImplementation";
   string constant NTT_MANAGER = "NttManager";
