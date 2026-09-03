@@ -46,9 +46,11 @@ On HyperEVM we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTr
 
 We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter`, and `V4FeePolicy`. Each contract keeps deployer authority only for as long as its own configuration needs, then hands both ownership and the fee-setter role to the governance receiver.
 
+The script holds HyperEVM's parameters and nothing else. The work is in [`DeployFeeInfra`](./prereq/DeployFeeInfra.sol), the fee phase (transactions `F.00` to `F.31`: TokenJar, releaser, v3 and v4 adapters), and [`DeployFeeInfraWormhole`](./prereq/DeployFeeInfraWormhole.sol), which puts the Wormhole phase in front of it (`W.00` to `W.15`: synthetic UNI and the NTT stack) and supplies the releaser through `_deployReleaser`. Transaction labels stay with their phase, so `F.07` is the same transaction on any chain.
+
 Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
 
-The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and stable-stable pairs, are CSV files in [`params/hyperevm/`](./params/hyperevm/), read at run time through [`script/shared/Lists.sol`](../shared/Lists.sol). Both are header-only for HyperEVM, and the transaction that applies each is skipped while its list is empty.
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Both come from [`script/shared/FeeSchedule.sol`](../shared/FeeSchedule.sol). Proposal 6's two per-chain lists, hook family assignments and stable-stable pairs, are CSV files in [`params/hyperevm/`](./params/hyperevm/), read at run time through [`script/shared/Lists.sol`](../shared/Lists.sol). Both are header-only for HyperEVM, and the transaction that applies each is skipped while its list is empty.
 
 **Foundry Script**:
 
@@ -61,58 +63,63 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyperevm --broadcast
 ```
 
-**Transactions**:
+**Transactions**, Wormhole phase:
 
-| Index          | Action                                                                              |
-| -------------- | ----------------------------------------------------------------------------------- |
-| 00             | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
-| 01             | Deploy `SyntheticNttUni`.                                                           |
-| 02             | Deploy `NttManager` implementation.                                                 |
-| 03             | Deploy `NttManager` proxy.                                                          |
-| 04             | Initialize `NttManager` proxy.                                                      |
-| 05             | Deploy `WormholeTransceiver` implementation.                                        |
-| 06             | Deploy `WormholeTransceiver` proxy.                                                 |
-| 07             | Initialize `WormholeTransceiver` proxy.                                             |
-| 08             | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
-| 09             | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
-| 10             | Set the Ethereum `WormholeTransceiver` as a peer.                                   |
-| 11             | Set the Ethereum `NttManager` as a peer.                                            |
-| 12             | Transfer ownership of `SyntheticNttUni` to governance.                              |
-| 13             | Transfer ownership of `NttManager`, and with it the transceiver, to governance.     |
-| 14             | Renounce pauser capability on the `WormholeTransceiver` proxy.                      |
-| 15             | Renounce pauser capability on the `NttManager` proxy.                               |
-| 16             | Deploy `TokenJar`.                                                                  |
-| 17             | Deploy `WormholeReleaser`.                                                          |
-| 18             | Set `WormholeReleaser` as the releaser on `TokenJar`.                               |
-| 19             | Transfer `TokenJar` ownership to governance.                                        |
-| 20             | Set `WormholeReleaser` threshold-setter to governance.                              |
-| 21             | Transfer ownership of `WormholeReleaser` to governance.                             |
-| 22             | Deploy `V3OpenFeeAdapter`.                                                          |
-| 23             | Set `V3OpenFeeAdapter` fee-setter to the deployer for configuration.                |
-| 24             | Set `V3OpenFeeAdapter` default fee.                                                 |
-| 25, 26, 27, 28 | Set `V3OpenFeeAdapter` fee tier defaults.                                           |
-| 29, 30, 31, 32 | Store `V3OpenFeeAdapter` fee tiers.                                                 |
-| 33             | Transfer `V3OpenFeeAdapter` fee-setter permission to governance.                    |
-| 34             | Transfer `V3OpenFeeAdapter` ownership to governance.                                |
-| 35             | Deploy `V4FeeAdapter`.                                                              |
-| 36             | Deploy `V4FeePolicy`.                                                               |
-| 37             | Set `V4FeePolicy` on `V4FeeAdapter`.                                                |
-| 38             | Set `V4FeePolicy` fee-setter to the deployer for configuration.                     |
-| 39             | Set `V4FeePolicy` fee buckets.                                                      |
-| 40             | Set `V4FeePolicy` flag rules.                                                       |
-| 41             | Set `V4FeePolicy` aggregator hook family default.                                   |
-| 42             | Assign `V4FeePolicy` hook families by address. Skipped while the list is empty.     |
-| 43             | Set `V4FeePolicy` stable-stable pair fees. Skipped while the list is empty.         |
-| 44             | Transfer `V4FeePolicy` fee-setter permission to governance.                         |
-| 45             | Transfer `V4FeePolicy` ownership to governance.                                     |
-| 46             | Transfer `V4FeeAdapter` fee-setter permission to governance.                        |
-| 47             | Transfer `V4FeeAdapter` ownership to governance.                                    |
+| Index | Action                                                                              |
+| ----- | ----------------------------------------------------------------------------------- |
+| W.00  | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| W.01  | Deploy `SyntheticNttUni`.                                                           |
+| W.02  | Deploy `NttManager` implementation.                                                 |
+| W.03  | Deploy `NttManager` proxy.                                                          |
+| W.04  | Initialize `NttManager` proxy.                                                      |
+| W.05  | Deploy `WormholeTransceiver` implementation.                                        |
+| W.06  | Deploy `WormholeTransceiver` proxy.                                                 |
+| W.07  | Initialize `WormholeTransceiver` proxy.                                             |
+| W.08  | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+| W.09  | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+| W.10  | Set the Ethereum `WormholeTransceiver` as a peer.                                   |
+| W.11  | Set the Ethereum `NttManager` as a peer.                                            |
+| W.12  | Transfer ownership of `SyntheticNttUni` to governance.                              |
+| W.13  | Transfer ownership of `NttManager`, and with it the transceiver, to governance.     |
+| W.14  | Renounce pauser capability on the `WormholeTransceiver` proxy.                      |
+| W.15  | Renounce pauser capability on the `NttManager` proxy.                               |
+
+**Transactions**, fee phase:
+
+| Index                  | Action                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| F.00                   | Deploy `TokenJar`.                                                              |
+| F.01                   | Deploy the releaser, `WormholeReleaser` here, through `_deployReleaser`.        |
+| F.02                   | Set the releaser on `TokenJar`.                                                 |
+| F.03                   | Transfer `TokenJar` ownership to governance.                                    |
+| F.04                   | Set the releaser's threshold-setter to governance.                              |
+| F.05                   | Transfer ownership of the releaser to governance.                               |
+| F.06                   | Deploy `V3OpenFeeAdapter`.                                                      |
+| F.07                   | Set `V3OpenFeeAdapter` fee-setter to the deployer for configuration.            |
+| F.08                   | Set `V3OpenFeeAdapter` default fee.                                             |
+| F.09, F.10, F.11, F.12 | Set `V3OpenFeeAdapter` fee tier defaults.                                       |
+| F.13, F.14, F.15, F.16 | Store `V3OpenFeeAdapter` fee tiers.                                             |
+| F.17                   | Transfer `V3OpenFeeAdapter` fee-setter permission to governance.                |
+| F.18                   | Transfer `V3OpenFeeAdapter` ownership to governance.                            |
+| F.19                   | Deploy `V4FeeAdapter`.                                                          |
+| F.20                   | Deploy `V4FeePolicy`.                                                           |
+| F.21                   | Set `V4FeePolicy` on `V4FeeAdapter`.                                            |
+| F.22                   | Set `V4FeePolicy` fee-setter to the deployer for configuration.                 |
+| F.23                   | Set `V4FeePolicy` fee buckets.                                                  |
+| F.24                   | Set `V4FeePolicy` flag rules.                                                   |
+| F.25                   | Set `V4FeePolicy` aggregator hook family default.                               |
+| F.26                   | Assign `V4FeePolicy` hook families by address. Skipped while the list is empty. |
+| F.27                   | Set `V4FeePolicy` stable-stable pair fees. Skipped while the list is empty.     |
+| F.28                   | Transfer `V4FeePolicy` fee-setter permission to governance.                     |
+| F.29                   | Transfer `V4FeePolicy` ownership to governance.                                 |
+| F.30                   | Transfer `V4FeeAdapter` fee-setter permission to governance.                    |
+| F.31                   | Transfer `V4FeeAdapter` ownership to governance.                                |
 
 > Note: proposal 4 and Wormhole's own script call `setThreshold(1)` after registering the transceiver. It is a no-op, because registering the first transceiver already raises the threshold from 0 to 1 and the manager rejects any value above the number of enabled transceivers. Here, we omit the transaction and assert the property instead.
 
 **Verification**:
 
-Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record:
+Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record. The assertions live in [`script/shared/FeeInfraChecks.sol`](../shared/FeeInfraChecks.sol) and [`WormholeInfraChecks.sol`](../shared/WormholeInfraChecks.sol), and compare the deployment against the params the script gave it:
 
 ```bash
 forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --sig "check()" --rpc-url hyperevm
