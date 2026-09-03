@@ -3,22 +3,29 @@ pragma solidity ^0.8.29;
 
 import {Currency} from "v4-core/types/Currency.sol";
 import {ITokenJar} from "./ITokenJar.sol";
-import {IResourceManager} from "./base/IResourceManager.sol";
-import {INonce} from "./base/INonce.sol";
 
-interface IReleaser is IResourceManager, INonce {
-  /// @notice Thrown when attempting to release too many assets at once
-  error TooManyAssets();
+interface IReleaser {
+    event ThresholdSet(uint256 newThreshold);
+    event MaxAssetReleaseSet(uint256 newMaxAssetRelease);
+    event ResourceSet(address indexed newResource);
+    event ResourceReceiverSet(address indexed newResourceReceiver);
+    event TokenJarSet(address indexed newTokenJar);
+    event ReleaseHookSet(address indexed newReleaseHook);
+    event Released(uint256 indexed nonce, address indexed recipient, Currency[] assets);
 
-  event Released(uint256 indexed nonce, address indexed recipient, Currency[] assets);
+    error InvalidNonce();
+    error TooManyAssets();
 
-  /// @return Address of the Token Jar contract that will release the assets
-  function TOKEN_JAR() external view returns (ITokenJar);
+    function threshold() external view returns (uint256);
+    function maxAssetRelease() external view returns (uint256);
+    function nonce() external view returns (uint256);
+    function resource() external view returns (address);
+    function tokenJar() external view returns (address);
+    function releaseHook() external view returns (address);
 
-  /// @notice Releases assets to a specified recipient if the resource threshold is met
-  /// @param _nonce The nonce for the release, must equal to the contract nonce otherwise revert
-  /// @param assets The list of assets (addresses) to release, which may have length limits
-  /// Native tokens (Ether) are represented as the zero address
-  /// @param recipient The address to receive the released assets, paid out by Token Jar
-  function release(uint256 _nonce, Currency[] calldata assets, address recipient) external;
+    function setThreshold(uint256 newThreshold) external;
+    function setMaxAssetRelease(uint256 newMaxAssetRelease) external;
+    function setResource(address newResource) external;
+    function setTokenJar(address newTokenJar) external;
+    function setReleaseHook(address newReleaseHook) external;
 }
