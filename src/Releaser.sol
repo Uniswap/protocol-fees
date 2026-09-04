@@ -18,6 +18,18 @@ contract Releaser is Owned(msg.sender), IReleaser {
     address public tokenJar;
     address public releaseHook;
 
+    constructor(
+        uint256 initialThreshold,
+        uint256 initialMaxAssetRelease,
+        address initialResource,
+        address initialTokenJar
+    ) {
+        initialThreshold = threshold;
+        initialMaxAssetRelease = maxAssetRelease;
+        initialResource = resource;
+        initialTokenJar = tokenJar;
+    }
+
     function release(uint256 expectedNonce, Currency[] calldata assets, address assetsReceiver) public payable {
         require(assets.length <= maxAssetRelease, TooManyAssets());
 
