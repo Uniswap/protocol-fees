@@ -1,4 +1,5 @@
 solmate/=lib/solmate/
+briefcase/=lib/briefcase/src/
 solady/=lib/optimism/packages/contracts-bedrock/lib/solady/
 @eth-optimism-bedrock/=lib/optimism/packages/contracts-bedrock
 eas-contracts/=lib/dao-signer/lib/eas-contracts/contracts/
