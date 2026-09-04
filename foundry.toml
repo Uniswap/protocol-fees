@@ -63,7 +63,8 @@ wrap_comments = true
 ignore = [
   "script/proposal-4/ProposalDescription.sol",
   "script/proposal-5/Description.sol",
-  "script/proposal-6/Description.sol"
+  "script/proposal-6/Description.sol",
+  "script/proposal-8/Description.sol"
   ]
 
 [lint]
