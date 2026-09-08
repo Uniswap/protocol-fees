@@ -1,25 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
-// -------------------------------------------------------------------------------------------------
-// Uniswap Earn
-//
-/// @dev Uniswap Earn vaults on Ethereum. Each is a Morpho `VaultV2` owned by the Timelock.
-/// @dev Structured to make it easy to add to govkit once this proposal is executed.
-struct Earn {
-  address uniUSDC;
-  address uniUSDT;
-  address uniETH;
-}
-
-library LibEarn {
-  function loadLatest() internal pure returns (Earn memory) {
-    return Earn({
-      uniUSDC: 0x5B453493D2328E7F747eb2e66446eFe707728be7,
-      uniUSDT: 0xb8274eFADB953FE9ae052D481a3FC5B6A3ceD703,
-      uniETH: 0x98D2b241DA14c5dd848812708Eb8A1F3c5512f9d
-    });
-  }
+library Earn {
+  address constant UNI_USDC = 0x5B453493D2328E7F747eb2e66446eFe707728be7;
+  address constant UNI_USDT = 0xb8274eFADB953FE9ae052D481a3FC5B6A3ceD703;
+  address constant UNI_ETH = 0x98D2b241DA14c5dd848812708Eb8A1F3c5512f9d;
 }
 
 // -------------------------------------------------------------------------------------------------
