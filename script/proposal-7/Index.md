@@ -137,10 +137,16 @@ forge script script/proposal-7/HyperEVMFees.s.sol --rpc-url mainnet
 
 **Preflight**:
 
-The HyperEVM half assumes the receiver trusts the Ethereum sender and already holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is a prerequisite for this proposal. Run `preflight()` against HyperEVM before proposing, since a failure otherwise surfaces only when the message is relayed after the vote:
+The HyperEVM half assumes the receiver trusts the Ethereum sender and already holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is a prerequisite for this proposal. Run `preflightHyperEVM()` against HyperEVM before proposing, since a failure otherwise surfaces only when the message is relayed after the vote:
 
 ```bash
-forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflight()" --rpc-url hyperevm
+forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightHyperEVM()" --rpc-url hyperevm
+```
+
+The Ethereum half's checks run inside `run()`, and stand alone as `preflightEthereum()`:
+
+```bash
+forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightEthereum()" --rpc-url mainnet
 ```
 
 ## Governance actions
