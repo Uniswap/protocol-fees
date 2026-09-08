@@ -18,7 +18,8 @@ compilation_restrictions = [
 fs_permissions = [
   { access = "read", path = "./broadcast"},
   { access = "read-write", path = "./.records/" },
-  { access = "read-write", path = "out/.seatbelt" }
+  { access = "read-write", path = "out/.seatbelt" },
+  { access = "read", path = "./script/proposal-7/params/" }
 ]
 
 [rpc_endpoints]
@@ -30,6 +31,7 @@ arbitrum = "${ARBITRUM_RPC_URL}"
 bnb_chain = "${BNB_CHAIN_RPC_URL}"
 polygon = "${POLYGON_RPC_URL}"
 celo = "${CELO_RPC_URL}"
+hyperevm = "${HYPEREVM_RPC_URL}"
 
 fork_mainnet = "${FORK_MAINNET_RPC_URL}"
 fork_bnb_chain = "${FORK_BNB_CHAIN_RPC_URL}"
@@ -63,7 +65,8 @@ wrap_comments = true
 ignore = [
   "script/proposal-4/ProposalDescription.sol",
   "script/proposal-5/Description.sol",
-  "script/proposal-6/Description.sol"
+  "script/proposal-6/Description.sol",
+  "script/proposal-7/Description.sol"
   ]
 
 [lint]
