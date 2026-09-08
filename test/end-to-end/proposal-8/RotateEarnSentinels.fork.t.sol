@@ -6,27 +6,32 @@ import {Test} from "forge-std/Test.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {Call} from "govkit/types/Call.sol";
 
-import {RotateEarnSentinels} from "../../../script/proposal-8/RotateEarnSentinels.s.sol";
+import {
+  RotateEarnSentinels,
+  buildProposal
+} from "../../../script/proposal-8/RotateEarnSentinels.s.sol";
 
 contract RotateEarnSentinelsForkTest is Test {
   Uniswap internal uniswap;
   RotateEarnSentinels internal script;
 
+  uint256 public constant FORK_BLOCK = 25_904_682;
+
   function setUp() public {
-    vm.createSelectFork("mainnet", 25_904_682);
+    vm.createSelectFork("mainnet", FORK_BLOCK);
     uniswap.loadLatest();
     script = new RotateEarnSentinels();
   }
 
   /// @dev Preflight: the script's own precondition check holds at the pinned block.
   function test_preflight_state() public {
-    script.preflight();
+    script.preflight(FORK_BLOCK);
   }
 
   /// @dev Postflight: the proposal's calls, sent by the Timelock, flip exactly the intended flags.
   function test_execute_as_timelock() public {
     // Get the proposal's calls
-    Call[] memory calls = script.proposal().calls;
+    Call[] memory calls = buildProposal(uniswap).calls;
     assertEq(calls.length, 6);
 
     vm.startPrank(uniswap.ethereum.timelock);
