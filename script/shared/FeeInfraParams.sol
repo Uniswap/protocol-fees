@@ -20,8 +20,8 @@ uint8 constant CONSISTENCY_LEVEL = 202;
 
 /// @dev Everything the fee infra needs from the chain and from governance's fee decisions. Fee
 /// values arrive in the form the contracts store: v3 values packed per tier, v4 values packed
-/// into both swap directions and, for aggregator hooks, already divided by 25. Lists arrive
-/// parsed and, for pairs, sorted.
+/// into both swap directions and, for aggregator hooks, already divided by 25. Assignment lists
+/// arrive parsed and, for pairs, sorted.
 ///
 /// Whatever deploys the fee infra holds none of these values itself, so the params are the whole
 /// configuration and the thing to check the result against.

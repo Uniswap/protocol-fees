@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.29;
 
+import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
-import {FeeBucket, FlagRule, PairClassFeeAssignment} from "../../src/interfaces/IV4FeePolicy.sol";
-import {Lists, Pair} from "./Lists.sol";
+import {FeeBucket, FlagRule} from "../../src/interfaces/IV4FeePolicy.sol";
 
 /// @dev The protocol fee schedule governance has set on every chain where fees are live: the v3
 /// tier defaults, and the v4 buckets, flag rule, and aggregator hook family from proposal 6. A
 /// chain that departs from it, as Base did on the aggregator fee, overrides at the call site.
 ///
-/// Also the encoding helpers the schedule needs: v4 fees packed into both swap directions, pairs
-/// sorted and hashed the way `V4FeePolicy` keys them.
+/// Also the encoding helpers the schedule needs: aggregator hook fees as the policy stores them,
+/// v4 fees packed into both swap directions, pairs sorted and hashed the way `V4FeePolicy` keys
+/// them.
 library FeeSchedule {
   // ─── V3 ───
 
@@ -38,6 +39,11 @@ library FeeSchedule {
   uint256 constant AGG_HOOK_FLAGS = 1 << 11;
   uint8 constant AGG_HOOK_FAMILY_ID = 11;
 
+  /// @dev Aggregator hooks charge their pools this many times the protocol fee the policy assigns
+  /// them, which is how they get above the PoolManager's per-direction cap. The policy therefore
+  /// stores the intended fee divided by this, as proposal 6 did (`encodeFee(300 / 25)`).
+  uint24 constant AGG_HOOK_FEE_MULTIPLIER = 25;
+
   /// @dev Fee buckets, ordered by ascending `lpFeeFloor`.
   function feeBuckets() internal pure returns (FeeBucket[] memory buckets) {
     buckets = new FeeBucket[](8);
@@ -61,28 +67,22 @@ library FeeSchedule {
     rules[0] = FlagRule({requiredFlags: AGG_HOOK_FLAGS, familyId: AGG_HOOK_FAMILY_ID});
   }
 
-  /// @dev Reads a stable-stable pair list and turns it into the assignments
-  /// `batchSetPairClassFee` takes: tokens sorted as the policy requires, aggregator family, `fee`
-  /// packed into both swap directions.
-  function pairClassFees(string memory csv, uint24 fee)
-    internal
-    view
-    returns (PairClassFeeAssignment[] memory assignments)
-  {
-    Pair[] memory pairs = Lists.stableStablePairs(csv);
-    assignments = new PairClassFeeAssignment[](pairs.length);
-    for (uint256 i; i < pairs.length; i++) {
-      (address token0, address token1) = sort(pairs[i].token0, pairs[i].token1);
-      assignments[i] = PairClassFeeAssignment({
-        currency0: Currency.wrap(token0),
-        currency1: Currency.wrap(token1),
-        familyId: AGG_HOOK_FAMILY_ID,
-        feeValue: bothDirections(fee)
-      });
-    }
-  }
-
   // ─── Encoding ───
+
+  /// @dev The value `V4FeePolicy` stores so that aggregator hook pools end up charging `feePips`
+  /// (hundredths of a basis point, so 1000 is 10 bps): the fee divided by
+  /// `AGG_HOOK_FEE_MULTIPLIER`, packed into both swap directions.
+  ///
+  /// Reverts unless the division is exact and the stored per-direction fee is within the
+  /// PoolManager's cap, so a fee the policy would silently truncate or reject cannot be written.
+  /// The division lives here, behind the pips figure, so the undivided fee cannot be stored by
+  /// mistake; the policy would accept it as valid.
+  function aggHookFeeValue(uint24 feePips) internal pure returns (uint24) {
+    require(feePips % AGG_HOOK_FEE_MULTIPLIER == 0, "FeeSchedule: fee not a multiple of 25 pips");
+    uint24 stored = feePips / AGG_HOOK_FEE_MULTIPLIER;
+    require(stored <= ProtocolFeeLibrary.MAX_PROTOCOL_FEE, "FeeSchedule: fee above the v4 cap");
+    return bothDirections(stored);
+  }
 
   /// @dev Packs one fee into both swap directions of a v4 protocol fee: the lower 12 bits apply
   /// to zero-for-one swaps and the upper 12 bits to one-for-zero.
