@@ -1,39 +1,35 @@
 # Proposal 7
 
-Activates v2, v3, and v4 protocol fees on HyperEVM, and registers HyperEVM as a Wormhole NTT peer on Ethereum so that UNI burned there releases on mainnet.
+Activates v2, v3, and v4 protocol fees on Arc, and registers Arc as a Wormhole NTT peer on Ethereum so that UNI burned there releases on mainnet.
 
-HyperEVM has no canonical bridge to Ethereum, so the burn path uses Wormhole's Native Token Transfer system, the same mechanism proposal 4 activated for BNB Chain and Polygon. Fee infrastructure is deployed permissionlessly ahead of the vote and handed to the governance-owned Wormhole receiver, so the proposal itself only does the two things governance alone can do: register the peer on Ethereum, and flip the three fee switches on HyperEVM over Wormhole.
+Arc has no canonical bridge to Ethereum, so the burn path uses Wormhole's Native Token Transfer system, the same mechanism proposal 4 activated for BNB Chain and Polygon. Fee infrastructure is deployed permissionlessly ahead of the vote and handed to the governance-owned Wormhole receiver, so the proposal itself only does the two things governance alone can do: register the peer on Ethereum, and flip the three fee switches on Arc over Wormhole.
 
 ## Wormhole context
 
 Unchanged from proposal 4. See its [Wormhole Context](../proposal-4/Index.md#wormhole-context) for the send and receive paths, the burn-over-Wormhole flow, and the note on why the NTT contracts use ERC-1967 proxies.
 
-## HyperEVM context
+## Arc context
 
-HyperEVM produces two kinds of blocks. Small blocks land every second with a 3M gas limit; big blocks land once a minute with a 30M limit. Which kind a transaction lands in is a flag on the sender's HyperCore account, not a property of the transaction.
+Arc is Circle's EVM chain. Its gas token is USDC: native balances and `msg.value` count it in 18 decimals, while the ERC-20 view of the same USDC at `0x3600000000000000000000000000000000000000` uses 6. There is no wrapped-native token. Blocks carry a 30M gas limit, with no opt-in needed for large transactions.
 
-Deploying the `NttManager` implementation alone costs about 4.5M gas, which no small block can hold. Before running the prerequisite script the deployer must opt in:
+The prerequisite script needs a native USDC balance for gas **and** for Wormhole core message fees. The fee is zero on Arc today, matching BNB Chain, but the script queries it at run time rather than assuming it.
 
-```json
-{"type": "evmUserModify", "usingBigBlocks": true}
-```
-
-Every transaction from that account then waits on the one-minute cadence until the flag is unset, which should happen only after the prerequisite script has run.
-
-The script also needs a HYPE balance for gas **and** for Wormhole core message fees. The fee is zero on HyperEVM today, matching BNB Chain, but should be queried at run time.
-
-| Name                | Network  | Value                                        | Description                                     |
-| ------------------- | -------- | -------------------------------------------- | ----------------------------------------------- |
-| `CHAIN_ID`          | HyperEVM | `999`                                        | EIP-155 chain id                                |
-| `WORMHOLE_CHAIN_ID` | HyperEVM | `47`                                         | Wormhole-defined chain id                       |
-| `WORMHOLE_CORE`     | HyperEVM | `0x7C0faFc4384551f063e05aee704ab943b8B53aB3` | Wormhole core bridge, deployed by Wormhole      |
+| Name                | Network  | Value                                        | Description                                      |
+| ------------------- | -------- | -------------------------------------------- | ------------------------------------------------ |
+| `CHAIN_ID`          | Arc      | `5042`                                       | EIP-155 chain id                                 |
+| `WORMHOLE_CHAIN_ID` | Arc      | `71`                                         | Wormhole-defined chain id                        |
+| `WORMHOLE_CORE`     | Arc      | `0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027` | Wormhole core bridge, deployed by Wormhole       |
 | `WORMHOLE_SENDER`   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a` | Uniswap's Wormhole sender, owned by the Timelock |
 
 New-chain addresses live in [`params/Constants.sol`](./params/Constants.sol) until the proposal activating them has executed, then move to govkit's address book. That file is the single source for every value below; the tables in this document restate it, so change it first.
 
+The `arc` RPC alias in `foundry.toml` reads `ARC_RPC_URL`. Uniswap's internal RPC gateway serves Arc at its chain id path.
+
 ## Prerequisite actions
 
-These are permissionless and must all be done before governance can act. Step 1 writes one record file, `.records/HyperEVM.json`, which step 2 reads. Step 1 refuses to run twice; clear the record deliberately to redeploy.
+These are permissionless and must all be done before governance can act. Step 1 writes one record file, `.records/Arc.json`, which step 2 reads. Step 1 refuses to run twice; clear the record deliberately to redeploy.
+
+Separately, the governance-owned `UniswapWormholeMessageReceiver` must be deployed on Arc and given the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is outside this repository. `preflightArc()` in step 2 asserts it has happened.
 
 1. [Deploy fee infra](#1-deploy-fee-infra)
 2. [Write the proposal](#2-write-the-proposal)
@@ -42,13 +38,13 @@ These are permissionless and must all be done before governance can act. Step 1 
 
 **Overview**:
 
-On HyperEVM we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter. We initialize the proxies, register the transceiver with the manager, set `SyntheticNttUni`'s minting authority to the manager, and register Ethereum as a peer on both. We then transfer everything to the governance receiver and renounce the pauser capability on both proxies.
+On Arc we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter. We initialize the proxies, register the transceiver with the manager, set `SyntheticNttUni`'s minting authority to the manager, and register Ethereum as a peer on both. We then transfer everything to the governance receiver and renounce the pauser capability on both proxies.
 
 We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter`, and `V4FeePolicy`. Each contract keeps deployer authority only for as long as its own configuration needs, then hands both ownership and the fee-setter role to the governance receiver.
 
 Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
 
-The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below. Both are empty for HyperEVM, and the transaction that applies each is skipped while its list is empty.
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below. Both are empty for Arc, and the transaction that applies each is skipped while its list is empty.
 
 **V4 fee policy assignments**:
 
@@ -56,7 +52,7 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 
 ```json
 {
-  "999": {
+  "5042": {
     "hookFamilyAssignments": [
       {"hook": "0x…", "familyId": 11}
     ],
@@ -73,13 +69,13 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 
 **Foundry Script**:
 
-[`./prereq/DeployFeeInfraHyperEVM.s.sol`](./prereq/DeployFeeInfraHyperEVM.s.sol)
+[`./prereq/DeployFeeInfraArc.s.sol`](./prereq/DeployFeeInfraArc.s.sol)
 
 **Shell Command**:
 
 ```bash
 # from root directory of this repository:
-forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyperevm --broadcast
+forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --rpc-url arc --broadcast
 ```
 
 **Transactions**:
@@ -123,7 +119,7 @@ forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyp
 | 40             | Set `V4FeePolicy` flag rules.                                                       |
 | 41             | Set `V4FeePolicy` aggregator hook family default.                                   |
 | 42             | Assign `V4FeePolicy` hook families by address. Skipped while the list is empty.     |
-| 43             | Set `V4FeePolicy` stable-stable pair fees. Skipped while the list is empty.         |
+| 43             | Set `V4FeePolicy` pair-class fees. Skipped while the list is empty.                 |
 | 44             | Transfer `V4FeePolicy` fee-setter permission to governance.                         |
 | 45             | Transfer `V4FeePolicy` ownership to governance.                                     |
 | 46             | Transfer `V4FeeAdapter` fee-setter permission to governance.                        |
@@ -136,38 +132,38 @@ forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --rpc-url hyp
 Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record:
 
 ```bash
-forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --sig "check()" --rpc-url hyperevm
+forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --sig "check()" --rpc-url arc
 ```
 
 ### 2. Write the proposal
 
 **Overview**:
 
-Reads the prerequisite deployments out of the record and writes the proposal to `./out/.seatbelt/HyperEVMFeeProposal.json` for Seatbelt. It does not broadcast; the `propose` call is made separately from that output. Run against Ethereum, where it also asserts that every target answers to the Timelock and that neither NTT contract knows HyperEVM yet.
+Reads the prerequisite deployments out of the record and writes the proposal to `./out/.seatbelt/ArcFeeProposal.json` for Seatbelt. It does not broadcast; the `propose` call is made separately from that output. Run against Ethereum, where it also asserts that every target answers to the Timelock and that neither NTT contract knows Arc yet.
 
 **Foundry Script**:
 
-[`./HyperEVMFees.s.sol`](./HyperEVMFees.s.sol)
+[`./ArcFees.s.sol`](./ArcFees.s.sol)
 
 **Shell Command**:
 
 ```bash
 # from root directory of this repository:
-forge script script/proposal-7/HyperEVMFees.s.sol --rpc-url mainnet
+forge script script/proposal-7/ArcFees.s.sol --rpc-url mainnet
 ```
 
 **Preflight**:
 
-The HyperEVM half assumes the receiver trusts the Ethereum sender and already holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is a prerequisite for this proposal. Run `preflightHyperEVM()` against HyperEVM before proposing, since a failure otherwise surfaces only when the message is relayed after the vote:
+The Arc half assumes the receiver trusts the Ethereum sender and already holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is a prerequisite for this proposal. Run `preflightArc()` against Arc before proposing, since a failure otherwise surfaces only when the message is relayed after the vote:
 
 ```bash
-forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightHyperEVM()" --rpc-url hyperevm
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc
 ```
 
 The Ethereum half's checks run inside `run()`, and stand alone as `preflightEthereum()`:
 
 ```bash
-forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightEthereum()" --rpc-url mainnet
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightEthereum()" --rpc-url mainnet
 ```
 
 ## Governance actions
@@ -178,23 +174,23 @@ forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightEthereum()" --
 
 **OVERVIEW**:
 
-Registers the HyperEVM `WormholeTransceiver` and `NttManager` as peers on their Ethereum counterparts, which proposal 4 deployed and the Timelock owns. This is what lets UNI burned on HyperEVM release on Ethereum. Without it the burn path does not complete.
+Registers the Arc `WormholeTransceiver` and `NttManager` as peers on their Ethereum counterparts, which proposal 4 deployed and the Timelock owns. This is what lets UNI burned on Arc release on Ethereum. Without it the burn path does not complete.
 
 **RELEVANT ADDRESSES**:
 
-| Name                  | Network  | Address                                      | Description                             |
-| --------------------- | -------- | -------------------------------------------- | --------------------------------------- |
-| `nttManager`          | Ethereum | `0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44` | Ethereum NTT manager, from proposal 4   |
-| `wormholeTransceiver` | Ethereum | `0x7597C40Fd3df66b750C14ad4D90524e247499011` | Ethereum transceiver, from proposal 4   |
+| Name                  | Network  | Address                                      | Description                              |
+| --------------------- | -------- | -------------------------------------------- | ---------------------------------------- |
+| `nttManager`          | Ethereum | `0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44` | Ethereum NTT manager, from proposal 4    |
+| `wormholeTransceiver` | Ethereum | `0x7597C40Fd3df66b750C14ad4D90524e247499011` | Ethereum transceiver, from proposal 4    |
 | `timelock`            | Ethereum | `0x1a9C8182C09F50C8318d769245beA52c32BE35BC` | Owner of both, and the proposal executor |
-| `NttManager`          | HyperEVM | recorded by step 1                           | Peer being registered                   |
-| `WormholeTransceiver` | HyperEVM | recorded by step 1                           | Peer being registered                   |
+| `NttManager`          | Arc      | recorded by step 1                           | Peer being registered                    |
+| `WormholeTransceiver` | Arc      | recorded by step 1                           | Peer being registered                    |
 
 **ACTIONS**:
 
 - From the `Timelock`:
-    - Set the HyperEVM `WormholeTransceiver` as a peer on the Ethereum `WormholeTransceiver`.
-    - Set the HyperEVM `NttManager` as a peer on the Ethereum `NttManager`.
+    - Set the Arc `WormholeTransceiver` as a peer on the Ethereum `WormholeTransceiver`.
+    - Set the Arc `NttManager` as a peer on the Ethereum `NttManager`.
 
 **BEFORE AND AFTER**:
 
@@ -211,15 +207,15 @@ flowchart LR
         A_WormholeTransceiver(WormholeTransceiver)
         A_BNBChain(BNB Chain)
         A_Polygon(Polygon)
-        A_HyperEVM(HyperEVM)
+        A_Arc(Arc)
 
         A_NttManager --> A_BNBChain
         A_NttManager --> A_Polygon
-        A_NttManager --> A_HyperEVM
+        A_NttManager --> A_Arc
 
         A_WormholeTransceiver --> A_BNBChain
         A_WormholeTransceiver --> A_Polygon
-        A_WormholeTransceiver --> A_HyperEVM
+        A_WormholeTransceiver --> A_Arc
     end
 
     subgraph before[Before Action]
@@ -240,10 +236,10 @@ flowchart LR
     before:::before
     after:::after
 
-    A_HyperEVM:::changed
+    A_Arc:::changed
 
     %% Link indices count across the whole diagram in declaration order.
-    %% 2 and 5 are the two new HyperEVM peer registrations.
+    %% 2 and 5 are the two new Arc peer registrations.
     linkStyle 2,5 stroke:#52b788
 
     classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
@@ -253,7 +249,7 @@ flowchart LR
 
 This proposal's changes (including prerequisite deployments) are in green. Both peer registrations happen on Ethereum, on contracts proposal 4 deployed.
 
-### HyperEVM actions
+### Arc actions
 
 ---
 
@@ -265,14 +261,14 @@ One Wormhole message carrying three calls, executed by the `UniswapWormholeMessa
 
 | Name                | Network  | Address                                              | Description                        |
 | ------------------- | -------- | ---------------------------------------------------- | ---------------------------------- |
-| `V2_FACTORY`        | HyperEVM | see [`params/Constants.sol`](./params/Constants.sol) | Uniswap V2 Factory                 |
-| `V3_FACTORY`        | HyperEVM | see [`params/Constants.sol`](./params/Constants.sol) | Uniswap V3 Factory                 |
-| `POOL_MANAGER`      | HyperEVM | see [`params/Constants.sol`](./params/Constants.sol) | Uniswap V4 Pool Manager            |
-| `WORMHOLE_RECEIVER` | HyperEVM | see [`params/Constants.sol`](./params/Constants.sol) | Governance owned Wormhole receiver |
+| `V2_FACTORY`        | Arc      | `0x89e5DB8B5aA49aA85AC63f691524311AEB649eba`         | Uniswap V2 Factory                 |
+| `V3_FACTORY`        | Arc      | `0xf0db7b58379503491d857dB50AC9ece64c653918`         | Uniswap V3 Factory                 |
+| `POOL_MANAGER`      | Arc      | `0x8366a39CC670B4001A1121B8F6A443A643e40951`         | Uniswap V4 Pool Manager            |
+| `WORMHOLE_RECEIVER` | Arc      | see [`params/Constants.sol`](./params/Constants.sol) | Governance owned Wormhole receiver |
 | `WORMHOLE_SENDER`   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a`         | Wormhole sender, owned by Timelock |
-| `TokenJar`          | HyperEVM | recorded by step 1                                   | Fee destination                    |
-| `V3OpenFeeAdapter`  | HyperEVM | recorded by step 1                                   | New V3 factory owner               |
-| `V4FeeAdapter`      | HyperEVM | recorded by step 1                                   | New protocol fee controller        |
+| `TokenJar`          | Arc      | recorded by step 1                                   | Fee destination                    |
+| `V3OpenFeeAdapter`  | Arc      | recorded by step 1                                   | New V3 factory owner               |
+| `V4FeeAdapter`      | Arc      | recorded by step 1                                   | New protocol fee controller        |
 
 **ACTIONS**:
 
@@ -378,6 +374,6 @@ This proposal's changes (including prerequisite deployments) are in green.
 
 ## Relaying the message
 
-Wormhole does not deliver the HyperEVM message. After the proposal executes, the VAA for the HyperEVM action has to be fetched from Wormhole's API and passed to `receiveMessage` on the receiver. Proposal 4 did this with a finalizer script carrying the VAA bytes; the equivalent here can only be written once there is a VAA.
+Wormhole does not deliver the Arc message. After the proposal executes, the VAA for the Arc action has to be fetched from Wormhole's API and passed to `receiveMessage` on the receiver. Proposal 4 did this with a finalizer script carrying the VAA bytes; the equivalent here can only be written once there is a VAA.
 
 Someone, potentially Wormhole, will sometimes batch-relay messages themselves. Nothing in that path logs an observable event or shows as a transaction on Etherscan-style explorers, so a later relay attempt reverts as a replay and looks like a failure even though the message already executed.

@@ -3,7 +3,6 @@ pragma solidity 0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {Currency} from "v4-core/types/Currency.sol";
 
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {ERC1967Reader} from "govkit/forge/ERC1967Reader.sol";
@@ -61,28 +60,17 @@ uint8 constant AGG_HOOK_FAMILY_ID = 11;
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// HyperEVM produces two kinds of blocks. Small blocks land every second with a 3M gas limit; big
-// blocks land once a minute with a 30M limit. Which kind a transaction lands in is a flag on the
-// sender's HyperCore account, not a property of the transaction, and deploying the `NttManager`
-// implementation alone costs about 4.5M gas, which no small block can hold. Before broadcasting,
-// the deployer must opt in to big blocks by submitting this action to HyperCore:
+// Arc's gas token is USDC. Native balances and `msg.value` count it in 18 decimals; the ERC-20
+// view of the same USDC, at `0x3600000000000000000000000000000000000000`, uses 6. This script
+// needs a native balance both to pay for gas **and** to pay for Wormhole core messages. The
+// message fee is queried at run time:
 //
-//   {"type": "evmUserModify", "usingBigBlocks": true}
+// cast call 0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027 "messageFee()(uint256)" --rpc-url arc
 //
-// Every transaction from the deployer then waits on the one-minute cadence until the flag is
-// unset again, which should happen only after this script has run.
+// This returns `0` on Arc today, matching BNB Chain. Nonetheless, it is queried at deploy time so
+// there are no unexpected costs.
 //
-// ---
-//
-// This deployment script necessitates a balance of the native token (Ether's equivalent on
-// HyperEVM, HYPE) both to pay for gas **and** to pay for Wormhole core messages. The message fee
-// is queried at run time rather than assumed.
-//
-// cast call 0x7C0faFc4384551f063e05aee704ab943b8B53aB3 "messageFee()(uint256)" --rpc-url
-// https://rpc.hyperliquid.xyz/evm
-//
-// This appears to return `0` on HyperEVM today, matching BNB Chain. Nonetheless, it is queried at
-// deploy time so there are no unexpected costs.
+// Blocks have a 30M gas limit, enough for the `NttManager` implementation at about 4.5M.
 //
 // ---
 //
@@ -97,7 +85,7 @@ uint8 constant AGG_HOOK_FAMILY_ID = 11;
 // The v4 configuration mirrors `script/proposal-6/prereq/DeployV4FeeInfra.s.sol`. The two
 // per-chain lists it depends on, hook family assignments and pair-class fees, are read for this
 // chain from `params/v4-fee-policy.json` through `script/shared/V4FeePolicyAssignments.sol`. Both
-// are empty for HyperEVM, and the transaction that applies each is skipped while its list is
+// are empty for Arc, and the transaction that applies each is skipped while its list is
 // empty.
 //
 // ---
@@ -105,10 +93,10 @@ uint8 constant AGG_HOOK_FAMILY_ID = 11;
 // `run` asserts the resulting state in its own simulation before it records anything. To apply
 // the same assertions to the live chain afterwards, from the record alone:
 //
-// forge script script/proposal-7/prereq/DeployFeeInfraHyperEVM.s.sol --sig "check()"
-// --rpc-url hyperevm
+// forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --sig "check()"
+// --rpc-url arc
 //
-contract DeployFeeInfraHyperEVM is Script {
+contract DeployFeeInfraArc is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;
 
@@ -137,7 +125,7 @@ contract DeployFeeInfraHyperEVM is Script {
     // deliberately clear the record.
     require(
       !recorder.exists({
-        chainId: Constants.HyperEVM.CHAIN_ID, deploymentName: Constants.Records.SYNTHETIC_NTT_UNI
+        chainId: Constants.Arc.CHAIN_ID, deploymentName: Constants.Records.SYNTHETIC_NTT_UNI
       }),
       "already deployed: clear .records/ to redeploy"
     );
@@ -167,7 +155,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // Parameters:
     //
-    // - `_token`: HyperEVM deployment of UNI (`SyntheticNttUni`).
+    // - `_token`: Arc deployment of UNI (`SyntheticNttUni`).
     // - `_mode`: `BURNING` for all foreign chains.
     // - `_chainId`: Wormhole-defined chain ID, not EIP155-defined.
     //
@@ -175,7 +163,7 @@ contract DeployFeeInfraHyperEVM is Script {
       new NttManagerNoRateLimiting({
         _token: address(syntheticNttUni),
         _mode: IManagerBase.Mode.BURNING,
-        _chainId: Constants.HyperEVM.WORMHOLE_CHAIN_ID
+        _chainId: Constants.Arc.WORMHOLE_CHAIN_ID
       })
     );
 
@@ -218,7 +206,7 @@ contract DeployFeeInfraHyperEVM is Script {
     // Parameters:
     //
     // - `nttManager`: NttManager proxy address.
-    // - `wormholeCoreBridge`: HyperEVM Wormhole core bridge.
+    // - `wormholeCoreBridge`: Arc Wormhole core bridge.
     // - `_consistencyLevel`: Hardcoded to 202 in Wormhole documentation [1].
     // - `_customConsistencyLevel`: Unused when `_consistencyLevel != 203` [2].
     // - `_additionalBlocks`: Unused when `_consistencyLevel != 203` [2].
@@ -234,7 +222,7 @@ contract DeployFeeInfraHyperEVM is Script {
     wormholeTransceiverImplementation = address(
       new WormholeTransceiver({
         nttManager: address(nttManager),
-        wormholeCoreBridge: Constants.HyperEVM.WORMHOLE_CORE,
+        wormholeCoreBridge: Constants.Arc.WORMHOLE_CORE,
         _consistencyLevel: CONSISTENCY_LEVEL,
         _customConsistencyLevel: 0,
         _additionalBlocks: 0,
@@ -261,7 +249,7 @@ contract DeployFeeInfraHyperEVM is Script {
     // -----------------------------------------------------------------------------------------
     // Query for Wormhole Message Fee.
     //
-    uint256 messageFee = IWormhole(Constants.HyperEVM.WORMHOLE_CORE).messageFee();
+    uint256 messageFee = IWormhole(Constants.Arc.WORMHOLE_CORE).messageFee();
 
     // -----------------------------------------------------------------------------------------
     // Transaction 07
@@ -347,7 +335,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    syntheticNttUni.transferOwnership({newOwner: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    syntheticNttUni.transferOwnership({newOwner: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 13
@@ -361,7 +349,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    nttManager.transferOwnership({newOwner: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    nttManager.transferOwnership({newOwner: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 14
@@ -404,15 +392,15 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // Parameters:
     //
-    // - `_nttManager`: HyperEVM NttManager proxy.
-    // - `_resource`: HyperEVM SyntheticNttUni.
+    // - `_nttManager`: Arc NttManager proxy.
+    // - `_resource`: Arc SyntheticNttUni.
     // - `_threshold`: Minimum amount of `SyntheticNttUni` required to release.
     // - `_tokenJar`: `TokenJar`.
     //
     releaser = new WormholeReleaser({
       _nttManager: address(nttManager),
       _resource: address(syntheticNttUni),
-      _threshold: Constants.HyperEVM.RELEASER_THRESHOLD,
+      _threshold: Constants.Arc.RELEASER_THRESHOLD,
       _tokenJar: address(tokenJar)
     });
 
@@ -436,7 +424,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    tokenJar.transferOwnership({newOwner: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    tokenJar.transferOwnership({newOwner: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 20
@@ -447,7 +435,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `_thresholdSetter`: Governance-owned Wormhole message receiver.
     //
-    releaser.setThresholdSetter({_thresholdSetter: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    releaser.setThresholdSetter({_thresholdSetter: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 21
@@ -462,7 +450,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    releaser.transferOwnership({newOwner: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    releaser.transferOwnership({newOwner: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 22
@@ -471,11 +459,11 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // Parameters:
     //
-    // - `_factory`: HyperEVM Uniswap V3 Factory.
+    // - `_factory`: Arc Uniswap V3 Factory.
     // - `_tokenJar`: `TokenJar`.
     //
     v3OpenFeeAdapter =
-      new V3OpenFeeAdapter({_factory: Constants.HyperEVM.V3_FACTORY, _tokenJar: address(tokenJar)});
+      new V3OpenFeeAdapter({_factory: Constants.Arc.V3_FACTORY, _tokenJar: address(tokenJar)});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 23
@@ -546,7 +534,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newFeeSetter`: Governance-owned Wormhole message receiver.
     //
-    v3OpenFeeAdapter.setFeeSetter({newFeeSetter: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    v3OpenFeeAdapter.setFeeSetter({newFeeSetter: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 34
@@ -557,7 +545,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    v3OpenFeeAdapter.transferOwnership({newOwner: Constants.HyperEVM.WORMHOLE_RECEIVER});
+    v3OpenFeeAdapter.transferOwnership({newOwner: Constants.Arc.WORMHOLE_RECEIVER});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 35
@@ -569,11 +557,11 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // Parameters:
     //
-    // - `poolManager`: HyperEVM Uniswap V4 Pool Manager.
+    // - `poolManager`: Arc Uniswap V4 Pool Manager.
     // - `tokenJar`: `TokenJar`.
     //
     v4FeeAdapter = new V4FeeAdapter({
-      poolManager: IPoolManager(Constants.HyperEVM.POOL_MANAGER), tokenJar: address(tokenJar)
+      poolManager: IPoolManager(Constants.Arc.POOL_MANAGER), tokenJar: address(tokenJar)
     });
 
     // -----------------------------------------------------------------------------------------
@@ -583,9 +571,9 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // Parameters:
     //
-    // - `poolManager`: HyperEVM Uniswap V4 Pool Manager.
+    // - `poolManager`: Arc Uniswap V4 Pool Manager.
     //
-    v4FeePolicy = new V4FeePolicy({poolManager: IPoolManager(Constants.HyperEVM.POOL_MANAGER)});
+    v4FeePolicy = new V4FeePolicy({poolManager: IPoolManager(Constants.Arc.POOL_MANAGER)});
 
     // -----------------------------------------------------------------------------------------
     // Transaction 37
@@ -653,7 +641,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     v4FeePolicy.setFamilyDefault({
       familyId: AGG_HOOK_FAMILY_ID,
-      feeValue: FeeSchedule.aggHookFeeValue(Constants.HyperEVM.AGG_HOOK_FEE_PIPS)
+      feeValue: FeeSchedule.aggHookFeeValue(Constants.Arc.AGG_HOOK_FEE_PIPS)
     });
 
     // -----------------------------------------------------------------------------------------
@@ -671,7 +659,7 @@ contract DeployFeeInfraHyperEVM is Script {
     } else {
       console.log(
         "Transaction 42 skipped: no hookFamilyAssignments for this chain in",
-        Constants.HyperEVM.V4_FEE_POLICY_JSON
+        Constants.Arc.V4_FEE_POLICY_JSON
       );
     }
 
@@ -692,7 +680,7 @@ contract DeployFeeInfraHyperEVM is Script {
     } else {
       console.log(
         "Transaction 43 skipped: no pairClassAssignments for this chain in",
-        Constants.HyperEVM.V4_FEE_POLICY_JSON
+        Constants.Arc.V4_FEE_POLICY_JSON
       );
     }
 
@@ -705,7 +693,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newFeeSetter`: Governance-owned Wormhole message receiver.
     //
-    v4FeePolicy.setFeeSetter(Constants.HyperEVM.WORMHOLE_RECEIVER);
+    v4FeePolicy.setFeeSetter(Constants.Arc.WORMHOLE_RECEIVER);
 
     // -----------------------------------------------------------------------------------------
     // Transaction 45
@@ -716,7 +704,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    v4FeePolicy.transferOwnership(Constants.HyperEVM.WORMHOLE_RECEIVER);
+    v4FeePolicy.transferOwnership(Constants.Arc.WORMHOLE_RECEIVER);
 
     // -----------------------------------------------------------------------------------------
     // Transaction 46
@@ -727,7 +715,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newFeeSetter`: Governance-owned Wormhole message receiver.
     //
-    v4FeeAdapter.setFeeSetter(Constants.HyperEVM.WORMHOLE_RECEIVER);
+    v4FeeAdapter.setFeeSetter(Constants.Arc.WORMHOLE_RECEIVER);
 
     // -----------------------------------------------------------------------------------------
     // Transaction 47
@@ -738,7 +726,7 @@ contract DeployFeeInfraHyperEVM is Script {
     //
     // - `newOwner`: Governance-owned Wormhole message receiver.
     //
-    v4FeeAdapter.transferOwnership(Constants.HyperEVM.WORMHOLE_RECEIVER);
+    v4FeeAdapter.transferOwnership(Constants.Arc.WORMHOLE_RECEIVER);
 
     vm.stopBroadcast();
 
@@ -762,12 +750,12 @@ contract DeployFeeInfraHyperEVM is Script {
     uniswap.loadLatest();
     recorder.initialize({scriptName: Constants.RECORD_NAME});
 
-    require(block.chainid == Constants.HyperEVM.CHAIN_ID, "not HyperEVM");
+    require(block.chainid == Constants.Arc.CHAIN_ID, "not Arc");
   }
 
   /// @dev Reads the deployment back out of the record.
   function _load() internal {
-    uint256 chainId = Constants.HyperEVM.CHAIN_ID;
+    uint256 chainId = Constants.Arc.CHAIN_ID;
 
     syntheticNttUni = SyntheticNttUni(
       recorder.read({chainId: chainId, deploymentName: Constants.Records.SYNTHETIC_NTT_UNI})
@@ -816,25 +804,19 @@ contract DeployFeeInfraHyperEVM is Script {
 
   /// @dev This chain's `hookFamilyAssignments` in `V4_FEE_POLICY_JSON`.
   function _hookFamilies() internal view returns (HookFamilyAssignment[] memory) {
-    return V4FeePolicyAssignments.hookFamilies(Constants.HyperEVM.V4_FEE_POLICY_JSON, block.chainid);
+    return V4FeePolicyAssignments.hookFamilies(Constants.Arc.V4_FEE_POLICY_JSON, block.chainid);
   }
 
   /// @dev This chain's `pairClassAssignments` in `V4_FEE_POLICY_JSON`, encoded as
   /// `batchSetPairClassFee` takes them.
   function _pairClassFees() internal view returns (PairClassFeeAssignment[] memory) {
-    return
-      V4FeePolicyAssignments.pairClassFees(Constants.HyperEVM.V4_FEE_POLICY_JSON, block.chainid);
-  }
-
-  /// @dev The key `V4FeePolicy` stores a sorted pair under.
-  function _pairHash(Currency c0, Currency c1) internal pure returns (bytes32) {
-    return keccak256(abi.encodePacked(Currency.unwrap(c0), Currency.unwrap(c1)));
+    return V4FeePolicyAssignments.pairClassFees(Constants.Arc.V4_FEE_POLICY_JSON, block.chainid);
   }
 
   /// @dev Asserts the deployment landed in the state the proposal assumes.
   function _check() internal view {
-    address receiver = Constants.HyperEVM.WORMHOLE_RECEIVER;
-    address poolManager = Constants.HyperEVM.POOL_MANAGER;
+    address receiver = Constants.Arc.WORMHOLE_RECEIVER;
+    address poolManager = Constants.Arc.POOL_MANAGER;
     uint16 ethChainId = WormholeChainId.Ethereum;
 
     FeeBucket[] memory feeBuckets = _feeBuckets();
@@ -851,7 +833,7 @@ contract DeployFeeInfraHyperEVM is Script {
       ERC1967Reader.implementation(address(nttManager)) == nttManagerImplementation,
       "nttManager.implementation"
     );
-    require(nttManager.chainId() == Constants.HyperEVM.WORMHOLE_CHAIN_ID, "nttManager.chainId");
+    require(nttManager.chainId() == Constants.Arc.WORMHOLE_CHAIN_ID, "nttManager.chainId");
     require(nttManager.getMode() == uint8(IManagerBase.Mode.BURNING), "nttManager.mode");
     require(nttManager.token() == address(syntheticNttUni), "nttManager.token");
     require(nttManager.getThreshold() == TRANSCEIVER_THRESHOLD, "nttManager.threshold");
@@ -909,7 +891,7 @@ contract DeployFeeInfraHyperEVM is Script {
       "wormholeTransceiver.customConsistencyLevelAddress"
     );
     require(
-      address(wormholeTransceiver.wormhole()) == Constants.HyperEVM.WORMHOLE_CORE,
+      address(wormholeTransceiver.wormhole()) == Constants.Arc.WORMHOLE_CORE,
       "wormholeTransceiver.wormhole"
     );
     require(wormholeTransceiver.owner() == receiver, "wormholeTransceiver.owner");
@@ -928,14 +910,13 @@ contract DeployFeeInfraHyperEVM is Script {
     require(address(releaser.NTT_MANAGER()) == address(nttManager), "releaser.nttManager");
     require(address(releaser.RESOURCE()) == address(syntheticNttUni), "releaser.resource");
     require(address(releaser.TOKEN_JAR()) == address(tokenJar), "releaser.tokenJar");
-    require(releaser.threshold() == Constants.HyperEVM.RELEASER_THRESHOLD, "releaser.threshold");
+    require(releaser.threshold() == Constants.Arc.RELEASER_THRESHOLD, "releaser.threshold");
     require(releaser.thresholdSetter() == receiver, "releaser.thresholdSetter");
     require(releaser.owner() == receiver, "releaser.owner");
 
     // V3OpenFeeAdapter
     require(
-      address(v3OpenFeeAdapter.FACTORY()) == Constants.HyperEVM.V3_FACTORY,
-      "v3OpenFeeAdapter.factory"
+      address(v3OpenFeeAdapter.FACTORY()) == Constants.Arc.V3_FACTORY, "v3OpenFeeAdapter.factory"
     );
     require(v3OpenFeeAdapter.TOKEN_JAR() == address(tokenJar), "v3OpenFeeAdapter.tokenJar");
     require(v3OpenFeeAdapter.defaultFee() == DEFAULT_FEE_100, "v3OpenFeeAdapter.defaultFee");
@@ -986,7 +967,7 @@ contract DeployFeeInfraHyperEVM is Script {
     require(v4FeePolicy.flagRulesLength() == 1, "v4FeePolicy.flagRulesLength");
     require(
       v4FeePolicy.familyDefaults(AGG_HOOK_FAMILY_ID)
-        == FeeSchedule.aggHookFeeValue(Constants.HyperEVM.AGG_HOOK_FEE_PIPS),
+        == FeeSchedule.aggHookFeeValue(Constants.Arc.AGG_HOOK_FEE_PIPS),
       "v4FeePolicy.familyDefaults"
     );
     require(v4FeePolicy.feeSetter() == receiver, "v4FeePolicy.feeSetter");
@@ -1013,7 +994,8 @@ contract DeployFeeInfraHyperEVM is Script {
     for (uint256 i; i < pairClassFees.length; i++) {
       PairClassFeeAssignment memory a = pairClassFees[i];
       require(
-        v4FeePolicy.pairClassFees(_pairHash(a.currency0, a.currency1), a.familyId) == a.feeValue,
+        v4FeePolicy.pairClassFees(FeeSchedule.pairHash(a.currency0, a.currency1), a.familyId)
+          == a.feeValue,
         "v4FeePolicy.pairClassFees"
       );
     }
@@ -1022,7 +1004,7 @@ contract DeployFeeInfraHyperEVM is Script {
   /// @dev Writes the deployments for the proposal to read back, then logs them. Runs only after
   /// `_check`, so nothing reaches the record unless it was verified.
   function _record() internal {
-    uint256 chainId = Constants.HyperEVM.CHAIN_ID;
+    uint256 chainId = Constants.Arc.CHAIN_ID;
 
     recorder.write({
       chainId: chainId,
