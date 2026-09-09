@@ -12,9 +12,9 @@ pragma solidity 0.8.29;
 // value that is still outstanding.
 
 /// @dev Record file shared by the prerequisite script and the proposal, at
-/// `.records/HyperEVM.json`. The prerequisite script writes its deployments under the keys in
+/// `.records/Arc.json`. The prerequisite script writes its deployments under the keys in
 /// `Records` and the proposal reads them back.
-string constant RECORD_NAME = "HyperEVM";
+string constant RECORD_NAME = "Arc";
 
 /// @dev Keys in the record file, one per deployment.
 library Records {
@@ -35,52 +35,59 @@ library Ethereum {
   /// @dev Uniswap's Wormhole sender, owned by the Timelock. Shared across every Wormhole-bridged
   /// chain; the destination is a parameter of `sendMessage`, not a property of the sender.
   ///
-  /// govkit records this per destination chain on `EthereumBridgeSender`, but has no `hyperEvm`
-  /// field yet, and reading a different chain's field for a HyperEVM message would misstate what
-  /// the value is. It moves to the address book with the rest of HyperEVM after execution.
+  /// govkit records this per destination chain on `EthereumBridgeSender`, but has no `arc`
+  /// field yet, and reading a different chain's field for a Arc message would misstate what
+  /// the value is. It moves to the address book with the rest of Arc after execution.
   address constant WORMHOLE_SENDER = 0xf5F4496219F31CDCBa6130B5402873624585615a;
 }
 
-library HyperEVM {
+library Arc {
   /// @dev EIP-155 chain id.
-  uint256 constant CHAIN_ID = 999;
+  ///
+  /// source: `eth_chainId` on Arc mainnet returns 5042; briefcase records the deployments below
+  /// under `deployments/5042.json`.
+  uint256 constant CHAIN_ID = 5042;
 
   /// @dev Wormhole-defined chain id, which is not the EIP-155 one.
   ///
-  /// source: `chainId()` on WORMHOLE_CORE returns 47, matching Wormhole's SDK constants.
-  uint16 constant WORMHOLE_CHAIN_ID = 47;
+  /// source: `chainId()` on WORMHOLE_CORE returns 71, matching Wormhole's SDK constants.
+  uint16 constant WORMHOLE_CHAIN_ID = 71;
 
   /// @dev Wormhole core bridge, deployed by Wormhole rather than by us.
   ///
-  /// source: `chainId()` returns 47 and `getCurrentGuardianSetIndex()` returns 7.
-  address constant WORMHOLE_CORE = 0x7C0faFc4384551f063e05aee704ab943b8B53aB3;
+  /// source: Wormhole's SDK constants for Arc mainnet; `chainId()` returns 71,
+  /// `evmChainId()` returns 5042, and `getCurrentGuardianSetIndex()` returns 7.
+  address constant WORMHOLE_CORE = 0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027;
 
-  /// @dev Uniswap V2 Factory on HyperEVM.
+  /// @dev Uniswap V2 Factory on Arc.
   ///
-  /// TODO: pending the Uniswap protocol deployment on HyperEVM.
-  address constant V2_FACTORY = address(0x00);
+  /// source: briefcase `deployments/5042.json` from v0.1.60. Not the canonical v2 factory
+  /// address, which has no code on Arc.
+  address constant V2_FACTORY = 0x89e5DB8B5aA49aA85AC63f691524311AEB649eba;
 
-  /// @dev Uniswap V3 Factory on HyperEVM.
+  /// @dev Uniswap V3 Factory on Arc.
   ///
-  /// TODO: pending the Uniswap protocol deployment on HyperEVM.
-  address constant V3_FACTORY = address(0x00);
+  /// source: briefcase `deployments/5042.json` from v0.1.60.
+  address constant V3_FACTORY = 0xf0db7b58379503491d857dB50AC9ece64c653918;
 
-  /// @dev Uniswap V4 Pool Manager on HyperEVM.
+  /// @dev Uniswap V4 Pool Manager on Arc.
   ///
-  /// TODO: pending the Uniswap protocol deployment on HyperEVM.
-  address constant POOL_MANAGER = address(0x00);
+  /// source: briefcase `deployments/5042.json` from v0.1.60.
+  address constant POOL_MANAGER = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
 
-  /// @dev Governance-owned Wormhole message receiver on HyperEVM. Every contract deployed by the
+  /// @dev Governance-owned Wormhole message receiver on Arc. Every contract deployed by the
   /// prerequisite scripts ends up owned by this address, and it is the account that executes the
   /// cross-chain half of the proposal.
   ///
-  /// TODO: being deployed by the Uniswap protocol team.
+  /// TODO: not yet deployed. A 3-of-5 Safe, `0x33F26c5d69E2c40956f22c6195B6A499cF4151E8`, holds
+  /// the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner` until the receiver
+  /// exists and the Safe hands them over. `preflightArc()` asserts that handoff.
   address constant WORMHOLE_RECEIVER = address(0x00);
 
   /// @dev Minimum amount of synthetic UNI a searcher must pay to claim the TokenJar's accumulated
   /// fees. BNB Chain uses 4000e18; Polygon and Robinhood Chain use 2000e18.
   ///
-  /// TODO: awaiting a decision on the value for HyperEVM.
+  /// TODO: awaiting a decision on the value for Arc.
   uint256 constant RELEASER_THRESHOLD = 0;
 
   /// @dev Protocol fee that aggregator hook pools should end up charging, in pips (hundredths of
@@ -88,21 +95,18 @@ library HyperEVM {
   /// script stores it through `FeeSchedule.aggHookFeeValue`, which applies the aggregator
   /// multiplier.
   ///
-  /// TODO: awaiting confirmation of which applies to HyperEVM.
+  /// TODO: awaiting confirmation of which applies to Arc.
   uint24 constant AGG_HOOK_FEE_PIPS = 0;
 
   /// @dev Per-chain `V4FeePolicy` assignments, hook families and pair-class fees, read for this
-  /// chain by `V4FeePolicyAssignments`. Both lists are empty until HyperEVM hooks exist to list
+  /// chain by `V4FeePolicyAssignments`. Both lists are empty until Arc hooks exist to list
   /// and the stable-stable pairs and their fee are chosen.
   string constant V4_FEE_POLICY_JSON = "script/proposal-7/params/v4-fee-policy.json";
 }
 
 /// @dev Reverts unless every outstanding value above has been filled in.
 function smokeCheck() pure {
-  require(HyperEVM.V2_FACTORY != address(0x00), "HyperEVM.V2_FACTORY unset");
-  require(HyperEVM.V3_FACTORY != address(0x00), "HyperEVM.V3_FACTORY unset");
-  require(HyperEVM.POOL_MANAGER != address(0x00), "HyperEVM.POOL_MANAGER unset");
-  require(HyperEVM.WORMHOLE_RECEIVER != address(0x00), "HyperEVM.WORMHOLE_RECEIVER unset");
-  require(HyperEVM.RELEASER_THRESHOLD != 0, "HyperEVM.RELEASER_THRESHOLD unset");
-  require(HyperEVM.AGG_HOOK_FEE_PIPS != 0, "HyperEVM.AGG_HOOK_FEE_PIPS unset");
+  require(Arc.WORMHOLE_RECEIVER != address(0x00), "Arc.WORMHOLE_RECEIVER unset");
+  require(Arc.RELEASER_THRESHOLD != 0, "Arc.RELEASER_THRESHOLD unset");
+  require(Arc.AGG_HOOK_FEE_PIPS != 0, "Arc.AGG_HOOK_FEE_PIPS unset");
 }

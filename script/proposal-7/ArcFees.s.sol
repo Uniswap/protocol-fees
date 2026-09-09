@@ -29,36 +29,36 @@ import {DESCRIPTION} from "./Description.sol";
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// The proposal has two halves. The Ethereum half registers HyperEVM as a peer on the NTT manager
+// The proposal has two halves. The Ethereum half registers Arc as a peer on the NTT manager
 // and transceiver deployed by proposal 4; both are owned by the Timelock, so only governance can
-// do it, and without it UNI burned on HyperEVM never releases on Ethereum. The HyperEVM half
+// do it, and without it UNI burned on Arc never releases on Ethereum. The Arc half
 // travels over Wormhole and turns on v2, v3, and v4 fees.
 //
 // Each half has preconditions on its own chain, so this script has a preflight per chain.
 //
-// 1. `preflightHyperEVM()` against HyperEVM asserts the receiver trusts the Ethereum sender and
+// 1. `preflightArc()` against Arc asserts the receiver trusts the Ethereum sender and
 //    holds the authority each remote call needs. A failure here surfaces before the vote instead
 //    of when the message is relayed after it:
 //
-//    forge script script/proposal-7/HyperEVMFees.s.sol --sig "preflightHyperEVM()" --rpc-url
-// hyperevm
+//    forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url
+// arc
 // 2. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt.
-//    The prerequisite script must have run on HyperEVM first, since `buildProposal` reads its
+//    The prerequisite script must have run on Arc first, since `buildProposal` reads its
 //    deployments out of the record:
 //
-//    forge script script/proposal-7/HyperEVMFees.s.sol --rpc-url mainnet
+//    forge script script/proposal-7/ArcFees.s.sol --rpc-url mainnet
 //
 // `buildProposal` is a free function so a fork test, and callers outside this repo, build the same
 // calls the script writes without deploying the script.
 //
 // ---
 //
-// Wormhole does not deliver the HyperEVM message. After the proposal executes, someone must fetch
-// the VAA for action 02 from Wormhole's API and call `receiveMessage` on the HyperEVM receiver;
+// Wormhole does not deliver the Arc message. After the proposal executes, someone must fetch
+// the VAA for action 02 from Wormhole's API and call `receiveMessage` on the Arc receiver;
 // proposal 4 did this with a finalizer script carrying the VAA bytes. A third-party relayer may
 // deliver it first, in which case a later attempt reverts as a replay even though the message ran.
 //
-/// @dev The proposal's calls. Reads the Ethereum NTT contracts from govkit, the HyperEVM
+/// @dev The proposal's calls. Reads the Ethereum NTT contracts from govkit, the Arc
 /// deployments from the record, and the Wormhole message fee from the core bridge, so it needs an
 /// Ethereum fork and an initialized recorder.
 function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
@@ -72,11 +72,11 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   // fails and the proposal has to be re-made, which no script can prevent.
   uint256 messageFee = IWormhole(uniswap.ethereum.bridge.wormholeCore).messageFee();
 
-  uint256 chainId = Constants.HyperEVM.CHAIN_ID;
+  uint256 chainId = Constants.Arc.CHAIN_ID;
 
-  address hyperEvmNttManager =
+  address arcNttManager =
     recorder.read({chainId: chainId, deploymentName: Constants.Records.NTT_MANAGER});
-  address hyperEvmTransceiver =
+  address arcTransceiver =
     recorder.read({chainId: chainId, deploymentName: Constants.Records.WORMHOLE_TRANSCEIVER});
   address tokenJar = recorder.read({chainId: chainId, deploymentName: Constants.Records.TOKEN_JAR});
   address v3OpenFeeAdapter =
@@ -87,7 +87,7 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   // ---------------------------------------------------------------------------------------------
   // Action 00
   //
-  // Set the HyperEVM `WormholeTransceiver` proxy as a peer on the Ethereum
+  // Set the Arc `WormholeTransceiver` proxy as a peer on the Ethereum
   // `WormholeTransceiver` proxy.
   //
   // `setWormholePeer` is payable because it publishes a Wormhole message announcing the
@@ -97,29 +97,29 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // - `target`: Ethereum WormholeTransceiver proxy, owned by the Timelock.
   // - `value`: Wormhole core message fee, read above.
-  // - `peerChainId`: Wormhole-defined HyperEVM Chain Id.
-  // - `peerContract`: HyperEVM WormholeTransceiver proxy.
+  // - `peerChainId`: Wormhole-defined Arc Chain Id.
+  // - `peerContract`: Arc WormholeTransceiver proxy.
   //
   Call memory setEthereumTransceiverPeer = Call({
     target: uniswap.ethereum.wormholeTransceiver,
     value: messageFee,
     data: abi.encodeCall(
       IWormholeTransceiver.setWormholePeer,
-      (Constants.HyperEVM.WORMHOLE_CHAIN_ID, WormholeEncoder.toWormholeFormat(hyperEvmTransceiver))
+      (Constants.Arc.WORMHOLE_CHAIN_ID, WormholeEncoder.toWormholeFormat(arcTransceiver))
     )
   });
 
   // ---------------------------------------------------------------------------------------------
   // Action 01
   //
-  // Set the HyperEVM `NttManager` proxy as a peer on the Ethereum `NttManager` proxy.
+  // Set the Arc `NttManager` proxy as a peer on the Ethereum `NttManager` proxy.
   //
   // Parameters:
   //
   // - `target`: Ethereum NttManager proxy, owned by the Timelock.
-  // - `peerChainId`: Wormhole-defined HyperEVM Chain Id.
-  // - `peerContract`: HyperEVM NttManager proxy.
-  // - `decimals`: UNI decimals on HyperEVM.
+  // - `peerChainId`: Wormhole-defined Arc Chain Id.
+  // - `peerContract`: Arc NttManager proxy.
+  // - `decimals`: UNI decimals on Arc.
   // - `inboundLimit`: Set to zero when rate limiter is disabled, matching BNB Chain and Polygon.
   //
   Call memory setEthereumNttManagerPeer = Call({
@@ -127,22 +127,17 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
     value: 0,
     data: abi.encodeCall(
       INttManagerPeers.setPeer,
-      (
-        Constants.HyperEVM.WORMHOLE_CHAIN_ID,
-        WormholeEncoder.toWormholeFormat(hyperEvmNttManager),
-        18,
-        0
-      )
+      (Constants.Arc.WORMHOLE_CHAIN_ID, WormholeEncoder.toWormholeFormat(arcNttManager), 18, 0)
     )
   });
 
   // ---------------------------------------------------------------------------------------------
   // Action 02
   //
-  // Turn on v2, v3, and v4 fees on HyperEVM, as one Wormhole message carrying the three remote
+  // Turn on v2, v3, and v4 fees on Arc, as one Wormhole message carrying the three remote
   // calls below.
   //
-  // All three run from the `UniswapWormholeMessageReceiver` on HyperEVM. Each depends on the
+  // All three run from the `UniswapWormholeMessageReceiver` on Arc. Each depends on the
   // receiver already holding the authority named in its block; that handoff from the deploying
   // team is a prerequisite for this proposal, not part of it, and `preflight()` asserts it.
 
@@ -153,11 +148,11 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // Parameters:
   //
-  // - `target`: HyperEVM Uniswap V2 Factory.
-  // - `_feeTo`: HyperEVM TokenJar.
+  // - `target`: Arc Uniswap V2 Factory.
+  // - `_feeTo`: Arc TokenJar.
   //
   Call memory setV2FeeTo = Call({
-    target: Constants.HyperEVM.V2_FACTORY,
+    target: Constants.Arc.V2_FACTORY,
     value: 0,
     data: abi.encodeCall(IUniswapV2Factory.setFeeTo, (tokenJar))
   });
@@ -169,11 +164,11 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // Parameters:
   //
-  // - `target`: HyperEVM Uniswap V3 Factory.
-  // - `_owner`: HyperEVM V3OpenFeeAdapter.
+  // - `target`: Arc Uniswap V3 Factory.
+  // - `_owner`: Arc V3OpenFeeAdapter.
   //
   Call memory setV3Owner = Call({
-    target: Constants.HyperEVM.V3_FACTORY,
+    target: Constants.Arc.V3_FACTORY,
     value: 0,
     data: abi.encodeCall(IUniswapV3Factory.setOwner, (v3OpenFeeAdapter))
   });
@@ -185,11 +180,11 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // Parameters:
   //
-  // - `target`: HyperEVM Uniswap V4 Pool Manager.
-  // - `controller`: HyperEVM V4FeeAdapter.
+  // - `target`: Arc Uniswap V4 Pool Manager.
+  // - `controller`: Arc V4FeeAdapter.
   //
   Call memory setV4FeeController = Call({
-    target: Constants.HyperEVM.POOL_MANAGER,
+    target: Constants.Arc.POOL_MANAGER,
     value: 0,
     data: abi.encodeCall(IPoolManager.setProtocolFeeController, (v4FeeAdapter))
   });
@@ -198,12 +193,12 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // - `value`: Wormhole core message fee, read above.
   // - `targets`, `values`, `calldatas`: Remote calls 00, 01, and 02, split into parallel arrays.
-  // - `messageReceiver`: HyperEVM `UniswapWormholeMessageReceiver`, which executes them.
-  // - `receiverChainId`: Wormhole-defined HyperEVM Chain Id.
+  // - `messageReceiver`: Arc `UniswapWormholeMessageReceiver`, which executes them.
+  // - `receiverChainId`: Wormhole-defined Arc Chain Id.
   //
-  Call[] memory hyperEvmCalls = LibCall.newCalls([setV2FeeTo, setV3Owner, setV4FeeController]);
+  Call[] memory arcCalls = LibCall.newCalls([setV2FeeTo, setV3Owner, setV4FeeController]);
 
-  Call memory activateHyperEvmFees = encodeWormhole(hyperEvmCalls, messageFee);
+  Call memory activateArcFees = encodeWormhole(arcCalls, messageFee);
 
   // ---------------------------------------------------------------------------------------------
   // Output
@@ -221,14 +216,14 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   return Proposal({
     description: DESCRIPTION,
     calls: LibCall.newCalls(
-      [setEthereumTransceiverPeer, setEthereumNttManagerPeer, activateHyperEvmFees]
+      [setEthereumTransceiverPeer, setEthereumNttManagerPeer, activateArcFees]
     )
   });
 }
 
-/// @dev Encodes a batch of HyperEVM calls as a single Wormhole message from the Timelock.
+/// @dev Encodes a batch of Arc calls as a single Wormhole message from the Timelock.
 /// @dev This is `WormholeEncoder.encode` with the chain id supplied directly. The encoder maps
-/// an EIP-155 chain id to a Wormhole one through `WormholeChainId`, which does not know HyperEVM
+/// an EIP-155 chain id to a Wormhole one through `WormholeChainId`, which does not know Arc
 /// yet; that mapping lands in govkit once this proposal has executed, at which point this function
 /// collapses back to a `WormholeEncoder.encode` call.
 function encodeWormhole(Call[] memory remoteCalls, uint256 value) pure returns (Call memory) {
@@ -247,18 +242,12 @@ function encodeWormhole(Call[] memory remoteCalls, uint256 value) pure returns (
     value: value,
     data: abi.encodeCall(
       IWormholeSender.sendMessage,
-      (
-        targets,
-        values,
-        datas,
-        Constants.HyperEVM.WORMHOLE_RECEIVER,
-        Constants.HyperEVM.WORMHOLE_CHAIN_ID
-      )
+      (targets, values, datas, Constants.Arc.WORMHOLE_RECEIVER, Constants.Arc.WORMHOLE_CHAIN_ID)
     )
   });
 }
 
-contract HyperEVMFees is Script {
+contract ArcFees is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;
 
@@ -272,7 +261,7 @@ contract HyperEVMFees is Script {
 
     recorder.initialize({scriptName: Constants.RECORD_NAME});
 
-    string memory path = "./out/.seatbelt/HyperEVMFeeProposal.json";
+    string memory path = "./out/.seatbelt/ArcFeeProposal.json";
     vm.createDir("./out/.seatbelt/", true);
     vm.writeFile({
       path: path,
@@ -283,24 +272,24 @@ contract HyperEVMFees is Script {
     console.log("wrote", path);
   }
 
-  /// @dev `preflightHyperEVM()` at a block the caller names. Pin the fork to the same block so the
+  /// @dev `preflightArc()` at a block the caller names. Pin the fork to the same block so the
   /// two cannot disagree:
-  /// `--sig "preflightHyperEVM(uint256)" $B --rpc-url hyperevm --fork-block-number $B`.
-  function preflightHyperEVM(uint256 blockNumber) public view {
+  /// `--sig "preflightArc(uint256)" $B --rpc-url arc --fork-block-number $B`.
+  function preflightArc(uint256 blockNumber) public view {
     require(block.number == blockNumber, "block number");
-    preflightHyperEVM();
+    preflightArc();
   }
 
-  /// @dev Asserts HyperEVM is in the state action 02 assumes: the receiver trusts the Ethereum
-  /// sender, and it holds the authority each remote call needs. Run against HyperEVM. Logs the
+  /// @dev Asserts Arc is in the state action 02 assumes: the receiver trusts the Ethereum
+  /// sender, and it holds the authority each remote call needs. Run against Arc. Logs the
   /// block it ran at.
-  function preflightHyperEVM() public view {
+  function preflightArc() public view {
     Constants.smokeCheck();
 
-    require(block.chainid == Constants.HyperEVM.CHAIN_ID, "not HyperEVM");
-    console.log("preflightHyperEVM at block", block.number);
+    require(block.chainid == Constants.Arc.CHAIN_ID, "not Arc");
+    console.log("preflightArc at block", block.number);
 
-    address receiver = Constants.HyperEVM.WORMHOLE_RECEIVER;
+    address receiver = Constants.Arc.WORMHOLE_RECEIVER;
 
     require(
       IUniswapWormholeMessageReceiver(receiver).messageSender()
@@ -313,11 +302,10 @@ contract HyperEVMFees is Script {
     );
 
     require(
-      IUniswapV2Factory(Constants.HyperEVM.V2_FACTORY).feeToSetter() == receiver,
-      "v2Factory.feeToSetter"
+      IUniswapV2Factory(Constants.Arc.V2_FACTORY).feeToSetter() == receiver, "v2Factory.feeToSetter"
     );
-    require(IUniswapV3Factory(Constants.HyperEVM.V3_FACTORY).owner() == receiver, "v3Factory.owner");
-    require(IPoolManager(Constants.HyperEVM.POOL_MANAGER).owner() == receiver, "poolManager.owner");
+    require(IUniswapV3Factory(Constants.Arc.V3_FACTORY).owner() == receiver, "v3Factory.owner");
+    require(IPoolManager(Constants.Arc.POOL_MANAGER).owner() == receiver, "poolManager.owner");
   }
 
   /// @dev `preflightEthereum()` at a block the caller names. Pin the fork to the same block so the
@@ -329,7 +317,7 @@ contract HyperEVMFees is Script {
   }
 
   /// @dev Asserts Ethereum is in the state actions 00 through 02 assume: every target answers to
-  /// the Timelock, and neither NTT contract knows HyperEVM yet. `setWormholePeer` reverts on an
+  /// the Timelock, and neither NTT contract knows Arc yet. `setWormholePeer` reverts on an
   /// existing peer and `setPeer` silently overwrites one, so both are checked up front. Run
   /// against Ethereum. Logs the block it ran at.
   function preflightEthereum() public view {
@@ -339,7 +327,7 @@ contract HyperEVMFees is Script {
     console.log("preflightEthereum at block", block.number);
 
     address timelock = uniswap.ethereum.timelock;
-    uint16 hyperEvm = Constants.HyperEVM.WORMHOLE_CHAIN_ID;
+    uint16 arcChainId = Constants.Arc.WORMHOLE_CHAIN_ID;
 
     // WormholeSender. The constant restates govkit's per-destination field for a chain govkit
     // knows; the two must agree.
@@ -356,12 +344,12 @@ contract HyperEVMFees is Script {
     IWormholeTransceiver transceiver = IWormholeTransceiver(uniswap.ethereum.wormholeTransceiver);
 
     require(transceiver.owner() == timelock, "wormholeTransceiver.owner");
-    require(transceiver.getWormholePeer(hyperEvm) == bytes32(0), "wormholeTransceiver.peer set");
+    require(transceiver.getWormholePeer(arcChainId) == bytes32(0), "wormholeTransceiver.peer set");
 
     // NttManager
     INttManagerPeers nttManager = INttManagerPeers(uniswap.ethereum.nttManager);
 
     require(nttManager.owner() == timelock, "nttManager.owner");
-    require(nttManager.getPeer(hyperEvm).peerAddress == bytes32(0), "nttManager.peer set");
+    require(nttManager.getPeer(arcChainId).peerAddress == bytes32(0), "nttManager.peer set");
   }
 }
