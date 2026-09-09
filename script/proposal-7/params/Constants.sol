@@ -84,36 +84,17 @@ library HyperEVM {
   uint256 constant RELEASER_THRESHOLD = 0;
 
   /// @dev Protocol fee that aggregator hook pools should end up charging, in pips (hundredths of
-  /// a bip, so 1000 is 10 bps). Proposal 6 set 1000 on every chain but Base, which got 300.
+  /// a bip, so 1000 is 10 bps). Proposal 6 set 1000 on every chain but Base, which got 300. The
+  /// script stores it through `FeeSchedule.aggHookFeeValue`, which applies the aggregator
+  /// multiplier.
   ///
   /// TODO: awaiting confirmation of which applies to HyperEVM.
   uint24 constant AGG_HOOK_FEE_PIPS = 0;
 
-  /// @dev Value stored in `V4FeePolicy` for the aggregator hook family. Aggregator hooks multiply
-  /// their assigned fee by 25 to get above the PoolManager's 10 bps cap, so the policy holds the
-  /// intended fee divided by 25. Proposal 6 divides the same way; the division lives here so the
-  /// undivided figure cannot be stored by mistake, since `V4FeePolicy` would accept it as valid.
-  uint24 constant AGG_HOOK_DEFAULT_FEE = AGG_HOOK_FEE_PIPS / 25;
-
-  /// @dev Protocol fee that stable-stable aggregator hook pools should end up charging, in pips.
-  /// Proposal 6 set 300 on every chain but Base, which got 100. Applies to the pairs listed in
-  /// `STABLE_STABLE_PAIRS_CSV`.
-  ///
-  /// TODO: awaiting confirmation of which applies to HyperEVM.
-  uint24 constant STABLE_STABLE_FEE_PIPS = 0;
-
-  /// @dev Value stored in `V4FeePolicy` for each stable-stable pair, divided by 25 for the reason
-  /// given on `AGG_HOOK_DEFAULT_FEE`.
-  uint24 constant STABLE_STABLE_FEE = STABLE_STABLE_FEE_PIPS / 25;
-
-  /// @dev Hooks assigned to a fee family by address, read by `Lists.hookFamilies`. Header-only
-  /// until HyperEVM hooks exist to list.
-  string constant HOOK_FAMILIES_CSV = "script/proposal-7/params/hyperevm/hook-families.csv";
-
-  /// @dev Stable-stable pairs, read by `Lists.stableStablePairs`. Header-only until the list is
-  /// chosen.
-  string constant STABLE_STABLE_PAIRS_CSV =
-    "script/proposal-7/params/hyperevm/stable-stable-pairs.csv";
+  /// @dev Per-chain `V4FeePolicy` assignments, hook families and pair-class fees, read for this
+  /// chain by `V4FeePolicyAssignments`. Both lists are empty until HyperEVM hooks exist to list
+  /// and the stable-stable pairs and their fee are chosen.
+  string constant V4_FEE_POLICY_JSON = "script/proposal-7/params/v4-fee-policy.json";
 }
 
 /// @dev Reverts unless every outstanding value above has been filled in.
@@ -124,5 +105,4 @@ function smokeCheck() pure {
   require(HyperEVM.WORMHOLE_RECEIVER != address(0x00), "HyperEVM.WORMHOLE_RECEIVER unset");
   require(HyperEVM.RELEASER_THRESHOLD != 0, "HyperEVM.RELEASER_THRESHOLD unset");
   require(HyperEVM.AGG_HOOK_FEE_PIPS != 0, "HyperEVM.AGG_HOOK_FEE_PIPS unset");
-  require(HyperEVM.STABLE_STABLE_FEE_PIPS != 0, "HyperEVM.STABLE_STABLE_FEE_PIPS unset");
 }

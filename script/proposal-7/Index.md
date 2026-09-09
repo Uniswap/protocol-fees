@@ -48,7 +48,28 @@ We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter
 
 Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
 
-The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and stable-stable pairs, are CSV files in [`params/hyperevm/`](./params/hyperevm/), read at run time through [`script/shared/Lists.sol`](../shared/Lists.sol). Both are header-only for HyperEVM, and the transaction that applies each is skipped while its list is empty.
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below. Both are empty for HyperEVM, and the transaction that applies each is skipped while its list is empty.
+
+**V4 fee policy assignments**:
+
+[`params/v4-fee-policy.json`](./params/v4-fee-policy.json) holds the per-chain `V4FeePolicy` assignments, keyed by EIP-155 chain id. The script reads the entry for the chain it is running on, through [`script/shared/V4FeePolicyAssignments.sol`](../shared/V4FeePolicyAssignments.sol), and fails if that chain has no entry.
+
+```json
+{
+  "999": {
+    "hookFamilyAssignments": [
+      {"hook": "0x…", "familyId": 11}
+    ],
+    "pairClassAssignments": [
+      {"token0": "0x…", "token1": "0x…", "familyId": 11, "feePips": 300}
+    ]
+  }
+}
+```
+
+`hookFamilyAssignments` puts a hook into a fee family by address, for hooks the flag rules do not classify. `pairClassAssignments` gives a pair a fee that overrides its family default, which is how proposal 6 gave stable-stable pairs a lower fee than other aggregator-hook pools. Tokens may be listed in either order. Fields are matched by name, so extra fields such as a `symbol` are ignored.
+
+`feePips` is the protocol fee the pair's pools should end up charging, in pips (hundredths of a basis point, so 300 is 3 bps). Aggregator hooks charge 25 times the fee the policy assigns them, so the policy stores `feePips / 25` per swap direction; the script performs that division and rejects a fee that is not a multiple of 25 or that exceeds the PoolManager's per-direction cap. Only the aggregator family (`familyId` 11) has a pair-class fee today, and any other family is rejected rather than encoded with the wrong multiplier. The `check` phase reads every assignment back from the policy and compares it to the encoded value.
 
 **Foundry Script**:
 

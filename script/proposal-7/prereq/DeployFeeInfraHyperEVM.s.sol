@@ -32,7 +32,8 @@ import {
   HookFamilyAssignment,
   PairClassFeeAssignment
 } from "../../../src/interfaces/IV4FeePolicy.sol";
-import {Lists, Pair} from "../../shared/Lists.sol";
+import {FeeSchedule} from "../../shared/FeeSchedule.sol";
+import {V4FeePolicyAssignments} from "../../shared/V4FeePolicyAssignments.sol";
 import {IWormhole} from "../Interfaces.sol";
 import "../params/Constants.sol" as Constants;
 
@@ -94,9 +95,9 @@ uint8 constant AGG_HOOK_FAMILY_ID = 11;
 // ---
 //
 // The v4 configuration mirrors `script/proposal-6/prereq/DeployV4FeeInfra.s.sol`. The two
-// per-chain lists it depends on, hook family assignments and stable-stable pairs, are CSV files
-// under `params/hyperevm/`, read at run time through `script/shared/Lists.sol`. Both are
-// header-only for HyperEVM, and the transaction that applies each is skipped while its list is
+// per-chain lists it depends on, hook family assignments and pair-class fees, are read for this
+// chain from `params/v4-fee-policy.json` through `script/shared/V4FeePolicyAssignments.sol`. Both
+// are empty for HyperEVM, and the transaction that applies each is skipped while its list is
 // empty.
 //
 // ---
@@ -647,18 +648,19 @@ contract DeployFeeInfraHyperEVM is Script {
     // Parameters:
     //
     // - `familyId`: Aggregator hook family.
-    // - `feeValue`: Aggregator default, packed into both swap directions.
+    // - `feeValue`: `AGG_HOOK_FEE_PIPS` divided by the aggregator multiplier and packed into
+    //   both swap directions.
     //
     v4FeePolicy.setFamilyDefault({
       familyId: AGG_HOOK_FAMILY_ID,
-      feeValue: _bothDirections(Constants.HyperEVM.AGG_HOOK_DEFAULT_FEE)
+      feeValue: FeeSchedule.aggHookFeeValue(Constants.HyperEVM.AGG_HOOK_FEE_PIPS)
     });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 42
     //
-    // Assign `V4FeePolicy` hook families by address, from `HOOK_FAMILIES_CSV`. Skipped while that
-    // list is empty; the numbering holds either way.
+    // Assign `V4FeePolicy` hook families by address, from this chain's `hookFamilyAssignments`
+    // in `V4_FEE_POLICY_JSON`. Skipped while that list is empty; the numbering holds either way.
     //
     // Parameters:
     //
@@ -668,27 +670,29 @@ contract DeployFeeInfraHyperEVM is Script {
       v4FeePolicy.batchSetHookFamily(hookFamilies);
     } else {
       console.log(
-        "Transaction 42 skipped: no hook family rows", Constants.HyperEVM.HOOK_FAMILIES_CSV
+        "Transaction 42 skipped: no hookFamilyAssignments for this chain in",
+        Constants.HyperEVM.V4_FEE_POLICY_JSON
       );
     }
 
     // -----------------------------------------------------------------------------------------
     // Transaction 43
     //
-    // Set `V4FeePolicy` stable-stable pair fees for the aggregator hook family, from
-    // `STABLE_STABLE_PAIRS_CSV`. Skipped while that list is empty; the numbering holds either way.
+    // Set `V4FeePolicy` pair-class fees, from this chain's `pairClassAssignments` in
+    // `V4_FEE_POLICY_JSON`. Skipped while that list is empty; the numbering holds either way.
     //
     // Parameters:
     //
     // - `assignments`: One `PairClassFeeAssignment` per pair, tokens sorted, family 11, the
-    //   stable-stable fee packed into both swap directions.
+    //   pair's `feePips` divided by the aggregator multiplier and packed into both swap
+    //   directions.
     //
     if (pairClassFees.length > 0) {
       v4FeePolicy.batchSetPairClassFee(pairClassFees);
     } else {
       console.log(
-        "Transaction 43 skipped: no stable-stable pair rows",
-        Constants.HyperEVM.STABLE_STABLE_PAIRS_CSV
+        "Transaction 43 skipped: no pairClassAssignments for this chain in",
+        Constants.HyperEVM.V4_FEE_POLICY_JSON
       );
     }
 
@@ -810,42 +814,21 @@ contract DeployFeeInfraHyperEVM is Script {
     buckets[7] = FeeBucket({lpFeeFloor: 5500, alphaPips: 1000, betaPips: 0});
   }
 
-  /// @dev Hook family assignments, read from `HOOK_FAMILIES_CSV`.
+  /// @dev This chain's `hookFamilyAssignments` in `V4_FEE_POLICY_JSON`.
   function _hookFamilies() internal view returns (HookFamilyAssignment[] memory) {
-    return Lists.hookFamilies(Constants.HyperEVM.HOOK_FAMILIES_CSV);
+    return V4FeePolicyAssignments.hookFamilies(Constants.HyperEVM.V4_FEE_POLICY_JSON, block.chainid);
   }
 
-  /// @dev Stable-stable pairs, read from `STABLE_STABLE_PAIRS_CSV` and turned into the assignments
-  /// `batchSetPairClassFee` takes: tokens sorted as the policy requires, aggregator family,
-  /// stable-stable fee in both swap directions.
-  function _pairClassFees() internal view returns (PairClassFeeAssignment[] memory assignments) {
-    Pair[] memory pairs = Lists.stableStablePairs(Constants.HyperEVM.STABLE_STABLE_PAIRS_CSV);
-    assignments = new PairClassFeeAssignment[](pairs.length);
-    for (uint256 i; i < pairs.length; i++) {
-      (address token0, address token1) = _sort(pairs[i].token0, pairs[i].token1);
-      assignments[i] = PairClassFeeAssignment({
-        currency0: Currency.wrap(token0),
-        currency1: Currency.wrap(token1),
-        familyId: AGG_HOOK_FAMILY_ID,
-        feeValue: _bothDirections(Constants.HyperEVM.STABLE_STABLE_FEE)
-      });
-    }
-  }
-
-  /// @dev Sorts two addresses ascending, the order `V4FeePolicy` requires of a pair.
-  function _sort(address a, address b) internal pure returns (address, address) {
-    return a < b ? (a, b) : (b, a);
+  /// @dev This chain's `pairClassAssignments` in `V4_FEE_POLICY_JSON`, encoded as
+  /// `batchSetPairClassFee` takes them.
+  function _pairClassFees() internal view returns (PairClassFeeAssignment[] memory) {
+    return
+      V4FeePolicyAssignments.pairClassFees(Constants.HyperEVM.V4_FEE_POLICY_JSON, block.chainid);
   }
 
   /// @dev The key `V4FeePolicy` stores a sorted pair under.
   function _pairHash(Currency c0, Currency c1) internal pure returns (bytes32) {
     return keccak256(abi.encodePacked(Currency.unwrap(c0), Currency.unwrap(c1)));
-  }
-
-  /// @dev Packs one fee into both swap directions of a v4 protocol fee: the lower 12 bits apply
-  /// to zero-for-one swaps and the upper 12 bits to one-for-zero.
-  function _bothDirections(uint24 fee) internal pure returns (uint24) {
-    return fee << 12 | fee;
   }
 
   /// @dev Asserts the deployment landed in the state the proposal assumes.
@@ -1003,7 +986,7 @@ contract DeployFeeInfraHyperEVM is Script {
     require(v4FeePolicy.flagRulesLength() == 1, "v4FeePolicy.flagRulesLength");
     require(
       v4FeePolicy.familyDefaults(AGG_HOOK_FAMILY_ID)
-        == _bothDirections(Constants.HyperEVM.AGG_HOOK_DEFAULT_FEE),
+        == FeeSchedule.aggHookFeeValue(Constants.HyperEVM.AGG_HOOK_FEE_PIPS),
       "v4FeePolicy.familyDefaults"
     );
     require(v4FeePolicy.feeSetter() == receiver, "v4FeePolicy.feeSetter");
