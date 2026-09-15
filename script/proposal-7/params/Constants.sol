@@ -78,25 +78,16 @@ library Arc {
   /// @dev Governance-owned Wormhole message receiver on Arc. Every contract deployed by the
   /// prerequisite scripts ends up owned by this address, and it is the account that executes the
   /// cross-chain half of the proposal.
-  ///
-  /// TODO: not yet deployed. A 3-of-5 Safe, `0x33F26c5d69E2c40956f22c6195B6A499cF4151E8`, holds
-  /// the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner` until the receiver
-  /// exists and the Safe hands them over. `preflightArc()` asserts that handoff.
-  address constant WORMHOLE_RECEIVER = address(0x00);
+  address constant WORMHOLE_RECEIVER = 0xbCA30b5429935205037069cF5b8A165F55d05a75;
 
   /// @dev Minimum amount of synthetic UNI a searcher must pay to claim the TokenJar's accumulated
-  /// fees. BNB Chain uses 4000e18; Polygon and Robinhood Chain use 2000e18.
-  ///
-  /// TODO: awaiting a decision on the value for Arc.
-  uint256 constant RELEASER_THRESHOLD = 0;
+  /// fees.
+  uint256 constant RELEASER_THRESHOLD = 2000e18;
 
   /// @dev Protocol fee that aggregator hook pools should end up charging, in pips (hundredths of
-  /// a bip, so 1000 is 10 bps). Proposal 6 set 1000 on every chain but Base, which got 300. The
-  /// script stores it through `FeeSchedule.aggHookFeeValue`, which applies the aggregator
-  /// multiplier.
-  ///
-  /// TODO: awaiting confirmation of which applies to Arc.
-  uint24 constant AGG_HOOK_FEE_PIPS = 0;
+  /// a bip, so 1000 is 10 bps). The script stores it through `FeeSchedule.aggHookFeeValue`, which
+  /// applies the aggregator multiplier.
+  uint24 constant AGG_HOOK_FEE_PIPS = 1000;
 
   /// @dev Per-chain `V4FeePolicy` assignments, hook families and pair-class fees, read for this
   /// chain by `V4FeePolicyAssignments`. Both lists are empty until Arc hooks exist to list
