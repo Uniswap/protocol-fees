@@ -264,7 +264,7 @@ One Wormhole message carrying three calls, executed by the `UniswapWormholeMessa
 | `V2_FACTORY`        | Arc      | `0x89e5DB8B5aA49aA85AC63f691524311AEB649eba`         | Uniswap V2 Factory                 |
 | `V3_FACTORY`        | Arc      | `0xf0db7b58379503491d857dB50AC9ece64c653918`         | Uniswap V3 Factory                 |
 | `POOL_MANAGER`      | Arc      | `0x8366a39CC670B4001A1121B8F6A443A643e40951`         | Uniswap V4 Pool Manager            |
-| `WORMHOLE_RECEIVER` | Arc      | see [`params/Constants.sol`](./params/Constants.sol) | Governance owned Wormhole receiver |
+| `WORMHOLE_RECEIVER` | Arc      | `0xbCA30b5429935205037069cF5b8A165F55d05a75`         | Governance owned Wormhole receiver |
 | `WORMHOLE_SENDER`   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a`         | Wormhole sender, owned by Timelock |
 | `TokenJar`          | Arc      | recorded by step 1                                   | Fee destination                    |
 | `V3OpenFeeAdapter`  | Arc      | recorded by step 1                                   | New V3 factory owner               |
