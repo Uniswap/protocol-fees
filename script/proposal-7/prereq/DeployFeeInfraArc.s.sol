@@ -748,9 +748,15 @@ contract DeployFeeInfraArc is Script {
     Constants.smokeCheck();
 
     uniswap.loadLatest();
-    recorder.initialize({scriptName: Constants.RECORD_NAME});
+    recorder.initialize({scriptName: _recordName()});
 
     require(block.chainid == Constants.Arc.CHAIN_ID, "not Arc");
+  }
+
+  /// @dev The record file for the deployment. Tests override this with a test record name
+  ///      to avoid collisions with the real deployment record.
+  function _recordName() internal view virtual returns (string memory) {
+    return Constants.RECORD_NAME;
   }
 
   /// @dev Reads the deployment back out of the record.

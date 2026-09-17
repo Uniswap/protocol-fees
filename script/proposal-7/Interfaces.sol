@@ -14,7 +14,7 @@ interface IWormhole {
 interface IWormholeTransceiver {
   function owner() external view returns (address);
   function setWormholePeer(uint16 peerChainId, bytes32 peerContract) external payable;
-  function getWormholePeer(uint16 chainId) external view returns (bytes32);
+  function getWormholePeer(uint16 wormholeChainId) external view returns (bytes32);
 }
 
 /// @title Ntt Manager
@@ -29,13 +29,16 @@ interface INttManagerPeers {
   function owner() external view returns (address);
   function setPeer(uint16 peerChainId, bytes32 peerContract, uint8 decimals, uint256 inboundLimit)
     external;
-  function getPeer(uint16 chainId) external view returns (NttManagerPeer memory);
+  function getPeer(uint16 wormholeChainId) external view returns (NttManagerPeer memory);
 }
 
 /// @title Uniswap Wormhole Message Receiver
-/// @dev Minimal surface for the proposal preflight: the Ethereum emitter the receiver trusts and
-/// the Wormhole chain id it expects that emitter on.
+/// @dev Minimal surface for the proposal preflight, the Ethereum emitter the receiver trusts, the
+/// Wormhole chain id it expects that emitter on, and the Wormhole chain id it accepts messages
+/// for, plus the entrypoint a relayer hands the VAA to.
 interface IUniswapWormholeMessageReceiver {
   function messageSender() external view returns (bytes32);
   function ETHEREUM_CHAIN_ID() external view returns (uint16);
+  function chainId() external view returns (uint16);
+  function receiveMessage(bytes calldata whMessage) external payable;
 }
