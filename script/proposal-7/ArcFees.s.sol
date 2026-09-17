@@ -281,8 +281,8 @@ contract ArcFees is Script {
   }
 
   /// @dev Asserts Arc is in the state action 02 assumes: the receiver trusts the Ethereum
-  /// sender, and it holds the authority each remote call needs. Run against Arc. Logs the
-  /// block it ran at.
+  /// sender, accepts messages addressed to Arc's Wormhole chain id, and holds the authority each
+  /// remote call needs. Run against Arc. Logs the block it ran at.
   function preflightArc() public view {
     Constants.smokeCheck();
 
@@ -299,6 +299,10 @@ contract ArcFees is Script {
     require(
       IUniswapWormholeMessageReceiver(receiver).ETHEREUM_CHAIN_ID() == WormholeChainId.Ethereum,
       "receiver.ethereumChainId"
+    );
+    require(
+      IUniswapWormholeMessageReceiver(receiver).chainId() == Constants.Arc.WORMHOLE_CHAIN_ID,
+      "receiver.chainId"
     );
 
     require(
@@ -327,7 +331,7 @@ contract ArcFees is Script {
     console.log("preflightEthereum at block", block.number);
 
     address timelock = uniswap.ethereum.timelock;
-    uint16 arcChainId = Constants.Arc.WORMHOLE_CHAIN_ID;
+    uint16 arcWormholeChainId = Constants.Arc.WORMHOLE_CHAIN_ID;
 
     // WormholeSender. The constant restates govkit's per-destination field for a chain govkit
     // knows; the two must agree.
@@ -344,12 +348,14 @@ contract ArcFees is Script {
     IWormholeTransceiver transceiver = IWormholeTransceiver(uniswap.ethereum.wormholeTransceiver);
 
     require(transceiver.owner() == timelock, "wormholeTransceiver.owner");
-    require(transceiver.getWormholePeer(arcChainId) == bytes32(0), "wormholeTransceiver.peer set");
+    require(
+      transceiver.getWormholePeer(arcWormholeChainId) == bytes32(0), "wormholeTransceiver.peer set"
+    );
 
     // NttManager
     INttManagerPeers nttManager = INttManagerPeers(uniswap.ethereum.nttManager);
 
     require(nttManager.owner() == timelock, "nttManager.owner");
-    require(nttManager.getPeer(arcChainId).peerAddress == bytes32(0), "nttManager.peer set");
+    require(nttManager.getPeer(arcWormholeChainId).peerAddress == bytes32(0), "nttManager.peer set");
   }
 }

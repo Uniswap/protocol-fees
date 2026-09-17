@@ -372,6 +372,22 @@ flowchart LR
 
 This proposal's changes (including prerequisite deployments) are in green.
 
+## Tests
+
+Persistent tests for both halves of the proposal live in [`test/end-to-end/proposal-7/`](../../test/end-to-end/proposal-7/). They run locally only; none is wired into CI.
+
+| File | Fork | Covers |
+| ---- | ---- | ------ |
+| `ArcFeesProposal.t.sol` | none | `encodeWormhole` inverts under [`test/utils/WormholeDecode.sol`](../../test/utils/WormholeDecode.sol), and `buildProposal` emits the three actions with the expected targets, values, and calldata |
+| `ArcFeesEthereum.fork.t.sol` | Ethereum, pinned | `preflightEthereum()` holds; executing the proposal as the Timelock registers the Arc peers on the live NTT contracts, and publishes the Arc message from the live sender |
+| `ArcFeesArc.fork.t.sol` | Arc and Ethereum, pinned | `preflightArc()` holds; step 1 runs and records every deployment; the proposal's Arc message, delivered to the deployed receiver with the Arc core's `parseAndVerifyVM` mocked, dispatches exactly the calls decoded from the proposal and sets `feeTo`, the v3 `owner`, and the `protocolFeeController`; a release through the Arc `WormholeReleaser`, delivered to the live Ethereum transceiver with the mainnet core's `parseAndVerifyVM` mocked, is refused before actions 00 and 01 execute and unlocks UNI to the burn address after. Each test deploys under its own record name |
+
+Each test writes its own record under `.records/*Test.json`, which is gitignored, so a fork deployment can never be mistaken for `.records/Arc.json`. The Arc fork reads `ARC_RPC_URL`, and forge fails loudly if it is unset.
+
+```sh
+forge test --match-path 'test/end-to-end/proposal-7/*'
+```
+
 ## Relaying the message
 
 Wormhole does not deliver the Arc message. After the proposal executes, the VAA for the Arc action has to be fetched from Wormhole's API and passed to `receiveMessage` on the receiver. Proposal 4 did this with a finalizer script carrying the VAA bytes; the equivalent here can only be written once there is a VAA.
