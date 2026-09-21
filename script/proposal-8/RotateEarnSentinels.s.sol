@@ -9,7 +9,7 @@ import {Proposal} from "govkit/types/Proposal.sol";
 import {Call, LibCall} from "govkit/types/Call.sol";
 import {GovernanceSeatbelt} from "govkit/forge/GovernanceSeatbelt.sol";
 
-import {Earn, Sentinels} from "./Constants.sol";
+import {Earn, Sentinels, smokeCheck} from "./Constants.sol";
 import {IVaultV2} from "./Interfaces.sol";
 import {DESCRIPTION} from "./Description.sol";
 
@@ -20,7 +20,9 @@ bool constant REMOVE = false;
 /// @dev The proposal's calls. A free function so the fork test, and anything outside this repo,
 ///      builds the same calls the script writes without deploying the script. Takes the govkit
 ///      address book for uniformity with other proposals; this one reads only `Earn` constants.
-function buildProposal(Uniswap storage) view returns (Proposal memory) {
+function buildProposal(Uniswap storage) pure returns (Proposal memory) {
+  smokeCheck();
+
   // ---------------------------------------------------------------------------------------------
   // 00: Add new sentinel to uniUSDC
   //
@@ -100,8 +102,6 @@ contract RotateEarnSentinels is Script {
   /// @dev Asserts the state the proposal depends on, then writes it for Governance Seatbelt.
   ///      Run against Ethereum: `forge script ... --rpc-url mainnet`.
   function run() external {
-    require(keccak256(bytes(DESCRIPTION)) != keccak256(bytes("TODO")), "DESCRIPTION not set");
-
     preflight();
 
     string memory path = "./out/.seatbelt/RotateEarnSentinelsProposal.json";
@@ -126,6 +126,8 @@ contract RotateEarnSentinels is Script {
   /// @dev Every vault is owned by the Timelock, has its legacy sentinel set, and does not have its
   ///      new sentinel set. Logs the block it ran at.
   function preflight() public view {
+    smokeCheck();
+
     require(block.chainid == ChainId.Ethereum, "not Ethereum");
     console.log("preflight at block", block.number);
 
