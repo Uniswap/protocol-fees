@@ -10,39 +10,35 @@ import {
   RotateEarnSentinels,
   buildProposal
 } from "../../../script/proposal-8/RotateEarnSentinels.s.sol";
+import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
+
+/// @dev Mainnet block the fork is pinned to. Chosen while every vault still had its legacy
+/// sentinel and none had its new one, which `preflight` requires; the tests stay green at this
+/// block after the proposal executes.
+uint256 constant MAINNET_BLOCK = 25_904_682;
 
 contract RotateEarnSentinelsForkTest is Test {
   Uniswap internal uniswap;
   RotateEarnSentinels internal script;
 
-  uint256 public constant FORK_BLOCK = 25_904_682;
-
   function setUp() public {
-    vm.createSelectFork("mainnet", FORK_BLOCK);
+    vm.createSelectFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();
     script = new RotateEarnSentinels();
   }
 
-  /// @dev Preflight: the script's own precondition check holds at the pinned block.
-  function test_preflight_state() public {
-    script.preflight(FORK_BLOCK);
+  function test_preflight() public view {
+    script.preflight(MAINNET_BLOCK);
   }
 
-  /// @dev Postflight: the proposal's calls, sent by the Timelock, flip exactly the intended flags.
-  function test_execute_as_timelock() public {
-    // Get the proposal's calls
+  /// @dev Executes the proposal as the Timelock and asserts the outcome the script checks after
+  /// execution onchain.
+  function test_execute() public {
     Call[] memory calls = buildProposal(uniswap).calls;
-    assertEq(calls.length, 6);
+    assertEq(calls.length, 6, "calls.length");
 
-    vm.startPrank(uniswap.ethereum.timelock);
-    // Execute the proposal's calls
-    for (uint256 i; i < calls.length; i++) {
-      (bool ok,) = calls[i].target.call{value: calls[i].value}(calls[i].data);
-      assertTrue(ok);
-    }
-    vm.stopPrank();
+    executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
 
-    // Check that the sentinels are set as intended
     script.postflight();
   }
 }

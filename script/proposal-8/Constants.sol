@@ -21,3 +21,12 @@ library Sentinels {
   address constant UNI_ETH_NEW = 0x4Ff315B873d6e5Ad8ff7fF3e17D340862762cc2f;
   address constant UNI_ETH_LEGACY = 0xc63A00De30AeB5666a8aC3478a4D119D38058c7E;
 }
+
+/// @dev Asserts every new sentinel is set. `preflight()` proves each legacy sentinel against the
+///      vault, but any address passes its `!isSentinel` check on the new one, so a zero here would
+///      reach the proposal.
+function smokeCheck() pure {
+  require(Sentinels.UNI_USDC_NEW != address(0), "Sentinels.UNI_USDC_NEW unset");
+  require(Sentinels.UNI_USDT_NEW != address(0), "Sentinels.UNI_USDT_NEW unset");
+  require(Sentinels.UNI_ETH_NEW != address(0), "Sentinels.UNI_ETH_NEW unset");
+}
