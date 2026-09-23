@@ -16,7 +16,7 @@ import {FeeBucket, FlagRule} from "../../src/interfaces/IV4FeePolicy.sol";
 library FeeSchedule {
   // ─── V3 ───
 
-  /// @dev Protocol fee per tier (`V3_TIER_100` and so on, in `FeeInfraParams.sol`), packed as
+  /// @dev Protocol fee per tier (100, 500, 3000, and 10000), packed as
   /// (1/x for token0) << 4 | (1/x for token1).
   uint8 constant V3_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
   uint8 constant V3_FEE_500 = (4 << 4) | 4; // 1/4 for 0.05% tier
@@ -26,8 +26,7 @@ library FeeSchedule {
   /// @dev `V3OpenFeeAdapter` default, applied when no tier default is set.
   uint8 constant V3_DEFAULT_FEE = V3_FEE_100;
 
-  /// @dev Per-tier defaults, in tier order: `V3_TIER_100`, `V3_TIER_500`, `V3_TIER_3000`,
-  /// `V3_TIER_10000`.
+  /// @dev Per-tier defaults, in tier order: 100, 500, 3000, 10000.
   function v3FeeTierDefaults() internal pure returns (uint8[4] memory) {
     return [V3_FEE_100, V3_FEE_500, V3_FEE_3000, V3_FEE_10000];
   }

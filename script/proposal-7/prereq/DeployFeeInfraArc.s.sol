@@ -46,17 +46,6 @@ uint8 constant CONSISTENCY_LEVEL = 202;
 /// hold. Never set explicitly; asserted by `_check`.
 uint8 constant TRANSCEIVER_THRESHOLD = 1;
 
-// V3 protocol fee defaults, the same on every chain where fees are live.
-uint8 constant DEFAULT_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
-uint8 constant DEFAULT_FEE_500 = (4 << 4) | 4; // 1/4 for 0.05% tier
-uint8 constant DEFAULT_FEE_3000 = (6 << 4) | 6; // 1/6 for 0.30% tier
-uint8 constant DEFAULT_FEE_10000 = (6 << 4) | 6; // 1/6 for 1.00% tier
-
-// V4 aggregator hook family, matching proposal 6: a hook whose self-reported flags include bit 11
-// is classified into family 11.
-uint256 constant AGG_HOOK_FLAGS = 1 << 11;
-uint8 constant AGG_HOOK_FAMILY_ID = 11;
-
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
@@ -130,7 +119,9 @@ contract DeployFeeInfraArc is Script {
       "already deployed: clear .records/ to redeploy"
     );
 
-    FeeBucket[] memory feeBuckets = _feeBuckets();
+    uint8[4] memory v3FeeTierDefaults = FeeSchedule.v3FeeTierDefaults();
+    FeeBucket[] memory feeBuckets = FeeSchedule.feeBuckets();
+    FlagRule[] memory flagRules = FeeSchedule.flagRules();
     HookFamilyAssignment[] memory hookFamilies = _hookFamilies();
     PairClassFeeAssignment[] memory pairClassFees = _pairClassFees();
 
@@ -488,7 +479,7 @@ contract DeployFeeInfraArc is Script {
     //
     // - `feeValue`: Default fee value.
     //
-    v3OpenFeeAdapter.setDefaultFee({feeValue: DEFAULT_FEE_100});
+    v3OpenFeeAdapter.setDefaultFee({feeValue: FeeSchedule.V3_DEFAULT_FEE});
 
     // -----------------------------------------------------------------------------------------
     // Transactions 25, 26, 27, 28
@@ -500,13 +491,13 @@ contract DeployFeeInfraArc is Script {
     // - `feeTier`: Fee tier to set.
     // - `feeValue`: Default fee value for the tier.
     //
-    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 100, feeValue: DEFAULT_FEE_100});
+    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 100, feeValue: v3FeeTierDefaults[0]});
 
-    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 500, feeValue: DEFAULT_FEE_500});
+    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 500, feeValue: v3FeeTierDefaults[1]});
 
-    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 3000, feeValue: DEFAULT_FEE_3000});
+    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 3000, feeValue: v3FeeTierDefaults[2]});
 
-    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 10_000, feeValue: DEFAULT_FEE_10000});
+    v3OpenFeeAdapter.setFeeTierDefault({feeTier: 10_000, feeValue: v3FeeTierDefaults[3]});
 
     // -----------------------------------------------------------------------------------------
     // Transactions 29, 30, 31, 32
@@ -624,8 +615,6 @@ contract DeployFeeInfraArc is Script {
     //
     // - `rules`: One `FlagRule` mapping the aggregator flag to family 11.
     //
-    FlagRule[] memory flagRules = new FlagRule[](1);
-    flagRules[0] = FlagRule({requiredFlags: AGG_HOOK_FLAGS, familyId: AGG_HOOK_FAMILY_ID});
     v4FeePolicy.setFlagRules(flagRules);
 
     // -----------------------------------------------------------------------------------------
@@ -640,7 +629,7 @@ contract DeployFeeInfraArc is Script {
     //   both swap directions.
     //
     v4FeePolicy.setFamilyDefault({
-      familyId: AGG_HOOK_FAMILY_ID,
+      familyId: FeeSchedule.AGG_HOOK_FAMILY_ID,
       feeValue: FeeSchedule.aggHookFeeValue(Constants.Arc.AGG_HOOK_FEE_PIPS)
     });
 
@@ -795,19 +784,6 @@ contract DeployFeeInfraArc is Script {
     );
   }
 
-  /// @dev Fee buckets, identical to every chain configured by proposal 6.
-  function _feeBuckets() internal pure returns (FeeBucket[] memory buckets) {
-    buckets = new FeeBucket[](8);
-    buckets[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1, betaPips: 0});
-    buckets[1] = FeeBucket({lpFeeFloor: 3, alphaPips: 1, betaPips: 263_889});
-    buckets[2] = FeeBucket({lpFeeFloor: 75, alphaPips: 20, betaPips: 200_000});
-    buckets[3] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 272_728});
-    buckets[4] = FeeBucket({lpFeeFloor: 375, alphaPips: 100, betaPips: 200_000});
-    buckets[5] = FeeBucket({lpFeeFloor: 500, alphaPips: 125, betaPips: 137_500});
-    buckets[6] = FeeBucket({lpFeeFloor: 2500, alphaPips: 400, betaPips: 200_000});
-    buckets[7] = FeeBucket({lpFeeFloor: 5500, alphaPips: 1000, betaPips: 0});
-  }
-
   /// @dev This chain's `hookFamilyAssignments` in `V4_FEE_POLICY_JSON`.
   function _hookFamilies() internal view returns (HookFamilyAssignment[] memory) {
     return V4FeePolicyAssignments.hookFamilies(Constants.Arc.V4_FEE_POLICY_JSON, block.chainid);
@@ -825,7 +801,9 @@ contract DeployFeeInfraArc is Script {
     address poolManager = Constants.Arc.POOL_MANAGER;
     uint16 ethChainId = WormholeChainId.Ethereum;
 
-    FeeBucket[] memory feeBuckets = _feeBuckets();
+    uint8[4] memory v3FeeTierDefaults = FeeSchedule.v3FeeTierDefaults();
+    FeeBucket[] memory feeBuckets = FeeSchedule.feeBuckets();
+    FlagRule[] memory flagRules = FeeSchedule.flagRules();
     HookFamilyAssignment[] memory hookFamilies = _hookFamilies();
     PairClassFeeAssignment[] memory pairClassFees = _pairClassFees();
 
@@ -925,21 +903,23 @@ contract DeployFeeInfraArc is Script {
       address(v3OpenFeeAdapter.FACTORY()) == Constants.Arc.V3_FACTORY, "v3OpenFeeAdapter.factory"
     );
     require(v3OpenFeeAdapter.TOKEN_JAR() == address(tokenJar), "v3OpenFeeAdapter.tokenJar");
-    require(v3OpenFeeAdapter.defaultFee() == DEFAULT_FEE_100, "v3OpenFeeAdapter.defaultFee");
     require(
-      v3OpenFeeAdapter.feeTierDefaults(100) == DEFAULT_FEE_100,
+      v3OpenFeeAdapter.defaultFee() == FeeSchedule.V3_DEFAULT_FEE, "v3OpenFeeAdapter.defaultFee"
+    );
+    require(
+      v3OpenFeeAdapter.feeTierDefaults(100) == v3FeeTierDefaults[0],
       "v3OpenFeeAdapter.feeTierDefault.100"
     );
     require(
-      v3OpenFeeAdapter.feeTierDefaults(500) == DEFAULT_FEE_500,
+      v3OpenFeeAdapter.feeTierDefaults(500) == v3FeeTierDefaults[1],
       "v3OpenFeeAdapter.feeTierDefault.500"
     );
     require(
-      v3OpenFeeAdapter.feeTierDefaults(3000) == DEFAULT_FEE_3000,
+      v3OpenFeeAdapter.feeTierDefaults(3000) == v3FeeTierDefaults[2],
       "v3OpenFeeAdapter.feeTierDefault.3000"
     );
     require(
-      v3OpenFeeAdapter.feeTierDefaults(10_000) == DEFAULT_FEE_10000,
+      v3OpenFeeAdapter.feeTierDefaults(10_000) == v3FeeTierDefaults[3],
       "v3OpenFeeAdapter.feeTierDefault.10000"
     );
 
@@ -970,9 +950,9 @@ contract DeployFeeInfraArc is Script {
     require(v4FeePolicy.defaultFee() == 0, "v4FeePolicy.defaultFee");
 
     require(v4FeePolicy.feeBucketsLength() == feeBuckets.length, "v4FeePolicy.feeBucketsLength");
-    require(v4FeePolicy.flagRulesLength() == 1, "v4FeePolicy.flagRulesLength");
+    require(v4FeePolicy.flagRulesLength() == flagRules.length, "v4FeePolicy.flagRulesLength");
     require(
-      v4FeePolicy.familyDefaults(AGG_HOOK_FAMILY_ID)
+      v4FeePolicy.familyDefaults(FeeSchedule.AGG_HOOK_FAMILY_ID)
         == FeeSchedule.aggHookFeeValue(Constants.Arc.AGG_HOOK_FEE_PIPS),
       "v4FeePolicy.familyDefaults"
     );
@@ -987,8 +967,8 @@ contract DeployFeeInfraArc is Script {
     }
 
     (uint256 requiredFlags, uint8 familyId) = v4FeePolicy.flagRules(0);
-    require(requiredFlags == AGG_HOOK_FLAGS, "v4FeePolicy.flagRules.requiredFlags");
-    require(familyId == AGG_HOOK_FAMILY_ID, "v4FeePolicy.flagRules.familyId");
+    require(requiredFlags == flagRules[0].requiredFlags, "v4FeePolicy.flagRules.requiredFlags");
+    require(familyId == flagRules[0].familyId, "v4FeePolicy.flagRules.familyId");
 
     for (uint256 i; i < hookFamilies.length; i++) {
       require(
