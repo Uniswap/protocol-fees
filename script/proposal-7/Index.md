@@ -29,7 +29,7 @@ The `arc` RPC alias in `foundry.toml` reads `ARC_RPC_URL`. Uniswap's internal RP
 
 These are permissionless and must all be done before governance can act. Step 1 writes one record file, `.records/Arc.json`, which step 2 reads. Step 1 refuses to run twice; clear the record deliberately to redeploy.
 
-Separately, the governance-owned `UniswapWormholeMessageReceiver` must be deployed on Arc and given the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is outside this repository. `preflightArc()` in step 2 asserts it has happened.
+Separately, the governance-owned `UniswapWormholeMessageReceiver` must be deployed on Arc and given the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is outside this repository. Run the Arc preflight before step 1, and repeat it in step 2 before the proposal is submitted. Step 1 also checks inside `run()` before its explicit deployment calls.
 
 1. [Deploy fee infra](#1-deploy-fee-infra)
 2. [Write the proposal](#2-write-the-proposal)
@@ -75,8 +75,11 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 
 ```bash
 # from root directory of this repository:
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc
 forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --rpc-url arc --broadcast
 ```
+
+The standalone preflight runs before Forge can broadcast the implicit library deployment in transaction 00. `run()` repeats the same checks before `startBroadcast()`, stopping its explicit deployment calls if the receiver's state changed between commands.
 
 **Transactions**:
 
@@ -154,7 +157,7 @@ forge script script/proposal-7/ArcFees.s.sol --rpc-url mainnet
 
 **Preflight**:
 
-The Arc half assumes the receiver trusts the Ethereum sender and already holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is a prerequisite for this proposal. Run `preflightArc()` against Arc before proposing, since a failure otherwise surfaces only when the message is relayed after the vote:
+The Arc half assumes the receiver still trusts the Ethereum sender and holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. The deployment checked these conditions before broadcasting; repeat `preflightArc()` against Arc before proposing to catch any subsequent change:
 
 ```bash
 forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc

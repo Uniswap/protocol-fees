@@ -33,7 +33,7 @@ interface INttManagerPeers {
 }
 
 /// @title Uniswap Wormhole Message Receiver
-/// @dev Minimal surface for the proposal preflight, the Ethereum emitter the receiver trusts, the
+/// @dev Minimal surface for the Arc preflight, the Ethereum emitter the receiver trusts, the
 /// Wormhole chain id it expects that emitter on, and the Wormhole chain id it accepts messages
 /// for, plus the entrypoint a relayer hands the VAA to.
 interface IUniswapWormholeMessageReceiver {
