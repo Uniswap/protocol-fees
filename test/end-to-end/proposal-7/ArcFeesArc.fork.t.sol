@@ -86,6 +86,32 @@ contract ArcFeesArcForkTest is Test {
     new ArcFees().preflightArc(ARC_BLOCK);
   }
 
+  /// @dev Assert a missing governance handoff stops the prerequisite before deployment.
+  function test_DeployFeeInfraArc_rejectsMissingFactoryAuthority() public {
+    DeployFeeInfraArcHarness deployer = new DeployFeeInfraArcHarness("ArcForkPreflightTest");
+    vm.mockCall(
+      Constants.Arc.V2_FACTORY,
+      abi.encodeCall(IUniswapV2Factory.feeToSetter, ()),
+      abi.encode(address(0))
+    );
+
+    vm.expectRevert(bytes("v2Factory.feeToSetter"));
+    deployer.run();
+  }
+
+  /// @dev Assert a V3 owner other than the receiver stops the prerequisite before deployment.
+  function test_DeployFeeInfraArc_rejectsWrongV3Owner() public {
+    DeployFeeInfraArcHarness deployer = new DeployFeeInfraArcHarness("ArcForkWrongV3OwnerTest");
+    vm.mockCall(
+      Constants.Arc.V3_FACTORY,
+      abi.encodeCall(IUniswapV3Factory.owner, ()),
+      abi.encode(address(0xBEEF))
+    );
+
+    vm.expectRevert(bytes("v3Factory.owner"));
+    deployer.run();
+  }
+
   /// @dev Asserts the Arc deployment passes the prerequisite script's own checks.
   function test_DeployFeeInfraArc() public {
     // Against the live deployment, `check()` loads the real record and runs `_check` on it.

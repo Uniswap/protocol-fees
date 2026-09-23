@@ -17,12 +17,8 @@ import {IUniswapV2Factory} from "govkit/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV3Factory} from "govkit/interfaces/IUniswapV3Factory.sol";
 import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
-import {
-  INttManagerPeers,
-  IUniswapWormholeMessageReceiver,
-  IWormhole,
-  IWormholeTransceiver
-} from "./Interfaces.sol";
+import {INttManagerPeers, IWormhole, IWormholeTransceiver} from "./Interfaces.sol";
+import {checkArcPreflight} from "./ArcPreflight.sol";
 import "./params/Constants.sol" as Constants;
 import {DESCRIPTION} from "./Description.sol";
 
@@ -36,12 +32,11 @@ import {DESCRIPTION} from "./Description.sol";
 //
 // Each half has preconditions on its own chain, so this script has a preflight per chain.
 //
-// 1. `preflightArc()` against Arc asserts the receiver trusts the Ethereum sender and
-//    holds the authority each remote call needs. A failure here surfaces before the vote instead
-//    of when the message is relayed after it:
+// 1. The prerequisite deployment runs the Arc preflight before broadcasting. Repeat
+//    `preflightArc()` against Arc before the vote to catch any change to the receiver's
+//    authority or sender configuration:
 //
-//    forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url
-// arc
+//    forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc
 // 2. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt.
 //    The prerequisite script must have run on Arc first, since `buildProposal` reads its
 //    deployments out of the record:
@@ -284,32 +279,8 @@ contract ArcFees is Script {
   /// sender, accepts messages addressed to Arc's Wormhole chain id, and holds the authority each
   /// remote call needs. Run against Arc. Logs the block it ran at.
   function preflightArc() public view {
-    Constants.smokeCheck();
-
-    require(block.chainid == Constants.Arc.CHAIN_ID, "not Arc");
+    checkArcPreflight();
     console.log("preflightArc at block", block.number);
-
-    address receiver = Constants.Arc.WORMHOLE_RECEIVER;
-
-    require(
-      IUniswapWormholeMessageReceiver(receiver).messageSender()
-        == WormholeEncoder.toWormholeFormat(Constants.Ethereum.WORMHOLE_SENDER),
-      "receiver.messageSender"
-    );
-    require(
-      IUniswapWormholeMessageReceiver(receiver).ETHEREUM_CHAIN_ID() == WormholeChainId.Ethereum,
-      "receiver.ethereumChainId"
-    );
-    require(
-      IUniswapWormholeMessageReceiver(receiver).chainId() == Constants.Arc.WORMHOLE_CHAIN_ID,
-      "receiver.chainId"
-    );
-
-    require(
-      IUniswapV2Factory(Constants.Arc.V2_FACTORY).feeToSetter() == receiver, "v2Factory.feeToSetter"
-    );
-    require(IUniswapV3Factory(Constants.Arc.V3_FACTORY).owner() == receiver, "v3Factory.owner");
-    require(IPoolManager(Constants.Arc.POOL_MANAGER).owner() == receiver, "poolManager.owner");
   }
 
   /// @dev `preflightEthereum()` at a block the caller names. Pin the fork to the same block so the

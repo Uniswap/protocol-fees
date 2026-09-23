@@ -34,6 +34,7 @@ import {
 import {FeeSchedule} from "../../shared/FeeSchedule.sol";
 import {V4FeePolicyAssignments} from "../../shared/V4FeePolicyAssignments.sol";
 import {IWormhole} from "../Interfaces.sol";
+import {checkArcPreflight} from "../ArcPreflight.sol";
 import "../params/Constants.sol" as Constants;
 
 /// @dev Consistency level 202 is what Wormhole's own deployment scripts use; the three
@@ -105,6 +106,9 @@ contract DeployFeeInfraArc is Script {
 
   function run() external {
     _initialize();
+
+    // Check that protocol and Wormhole receiver are set up correctly
+    checkArcPreflight();
 
     // The recorder writes only after `_check` passes and never during a dry run, so a record here
     // means an earlier `--broadcast` run simulated cleanly. It does not prove the transactions
