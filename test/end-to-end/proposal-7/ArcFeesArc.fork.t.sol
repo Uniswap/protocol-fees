@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
-import {Call, LibCall} from "govkit/types/Call.sol";
+import {Call} from "govkit/types/Call.sol";
 import {Proposal} from "govkit/types/Proposal.sol";
 import {IUniswapV2Factory} from "govkit/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV3Factory} from "govkit/interfaces/IUniswapV3Factory.sol";
@@ -40,16 +40,6 @@ uint256 constant ARC_BLOCK = 21_222_893;
 /// @dev Mainnet block the proposal is built at. `buildProposal` reads the Wormhole message fee
 /// from the mainnet core, so it needs a mainnet fork selected.
 uint256 constant MAINNET_BLOCK = 25_992_796;
-
-/// @dev The Ethereum sender prefixes this version tag to every payload it publishes, and the Arc
-/// receiver rejects any payload without it. The sender does not expose it, so we reproduce it
-/// here from `messagePayloadVersion` in the sender's verified source,
-/// `UniswapWormholeMessageSender.sol`.
-bytes32 constant PAYLOAD_VERSION = keccak256(
-  abi.encode(
-    "UniswapWormholeMessageSenderV1 (bytes32 receivedMessagePayloadVersion, address[] memory targets, uint256[] memory values, bytes[] memory datas, address messageReceiver, uint16 receiverChainId)"
-  )
-);
 
 address constant BURN_ADDRESS = address(0xdead);
 
@@ -153,14 +143,14 @@ contract ArcFeesArcForkTest is Test {
     address v3OpenFeeAdapter = recorder.read(chainId, Constants.Records.V3_OPEN_FEE_ADAPTER);
     address v4FeeAdapter = recorder.read(chainId, Constants.Records.V4_FEE_ADAPTER);
 
-    // Get the decoded Arc message from the proposal
-    (address remoteReceiver, uint16 wormholeChainId, Call[] memory remoteCalls) = _arcMessage();
+    // Execute the proposal on Ethereum and capture what its sender publishes through Wormhole.
+    (bytes memory payload, Call[] memory remoteCalls) = _executeProposalAndCaptureArcPayload();
 
     // Assert the receiver dispatches exactly the calls the decoder produced from the proposal.
     for (uint256 i; i < remoteCalls.length; i++) {
       vm.expectCall(remoteCalls[i].target, remoteCalls[i].value, remoteCalls[i].data);
     }
-    _receiveGovernanceMessage(remoteReceiver, wormholeChainId, remoteCalls);
+    _receiveGovernanceMessage(payload);
 
     // Assert that the three fee switches are flipped.
     assertEq(IUniswapV2Factory(Constants.Arc.V2_FACTORY).feeTo(), tokenJar, "v2Factory.feeTo");
@@ -202,7 +192,8 @@ contract ArcFeesArcForkTest is Test {
     releaser.release(releaser.nonce(), new Currency[](0), address(this));
     Vm.Log[] memory logs = vm.getRecordedLogs();
     // From the logs, extract the payload the Arc transceiver published to the Wormhole core
-    bytes memory payload = _getPublishedPayload(logs, Constants.Arc.WORMHOLE_CORE, arcTransceiver);
+    bytes memory payload =
+      _wormholePayloadFromLogs(logs, Constants.Arc.WORMHOLE_CORE, arcTransceiver);
     // Assert the release burned everything it was given.
     assertEq(syntheticUni.totalSupply(), supplyBefore, "syntheticUni.totalSupply");
 
@@ -275,19 +266,20 @@ contract ArcFeesArcForkTest is Test {
     recorder.initialize({scriptName: testRecordName});
   }
 
-  /// @dev Builds the proposal from the record and returns the Arc message it carries, decoded.
-  function _arcMessage()
+  /// @dev Executes the proposal on Ethereum and returns the payload published by its real
+  /// Wormhole sender, alongside the remote calls the proposal asked it to send.
+  function _executeProposalAndCaptureArcPayload()
     internal
-    returns (address remoteReceiver, uint16 wormholeChainId, Call[] memory remoteCalls)
+    returns (bytes memory payload, Call[] memory remoteCalls)
   {
     // Build on the mainnet fork, the way `run()` on Ethereum does: `buildProposal` reads the
     // message fee from the mainnet core.
     vm.selectFork(mainnetFork);
     Proposal memory proposal = buildProposal(uniswap, recorder);
-    vm.selectFork(arcFork);
-
-    // Get the Arc message (Action 02) from the proposal and decode it.
+    // Decode action 02 to check the envelope and the calls the receiver should dispatch.
     address sourceSender;
+    address remoteReceiver;
+    uint16 wormholeChainId;
     (sourceSender, remoteReceiver, wormholeChainId,, remoteCalls) =
       WormholeDecode.decode(proposal.calls[2]);
 
@@ -295,28 +287,24 @@ contract ArcFeesArcForkTest is Test {
     assertEq(sourceSender, Constants.Ethereum.WORMHOLE_SENDER, "sourceSender");
     assertEq(remoteReceiver, Constants.Arc.WORMHOLE_RECEIVER, "remoteReceiver");
     assertEq(wormholeChainId, Constants.Arc.WORMHOLE_CHAIN_ID, "wormholeChainId");
+
+    vm.recordLogs();
+    executeAsTimelock(vm, uniswap.ethereum.timelock, proposal.calls);
+    payload = _wormholePayloadFromLogs(
+      vm.getRecordedLogs(), uniswap.ethereum.bridge.wormholeCore, sourceSender
+    );
+    vm.selectFork(arcFork);
   }
 
-  /// @dev Delivers a governance message carrying `remoteCalls` to the deployed Arc receiver, as
-  ///      the Ethereum sender would send it. Mocks the Arc core's guardian verification.
-  function _receiveGovernanceMessage(
-    address remoteReceiver,
-    uint16 wormholeChainId,
-    Call[] memory remoteCalls
-  ) internal {
-    // Encode the payload the way the Ethereum sender does.
-    (address[] memory targets, uint256[] memory values, bytes[] memory datas) =
-      LibCall.decompose(remoteCalls);
-    bytes memory payload =
-      abi.encode(PAYLOAD_VERSION, targets, values, datas, remoteReceiver, wormholeChainId);
-
-    // Present it as published from Ethereum by the peered sender.
+  /// @dev Delivers the payload the Ethereum sender published to the deployed Arc receiver.
+  /// Mocks the Arc core's guardian verification.
+  function _receiveGovernanceMessage(bytes memory payload) internal {
     _mockVerifiedVaa(Constants.Arc.WORMHOLE_CORE, 2, Constants.Ethereum.WORMHOLE_SENDER, payload);
 
     // Have the receiver pull the message from Core, ie by calling `IWormholeCore.parseAndVerifyVM`.
     // Since we've just mocked that call, we can pass arbitrary bytes to get the return value
     // needed for the test.
-    IUniswapWormholeMessageReceiver(remoteReceiver).receiveMessage(new bytes(0));
+    IUniswapWormholeMessageReceiver(Constants.Arc.WORMHOLE_RECEIVER).receiveMessage(new bytes(0));
   }
 
   /// @dev Delivers an NTT transfer to the Ethereum transceiver, as published on Arc by
@@ -365,7 +353,7 @@ contract ArcFeesArcForkTest is Test {
 
   /// @dev Returns the payload of the one message in `logs` that `sender` published through the
   /// Wormhole core at `core`.
-  function _getPublishedPayload(Vm.Log[] memory logs, address core, address sender)
+  function _wormholePayloadFromLogs(Vm.Log[] memory logs, address core, address sender)
     internal
     pure
     returns (bytes memory payload)
