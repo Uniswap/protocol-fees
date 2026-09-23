@@ -90,8 +90,7 @@ library Arc {
   uint24 constant AGG_HOOK_FEE_PIPS = 1000;
 
   /// @dev Per-chain `V4FeePolicy` assignments, hook families and pair-class fees, read for this
-  /// chain by `V4FeePolicyAssignments`. Both lists are empty until Arc hooks exist to list
-  /// and the stable-stable pairs and their fee are chosen.
+  /// chain by `V4FeePolicyAssignments`.
   string constant V4_FEE_POLICY_JSON = "script/proposal-7/params/v4-fee-policy.json";
 }
 

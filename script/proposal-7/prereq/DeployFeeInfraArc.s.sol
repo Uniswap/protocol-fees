@@ -74,9 +74,7 @@ uint8 constant TRANSCEIVER_THRESHOLD = 1;
 //
 // The v4 configuration mirrors `script/proposal-6/prereq/DeployV4FeeInfra.s.sol`. The two
 // per-chain lists it depends on, hook family assignments and pair-class fees, are read for this
-// chain from `params/v4-fee-policy.json` through `script/shared/V4FeePolicyAssignments.sol`. Both
-// are empty for Arc, and the transaction that applies each is skipped while its list is
-// empty.
+// chain from `params/v4-fee-policy.json` through `script/shared/V4FeePolicyAssignments.sol`.
 //
 // ---
 //

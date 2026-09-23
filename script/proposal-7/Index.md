@@ -44,7 +44,7 @@ We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter
 
 Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
 
-The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below. Both are empty for Arc, and the transaction that applies each is skipped while its list is empty.
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below.
 
 **V4 fee policy assignments**:
 
@@ -121,8 +121,8 @@ The standalone preflight runs before Forge can broadcast the implicit library de
 | 39             | Set `V4FeePolicy` fee buckets.                                                      |
 | 40             | Set `V4FeePolicy` flag rules.                                                       |
 | 41             | Set `V4FeePolicy` aggregator hook family default.                                   |
-| 42             | Assign `V4FeePolicy` hook families by address. Skipped while the list is empty.     |
-| 43             | Set `V4FeePolicy` pair-class fees. Skipped while the list is empty.                 |
+| 42             | Assign `V4FeePolicy` hook families by address.                                      |
+| 43             | Set `V4FeePolicy` pair-class fees.                                                  |
 | 44             | Transfer `V4FeePolicy` fee-setter permission to governance.                         |
 | 45             | Transfer `V4FeePolicy` ownership to governance.                                     |
 | 46             | Transfer `V4FeeAdapter` fee-setter permission to governance.                        |
