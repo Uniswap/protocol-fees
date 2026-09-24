@@ -206,7 +206,7 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   //
   // - `targets`, `values`, `signatures`, `datas`: Actions 00, 01, and 02, split into parallel
   //   arrays by `Proposal.toGovernorBravoInputs()`.
-  // - `description`: `DESCRIPTION`, which is still placeholder text.
+  // - `description`: `DESCRIPTION`, the final proposal text.
   //
   return Proposal({
     description: DESCRIPTION,

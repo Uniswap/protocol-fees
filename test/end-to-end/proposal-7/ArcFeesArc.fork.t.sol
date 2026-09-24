@@ -31,11 +31,10 @@ import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {SyntheticNttUni} from "../../../src/wormhole/SyntheticNttUni.sol";
 import {WormholeReleaser} from "../../../src/releasers/WormholeReleaser.sol";
 
-/// @dev Arc block the fork is pinned to. Chosen while the receiver held every authority
-/// `preflightArc` requires and before any fee infra existed on Arc. Once the live deployment is
-/// recorded in `.records/Arc.json`, move this to a block after it; the tests then run against
-/// the live contracts instead of deploying their own.
-uint256 constant ARC_BLOCK = 21_222_893;
+/// @dev Arc block the fork is pinned to. Chosen after the live fee infra deployment recorded in
+/// `.records/Arc.json` (blocks 22_547_997 to 22_548_010), while the receiver still held every
+/// authority `preflightArc` requires, so the tests run against the live contracts.
+uint256 constant ARC_BLOCK = 22_552_474;
 
 /// @dev Mainnet block the proposal is built at. `buildProposal` reads the Wormhole message fee
 /// from the mainnet core, so it needs a mainnet fork selected.
