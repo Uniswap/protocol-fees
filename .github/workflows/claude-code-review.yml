@@ -29,7 +29,7 @@ jobs:
       base_ref: ${{ github.base_ref }}
       force_review: false
       toolkit_ref: 96ef665ba04221de07e94fcc3ea69fe32c7cf306
-      model: "claude-opus-5"
+      model: "claude-opus-5-5"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
