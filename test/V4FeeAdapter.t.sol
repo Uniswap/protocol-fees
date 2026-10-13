@@ -3,2268 +3,562 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
+import {Owned} from "solmate/src/auth/Owned.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
-import {IHooks} from "v4-core/interfaces/IHooks.sol";
-import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
+import {PoolId} from "v4-core/types/PoolId.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
-import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {
-  FlagRule,
-  FeeBucket,
-  HookFamilyAssignment,
-  PairClassFeeAssignment,
-  PairClassFeeClear
-} from "../src/interfaces/IV4FeePolicy.sol";
-import {HookFeeFlags} from "./utils/HookFeeFlags.sol";
+import {IV4FeePolicy} from "../src/interfaces/IV4FeePolicy.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
-import {
-  MockFeeClassifiedHook,
-  GriefingHook,
-  RevertingHook,
-  ReturnBombHook
-} from "./mocks/MockFeeClassifiedHook.sol";
+import {MockFeePolicy} from "./mocks/MockFeePolicy.sol";
 
+/// @dev Each section starts with the branch tree of one function. The tests are in the same
+/// sequence as the tree. Each test sets all conditions of its branch, thus setUp has no policy or
+/// pool state. The adapter only forwards to its policy, thus these tests use MockFeePolicy.
 contract V4FeeAdapterTest is Test {
-  using PoolIdLibrary for PoolKey;
-  using CurrencyLibrary for Currency;
+  using StateLibrary for IPoolManager;
 
   MockV4PoolManager public poolManager;
   V4FeeAdapter public adapter;
-  V4FeePolicy public policy;
+  MockERC20 public token;
 
   address public owner;
   address public feeSetter;
   address public tokenJar;
-  address public alice;
-
-  MockERC20 public token0;
-  MockERC20 public token1;
-
-  // Standard pool keys for testing
-  PoolKey public standardKey; // static fee, no hook
-  PoolKey public hookKey; // static fee, non-custom-accounting hook
-  PoolKey public dynamicKey; // dynamic fee, no hook
-
-  // Protocol fee constants (symmetric 0->1 and 1->0)
-  uint24 constant FEE_100 = (100 << 12) | 100; // 100 pips both directions
-  uint24 constant FEE_200 = (200 << 12) | 200;
-  uint24 constant FEE_300 = (300 << 12) | 300;
-  uint24 constant FEE_500 = (500 << 12) | 500;
-  uint24 constant FEE_1000 = (1000 << 12) | 1000; // max both directions
 
   function setUp() public {
     owner = makeAddr("owner");
     feeSetter = makeAddr("feeSetter");
     tokenJar = makeAddr("tokenJar");
-    alice = makeAddr("alice");
 
-    // Deploy tokens (sorted by address)
-    token0 = new MockERC20("Token0", "T0", 18);
-    token1 = new MockERC20("Token1", "T1", 18);
-    if (address(token0) > address(token1)) (token0, token1) = (token1, token0);
+    token = new MockERC20("Token", "TKN", 18);
 
-    // Deploy mock pool manager
-    vm.prank(owner);
-    poolManager = new MockV4PoolManager(owner);
-
-    // Deploy policy and adapter
     vm.startPrank(owner);
-    policy = new V4FeePolicy(IPoolManager(address(poolManager)));
+    poolManager = new MockV4PoolManager(owner);
     adapter = new V4FeeAdapter(IPoolManager(address(poolManager)), tokenJar);
-    adapter.setPolicy(policy);
     adapter.setFeeSetter(feeSetter);
-    policy.setFeeSetter(feeSetter);
-
-    // Register adapter as protocolFeeController
+    // Make the adapter the protocolFeeController of the PoolManager.
     poolManager.setProtocolFeeController(address(adapter));
     vm.stopPrank();
-
-    // Build standard pool keys
-    standardKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(address(0))
-    });
-
-    // Hook at address with NO return-delta flags (bits 0-3 clear, bit 7 set = beforeSwap)
-    hookKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(address(uint160(1 << 7))) // beforeSwap only, no custom accounting
-    });
-
-    dynamicKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
-      tickSpacing: 60,
-      hooks: IHooks(address(0))
-    });
-
-    // Initialize pools
-    poolManager.mockInitialize(standardKey);
-    poolManager.mockInitialize(hookKey);
-    poolManager.mockInitialize(dynamicKey);
   }
 
-  // ============ Helpers ============
-
-  /// @dev Slope value chosen so that `standardKey.fee = 3000` yields `FEE_300`
-  /// (300 pips per direction) under a single bucket starting at floor 0:
-  /// `0 + 100_000 × 3000 / 1_000_000 = 300`.
-  uint32 internal constant TEST_BETA_PIPS = 100_000;
-
-  /// @dev Returns a single-bucket array `[(0, 0, betaPips)]`. Equivalent in math to a
-  /// pre-bucket-era global multiplier: `protocolFee = 0 + betaPips * lpFee / 1_000_000`.
-  /// Caller is responsible for the prank.
-  function _singleBucketSlope(uint32 betaPips) internal pure returns (FeeBucket[] memory bs) {
-    bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
+  /// @dev Returns `fee` with each 12-bit direction in the range [0, MAX_PROTOCOL_FEE].
+  function _boundProtocolFee(uint24 fee) internal pure returns (uint24) {
+    uint24 zeroForOne = uint24(bound(fee & 0xFFF, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
+    uint24 oneForZero = uint24(bound(fee >> 12, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
+    return oneForZero << 12 | zeroForOne;
   }
 
-  /// @dev Returns a single-bucket array `[(0, alphaPips, 0)]` — flat fee for any LP fee.
-  function _singleBucketFlat(uint24 alphaPips) internal pure returns (FeeBucket[] memory bs) {
-    bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: alphaPips, betaPips: 0});
+  // ============ constructor ============
+  //
+  // constructor
+  // └── it sets the pool manager, the token jar, and the deployer as the owner
+
+  function testFuzz_constructor(address deployer, IPoolManager manager, address jar) public {
+    vm.expectEmit();
+    emit Owned.OwnershipTransferred(address(0), deployer);
+    vm.prank(deployer);
+    V4FeeAdapter deployed = new V4FeeAdapter(manager, jar);
+
+    assertEq(address(deployed.POOL_MANAGER()), address(manager));
+    assertEq(deployed.TOKEN_JAR(), jar);
+    assertEq(deployed.owner(), deployer);
+    assertEq(deployed.feeSetter(), address(0));
+    assertEq(address(deployed.policy()), address(0));
+    assertEq(deployed.ZERO_FEE_SENTINEL(), type(uint24).max);
   }
 
-  /// @dev As above but pranks feeSetter for one-off setups.
-  function _setSingleBucketSlope(uint32 betaPips) internal {
+  // ============ getFee ============
+  //
+  // getFee
+  // ├── given the pool has an override
+  // │   ├── given the override is an explicit zero
+  // │   │   └── it returns zero and does not call the policy
+  // │   └── given the override is not zero
+  // │       └── it returns the override and does not call the policy
+  // └── given the pool has no override
+  //     ├── given no policy is set
+  //     │   └── it returns zero
+  //     └── given a policy is set
+  //         └── it returns the fee from the policy
+
+  function testFuzz_getFee_GivenTheOverrideIsAnExplicitZero(PoolKey memory key, uint24 policyFee)
+    public
+  {
+    // Given: a policy that returns `policyFee` for all pools.
+    MockFeePolicy policy = new MockFeePolicy(policyFee);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    // Given: the pool has an override, and the override is an explicit zero.
     vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(betaPips));
+    adapter.setPoolOverride(key.toId(), 0);
+
+    // Then: getFee returns zero and does not call the policy.
+    vm.expectCall(address(policy), abi.encodeCall(IV4FeePolicy.computeFee, (key)), 0);
+    assertEq(adapter.getFee(key), 0);
   }
 
-  /// @dev Adjusted Configuration B from the design discussion. All alpha values stay at
-  /// or below MAX_PROTOCOL_FEE = 1000 (the per-bucket cap). Continuity-preserving:
-  /// each bucket starts at the previous bucket's endpoint.
-  ///   bucket 0: [0, 100)         flat 0
-  ///   bucket 1: [100, 500)       slope 10% (alpha 0, beta 100_000)
-  ///   bucket 2: [500, 3000)      starts at 40, slope 20% (alpha 40, beta 200_000)
-  ///   bucket 3: [3000, 10_000)   starts at 540, slope 15% (alpha 540, beta 150_000)
-  ///   bucket 4: [10_000, ∞)      flat ceiling at MAX_PROTOCOL_FEE
-  function _bucketsConfigB() internal pure returns (FeeBucket[] memory bs) {
-    bs = new FeeBucket[](5);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 0});
-    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 100_000});
-    bs[2] = FeeBucket({lpFeeFloor: 500, alphaPips: 40, betaPips: 200_000});
-    bs[3] = FeeBucket({lpFeeFloor: 3000, alphaPips: 540, betaPips: 150_000});
-    bs[4] = FeeBucket({lpFeeFloor: 10_000, alphaPips: 1000, betaPips: 0});
+  function testFuzz_getFee_GivenTheOverrideIsANonzeroFee(
+    PoolKey memory key,
+    uint24 overrideFee,
+    uint24 policyFee
+  ) public {
+    // Given: a policy that returns `policyFee` for all pools.
+    MockFeePolicy policy = new MockFeePolicy(policyFee);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    // Given: the pool has an override, and the override is not zero.
+    overrideFee = _boundProtocolFee(overrideFee);
+    vm.assume(overrideFee != 0);
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(key.toId(), overrideFee);
+
+    // Then: getFee returns the override and does not call the policy.
+    vm.expectCall(address(policy), abi.encodeCall(IV4FeePolicy.computeFee, (key)), 0);
+    assertEq(adapter.getFee(key), overrideFee);
   }
 
-  function _pairHash() internal view returns (bytes32) {
-    return keccak256(
-      abi.encodePacked(
-        Currency.unwrap(standardKey.currency0), Currency.unwrap(standardKey.currency1)
-      )
+  function testFuzz_getFee_GivenNoPolicyIsSet(PoolKey memory key) public view {
+    // Given: the pool has no override, and no policy is set.
+    // Then: getFee returns zero.
+    assertEq(adapter.getFee(key), 0);
+  }
+
+  function testFuzz_getFee_GivenAPolicyIsSet(PoolKey memory key, uint24 policyFee) public {
+    // Given: the pool has no override.
+    // Given: a policy that returns `policyFee` for all pools.
+    MockFeePolicy policy = new MockFeePolicy(policyFee);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    // Then: getFee returns the fee from the policy.
+    vm.expectCall(address(policy), abi.encodeCall(IV4FeePolicy.computeFee, (key)));
+    assertEq(adapter.getFee(key), policyFee);
+  }
+
+  // ============ triggerFeeUpdate ============
+  //
+  // triggerFeeUpdate
+  // ├── given the pool is not initialized
+  // │   └── it does not set a protocol fee and does not emit
+  // └── given the pool is initialized
+  //     ├── it sets the protocol fee of the pool to getFee
+  //     └── it emits FeeUpdateTriggered
+
+  function testFuzz_triggerFeeUpdate_GivenThePoolIsNotInitialized(
+    address caller,
+    PoolKey memory key,
+    uint24 policyFee
+  ) public {
+    // Given: a policy that returns `policyFee` for all pools.
+    MockFeePolicy policy = new MockFeePolicy(_boundProtocolFee(policyFee));
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    // Given: the pool is not initialized.
+    // Then: triggerFeeUpdate does not set a protocol fee and does not emit.
+    vm.expectCall(
+      address(poolManager), abi.encodeWithSelector(IProtocolFees.setProtocolFee.selector), 0
     );
+    vm.recordLogs();
+    vm.prank(caller);
+    adapter.triggerFeeUpdate(key);
+    assertEq(vm.getRecordedLogs().length, 0);
+    assertEq(poolManager.getProtocolFee(key.toId()), 0);
   }
 
-  /// @dev Deploy a mock hook at a specific address using vm.etch.
-  /// The lowest 14 bits of the address encode hook permissions.
-  function _deployHookAt(uint160 addrFlags, uint256 feeFlags) internal returns (address) {
-    address hookAddr = address(addrFlags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-    vm.store(hookAddr, bytes32(0), bytes32(feeFlags));
-    return hookAddr;
+  function testFuzz_triggerFeeUpdate_GivenThePoolIsInitialized(
+    address caller,
+    PoolKey memory key,
+    uint24 policyFee
+  ) public {
+    // Given: a policy that returns `policyFee` for all pools.
+    policyFee = _boundProtocolFee(policyFee);
+    MockFeePolicy policy = new MockFeePolicy(policyFee);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    // Given: the pool is initialized.
+    poolManager.mockInitialize(key);
+
+    // Then: triggerFeeUpdate emits FeeUpdateTriggered.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.FeeUpdateTriggered(caller, key.toId(), policyFee);
+    vm.prank(caller);
+    adapter.triggerFeeUpdate(key);
+
+    // Then: triggerFeeUpdate sets the protocol fee of the pool to getFee.
+    assertEq(poolManager.getProtocolFee(key.toId()), policyFee);
   }
 
-  // ============ Adapter: Construction ============
+  // ============ batchTriggerFeeUpdate ============
+  //
+  // batchTriggerFeeUpdate
+  // ├── when there are no pools
+  // │   └── it does not emit
+  // └── when there are pools
+  //     ├── it sets the protocol fee of each initialized pool to getFee
+  //     ├── it does not change an uninitialized pool
+  //     └── it emits FeeUpdateTriggered for each initialized pool, in sequence
 
-  function test_adapter_constructor() public view {
-    assertEq(address(adapter.POOL_MANAGER()), address(poolManager));
-    assertEq(adapter.TOKEN_JAR(), tokenJar);
-    assertEq(address(adapter.policy()), address(policy));
-    assertEq(adapter.feeSetter(), feeSetter);
+  function testFuzz_batchTriggerFeeUpdate_WhenThereAreNoPools(address caller) public {
+    // When: there are no pools.
+    // Then: batchTriggerFeeUpdate does not emit.
+    vm.recordLogs();
+    vm.prank(caller);
+    adapter.batchTriggerFeeUpdate(new PoolKey[](0));
+    assertEq(vm.getRecordedLogs().length, 0);
   }
 
-  // ============ Adapter: Admin ============
+  function testFuzz_batchTriggerFeeUpdate_WhenThereArePools(
+    address caller,
+    PoolKey[8] memory candidates,
+    uint256 count,
+    uint8 initializedMask,
+    uint24 policyFee
+  ) public {
+    // Given: a policy that returns `policyFee` for all pools.
+    policyFee = _boundProtocolFee(policyFee);
+    MockFeePolicy policy = new MockFeePolicy(policyFee);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
 
-  function test_setPolicy_success() public {
-    V4FeePolicy newPolicy = new V4FeePolicy(IPoolManager(address(poolManager)));
-    vm.expectEmit(true, true, false, false, address(adapter));
-    emit IV4FeeAdapter.PolicyUpdated(address(policy), address(newPolicy));
+    // When: there are 1 to 8 pools. If bit i of `initializedMask` is 1, pool i is initialized.
+    count = bound(count, 1, 8);
+    PoolKey[] memory keys = new PoolKey[](count);
+    for (uint256 i; i < count; ++i) {
+      keys[i] = candidates[i];
+      if ((initializedMask >> i) & 1 == 1) poolManager.mockInitialize(keys[i]);
+    }
+    // Read the state from the PoolManager, because `candidates` can contain the same pool two or
+    // more times.
+    bool[] memory initialized = new bool[](count);
+    for (uint256 i; i < count; ++i) {
+      (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(keys[i].toId());
+      initialized[i] = sqrtPriceX96 != 0;
+    }
+
+    // Then: batchTriggerFeeUpdate emits FeeUpdateTriggered for each initialized pool, in sequence.
+    for (uint256 i; i < count; ++i) {
+      if (!initialized[i]) continue;
+      vm.expectEmit(address(adapter));
+      emit IV4FeeAdapter.FeeUpdateTriggered(caller, keys[i].toId(), policyFee);
+    }
+    vm.prank(caller);
+    adapter.batchTriggerFeeUpdate(keys);
+
+    // Then: batchTriggerFeeUpdate sets the protocol fee of each initialized pool to getFee.
+    // Then: batchTriggerFeeUpdate does not change an uninitialized pool.
+    for (uint256 i; i < count; ++i) {
+      assertEq(poolManager.getProtocolFee(keys[i].toId()), initialized[i] ? policyFee : 0);
+    }
+  }
+
+  // ============ collect ============
+  //
+  // collect
+  // ├── when there are no collect params
+  // │   └── it does not emit
+  // └── when there are collect params
+  //     ├── when the amount is zero
+  //     │   ├── it sends all accrued fees to the token jar
+  //     │   └── it emits FeesCollected with the accrued amount
+  //     └── when the amount is not zero
+  //         ├── it sends the amount to the token jar
+  //         └── it emits FeesCollected with the amount
+
+  function testFuzz_collect_WhenThereAreNoCollectParams(address caller) public {
+    // When: there are no collect params.
+    // Then: collect does not emit.
+    vm.recordLogs();
+    vm.prank(caller);
+    adapter.collect(new IV4FeeAdapter.CollectParams[](0));
+    assertEq(vm.getRecordedLogs().length, 0);
+  }
+
+  function testFuzz_collect_WhenTheAmountIsZero(address caller, uint256 accrued) public {
+    // Given: protocol fees accrued in the token.
+    accrued = bound(accrued, 0, type(uint128).max);
+    Currency currency = Currency.wrap(address(token));
+    token.mint(address(poolManager), accrued);
+    poolManager.setProtocolFeesAccrued(currency, accrued);
+
+    // When: there are collect params, and the amount is zero.
+    IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
+    params[0] = IV4FeeAdapter.CollectParams({currency: currency, amount: 0});
+
+    // Then: collect emits FeesCollected with the accrued amount.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.FeesCollected(currency, accrued);
+    vm.prank(caller);
+    adapter.collect(params);
+
+    // Then: collect sends all accrued fees to the token jar.
+    assertEq(token.balanceOf(tokenJar), accrued);
+    assertEq(poolManager.protocolFeesAccrued(currency), 0);
+  }
+
+  function testFuzz_collect_WhenTheAmountIsNonzero(address caller, uint256 accrued, uint256 amount)
+    public
+  {
+    // Given: protocol fees accrued in the token.
+    accrued = bound(accrued, 1, type(uint128).max);
+    Currency currency = Currency.wrap(address(token));
+    token.mint(address(poolManager), accrued);
+    poolManager.setProtocolFeesAccrued(currency, accrued);
+
+    // When: there are collect params, and the amount is 1 to the accrued fees.
+    amount = bound(amount, 1, accrued);
+    IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
+    params[0] = IV4FeeAdapter.CollectParams({currency: currency, amount: amount});
+
+    // Then: collect emits FeesCollected with the amount.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.FeesCollected(currency, amount);
+    vm.prank(caller);
+    adapter.collect(params);
+
+    // Then: collect sends the amount to the token jar.
+    assertEq(token.balanceOf(tokenJar), amount);
+    assertEq(poolManager.protocolFeesAccrued(currency), accrued - amount);
+  }
+
+  // ============ setPolicy ============
+  //
+  // setPolicy
+  // ├── when the caller is not the owner
+  // │   └── it reverts with UNAUTHORIZED
+  // └── when the caller is the owner
+  //     ├── it sets the policy
+  //     └── it emits PolicyUpdated
+
+  function testFuzz_setPolicy_RevertWhen_CallerIsNotTheOwner(address caller, IV4FeePolicy newPolicy)
+    public
+  {
+    // When: the caller is not the owner.
+    vm.assume(caller != owner);
+
+    // Then: setPolicy reverts with UNAUTHORIZED.
+    vm.prank(caller);
+    vm.expectRevert("UNAUTHORIZED");
+    adapter.setPolicy(newPolicy);
+  }
+
+  function testFuzz_setPolicy_WhenCallerIsTheOwner(
+    IV4FeePolicy previousPolicy,
+    IV4FeePolicy newPolicy
+  ) public {
+    // Given: a previous policy.
+    vm.prank(owner);
+    adapter.setPolicy(previousPolicy);
+
+    // When: the caller is the owner.
+    // Then: setPolicy emits PolicyUpdated.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.PolicyUpdated(address(previousPolicy), address(newPolicy));
     vm.prank(owner);
     adapter.setPolicy(newPolicy);
+
+    // Then: setPolicy sets the policy.
     assertEq(address(adapter.policy()), address(newPolicy));
   }
 
-  function test_setPolicy_revertsUnauthorized() public {
-    vm.prank(alice);
+  // ============ setFeeSetter ============
+  //
+  // setFeeSetter
+  // ├── when the caller is not the owner
+  // │   └── it reverts with UNAUTHORIZED
+  // └── when the caller is the owner
+  //     ├── when the new fee setter is the zero address
+  //     │   └── it reverts with ZeroAddress
+  //     └── when the new fee setter is not the zero address
+  //         ├── it sets the fee setter
+  //         └── it emits FeeSetterUpdated
+
+  function testFuzz_setFeeSetter_RevertWhen_CallerIsNotTheOwner(
+    address caller,
+    address newFeeSetter
+  ) public {
+    // When: the caller is not the owner.
+    vm.assume(caller != owner);
+
+    // Then: setFeeSetter reverts with UNAUTHORIZED.
+    vm.prank(caller);
     vm.expectRevert("UNAUTHORIZED");
-    adapter.setPolicy(IV4FeePolicy(address(0)));
+    adapter.setFeeSetter(newFeeSetter);
   }
 
-  function test_setPolicy_zeroDisablesPolicy() public {
+  function test_setFeeSetter_RevertWhen_TheNewFeeSetterIsTheZeroAddress() public {
+    // When: the caller is the owner, and the new fee setter is the zero address.
+    // Then: setFeeSetter reverts with ZeroAddress.
     vm.prank(owner);
-    adapter.setPolicy(IV4FeePolicy(address(0)));
-    assertEq(adapter.getFee(standardKey), 0);
+    vm.expectRevert(IV4FeeAdapter.ZeroAddress.selector);
+    adapter.setFeeSetter(address(0));
   }
 
-  function test_setFeeSetter_adapter() public {
-    vm.expectEmit(true, true, false, false, address(adapter));
-    emit IV4FeeAdapter.FeeSetterUpdated(feeSetter, alice);
+  function testFuzz_setFeeSetter_WhenTheNewFeeSetterIsNotTheZeroAddress(address newFeeSetter)
+    public
+  {
+    // When: the caller is the owner, and the new fee setter is not the zero address.
+    vm.assume(newFeeSetter != address(0));
+
+    // Then: setFeeSetter emits FeeSetterUpdated.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.FeeSetterUpdated(feeSetter, newFeeSetter);
     vm.prank(owner);
-    adapter.setFeeSetter(alice);
-    assertEq(adapter.feeSetter(), alice);
+    adapter.setFeeSetter(newFeeSetter);
+
+    // Then: setFeeSetter sets the fee setter.
+    assertEq(adapter.feeSetter(), newFeeSetter);
   }
 
-  function test_setFeeSetter_adapter_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert("UNAUTHORIZED");
-    adapter.setFeeSetter(alice);
-  }
+  // ============ setPoolOverride ============
+  //
+  // setPoolOverride
+  // ├── when the caller is not the fee setter
+  // │   └── it reverts with Unauthorized
+  // └── when the caller is the fee setter
+  //     ├── when the fee is zero
+  //     │   ├── it sets the override to ZERO_FEE_SENTINEL
+  //     │   └── it emits PoolOverrideUpdated with ZERO_FEE_SENTINEL
+  //     └── when the fee is not zero
+  //         ├── when the fee is above MAX_PROTOCOL_FEE
+  //         │   └── it reverts with InvalidFeeValue
+  //         └── when the fee is at or below MAX_PROTOCOL_FEE
+  //             ├── it sets the override to the fee
+  //             └── it emits PoolOverrideUpdated with the fee
 
-  // ============ Adapter: Pool Overrides ============
+  function testFuzz_setPoolOverride_RevertWhen_CallerIsNotTheFeeSetter(
+    address caller,
+    PoolId poolId,
+    uint24 fee
+  ) public {
+    // When: the caller is not the fee setter.
+    vm.assume(caller != feeSetter);
 
-  function test_setPoolOverride_success() public {
-    PoolId id = standardKey.toId();
-    vm.expectEmit(true, false, false, true, address(adapter));
-    emit IV4FeeAdapter.PoolOverrideUpdated(id, FEE_500);
-    vm.prank(feeSetter);
-    adapter.setPoolOverride(id, FEE_500);
-    vm.snapshotGasLastCall("adapter.setPoolOverride");
-    assertEq(adapter.getFee(standardKey), FEE_500);
-  }
-
-  function test_setPoolOverride_zeroSetsExplicitZero() public {
-    PoolId id = standardKey.toId();
-
-    // Configure policy to return FEE_300
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    assertEq(adapter.getFee(standardKey), FEE_300);
-
-    // Set pool override to explicit zero -should NOT fall through to policy
-    vm.expectEmit(true, false, false, true, address(adapter));
-    emit IV4FeeAdapter.PoolOverrideUpdated(id, type(uint24).max);
-    vm.prank(feeSetter);
-    adapter.setPoolOverride(id, 0);
-
-    // Raw storage holds sentinel (explicit zero), getFee decodes to 0
-    assertEq(adapter.poolOverrides(id), type(uint24).max);
-    assertEq(adapter.getFee(standardKey), 0);
-  }
-
-  function test_clearPoolOverride_fallsThroughToPolicy() public {
-    PoolId id = standardKey.toId();
-
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    // Set override then clear it
-    vm.startPrank(feeSetter);
-    adapter.setPoolOverride(id, FEE_500);
-    assertEq(adapter.getFee(standardKey), FEE_500);
-
-    vm.expectEmit(true, false, false, true, address(adapter));
-    emit IV4FeeAdapter.PoolOverrideUpdated(id, 0);
-    adapter.clearPoolOverride(id);
-    vm.stopPrank();
-
-    // Raw storage is 0 (not set), falls through to policy
-    assertEq(adapter.poolOverrides(id), 0);
-    assertEq(adapter.getFee(standardKey), FEE_300);
-  }
-
-  function test_clearPoolOverride_revertsUnauthorized() public {
-    vm.prank(alice);
+    // Then: setPoolOverride reverts with Unauthorized.
+    vm.prank(caller);
     vm.expectRevert(IV4FeeAdapter.Unauthorized.selector);
-    adapter.clearPoolOverride(standardKey.toId());
+    adapter.setPoolOverride(poolId, fee);
   }
 
-  function test_setPoolOverride_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeeAdapter.Unauthorized.selector);
-    adapter.setPoolOverride(standardKey.toId(), FEE_100);
+  function testFuzz_setPoolOverride_WhenTheFeeIsZero(PoolId poolId) public {
+    // When: the caller is the fee setter, and the fee is zero.
+    // Then: setPoolOverride emits PoolOverrideUpdated with ZERO_FEE_SENTINEL.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(poolId, type(uint24).max);
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(poolId, 0);
+
+    // Then: setPoolOverride sets the override to ZERO_FEE_SENTINEL.
+    assertEq(adapter.poolOverrides(poolId), type(uint24).max);
   }
 
-  function test_setPoolOverride_revertsInvalidFee() public {
-    // Fee with 12-bit component > 1000
-    uint24 badFee = (1001 << 12) | 500;
+  function testFuzz_setPoolOverride_RevertWhen_TheFeeIsInvalid(PoolId poolId, uint24 fee) public {
+    // When: the caller is the fee setter, and the fee is not zero.
+    // When: the fee is above MAX_PROTOCOL_FEE in one or two directions.
+    vm.assume(!ProtocolFeeLibrary.isValidProtocolFee(fee));
+
+    // Then: setPoolOverride reverts with InvalidFeeValue.
     vm.prank(feeSetter);
     vm.expectRevert(IV4FeeAdapter.InvalidFeeValue.selector);
-    adapter.setPoolOverride(standardKey.toId(), badFee);
+    adapter.setPoolOverride(poolId, fee);
   }
 
-  function test_poolOverride_takesPriorityOverPolicy() public {
-    // Configure policy to return FEE_300 via the multiplier path
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    // Set pool override to FEE_500
-    adapter.setPoolOverride(standardKey.toId(), FEE_500);
-    vm.stopPrank();
+  function testFuzz_setPoolOverride_WhenTheFeeIsValid(PoolId poolId, uint24 fee) public {
+    // When: the caller is the fee setter, and the fee is not zero.
+    // When: the fee is at or below MAX_PROTOCOL_FEE.
+    fee = _boundProtocolFee(fee);
+    vm.assume(fee != 0);
 
-    assertEq(adapter.getFee(standardKey), FEE_500);
-    vm.snapshotGasLastCall("adapter.getFee - pool override hit");
-  }
-
-  // ============ Adapter: Fee Triggering ============
-
-  function test_triggerFeeUpdate_success() public {
+    // Then: setPoolOverride emits PoolOverrideUpdated with the fee.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(poolId, fee);
     vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+    adapter.setPoolOverride(poolId, fee);
 
-    vm.expectEmit(true, true, false, true, address(adapter));
-    emit IV4FeeAdapter.FeeUpdateTriggered(alice, standardKey.toId(), FEE_300);
-    vm.prank(alice);
-    adapter.triggerFeeUpdate(standardKey);
-    vm.snapshotGasLastCall("adapter.triggerFeeUpdate - single pool");
-
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
+    // Then: setPoolOverride sets the override to the fee.
+    assertEq(adapter.poolOverrides(poolId), fee);
   }
 
-  function test_triggerFeeUpdate_skipsUninitializedPool() public {
-    PoolKey memory uninitKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 500,
-      tickSpacing: 10,
-      hooks: IHooks(address(0))
-    });
-    // Don't initialize -should not revert
-    adapter.triggerFeeUpdate(uninitKey);
-    assertEq(poolManager.getProtocolFee(uninitKey.toId()), 0);
-  }
+  // ============ clearPoolOverride ============
+  //
+  // clearPoolOverride
+  // ├── when the caller is not the fee setter
+  // │   └── it reverts with Unauthorized
+  // └── when the caller is the fee setter
+  //     ├── it removes the override
+  //     └── it emits PoolOverrideUpdated with zero
 
-  function testFuzz_triggerFeeUpdate_permissionless(address caller) public {
-    vm.assume(caller != address(0));
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
+  function testFuzz_clearPoolOverride_RevertWhen_CallerIsNotTheFeeSetter(
+    address caller,
+    PoolId poolId
+  ) public {
+    // When: the caller is not the fee setter.
+    vm.assume(caller != feeSetter);
 
+    // Then: clearPoolOverride reverts with Unauthorized.
     vm.prank(caller);
-    adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
+    vm.expectRevert(IV4FeeAdapter.Unauthorized.selector);
+    adapter.clearPoolOverride(poolId);
   }
 
-  function test_batchTriggerFeeUpdate_success() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookedNativeMathFeeOn(true); // price the hooked pool too
-    vm.stopPrank();
+  function testFuzz_clearPoolOverride_WhenCallerIsTheFeeSetter(PoolId poolId, uint24 overrideFee)
+    public
+  {
+    // Given: the pool has an override.
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(poolId, _boundProtocolFee(overrideFee));
 
-    PoolKey[] memory keys = new PoolKey[](2);
-    keys[0] = standardKey;
-    keys[1] = hookKey;
+    // When: the caller is the fee setter.
+    // Then: clearPoolOverride emits PoolOverrideUpdated with zero.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.PoolOverrideUpdated(poolId, 0);
+    vm.prank(feeSetter);
+    adapter.clearPoolOverride(poolId);
 
-    adapter.batchTriggerFeeUpdate(keys);
-    vm.snapshotGasLastCall("adapter.batchTriggerFeeUpdate - two pools");
-
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
-    assertEq(poolManager.getProtocolFee(hookKey.toId()), FEE_300);
+    // Then: clearPoolOverride removes the override.
+    assertEq(adapter.poolOverrides(poolId), 0);
   }
 
-  // ============ Adapter: Collection ============
+  // ============ transferOwnership ============
+  //
+  // transferOwnership
+  // ├── when the caller is not the owner
+  // │   └── it reverts with UNAUTHORIZED
+  // └── when the caller is the owner
+  //     ├── it sets the owner
+  //     └── it emits OwnershipTransferred
 
-  function test_collect_success() public {
-    Currency c = Currency.wrap(address(token0));
-    uint256 amount = 1000e18;
-    token0.mint(address(poolManager), amount);
-    poolManager.setProtocolFeesAccrued(c, amount);
+  function testFuzz_transferOwnership_RevertWhen_CallerIsNotTheOwner(
+    address caller,
+    address newOwner
+  ) public {
+    // When: the caller is not the owner.
+    vm.assume(caller != owner);
 
-    IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
-    params[0] = IV4FeeAdapter.CollectParams({currency: c, amount: amount});
-
-    vm.expectEmit(true, false, false, true, address(adapter));
-    emit IV4FeeAdapter.FeesCollected(c, amount);
-    adapter.collect(params);
-    vm.snapshotGasLastCall("adapter.collect - single currency");
-
-    assertEq(token0.balanceOf(tokenJar), amount);
-  }
-
-  function test_collect_zeroCollectsAll() public {
-    Currency c = Currency.wrap(address(token0));
-    uint256 amount = 500e18;
-    token0.mint(address(poolManager), amount);
-    poolManager.setProtocolFeesAccrued(c, amount);
-
-    IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
-    params[0] = IV4FeeAdapter.CollectParams({currency: c, amount: 0});
-
-    adapter.collect(params);
-    assertEq(token0.balanceOf(tokenJar), amount);
-  }
-
-  // ============ Policy: Construction ============
-
-  function test_policy_constructor() public view {
-    assertEq(address(policy.POOL_MANAGER()), address(poolManager));
-    assertEq(policy.feeSetter(), feeSetter);
-    assertEq(policy.CUSTOM_ACCOUNTING_MASK(), 0xF);
-  }
-
-  // ============ Policy: Admin ============
-
-  function test_setFeeSetter_policy() public {
-    vm.expectEmit(true, true, false, false, address(policy));
-    emit IV4FeePolicy.FeeSetterUpdated(feeSetter, alice);
-    vm.prank(owner);
-    policy.setFeeSetter(alice);
-    assertEq(policy.feeSetter(), alice);
-  }
-
-  function test_setFeeSetter_policy_revertsUnauthorized() public {
-    vm.prank(alice);
+    // Then: transferOwnership reverts with UNAUTHORIZED.
+    vm.prank(caller);
     vm.expectRevert("UNAUTHORIZED");
-    policy.setFeeSetter(alice);
-  }
-
-  // ============ Policy: isCustomAccounting ============
-
-  function test_isCustomAccounting_noHook() public view {
-    assertFalse(policy.isCustomAccounting(address(0)));
-  }
-
-  function test_isCustomAccounting_noDeltaFlags() public view {
-    // Address with only bit 7 set (beforeSwap) -no custom accounting
-    assertFalse(policy.isCustomAccounting(address(uint160(1 << 7))));
-  }
-
-  function test_isCustomAccounting_beforeSwapReturnsDelta() public view {
-    // Bit 3 = BEFORE_SWAP_RETURNS_DELTA
-    assertTrue(policy.isCustomAccounting(address(uint160(1 << 3))));
-  }
-
-  function test_isCustomAccounting_afterSwapReturnsDelta() public view {
-    // Bit 2 = AFTER_SWAP_RETURNS_DELTA
-    assertTrue(policy.isCustomAccounting(address(uint160(1 << 2))));
-  }
-
-  function test_isCustomAccounting_allDeltaFlags() public view {
-    // Bits 0-3 all set
-    assertTrue(policy.isCustomAccounting(address(uint160(0xF))));
-  }
-
-  function testFuzz_isCustomAccounting(uint160 addr) public view {
-    bool expected = addr & 0xF != 0;
-    assertEq(policy.isCustomAccounting(address(addr)), expected);
-  }
-
-  // ============ Policy: Fee Buckets ============
-
-  function test_setFeeBuckets_success() public {
-    FeeBucket[] memory bs = _singleBucketSlope(TEST_BETA_PIPS);
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.FeeBucketsUpdated(1);
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    vm.snapshotGasLastCall("policy.setFeeBuckets - 1 bucket");
-    assertEq(policy.feeBucketsLength(), 1);
-    (uint24 floor, uint24 alpha, uint32 beta) = policy.feeBucket(0);
-    assertEq(floor, 0);
-    assertEq(alpha, 0);
-    assertEq(beta, TEST_BETA_PIPS);
-  }
-
-  function test_setFeeBuckets_5buckets_configurationB() public {
-    FeeBucket[] memory bs = _bucketsConfigB();
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.FeeBucketsUpdated(5);
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    vm.snapshotGasLastCall("policy.setFeeBuckets - 5 buckets (configuration B)");
-    assertEq(policy.feeBucketsLength(), 5);
-  }
-
-  function test_setFeeBuckets_revertsEmpty() public {
-    FeeBucket[] memory bs = new FeeBucket[](0);
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.EmptyBuckets.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_revertsNotAscending() public {
-    FeeBucket[] memory bs = new FeeBucket[](2);
-    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
-    bs[1] = FeeBucket({lpFeeFloor: 50, alphaPips: 0, betaPips: 0});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.BucketsNotAscending.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_revertsEqualFloors() public {
-    // Strict ascending: equal floors must also revert.
-    FeeBucket[] memory bs = new FeeBucket[](2);
-    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
-    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 0, betaPips: 0});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.BucketsNotAscending.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_revertsAlphaTooLarge() public {
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1001, betaPips: 0});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_revertsBetaTooLarge() public {
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000_001});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.MultiplierTooLarge.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_revertsTooManyBuckets() public {
-    FeeBucket[] memory bs = new FeeBucket[](17);
-    for (uint256 i; i < 17; ++i) {
-      bs[i] = FeeBucket({lpFeeFloor: uint24(i * 100), alphaPips: 0, betaPips: 0});
-    }
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.TooManyBuckets.selector);
-    policy.setFeeBuckets(bs);
-  }
-
-  function test_setFeeBuckets_acceptsAlphaBoundary() public {
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1000, betaPips: 0});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-    (, uint24 alpha,) = policy.feeBucket(0);
-    assertEq(alpha, 1000);
-  }
-
-  function test_setFeeBuckets_acceptsBetaBoundary() public {
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000_000});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-    (,, uint32 beta) = policy.feeBucket(0);
-    assertEq(beta, 1_000_000_000);
-  }
-
-  function test_setFeeBuckets_acceptsMaxBuckets() public {
-    FeeBucket[] memory bs = new FeeBucket[](16);
-    for (uint256 i; i < 16; ++i) {
-      bs[i] = FeeBucket({lpFeeFloor: uint24(i * 100), alphaPips: 0, betaPips: 0});
-    }
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-    assertEq(policy.feeBucketsLength(), 16);
-  }
-
-  function test_setFeeBuckets_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-  }
-
-  function test_setFeeBuckets_replacesExisting() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-    assertEq(policy.feeBucketsLength(), 5);
-
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    assertEq(policy.feeBucketsLength(), 1);
-    vm.stopPrank();
-  }
-
-  function test_clearFeeBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    assertEq(policy.feeBucketsLength(), 1);
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.FeeBucketsUpdated(0);
-    policy.clearFeeBuckets();
-    vm.stopPrank();
-
-    assertEq(policy.feeBucketsLength(), 0);
-    // With no buckets and no pair fee, computeFee on standardKey returns 0.
-    assertEq(policy.computeFee(standardKey), 0);
-  }
-
-  function test_clearFeeBuckets_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.clearFeeBuckets();
-  }
-
-  // ============ Policy: computeFee - static native math path ============
-
-  function test_computeFee_staticNativeMath_singleBucketSlope() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    // key.fee = 3000, single bucket (0, 0, 100_000) -> 0 + 100_000 * 3000 / 1_000_000 = 300
-    assertEq(policy.computeFee(standardKey), FEE_300);
-    vm.snapshotGasLastCall("policy.computeFee - static native math buckets");
-  }
-
-  function test_computeFee_staticNativeMath_singleBucketSlope_lowFee() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    PoolKey memory lowFeeKey = standardKey;
-    lowFeeKey.fee = 100;
-    poolManager.mockInitialize(lowFeeKey);
-
-    // key.fee = 100 -> 100 * 100_000 / 1_000_000 = 10 per direction
-    uint24 expected = (10 << 12) | 10;
-    assertEq(policy.computeFee(lowFeeKey), expected);
-  }
-
-  function test_computeFee_staticNativeMath_pairClassFeeOverridesBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setPairClassFee(
-      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
-    );
-    vm.stopPrank();
-
-    // Native pair class fee should override the bucket-derived fee
-    assertEq(policy.computeFee(standardKey), FEE_500);
-    vm.snapshotGasLastCall("policy.computeFee - static native math pair class fee");
-  }
-
-  function test_computeFee_staticNativeMath_zeroBucketsReturnsZero() public view {
-    assertEq(policy.computeFee(standardKey), 0);
-  }
-
-  function test_computeFee_hookedNativeMath_disabledByDefaultFallsThrough() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    // hookKey is native math (bits 0-3 clear) but carries a hook (bit 7). With
-    // isHookedNativeMathFeeOn disabled (the default) it bypasses the native-math bucket
-    // path and falls through to defaultFee.
-    assertFalse(policy.isHookedNativeMathFeeOn());
-    assertEq(policy.computeFee(hookKey), FEE_100);
-  }
-
-  function test_computeFee_hookedNativeMath_enabledUsesBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookedNativeMathFeeOn(true);
-    vm.stopPrank();
-
-    // Once enabled, a hooked native-math pool follows the same bucket schedule as a hookless
-    // pool: 0 + 100_000 * 3000 / 1_000_000 = 300 pips per direction.
-    assertEq(policy.computeFee(hookKey), FEE_300);
-  }
-
-  function test_computeFee_hooklessNativeMath_unaffectedByHookedSwitch() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    // Hookless native-math pool prices from buckets regardless of the hooked switch.
-    assertEq(policy.computeFee(standardKey), FEE_300);
-
-    vm.prank(feeSetter);
-    policy.setHookedNativeMathFeeOn(true);
-    assertEq(policy.computeFee(standardKey), FEE_300);
-  }
-
-  function test_computeFee_staticNativeMath_governanceFamilyUsesClassifiedWaterfall() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(address(hookKey.hooks), 1);
-    policy.setFamilyDefault(1, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(hookKey), FEE_200);
-  }
-
-  function test_familyIdConstants_nativeMath255UnclassifiedZero() public view {
-    assertEq(policy.NATIVE_MATH_FAMILY_ID(), 0xFF);
-    assertEq(policy.UNCLASSIFIED_FAMILY_ID(), 0);
-  }
-
-  function test_computeFee_unclassifiedCustomAccounting_ignoresNativeMathBuckets() public {
-    address customHook = address(uint160(1 << 2));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    // family 0 (unclassified) must not read fee buckets
-    assertEq(policy.computeFee(customKey), FEE_100);
-  }
-
-  function test_computeFee_staticHook_governanceFamily255_skipsFamilyDefaultUsesBuckets() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    vm.stopPrank();
-
-    // family 255 uses native-math branch (buckets), not familyDefaults[255]
-    assertEq(policy.computeFee(hookKey), FEE_300);
-  }
-
-  function test_computeFee_staticHook_governanceFamily255_pairClassFeeOverridesBuckets() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    policy.setPairClassFee(hookKey.currency0, hookKey.currency1, nativeFamily, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(hookKey), FEE_200);
-  }
-
-  function test_computeFee_staticHook_governanceFamily255_explicitZeroPairClassFee() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-    policy.setPairClassFee(hookKey.currency0, hookKey.currency1, nativeFamily, 0);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(hookKey), 0);
-  }
-
-  function test_computeFee_staticHook_governanceFamilyZeroExemptViaFamilyDefault() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(address(hookKey.hooks), 1);
-    policy.setFamilyDefault(1, 0);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(hookKey), 0);
-  }
-
-  function test_setHookFamily_acceptsFamily255() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.prank(feeSetter);
-    policy.setHookFamily(address(hookKey.hooks), nativeFamily);
-
-    assertEq(policy.hookFamilyId(address(hookKey.hooks)), nativeFamily);
-  }
-
-  // ============ Unified resolution regression ============
-
-  function test_computeFee_dynamicFee_unclassified_ignoresNativeMathBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_100);
-  }
-
-  function test_computeFee_dynamicFee_governancePairClassFeeBeatsFamilyDefault() public {
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(address(0), 2);
-    policy.setFamilyDefault(2, FEE_300);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 2, FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_100);
-  }
-
-  function test_computeFee_dynamicFee_governanceFamilyDefaultWhenNoPairFee() public {
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(address(0), 2);
-    policy.setFamilyDefault(2, FEE_300);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_300);
-  }
-
-  function test_computeFee_clearHookFamily_restoresNativeMathBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookedNativeMathFeeOn(true);
-    policy.setHookFamily(address(hookKey.hooks), 1);
-    policy.setFamilyDefault(1, FEE_200);
-    policy.setHookFamily(address(hookKey.hooks), 0);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(hookKey), FEE_300);
-  }
-
-  function test_computeFee_classified_noFamilyConfigFallsToDefaultFee() public {
-    address customHook = address(uint160(1 << 2));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-    policy.setHookFamily(customHook, 4);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_100);
-  }
-
-  function test_computeFee_flagRule_family255_usesNativeMathBranchNotFamilyDefault() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(HookFeeFlags.STABLE_PAIR);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: nativeFamily});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(key), FEE_300);
-  }
-
-  function test_computeFee_flagRule_family255_pairClassFeeOverridesBuckets() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(HookFeeFlags.STABLE_PAIR);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: nativeFamily});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setPairClassFee(key.currency0, key.currency1, nativeFamily, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(key), FEE_200);
-  }
-
-  function test_computeFee_governanceFamily255_onCustomAccounting_usesNativeMathBranch() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setHookFamily(customHook, nativeFamily);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_300);
-  }
-
-  function test_computeFee_standardKey_autoNativeFamily_usesBucketsWithoutGovernance() public view {
-    // address(0) hook + static fee resolves to NATIVE_MATH_FAMILY_ID internally
-    assertEq(policy.computeFee(standardKey), 0);
-  }
-
-  function test_computeFee_unclassifiedDynamicFee_notConfusedWithNativeFamily255() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_100);
-  }
-
-  // ============ Policy: computeFee bucket math ============
-
-  function test_computeFee_staticNativeMath_singleBucketFlat() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketFlat(25));
-
-    // alpha=25, beta=0 → flat 25 pips for any LP fee
-    uint24 expected = (25 << 12) | 25;
-    assertEq(policy.computeFee(standardKey), expected); // key.fee = 3000
-
-    PoolKey memory zeroFeeKey = standardKey;
-    zeroFeeKey.fee = 0;
-    poolManager.mockInitialize(zeroFeeKey);
-    // snap-to-lowest with delta = 0 → still alpha = 25
-    assertEq(policy.computeFee(zeroFeeKey), expected);
-  }
-
-  function test_computeFee_staticNativeMath_singleBucket1to1() public {
-    // 1:1 boundary: beta = 1_000_000 means protocol fee == LP fee
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    PoolKey memory k = standardKey;
-    k.fee = 1000;
-    poolManager.mockInitialize(k);
-    // 1000 * 1_000_000 / 1_000_000 = 1000 per direction (clamp boundary)
-    assertEq(policy.computeFee(k), FEE_1000);
-  }
-
-  function test_computeFee_staticNativeMath_clamps() public {
-    FeeBucket[] memory bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: 1_000_000});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    PoolKey memory k = standardKey;
-    k.fee = 5000;
-    poolManager.mockInitialize(k);
-    // 5000 * 1 = 5000, clamped to MAX_PROTOCOL_FEE = 1000 per direction
-    assertEq(policy.computeFee(k), FEE_1000);
-  }
-
-  function test_computeFee_staticNativeMath_zeroLpFee_alphaZero() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    PoolKey memory zeroFeeKey = standardKey;
-    zeroFeeKey.fee = 0;
-    poolManager.mockInitialize(zeroFeeKey);
-    // alpha = 0 + beta * 0 / 1_000_000 = 0
-    assertEq(policy.computeFee(zeroFeeKey), 0);
-  }
-
-  function test_computeFee_staticNativeMath_zeroLpFee_alphaNonzero() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketFlat(25));
-
-    PoolKey memory zeroFeeKey = standardKey;
-    zeroFeeKey.fee = 0;
-    poolManager.mockInitialize(zeroFeeKey);
-    uint24 expected = (25 << 12) | 25;
-    assertEq(policy.computeFee(zeroFeeKey), expected);
-  }
-
-  function test_computeFee_staticNativeMath_snapToLowest() public {
-    // Two buckets where the lowest floor is > 0. lpFee < floor_0 must snap to bucket 0.
-    FeeBucket[] memory bs = new FeeBucket[](2);
-    bs[0] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 0});
-    bs[1] = FeeBucket({lpFeeFloor: 500, alphaPips: 50, betaPips: 0});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    PoolKey memory k = standardKey;
-    k.fee = 50; // below floor_0 = 100
-    poolManager.mockInitialize(k);
-
-    // Snap to bucket 0 with delta = 0 -> alpha_0 = 25
-    uint24 expected = (25 << 12) | 25;
-    assertEq(policy.computeFee(k), expected);
-  }
-
-  function test_computeFee_staticNativeMath_continuousPiecewise() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-
-    // Spot-check several lpFee values against the curve table:
-    //   lpFee=50    bucket 0 (flat 0)            -> 0
-    //   lpFee=100   bucket 1 starts (delta=0)    -> 0
-    //   lpFee=500   bucket 2 starts (delta=0)    -> 40
-    //   lpFee=3000  bucket 3 starts (delta=0)    -> 540
-    //   lpFee=10000 bucket 4 starts (flat 1000)  -> 1000 (clamp territory)
-    //   lpFee=200   bucket 1, delta=100          -> 0 + 100_000*100/1e6 = 10
-    //   lpFee=1000  bucket 2, delta=500          -> 40 + 200_000*500/1e6 = 140
-    //   lpFee=5000  bucket 3, delta=2000         -> 540 + 150_000*2000/1e6 = 840
-    PoolKey memory k = standardKey;
-
-    k.fee = 50;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), 0);
-
-    k.fee = 100;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), 0);
-
-    k.fee = 500;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (40 << 12) | 40);
-
-    k.fee = 3000;
-    assertEq(policy.computeFee(k), (540 << 12) | 540);
-
-    k.fee = 10_000;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), FEE_1000);
-
-    k.fee = 200;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (10 << 12) | 10);
-
-    k.fee = 1000;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (140 << 12) | 140);
-
-    k.fee = 5000;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (840 << 12) | 840);
-  }
-
-  function test_computeFee_staticNativeMath_discontinuousPiecewise() public {
-    // Intentional cliff: alpha jumps at the boundary
-    FeeBucket[] memory bs = new FeeBucket[](2);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 25, betaPips: 0});
-    bs[1] = FeeBucket({lpFeeFloor: 100, alphaPips: 100, betaPips: 0});
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(bs);
-
-    PoolKey memory k = standardKey;
-    k.fee = 99;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (25 << 12) | 25);
-
-    k.fee = 100;
-    poolManager.mockInitialize(k);
-    assertEq(policy.computeFee(k), (100 << 12) | 100);
-  }
-
-  function test_computeFee_staticNativeMath_pairClassFeeBeatsBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-    policy.setPairClassFee(
-      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_200
-    );
-    vm.stopPrank();
-
-    // Native pair class fee wins over bucket-derived fee
-    assertEq(policy.computeFee(standardKey), FEE_200);
-  }
-
-  function test_computeFee_dynamicFee_skipsBuckets() public {
-    // Regression: a future routing bug must not evaluate buckets for DYNAMIC_FEE_FLAG.
-    // Dynamic-fee pools must take the classified path.
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    // dynamicKey.fee == LPFeeLibrary.DYNAMIC_FEE_FLAG -> classified -> defaultFee
-    assertEq(policy.computeFee(dynamicKey), FEE_100);
-  }
-
-  function test_computeFee_dynamicFee_forcedToNativeFamily_fallsThroughToDefault() public {
-    // Regression (audit item 1): governance can force a pool to family 255 via
-    // setHookFamily. For a dynamic-fee pool that means key.fee == DYNAMIC_FEE_FLAG
-    // (0x800000) would be fed into the bucket curve, which clamps to MAX_PROTOCOL_FEE.
-    // The native-math branch must instead fall through to defaultFee for dynamic keys.
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-    policy.setDefaultFee(FEE_100);
-    // dynamicKey.hooks == address(0); force its (hook-keyed) family to native math.
-    policy.setHookFamily(address(dynamicKey.hooks), policy.NATIVE_MATH_FAMILY_ID());
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_100); // defaultFee, not bucket-clamped
-    assertTrue(policy.computeFee(dynamicKey) != FEE_1000); // not MAX_PROTOCOL_FEE
-  }
-
-  function test_computeFee_dynamicFee_forcedToNativeFamily_pairOverrideStillWins() public {
-    // The dynamic-key guard must not shadow an explicit pairClassFees[pair][255]
-    // override: that check runs before the native-math branch.
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-    policy.setDefaultFee(FEE_100);
-    policy.setHookFamily(address(dynamicKey.hooks), nativeFamily);
-    policy.setPairClassFee(dynamicKey.currency0, dynamicKey.currency1, nativeFamily, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_200); // explicit pair override honored
-  }
-
-  function testFuzz_computeFee_staticNativeMath_buckets(uint24 lpFee) public {
-    lpFee = uint24(bound(lpFee, 0, LPFeeLibrary.MAX_LP_FEE));
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_bucketsConfigB());
-
-    PoolKey memory k = standardKey;
-    k.fee = lpFee;
-    poolManager.mockInitialize(k);
-
-    uint24 fee = policy.computeFee(k);
-    uint24 zeroForOne = fee & 0xFFF;
-    uint24 oneForZero = fee >> 12;
-    assertEq(zeroForOne, oneForZero); // symmetric: both 12-bit components equal
-    assertLe(zeroForOne, ProtocolFeeLibrary.MAX_PROTOCOL_FEE);
-  }
-
-  // ============ Policy: computeFee - classified path ============
-
-  function test_computeFee_classified_familyDefault() public {
-    // Create a pool with a custom-accounting hook (bit 2 = afterSwapReturnsDelta)
-    address customHook = address(uint160((1 << 7) | (1 << 2))); // beforeSwap +
-    // afterSwapReturnsDelta
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setFamilyDefault(1, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_200);
-    vm.snapshotGasLastCall("policy.computeFee - classified family default");
-  }
-
-  function test_computeFee_classified_pairClassFeeLiteral() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_100);
-    vm.snapshotGasLastCall("policy.computeFee - classified pair class fee");
-  }
-
-  function test_computeFee_classified_clearPairClassFeeFallsBackToFamilyDefault() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    uint24 fee50 = (50 << 12) | 50;
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_100);
-    policy.setFamilyDefault(1, fee50);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_100);
-
-    vm.prank(feeSetter);
-    policy.clearPairClassFee(customKey.currency0, customKey.currency1, 1);
-
-    assertEq(policy.computeFee(customKey), fee50);
-  }
-
-  function test_computeFee_classified_nativePairClassFeeDoesNotApply() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setPairClassFee(
-      customKey.currency0, customKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
-    );
-    policy.setHookFamily(customHook, 1);
-    policy.setFamilyDefault(1, FEE_200);
-    vm.stopPrank();
-
-    // NATIVE_MATH_FAMILY_ID slot is not read on the classified path
-    assertEq(policy.computeFee(customKey), FEE_200);
-  }
-
-  function test_computeFee_classified_explicitZeroPairClassFeeDoesNotFallBack() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, 0);
-    policy.setFamilyDefault(1, FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), 0);
-  }
-
-  function test_computeFee_classified_pairClassFeeAtMax() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_1000);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_1000);
-  }
-
-  function test_computeFee_classified_unclassifiedFallsToDefault() public {
-    address customHook = address(uint160(1 << 2)); // custom accounting, no family set
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-
-    assertEq(policy.computeFee(customKey), FEE_100);
-    vm.snapshotGasLastCall("policy.computeFee - classified unclassified -> defaultFee");
-  }
-
-  function test_computeFee_classified_unclassifiedNoDefaultReturnsZero() public {
-    address customHook = address(uint160(1 << 2));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    assertEq(policy.computeFee(customKey), 0);
-  }
-
-  function test_computeFee_dynamicFee_requiresClassification() public {
-    // Dynamic fee pool with no hook -> classified path, hookFamilyId[address(0)] = 0
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-
-    assertEq(policy.computeFee(dynamicKey), FEE_100);
-  }
-
-  function test_computeFee_dynamicFee_withFamily() public {
-    // Dynamic fee pool at address(0) -familyId lookup for address(0)
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(address(0), 2);
-    policy.setFamilyDefault(2, FEE_300);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicKey), FEE_300);
-  }
-
-  // ============ Policy: Hook Self-Report ============
-
-  function test_computeFee_selfReport_usedWhenNoGovernanceOverride() public {
-    // Deploy a self-reporting hook at an address with custom accounting flags
-    uint160 addrFlags = (1 << 7) | (1 << 2); // beforeSwap + afterSwapReturnsDelta
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory selfReportKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(selfReportKey);
-
-    // Configure flag rule: TAKES_SWAP_SURPLUS -> family 3
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(3, FEE_200);
-    vm.stopPrank();
-
-    // Hook self-reports TAKES_SWAP_SURPLUS, rule maps to family 3
-    assertEq(policy.computeFee(selfReportKey), FEE_200);
-    vm.snapshotGasLastCall("policy.computeFee - classified flag-rule self-report");
-  }
-
-  function test_computeFee_selfReport_governanceOverrideWins() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(3, FEE_200); // flag-rule family
-    policy.setFamilyDefault(5, FEE_500); // governance family
-    policy.setHookFamily(hookAddr, 5); // governance override
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(key), FEE_500);
-  }
-
-  function test_computeFee_selfReport_revertingHookFallsToDefault() public {
-    uint160 flags = (1 << 7) | (1 << 2);
-    address hookAddr = address(flags);
-    RevertingHook impl = new RevertingHook();
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-
-    // Hook reverts -> treated as unclassified -> defaultFee
-    assertEq(policy.computeFee(key), FEE_100);
-  }
-
-  function test_computeFee_selfReport_griefingHookDoesNotDOS() public {
-    uint160 flags = (1 << 7) | (1 << 2);
-    address hookAddr = address(flags);
-    GriefingHook impl = new GriefingHook();
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-
-    // Gas-capped call should fail gracefully -> defaultFee
-    assertEq(policy.computeFee(key), FEE_100);
-    vm.snapshotGasLastCall("policy.computeFee - classified griefing hook -> defaultFee");
-  }
-
-  function test_computeFee_selfReport_boundsReturnDataCopy() public {
-    uint160 flags = (1 << 7) | (1 << 2);
-    address hookAddr = address(flags);
-    ReturnBombHook impl = new ReturnBombHook();
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 1});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(1, FEE_300);
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    uint256 gasBefore = gasleft();
-    uint24 fee = policy.computeFee(key);
-    uint256 gasUsed = gasBefore - gasleft();
-
-    assertEq(fee, FEE_300);
-    assertLt(gasUsed, 45_000);
-  }
-
-  // ============ Policy: Configuration Functions ============
-
-  function test_setHookFamily_success() public {
-    address hook = address(uint160(1 << 2));
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.HookFamilySet(hook, 1);
-    vm.prank(feeSetter);
-    policy.setHookFamily(hook, 1);
-    vm.snapshotGasLastCall("policy.setHookFamily");
-    assertEq(policy.hookFamilyId(hook), 1);
-  }
-
-  function test_setHookFamily_overwrite() public {
-    address hook = address(uint160(1 << 2));
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(hook, 1);
-    policy.setHookFamily(hook, 5);
-    vm.stopPrank();
-    assertEq(policy.hookFamilyId(hook), 5);
-  }
-
-  function test_setHookFamily_zeroUnclassifies() public {
-    address hook = address(uint160(1 << 2));
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(hook, 3);
-    policy.setHookFamily(hook, 0);
-    vm.stopPrank();
-    assertEq(policy.hookFamilyId(hook), 0);
-  }
-
-  function test_setHookFamily_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setHookFamily(address(1), 1);
-  }
-
-  function test_batchSetHookFamily_success() public {
-    address hook0 = address(uint160(1 << 2));
-    address hook1 = address(uint160((1 << 7) | (1 << 2)));
-
-    HookFamilyAssignment[] memory assignments = new HookFamilyAssignment[](2);
-    assignments[0] = HookFamilyAssignment({hook: hook0, familyId: 1});
-    assignments[1] = HookFamilyAssignment({hook: hook1, familyId: 3});
-
-    vm.prank(feeSetter);
-    policy.batchSetHookFamily(assignments);
-    vm.snapshotGasLastCall("policy.batchSetHookFamily");
-
-    assertEq(policy.hookFamilyId(hook0), 1);
-    assertEq(policy.hookFamilyId(hook1), 3);
-  }
-
-  function test_setDefaultFee_success() public {
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.DefaultFeeUpdated(FEE_100);
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-  }
-
-  function test_setDefaultFee_revertsInvalidFee() public {
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    policy.setDefaultFee((2000 << 12) | 2000);
-  }
-
-  function test_setHookedNativeMathFeeOn_defaultsFalse() public view {
-    assertFalse(policy.isHookedNativeMathFeeOn());
-  }
-
-  function test_setHookedNativeMathFeeOn_togglesAndEmits() public {
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.HookedNativeMathFeeOnUpdated(true);
-    vm.prank(feeSetter);
-    policy.setHookedNativeMathFeeOn(true);
-    assertTrue(policy.isHookedNativeMathFeeOn());
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.HookedNativeMathFeeOnUpdated(false);
-    vm.prank(feeSetter);
-    policy.setHookedNativeMathFeeOn(false);
-    assertFalse(policy.isHookedNativeMathFeeOn());
-  }
-
-  function test_setHookedNativeMathFeeOn_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setHookedNativeMathFeeOn(true);
-  }
-
-  function test_setFamilyDefault_success() public {
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.FamilyDefaultUpdated(1, FEE_300);
-    vm.prank(feeSetter);
-    policy.setFamilyDefault(1, FEE_300);
-    vm.snapshotGasLastCall("policy.setFamilyDefault");
-    assertEq(policy.familyDefaults(1), FEE_300);
-  }
-
-  function test_setFamilyDefault_revertsZeroFamily() public {
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    policy.setFamilyDefault(0, FEE_100);
-  }
-
-  function test_setFamilyDefault_revertsNativeMathFamily() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    policy.setFamilyDefault(nativeFamily, FEE_100);
-  }
-
-  function test_clearFamilyDefault_revertsNativeMathFamily() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    policy.clearFamilyDefault(nativeFamily);
-  }
-
-  function test_setPairClassFee_success() public {
-    bytes32 ph = _pairHash();
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    vm.expectEmit(true, true, false, true, address(policy));
-    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, FEE_200);
-    vm.prank(feeSetter);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_200);
-    vm.snapshotGasLastCall("policy.setPairClassFee");
-    assertEq(policy.pairClassFees(ph, nativeFamily), FEE_200);
-  }
-
-  function test_setPairClassFee_revertsCurrenciesOutOfOrder() public {
-    vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
-    vm.prank(feeSetter);
-    policy.setPairClassFee(standardKey.currency1, standardKey.currency0, 1, FEE_200);
-  }
-
-  function test_setPairClassFee_revertsInvalidFee() public {
-    vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
-    vm.prank(feeSetter);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, (1001 << 12) | 500);
-  }
-
-  function test_setPairClassFee_revertsFamilyZero() public {
-    // Regression (audit item 1): pairClassFees[pair][0] is never read by computeFee
-    // (family 0 returns defaultFee first), so a family-0 override would be dead storage.
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    vm.prank(feeSetter);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 0, FEE_200);
-  }
-
-  function test_clearPairClassFee_revertsFamilyZero() public {
-    vm.expectRevert(IV4FeePolicy.InvalidFamilyId.selector);
-    vm.prank(feeSetter);
-    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, 0);
-  }
-
-  function test_batchSetPairClassFee_success() public {
-    bytes32 ph = _pairHash();
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    PairClassFeeAssignment[] memory assignments = new PairClassFeeAssignment[](2);
-    assignments[0] = PairClassFeeAssignment({
-      currency0: standardKey.currency0,
-      currency1: standardKey.currency1,
-      familyId: nativeFamily,
-      feeValue: FEE_200
-    });
-    assignments[1] = PairClassFeeAssignment({
-      currency0: standardKey.currency0,
-      currency1: standardKey.currency1,
-      familyId: 1,
-      feeValue: FEE_300
-    });
-
-    vm.prank(feeSetter);
-    policy.batchSetPairClassFee(assignments);
-    vm.snapshotGasLastCall("policy.batchSetPairClassFee");
-
-    assertEq(policy.pairClassFees(ph, nativeFamily), FEE_200);
-    assertEq(policy.pairClassFees(ph, 1), FEE_300);
-  }
-
-  function test_batchClearPairClassFee_success() public {
-    bytes32 ph = _pairHash();
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.startPrank(feeSetter);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_500);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, 1, FEE_300);
-
-    PairClassFeeClear[] memory clears = new PairClassFeeClear[](2);
-    clears[0] = PairClassFeeClear({
-      currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: nativeFamily
-    });
-    clears[1] = PairClassFeeClear({
-      currency0: standardKey.currency0, currency1: standardKey.currency1, familyId: 1
-    });
-
-    policy.batchClearPairClassFee(clears);
-    vm.snapshotGasLastCall("policy.batchClearPairClassFee");
-    vm.stopPrank();
-
-    assertEq(policy.pairClassFees(ph, nativeFamily), 0);
-    assertEq(policy.pairClassFees(ph, 1), 0);
-  }
-
-  // ============ Policy: Sentinel Encoding ============
-
-  function test_sentinel_setZeroIsExplicitZero() public {
-    // setFamilyDefault(1, 0) stores sentinel -explicit zero fee, not "unset"
-    vm.startPrank(feeSetter);
-    policy.setFamilyDefault(1, FEE_200);
-    assertEq(policy.familyDefaults(1), FEE_200);
-
-    policy.setFamilyDefault(1, 0);
-    assertEq(policy.familyDefaults(1), type(uint24).max); // sentinel in storage
-    vm.stopPrank();
-
-    // computeFee decodes sentinel to 0 -explicit zero, does not fall through
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setDefaultFee(FEE_500); // would be used if familyDefault were unset
-    vm.stopPrank();
-
-    // Family 1 has explicit zero -> 0, NOT the defaultFee of FEE_500
-    assertEq(policy.computeFee(customKey), 0);
-  }
-
-  function test_sentinel_updateEventsDistinguishExplicitZeroAndClear() public {
-    bytes32 ph = _pairHash();
-
-    vm.startPrank(feeSetter);
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.DefaultFeeUpdated(type(uint24).max);
-    policy.setDefaultFee(0);
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.DefaultFeeUpdated(0);
-    policy.clearDefaultFee();
-
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.FamilyDefaultUpdated(1, type(uint24).max);
-    policy.setFamilyDefault(1, 0);
-
-    vm.expectEmit(true, false, false, true, address(policy));
-    emit IV4FeePolicy.FamilyDefaultUpdated(1, 0);
-    policy.clearFamilyDefault(1);
-
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-
-    vm.expectEmit(true, true, false, true, address(policy));
-    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, type(uint24).max);
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, 0);
-
-    vm.expectEmit(true, true, false, true, address(policy));
-    emit IV4FeePolicy.PairClassFeeUpdated(ph, nativeFamily, 0);
-    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily);
-
-    vm.stopPrank();
-  }
-
-  function test_sentinel_clearFallsThrough() public {
-    // clearFamilyDefault deletes storage -> falls through to defaultFee
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(customHook, 1);
-    policy.setFamilyDefault(1, FEE_200);
-    policy.setDefaultFee(FEE_500);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(customKey), FEE_200); // familyDefault wins
-
-    vm.prank(feeSetter);
-    policy.clearFamilyDefault(1);
-
-    assertEq(policy.familyDefaults(1), 0); // storage is 0, not sentinel
-    assertEq(policy.computeFee(customKey), FEE_500); // falls through to defaultFee
-  }
-
-  // ============ Policy: Clear Functions ============
-
-  function test_clearDefaultFee() public {
-    vm.startPrank(feeSetter);
-    policy.setDefaultFee(FEE_200);
-    assertEq(policy.defaultFee(), FEE_200);
-
-    policy.clearDefaultFee();
-    assertEq(policy.defaultFee(), 0); // storage deleted, not sentinel
-    vm.stopPrank();
-  }
-
-  function test_clearPairClassFee_fallsThroughToBuckets() public {
-    uint8 nativeFamily = policy.NATIVE_MATH_FAMILY_ID();
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily, FEE_500);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(standardKey), FEE_500); // pair class fee wins
-
-    vm.prank(feeSetter);
-    policy.clearPairClassFee(standardKey.currency0, standardKey.currency1, nativeFamily);
-
-    assertEq(policy.pairClassFees(_pairHash(), nativeFamily), 0); // storage deleted
-    // Falls through to buckets: 3000 * 100_000 / 1_000_000 = 300
-    assertEq(policy.computeFee(standardKey), FEE_300);
-  }
-
-  function test_clearPairClassFee_revertsCurrenciesOutOfOrder() public {
-    vm.expectRevert(IV4FeePolicy.CurrenciesOutOfOrder.selector);
-    vm.prank(feeSetter);
-    policy.clearPairClassFee(standardKey.currency1, standardKey.currency0, 1);
-  }
-
-  // ============ Integration: Full Waterfall ============
-
-  function test_integration_fullWaterfall() public {
-    address customHook = address(uint160((1 << 7) | (1 << 2)));
-    PoolKey memory customKey = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(customHook)
-    });
-    poolManager.mockInitialize(customKey);
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-    policy.setDefaultFee(FEE_100);
-    policy.setHookFamily(customHook, 1);
-    policy.setFamilyDefault(1, FEE_200);
-    policy.setPairClassFee(
-      standardKey.currency0, standardKey.currency1, policy.NATIVE_MATH_FAMILY_ID(), FEE_500
-    );
-    policy.setPairClassFee(customKey.currency0, customKey.currency1, 1, FEE_300);
-    vm.stopPrank();
-
-    // StandardKey -> StaticNativeMath -> native pair class fee -> FEE_500
-    assertEq(adapter.getFee(standardKey), FEE_500);
-
-    // CustomKey -> Classified -> pair class fee -> FEE_300
-    assertEq(adapter.getFee(customKey), FEE_300);
-
-    // Pool override beats everything
-    vm.prank(feeSetter);
-    adapter.setPoolOverride(standardKey.toId(), FEE_1000);
-    assertEq(adapter.getFee(standardKey), FEE_1000);
-  }
-
-  function test_integration_triggerAndCollect() public {
-    Currency c = Currency.wrap(address(token0));
-    uint256 amount = 100e18;
-    token0.mint(address(poolManager), amount);
-    poolManager.setProtocolFeesAccrued(c, amount);
-
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    // Trigger fee update
-    adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), FEE_300);
-
-    // Collect fees
-    IV4FeeAdapter.CollectParams[] memory params = new IV4FeeAdapter.CollectParams[](1);
-    params[0] = IV4FeeAdapter.CollectParams({currency: c, amount: 0});
-    adapter.collect(params);
-    assertEq(token0.balanceOf(tokenJar), amount);
-  }
-
-  // ============ Edge Cases ============
-
-  function test_edge_maxProtocolFee() public {
-    vm.prank(feeSetter);
-    adapter.setPoolOverride(standardKey.toId(), FEE_1000);
-    assertEq(adapter.getFee(standardKey), FEE_1000);
-  }
-
-  function test_edge_asymmetricFee() public {
-    uint24 asymmetric = (500 << 12) | 200; // 500 pips 1->0, 200 pips 0->1
-    vm.prank(feeSetter);
-    adapter.setPoolOverride(standardKey.toId(), asymmetric);
-
-    adapter.triggerFeeUpdate(standardKey);
-    assertEq(poolManager.getProtocolFee(standardKey.toId()), asymmetric);
-  }
-
-  function test_edge_policySwap() public {
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(TEST_BETA_PIPS));
-
-    assertEq(adapter.getFee(standardKey), FEE_300);
-
-    // Deploy new policy with no multiplier configured (default 0)
-    vm.startPrank(owner);
-    V4FeePolicy newPolicy = new V4FeePolicy(IPoolManager(address(poolManager)));
-    newPolicy.setFeeSetter(feeSetter);
-    adapter.setPolicy(newPolicy);
-    vm.stopPrank();
-
-    // New policy has multiplier == 0 -> 0
-    assertEq(adapter.getFee(standardKey), 0);
-  }
-
-  // ============ Policy: Flag Rules Configuration ============
-
-  function test_setFlagRules_success() public {
-    FlagRule[] memory rules = new FlagRule[](2);
-    rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
-    });
-    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.FlagRulesUpdated(2);
-    vm.prank(feeSetter);
-    policy.setFlagRules(rules);
-    vm.snapshotGasLastCall("policy.setFlagRules - two rules");
-
-    assertEq(policy.flagRulesLength(), 2);
-    (uint256 flags0, uint8 fam0) = policy.flagRules(0);
-    assertEq(flags0, HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS);
-    assertEq(fam0, 3);
-    (uint256 flags1, uint8 fam1) = policy.flagRules(1);
-    assertEq(flags1, HookFeeFlags.TAKES_SWAP_SURPLUS);
-    assertEq(fam1, 2);
-  }
-
-  function test_setFlagRules_replacesExisting() public {
-    FlagRule[] memory rules1 = new FlagRule[](2);
-    rules1[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
-    rules1[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    FlagRule[] memory rules2 = new FlagRule[](1);
-    rules2[0] = FlagRule({requiredFlags: HookFeeFlags.ORACLE_BASED, familyId: 5});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules1);
-    assertEq(policy.flagRulesLength(), 2);
-    policy.setFlagRules(rules2);
-    assertEq(policy.flagRulesLength(), 1);
-    vm.stopPrank();
-
-    (uint256 flags, uint8 fam) = policy.flagRules(0);
-    assertEq(flags, HookFeeFlags.ORACLE_BASED);
-    assertEq(fam, 5);
-  }
-
-  function test_setFlagRules_revertsUnauthorized() public {
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.setFlagRules(rules);
-  }
-
-  function test_setFlagRules_revertsZeroRequiredFlags() public {
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: 0, familyId: 1});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFlagRule.selector);
-    policy.setFlagRules(rules);
-  }
-
-  function test_setFlagRules_revertsZeroFamilyId() public {
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 0});
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.InvalidFlagRule.selector);
-    policy.setFlagRules(rules);
-  }
-
-  function test_setFlagRules_revertsIfSpecificRuleFollowsBroadRule() public {
-    FlagRule[] memory rules = new FlagRule[](2);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-    rules[1] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
-    });
-
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.FlagRulesNotSorted.selector);
-    policy.setFlagRules(rules);
-  }
-
-  function test_setFlagRules_revertsTooManyRules() public {
-    FlagRule[] memory rules = new FlagRule[](33);
-    for (uint256 i; i < 33; ++i) {
-      rules[i] = FlagRule({requiredFlags: 1 << i, familyId: uint8(i + 1)});
-    }
-    vm.prank(feeSetter);
-    vm.expectRevert(IV4FeePolicy.TooManyFlagRules.selector);
-    policy.setFlagRules(rules);
-  }
-
-  function test_clearFlagRules() public {
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    assertEq(policy.flagRulesLength(), 1);
-
-    vm.expectEmit(false, false, false, true, address(policy));
-    emit IV4FeePolicy.FlagRulesUpdated(0);
-    policy.clearFlagRules();
-    assertEq(policy.flagRulesLength(), 0);
-    vm.stopPrank();
-  }
-
-  function test_clearFlagRules_revertsUnauthorized() public {
-    vm.prank(alice);
-    vm.expectRevert(IV4FeePolicy.Unauthorized.selector);
-    policy.clearFlagRules();
-  }
-
-  // ============ Policy: Flag-Based Classification ============
-
-  function test_flagRule_singleFlagMatch() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2); // custom accounting
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(2, FEE_300);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(key), FEE_300);
-    vm.snapshotGasLastCall("policy.computeFee - flag-rule single flag match");
-  }
-
-  function test_flagRule_multiFlagMatch() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS | HookFeeFlags.STABLE_PAIR;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](2);
-    // More specific rule first: both flags required
-    rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
-    });
-    // Less specific: only one flag
-    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(2, FEE_200);
-    policy.setFamilyDefault(3, FEE_500);
-    vm.stopPrank();
-
-    // Hook has both flags -> matches rule 0 (family 3) first
-    assertEq(policy.computeFee(key), FEE_500);
-    vm.snapshotGasLastCall("policy.computeFee - flag-rule multi-flag match");
-  }
-
-  function test_flagRule_priorityOrdering() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    // Hook only has TAKES_SWAP_SURPLUS (not STABLE_PAIR)
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](2);
-    rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
-    });
-    rules[1] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(2, FEE_200);
-    policy.setFamilyDefault(3, FEE_500);
-    vm.stopPrank();
-
-    // Hook lacks STABLE_PAIR -> skips rule 0, matches rule 1 (family 2)
-    assertEq(policy.computeFee(key), FEE_200);
-  }
-
-  function test_flagRule_noMatchFallsToDefault() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    // Hook reports ORACLE_BASED but no rules match that
-    uint256 feeFlags = HookFeeFlags.ORACLE_BASED;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    // No rule matches ORACLE_BASED -> falls through to defaultFee
-    assertEq(policy.computeFee(key), FEE_100);
-  }
-
-  function test_flagRule_hookReportsZeroFlagsFallsToDefault() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    // Hook reports zero flags
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(0);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 1});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(1, FEE_500);
-    policy.setDefaultFee(FEE_100);
-    vm.stopPrank();
-
-    // Zero flags -> skips rule matching entirely -> defaultFee
-    assertEq(policy.computeFee(key), FEE_100);
-  }
-
-  function test_flagRule_noRulesConfiguredFallsToDefault() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    vm.prank(feeSetter);
-    policy.setDefaultFee(FEE_100);
-
-    // No flag rules configured -> skips staticcall entirely -> defaultFee
-    assertEq(policy.computeFee(key), FEE_100);
-  }
-
-  function test_flagRule_superset_matchesSubsetRule() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    // Hook reports many flags
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS | HookFeeFlags.STABLE_PAIR
-      | HookFeeFlags.ORACLE_BASED | HookFeeFlags.YIELD_BEARING;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    // Rule only requires STABLE_PAIR
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.STABLE_PAIR, familyId: 4});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(4, FEE_200);
-    vm.stopPrank();
-
-    // Hook has STABLE_PAIR among other flags -> matches
-    assertEq(policy.computeFee(key), FEE_200);
-  }
-
-  function test_flagRule_withPairClassFee() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({
-      requiredFlags: HookFeeFlags.STABLE_PAIR | HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 3
-    });
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setPairClassFee(key.currency0, key.currency1, 3, FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(key), FEE_100);
-  }
-
-  function test_flagRule_governanceOverrideTakesPriorityOverFlags() public {
-    uint160 addrFlags = (1 << 7) | (1 << 2);
-    address hookAddr = address(addrFlags);
-    uint256 feeFlags = HookFeeFlags.TAKES_SWAP_SURPLUS;
-    MockFeeClassifiedHook impl = new MockFeeClassifiedHook(feeFlags);
-    vm.etch(hookAddr, address(impl).code);
-
-    PoolKey memory key = PoolKey({
-      currency0: Currency.wrap(address(token0)),
-      currency1: Currency.wrap(address(token1)),
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(hookAddr)
-    });
-    poolManager.mockInitialize(key);
-
-    FlagRule[] memory rules = new FlagRule[](1);
-    rules[0] = FlagRule({requiredFlags: HookFeeFlags.TAKES_SWAP_SURPLUS, familyId: 2});
-
-    vm.startPrank(feeSetter);
-    policy.setFlagRules(rules);
-    policy.setFamilyDefault(2, FEE_200); // flag-rule would give this
-    policy.setHookFamily(hookAddr, 5); // governance override
-    policy.setFamilyDefault(5, FEE_500); // governance family fee
-    vm.stopPrank();
-
-    // Governance override (family 5) wins over flag-rule match (family 2)
-    assertEq(policy.computeFee(key), FEE_500);
-  }
-
-  function test_flagRule_max32Rules() public {
-    FlagRule[] memory rules = new FlagRule[](32);
-    for (uint256 i; i < 32; ++i) {
-      rules[i] = FlagRule({requiredFlags: 1 << i, familyId: uint8(i + 1)});
-    }
-    vm.prank(feeSetter);
-    policy.setFlagRules(rules);
-    vm.snapshotGasLastCall("policy.setFlagRules - 32 rules (max)");
-    assertEq(policy.flagRulesLength(), 32);
+    adapter.transferOwnership(newOwner);
+  }
+
+  function testFuzz_transferOwnership_WhenCallerIsTheOwner(address newOwner) public {
+    // When: the caller is the owner.
+    // Then: transferOwnership emits OwnershipTransferred.
+    vm.expectEmit(address(adapter));
+    emit Owned.OwnershipTransferred(owner, newOwner);
+    vm.prank(owner);
+    adapter.transferOwnership(newOwner);
+
+    // Then: transferOwnership sets the owner.
+    assertEq(adapter.owner(), newOwner);
   }
 }

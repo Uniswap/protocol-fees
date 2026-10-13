@@ -8,8 +8,9 @@ import {
   ProtocolFeeRulesetAssignment,
   IV4ProtocolFeeRuleset
 } from "../interfaces/IV4FeePolicy.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
-import {ERC165Checker} from "openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol";
+import {
+  ERC165Checker
+} from "openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 
@@ -17,15 +18,15 @@ import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
 
-  /// @dev Bitmask for the four RETURNS_DELTA flags (bits 0-3 of hook address).
+  /// @dev Mask for the four RETURNS_DELTA flags (bits 0-3 of the hook address).
   uint160 public constant CUSTOM_ACCOUNTING_MASK = 0xF;
 
-  /// @notice Sentinel addresses for hookless and static curve policies.
-  /// @dev These MAY be overwritten by the fee setter.
+  /// @notice Sentinel addresses for pools that have no hook, and for the static curve.
+  /// @dev The fee setter can set a ruleset at these addresses.
   address public constant HOOKLESS_POLICY_SENTINEL = address(0);
   address public constant STATIC_CURVE_POLICY_SENTINEL = address(1);
 
-  /// @notice Registered rulesets per hook.
+  /// @notice The ruleset of each hook.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
 
   uint24 public defaultFee;
@@ -37,7 +38,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     feeSetter = _feeSetter;
   }
 
-  /// @notice Restricts access to the fee setter address.
+  /// @notice Reverts if the caller is not the fee setter.
   modifier onlyFeeSetter() {
     if (msg.sender != feeSetter) revert Unauthorized();
     _;
@@ -47,26 +48,32 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   function computeFee(PoolKey calldata key) public view returns (uint24) {
     IV4ProtocolFeeRuleset ruleset = rulesets[address(key.hooks)];
 
-    // If a policy is explictly set, return the protocol fee as reported
+    // If a ruleset is set for the hook, return the fee from that ruleset.
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // If there is no hook on the pool, return the default fee if set
+    // If the pool has no hook, return the default fee.
     if (address(key.hooks) == address(0)) return defaultFee;
 
-    // For hooked pools without custom accounting or dynamic fees, return the static fee curve policy if set
+    // If the hook does not do custom accounting and the LP fee is static, return the fee from the
+    // static curve, if a ruleset is set at STATIC_CURVE_POLICY_SENTINEL.
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
-        IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
-        if(address(staticCurveRuleset) != address(0)) return _handleGetProtocolFee(staticCurveRuleset, key);
+      IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
+      if (address(staticCurveRuleset) != address(0)) {
+        return _handleGetProtocolFee(staticCurveRuleset, key);
+      }
     }
-    // For hooks that return a protocol fee themselves, fetch it from the hook
-    if (ERC165Checker.supportsInterface(address(key.hooks), type(IV4ProtocolFeeRuleset).interfaceId)) {
-        return _handleGetProtocolFee(IV4ProtocolFeeRuleset(address(key.hooks)), key);
-    }
-    // Finally, return the default fee if set
+    // If the hook supports the ruleset interface, return the fee from the hook.
+    if (ERC165Checker.supportsInterface(
+        address(key.hooks), type(IV4ProtocolFeeRuleset).interfaceId
+      )) return _handleGetProtocolFee(IV4ProtocolFeeRuleset(address(key.hooks)), key);
+    // Return the default fee.
     return defaultFee;
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) external onlyFeeSetter {
+  function setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset)
+    external
+    onlyFeeSetter
+  {
     _setProtocolFeeRuleset(hook, ruleset);
   }
 
@@ -89,35 +96,39 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @inheritdoc IV4FeePolicy
-  function setDefaultFee(uint24 _defaultFee) external onlyFeeSetter() {
+  function setDefaultFee(uint24 _defaultFee) external onlyFeeSetter {
     _validateFee(_defaultFee);
     emit DefaultFeeUpdated(defaultFee, _defaultFee);
     defaultFee = _defaultFee;
   }
 
-  /// @dev Internal function to set a protocol fee policy for a given hook.
+  /// @dev Sets the ruleset of a hook.
   function _setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) internal {
     emit ProtocolFeeRulesetChanged(hook, ruleset);
     rulesets[hook] = ruleset;
   }
 
-  /// @notice Get the protocol fee from a policy, validating the fee before returning it.
-  /// @dev Reverts to prevent calls to the zero address, which SHOULD be checked by the caller.
-  /// @dev Calls to addresses which do not contain code or contracts that do not implement
-  ///      the IV4ProtocolFeeRuleset interface are allowed as they will revert.
-  function _handleGetProtocolFee(IV4ProtocolFeeRuleset policy, PoolKey calldata key) internal view returns (uint24) {
-    if(address(policy) == address(0)) revert AddressCannotBeZero();
+  /// @notice Returns the protocol fee from a ruleset. Reverts if the fee is above MAX_PROTOCOL_FEE.
+  /// @dev Reverts if the ruleset is the zero address. The caller must not pass the zero address.
+  /// @dev A call to an address without code, or to a contract that does not implement
+  ///      IV4ProtocolFeeRuleset, reverts.
+  function _handleGetProtocolFee(IV4ProtocolFeeRuleset policy, PoolKey calldata key)
+    internal
+    view
+    returns (uint24)
+  {
+    if (address(policy) == address(0)) revert AddressCannotBeZero();
     uint24 fee = policy.getProtocolFee(key);
     _validateFee(fee);
     return fee;
   }
 
-    /// @dev Validates protocol fee bounds.
+  /// @dev Reverts if the fee is above MAX_PROTOCOL_FEE.
   function _validateFee(uint24 feeValue) internal pure {
     if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue();
   }
 
-  /// @dev Returns true if the hook address has any RETURNS_DELTA flag set (bits 0-3).
+  /// @dev Returns true if the hook has a RETURNS_DELTA flag (bits 0-3).
   function _isCustomAccounting(address hook) internal pure returns (bool) {
     return uint160(hook) & CUSTOM_ACCOUNTING_MASK != 0;
   }
