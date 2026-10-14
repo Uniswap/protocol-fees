@@ -53,6 +53,11 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset, Owned {
   }
 
   /// @inheritdoc IV4StaticCurveRuleset
+  function getFeeForLpFee(uint24 lpFee) external view returns (uint24) {
+    return _computeFee(lpFee);
+  }
+
+  /// @inheritdoc IV4StaticCurveRuleset
   function feeBucketsLength() external view returns (uint256) {
     return _feeBuckets.length;
   }

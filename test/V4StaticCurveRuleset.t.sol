@@ -225,6 +225,103 @@ contract V4StaticCurveRulesetTest is Test {
     assertEq(curve.getProtocolFee(key), maxFee << 12 | maxFee);
   }
 
+  // ============ getFeeForLpFee ============
+  //
+  // getFeeForLpFee
+  // ├── given no fee buckets are set
+  // │   └── it returns zero
+  // └── given fee buckets are set
+  //     ├── when the LP fee is at most MAX_LP_FEE
+  //     │   └── it returns the same fee as getProtocolFee
+  //     └── when the LP fee is above MAX_LP_FEE
+  //         ├── when the calculated fee is at most MAX_PROTOCOL_FEE
+  //         │   └── it returns that fee in the two directions
+  //         └── when the calculated fee is more than MAX_PROTOCOL_FEE
+  //             └── it returns MAX_PROTOCOL_FEE in the two directions
+  //
+  // An LP fee above MAX_LP_FEE is an effective fee: the static LP fee plus a fee the hook takes
+  // through custom accounting. getProtocolFee reverts for the dynamic-fee flag, so that input is
+  // covered here.
+
+  function testFuzz_getFeeForLpFee_GivenNoFeeBucketsAreSet(uint24 lpFee) public view {
+    // Given: no fee buckets are set.
+    // Then: getFeeForLpFee returns zero.
+    assertEq(curve.getFeeForLpFee(lpFee), 0);
+  }
+
+  function testFuzz_getFeeForLpFee_WhenTheLPFeeIsAtMostMaxLpFee(
+    PoolKey memory key,
+    FeeBucket[16] memory raw,
+    uint256 count
+  ) public {
+    // Given: fee buckets are set.
+    vm.prank(feeSetter);
+    curve.setFeeBuckets(_boundFeeBuckets(raw, bound(count, 1, 16)));
+
+    // When: the LP fee is a static fee.
+    key.fee = uint24(bound(key.fee, 0, LPFeeLibrary.MAX_LP_FEE));
+
+    // Then: getFeeForLpFee returns the same fee as getProtocolFee.
+    assertEq(curve.getFeeForLpFee(key.fee), curve.getProtocolFee(key));
+  }
+
+  function testFuzz_getFeeForLpFee_WhenTheLPFeeIsAboveMaxLpFee(
+    FeeBucket[16] memory raw,
+    uint256 count,
+    uint24 lpFee
+  ) public {
+    // Given: fee buckets are set.
+    count = bound(count, 1, 16);
+    FeeBucket[] memory buckets = _boundFeeBuckets(raw, count);
+
+    // When: the LP fee is above MAX_LP_FEE, in the highest bucket.
+    FeeBucket memory highest = buckets[count - 1];
+    lpFee = uint24(bound(lpFee, LPFeeLibrary.MAX_LP_FEE + 1, type(uint24).max));
+
+    // Given: the slope of that bucket keeps the fee at or below MAX_PROTOCOL_FEE.
+    uint256 delta = lpFee - highest.lpFeeFloor;
+    uint256 maxBeta =
+      (ProtocolFeeLibrary.MAX_PROTOCOL_FEE - highest.alphaPips) * BETA_DENOMINATOR / delta;
+    highest.betaPips = uint32(bound(highest.betaPips, 0, maxBeta));
+    vm.prank(feeSetter);
+    curve.setFeeBuckets(buckets);
+
+    // Then: getFeeForLpFee returns that fee in the two directions.
+    uint24 expected = uint24(highest.alphaPips + highest.betaPips * delta / BETA_DENOMINATOR);
+    assertEq(curve.getFeeForLpFee(lpFee), expected << 12 | expected);
+  }
+
+  function testFuzz_getFeeForLpFee_WhenTheCalculatedFeeIsMoreThanMaxProtocolFee(
+    FeeBucket[16] memory raw,
+    uint256 count,
+    uint24 lpFee
+  ) public {
+    // Given: fee buckets are set.
+    count = bound(count, 1, 16);
+    FeeBucket[] memory buckets = _boundFeeBuckets(raw, count);
+
+    // When: the LP fee is above MAX_LP_FEE and 2 or more pips above the floor of the highest
+    // bucket.
+    FeeBucket memory highest = buckets[count - 1];
+    uint24 floor = highest.lpFeeFloor + 2 > LPFeeLibrary.MAX_LP_FEE + 1
+      ? highest.lpFeeFloor + 2
+      : LPFeeLibrary.MAX_LP_FEE + 1;
+    lpFee = uint24(bound(lpFee, floor, type(uint24).max));
+
+    // When: the slope of that bucket makes the fee more than MAX_PROTOCOL_FEE.
+    uint256 delta = lpFee - highest.lpFeeFloor;
+    uint256 minBeta =
+      ((ProtocolFeeLibrary.MAX_PROTOCOL_FEE + 1 - highest.alphaPips) * BETA_DENOMINATOR + delta - 1)
+        / delta;
+    highest.betaPips = uint32(bound(highest.betaPips, minBeta, MAX_BETA_PIPS));
+    vm.prank(feeSetter);
+    curve.setFeeBuckets(buckets);
+
+    // Then: getFeeForLpFee returns MAX_PROTOCOL_FEE in the two directions.
+    uint24 maxFee = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
+    assertEq(curve.getFeeForLpFee(lpFee), maxFee << 12 | maxFee);
+  }
+
   // ============ feeBucketsLength ============
   //
   // feeBucketsLength
