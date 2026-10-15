@@ -24,6 +24,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev These MAY be overwritten by the fee setter.
   address public constant HOOKLESS_POLICY_SENTINEL = address(0);
   address public constant STATIC_CURVE_POLICY_SENTINEL = address(1);
+  /// @notice The zero fee.
+  uint24 public constant ZERO_FEE = 0;
 
   /// @notice Registered rulesets per hook.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
@@ -49,13 +51,18 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
     // If a policy is explictly set, return the protocol fee as reported
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // If there is no hook on the pool, return the default fee if set
-    if (address(key.hooks) == address(0)) return defaultFee;
+    // If the pool has no hook, explictly return zero fee.
+    if (address(key.hooks) == address(0)) return ZERO_FEE;
 
     // For hooked pools without custom accounting or dynamic fees, return the static fee curve policy if set
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
         IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
-        if(address(staticCurveRuleset) != address(0)) return _handleGetProtocolFee(staticCurveRuleset, key);
+        if (address(staticCurveRuleset) != address(0)) {
+            return _handleGetProtocolFee(staticCurveRuleset, key);
+        } else {
+            // If the static curve ruleset is not set, return the zero fee.
+            return ZERO_FEE;
+        }
     }
     // For hooks that return a protocol fee themselves, fetch it from the hook
     if (ERC165Checker.supportsInterface(address(key.hooks), type(IV4ProtocolFeeRuleset).interfaceId)) {
