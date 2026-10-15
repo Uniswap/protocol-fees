@@ -25,6 +25,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev The fee setter can set a ruleset at these addresses.
   address public constant HOOKLESS_POLICY_SENTINEL = address(0);
   address public constant STATIC_CURVE_POLICY_SENTINEL = address(1);
+  /// @notice The zero fee.
+  uint24 public constant ZERO_FEE = 0;
 
   /// @notice The ruleset of each hook.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
@@ -50,8 +52,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
     // If a ruleset is set for the hook, return the fee from that ruleset.
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // If the pool has no hook, return the default fee.
-    if (address(key.hooks) == address(0)) return defaultFee;
+    // If the pool has no hook, explictly return zero fee.
+    if (address(key.hooks) == address(0)) return ZERO_FEE;
 
     // If the hook does not do custom accounting and the LP fee is static, return the fee from the
     // static curve, if a ruleset is set at STATIC_CURVE_POLICY_SENTINEL.
@@ -59,6 +61,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
       IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
       if (address(staticCurveRuleset) != address(0)) {
         return _handleGetProtocolFee(staticCurveRuleset, key);
+      } else {
+        // If the static curve ruleset is not set, return the zero fee.
+        return ZERO_FEE;
       }
     }
     // If the hook supports the ruleset interface, return the fee from the hook.
