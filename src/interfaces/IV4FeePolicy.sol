@@ -9,52 +9,52 @@ struct ProtocolFeeRulesetAssignment {
 }
 
 interface IV4ProtocolFeeRuleset {
-  /// @notice Allows a ruleset to return the protocol fee for a given pool.
-  /// @param key The pool key to return the protocol fee for.
+  /// @notice Returns the protocol fee of a pool.
+  /// @param key The key of the pool.
   function getProtocolFee(PoolKey calldata key) external view returns (uint24);
 }
 
 interface IV4FeePolicy {
-  /// @notice Emitted when a protocol fee ruleset is set for a given hook.
-  /// @param hook The hook that the ruleset is set for.
-  /// @param ruleset The ruleset that is set.
+  /// @notice The fee setter sets a protocol fee ruleset for a hook.
+  /// @param hook The hook.
+  /// @param ruleset The ruleset.
   event ProtocolFeeRulesetChanged(address indexed hook, IV4ProtocolFeeRuleset ruleset);
 
-  /// @notice Emitted when the default fee is updated.
-  /// @param oldDefaultFee The old default fee.
+  /// @notice The fee setter changes the default fee.
+  /// @param oldDefaultFee The previous default fee.
   /// @param newDefaultFee The new default fee.
   event DefaultFeeUpdated(uint24 oldDefaultFee, uint24 newDefaultFee);
 
-  /// @notice Emitted when the fee setter address is updated.
-  /// @param oldFeeSetter The old fee setter address.
-  /// @param newFeeSetter The new fee setter address.
+  /// @notice The owner changes the fee setter.
+  /// @param oldFeeSetter The previous fee setter.
+  /// @param newFeeSetter The new fee setter.
   event FeeSetterUpdated(address oldFeeSetter, address newFeeSetter);
 
-  /// @notice Thrown when a fee value fails ProtocolFeeLibrary.isValidProtocolFee.
+  /// @notice The fee is above MAX_PROTOCOL_FEE.
   error InvalidFeeValue();
 
-  /// @notice Thrown when making a call to the zero address.
+  /// @notice The call is to the zero address.
   error AddressCannotBeZero();
 
-  /// @notice Thrown when an unauthorized address calls a restricted function.
+  /// @notice The caller is not the fee setter.
   error Unauthorized();
 
-  /// @notice Compute the protocol fee for a given pool.
+  /// @notice Calculates the protocol fee of a pool.
   function computeFee(PoolKey calldata key) external view returns (uint24);
 
-  /// @notice Explictly set a protocol fee policy for a given hook. This overrides
-  ///         any reported by the hook itself.
+  /// @notice Sets the protocol fee ruleset of a hook. This ruleset applies before a fee from the
+  /// hook. Only the fee setter can call this function.
   function setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) external;
 
-  /// @notice Explictly set a protocol fee ruleset for a given hook. This overrides
-  ///         any reported by the hook itself.
+  /// @notice Sets the protocol fee ruleset of each hook in the list. Each ruleset applies before a
+  /// fee from the hook. Only the fee setter can call this function.
   function batchSetProtocolFeeRulesets(ProtocolFeeRulesetAssignment[] calldata assignments) external;
 
-  /// @notice Sets the fee setter address. Only callable by owner.
-  /// @param newFeeSetter The new fee setter address.
+  /// @notice Sets the fee setter. Only the owner can call this function.
+  /// @param newFeeSetter The new fee setter.
   function setFeeSetter(address newFeeSetter) external;
 
-  /// @notice Sets the default fee. Only callable by the fee setter.
+  /// @notice Sets the default fee. Only the fee setter can call this function.
   /// @param _defaultFee The new default fee.
   function setDefaultFee(uint24 _defaultFee) external;
 }
