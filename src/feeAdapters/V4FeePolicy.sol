@@ -52,18 +52,18 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
     // If a ruleset is set for the hook, return the fee from that ruleset.
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // If the pool has no hook, explictly return zero fee.
+    // Hookless pools cannot opt in. An unset hookless policy returns zero, not the default fee.
     if (address(key.hooks) == address(0)) return ZERO_FEE;
 
     // If the hook does not do custom accounting and the LP fee is static, return the fee from the
-    // static curve, if a ruleset is set at STATIC_CURVE_POLICY_SENTINEL.
+    // static curve when a ruleset is set at STATIC_CURVE_POLICY_SENTINEL. An unset static curve
+    // does not return zero: resolution continues to hook opt-in, then the default fee. A
+    // configured static curve that returns 0 is deliberate and does not fall through. Returning
+    // zero for an unset policy applies only to hookless pools.
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
       IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
       if (address(staticCurveRuleset) != address(0)) {
         return _handleGetProtocolFee(staticCurveRuleset, key);
-      } else {
-        // If the static curve ruleset is not set, return the zero fee.
-        return ZERO_FEE;
       }
     }
     // If the hook supports the ruleset interface, return the fee from the hook.
