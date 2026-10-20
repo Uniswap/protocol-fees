@@ -43,3 +43,32 @@ contract MockSelfReportingHook is MockProtocolFeeRuleset, IERC165 {
     return false;
   }
 }
+
+/// @notice A hook whose every call reverts. ERC165Checker treats a reverting supportsInterface
+/// as "not supported", so computeFee does not revert on the opt-in check.
+contract MockRevertingHook {
+  error MockReverted();
+
+  fallback() external {
+    revert MockReverted();
+  }
+}
+
+/// @notice A hook that returns one raw word for every call. ERC165Checker treats a zero word as
+/// "not supported". A nonzero word for every id, including the invalid id 0xffffffff, also fails
+/// the ERC165 check, so the hook has not opted in.
+contract MockGarbageHook {
+  uint256 internal immutable WORD;
+
+  constructor(uint256 word) {
+    WORD = word;
+  }
+
+  fallback() external {
+    uint256 word = WORD;
+    assembly {
+      mstore(0x00, word)
+      return(0x00, 0x20)
+    }
+  }
+}

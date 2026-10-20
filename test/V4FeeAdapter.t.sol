@@ -4,22 +4,28 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Owned} from "solmate/src/auth/Owned.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IProtocolFees} from "v4-core/interfaces/IProtocolFees.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
+import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
-import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
+import {V4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
 import {IV4FeePolicy} from "../src/interfaces/IV4FeePolicy.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {MockFeePolicy} from "./mocks/MockFeePolicy.sol";
+import {MockProtocolFeeRuleset, MockSelfReportingHook} from "./mocks/MockProtocolFeeRuleset.sol";
 
 /// @dev Each section starts with the branch tree of one function. The tests are in the same
 /// sequence as the tree. Each test sets all conditions of its branch, thus setUp has no policy or
-/// pool state. The adapter only forwards to its policy, thus these tests use MockFeePolicy.
+/// pool state. The adapter only forwards to its policy, thus these tests use MockFeePolicy, except
+/// the test that an explicit pool override beats a hooked static pool on V4FeePolicy.
 contract V4FeeAdapterTest is Test {
   using StateLibrary for IPoolManager;
 
@@ -141,6 +147,59 @@ contract V4FeeAdapterTest is Test {
     // Then: getFee returns the fee from the policy.
     vm.expectCall(address(policy), abi.encodeCall(IV4FeePolicy.computeFee, (key)));
     assertEq(adapter.getFee(key), policyFee);
+  }
+
+  function testFuzz_getFee_OverrideBeatsHookedStaticPoolResolution(
+    PoolKey memory key,
+    uint24 overrideFee,
+    uint24 rulesetFee,
+    uint24 curveFee,
+    uint24 hookFee,
+    uint24 defaultFee
+  ) public {
+    // Given: a hooked static-fee pool. A ruleset is assigned to the hook, a static curve is set,
+    // the hook has opted in, and a default fee is set. Each of those fees differs from the
+    // override.
+    overrideFee = _boundProtocolFee(overrideFee);
+    rulesetFee = _boundProtocolFee(rulesetFee);
+    curveFee = _boundProtocolFee(curveFee);
+    hookFee = _boundProtocolFee(hookFee);
+    defaultFee = _boundProtocolFee(defaultFee);
+    vm.assume(
+      overrideFee != rulesetFee && overrideFee != curveFee && overrideFee != hookFee
+        && overrideFee != defaultFee
+    );
+
+    uint160 returnsDelta = Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
+      | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
+      | Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG;
+    MockSelfReportingHook implementation = new MockSelfReportingHook({
+      fee: hookFee, reverts: false, supportsERC165: true, supportsRuleset: true
+    });
+    MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: curveFee, reverts: false});
+    MockProtocolFeeRuleset ruleset = new MockProtocolFeeRuleset({fee: rulesetFee, reverts: false});
+    key.hooks =
+      IHooks(address((uint160(address(key.hooks)) & ~returnsDelta) | Hooks.BEFORE_SWAP_FLAG));
+    key.fee = uint24(bound(key.fee, 0, LPFeeLibrary.MAX_LP_FEE));
+    vm.assume(address(key.hooks).code.length == 0);
+    vm.etch(address(key.hooks), address(implementation).code);
+
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    vm.startPrank(feeSetter);
+    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(address(key.hooks), ruleset);
+    policy.setDefaultFee(defaultFee);
+    adapter.setPoolOverride(key.toId(), overrideFee);
+    vm.stopPrank();
+
+    // The policy would return the assigned ruleset. The override wins instead, and getFee does
+    // not call the policy.
+    assertEq(policy.computeFee(key), rulesetFee);
+    vm.expectCall(address(policy), abi.encodeCall(IV4FeePolicy.computeFee, (key)), 0);
+    assertEq(adapter.getFee(key), overrideFee);
   }
 
   // ============ triggerFeeUpdate ============
