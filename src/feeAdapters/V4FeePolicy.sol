@@ -51,8 +51,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
     // If a policy is explictly set, return the protocol fee as reported
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // Hookless pools cannot opt in. An unset hookless policy returns zero, not the default fee.
-    if (address(key.hooks) == address(0)) return ZERO_FEE;
+    // Hookless pools use the address(0) policy if set, else defaultFee.
+    if (address(key.hooks) == address(0)) return defaultFee;
 
     // Static-fee hooked pools use the curve at STATIC_CURVE_POLICY_SENTINEL when it is set.
     // An unset curve falls through to hook opt-in, then defaultFee.
