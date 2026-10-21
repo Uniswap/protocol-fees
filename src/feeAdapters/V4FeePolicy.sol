@@ -56,9 +56,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     if (address(key.hooks) == address(0)) return ZERO_FEE;
 
     // Static-fee hooked pools use the curve at STATIC_CURVE_POLICY_SENTINEL when it is set.
-    // An unset curve falls through to hook opt-in, then defaultFee. That is intended. On live
-    // pools, replace the address(1) ruleset; do not unset it. Unsetting moves every live static
-    // hooked pool onto the hook/default path.
+    // An unset curve falls through to hook opt-in, then defaultFee.
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
       IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
       if (address(staticCurveRuleset) != address(0)) {
