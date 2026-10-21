@@ -55,8 +55,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     // Hookless pools cannot opt in. An unset hookless policy returns zero, not the default fee.
     if (address(key.hooks) == address(0)) return ZERO_FEE;
 
-    // For hooked pools without custom accounting or dynamic fees, return the static fee curve
-    // policy if set. An unset static curve falls through to the hook opt-in check.
+    // Static-fee hooked pools use the curve at STATIC_CURVE_POLICY_SENTINEL when it is set.
+    // An unset curve falls through to hook opt-in, then defaultFee. That is intended. On live
+    // pools, replace the address(1) ruleset; do not unset it. Unsetting moves every live static
+    // hooked pool onto the hook/default path.
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
       IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
       if (address(staticCurveRuleset) != address(0)) {
