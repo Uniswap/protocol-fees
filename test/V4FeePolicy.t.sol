@@ -88,7 +88,9 @@ contract V4FeePolicyTest is Test {
   // │   │   └── it reverts with InvalidFeeValue
   // │   └── when the ruleset returns a fee at or below MAX_PROTOCOL_FEE
   // │       ├── when the pool has no hook
-  // │       │   └── it returns the fee of the ruleset at HOOKLESS_POLICY_SENTINEL
+  // │       │   ├── it returns the fee of the ruleset at HOOKLESS_POLICY_SENTINEL
+  // │       │   └── when that ruleset returns zero
+  // │       │       └── it returns zero and does not fall through to the default fee
   // │       ├── when the static curve also applies to the pool
   // │       │   └── it returns the ruleset fee and does not call the static curve
   // │       ├── when the static curve and the hook also apply
@@ -99,9 +101,11 @@ contract V4FeePolicyTest is Test {
   // └── given no ruleset is set for the hook of the pool
   //     ├── given the pool has no hook
   //     │   ├── when a static curve is set
-  //     │   │   └── it returns zero and does not call the static curve
-  //     │   └── when no static curve is set
-  //     │       └── it returns zero and does not return the default fee
+  //     │   │   └── it returns the default fee and does not call the static curve
+  //     │   ├── when no static curve is set
+  //     │   │   └── it returns the default fee
+  //     │   └── when the default fee is zero
+  //     │       └── it returns zero
   //     └── given the pool has a hook
   //         ├── given the hook has no custom accounting and the LP fee is static
   //         │   ├── when a static curve is set at STATIC_CURVE_POLICY_SENTINEL
@@ -154,9 +158,10 @@ contract V4FeePolicyTest is Test {
   // A hook without RETURNS_DELTA flags and a static LP fee uses the static curve when a ruleset is
   // set at STATIC_CURVE_POLICY_SENTINEL. With no ruleset there, computeFee continues to hook
   // opt-in, then the default fee. A configured static curve that returns zero does not fall
-  // through. Hookless pools still return zero when no hookless policy is set, because they cannot
-  // opt in. Custom accounting and a dynamic LP fee skip the static curve. Tests that put code at a
-  // hook address deploy all mocks first. Then they assume that the fuzzed hook address has no
+  // through. Hookless pools use the address(0) policy if it is set, and defaultFee if it is not.
+  // They cannot opt in. Custom accounting and a dynamic LP fee skip the static curve. Tests that
+  // put code at a hook address deploy all mocks first. Then they assume that the fuzzed hook
+  // address has no
   // code. Thus, vm.etch does not change the code of a deployed contract.
 
   function testFuzz_computeFee_RevertWhen_TheRulesetReverts(PoolKey memory key) public {
@@ -209,6 +214,27 @@ contract V4FeePolicyTest is Test {
     // Then: computeFee returns the fee of the ruleset at HOOKLESS_POLICY_SENTINEL.
     vm.expectCall(address(ruleset), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)));
     assertEq(policy.computeFee(key), rulesetFee);
+  }
+
+  function testFuzz_computeFee_GivenARuleset_WhenThePoolHasNoHook_WhenTheRulesetReturnsZero(
+    PoolKey memory key,
+    uint24 defaultFee
+  ) public {
+    // Given: the pool has no hook. The address(0) policy returns zero, and the default fee is not
+    // zero. A configured zero does not fall through.
+    key.hooks = IHooks(address(0));
+    defaultFee = _boundProtocolFee(defaultFee);
+    vm.assume(defaultFee != 0);
+    MockProtocolFeeRuleset ruleset = new MockProtocolFeeRuleset({fee: 0, reverts: false});
+    address hooklessSentinel = policy.HOOKLESS_POLICY_SENTINEL();
+    vm.startPrank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+    policy.setProtocolFeeRuleset(hooklessSentinel, ruleset);
+    vm.stopPrank();
+
+    // Then: computeFee returns zero and does not use the default fee.
+    vm.expectCall(address(ruleset), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)));
+    assertEq(policy.computeFee(key), 0);
   }
 
   function testFuzz_computeFee_GivenARuleset_WhenTheStaticCurveAlsoApplies(
@@ -341,11 +367,11 @@ contract V4FeePolicyTest is Test {
     vm.prank(feeSetter);
     policy.setDefaultFee(defaultFee);
 
-    // Then: computeFee returns zero and does not call the static curve.
+    // Then: computeFee returns the default fee and does not call the static curve.
     vm.expectCall(
       address(staticCurve), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)), 0
     );
-    assertEq(policy.computeFee(key), policy.ZERO_FEE());
+    assertEq(policy.computeFee(key), defaultFee);
   }
 
   function testFuzz_computeFee_GivenNoRuleset_GivenThePoolHasNoHook_WhenNoStaticCurveIsSet(
@@ -362,9 +388,21 @@ contract V4FeePolicyTest is Test {
     vm.prank(feeSetter);
     policy.setDefaultFee(defaultFee);
 
-    // Then: computeFee returns zero. Hookless pools cannot opt in, so they do not use the default.
-    assertEq(policy.computeFee(key), policy.ZERO_FEE());
-    assertEq(address(policy.rulesets(policy.STATIC_CURVE_POLICY_SENTINEL())), address(0));
+    // Then: computeFee returns the default fee. Hookless pools cannot opt in.
+    assertEq(policy.computeFee(key), defaultFee);
+    assertEq(address(policy.rulesets(policy.HOOKLESS_POLICY_SENTINEL())), address(0));
+  }
+
+  function testFuzz_computeFee_GivenNoRuleset_GivenThePoolHasNoHook_WhenDefaultFeeIsZero(PoolKey memory key)
+    public
+  {
+    // Given: the pool has no hook, address(0) is unset, and the default fee is zero.
+    key.hooks = IHooks(address(0));
+    assertEq(policy.defaultFee(), 0);
+    assertEq(address(policy.rulesets(policy.HOOKLESS_POLICY_SENTINEL())), address(0));
+
+    // Then: computeFee returns zero.
+    assertEq(policy.computeFee(key), 0);
   }
 
   function testFuzz_computeFee_RevertWhen_TheStaticCurveReverts(PoolKey memory key) public {

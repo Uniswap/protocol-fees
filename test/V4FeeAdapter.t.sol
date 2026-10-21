@@ -336,6 +336,68 @@ contract V4FeeAdapterTest is Test {
     }
   }
 
+  function test_triggerFeeUpdate_HooklessUnset_PushesDefaultFee() public {
+    // Given: a hookless pool, and no policy at address(0).
+    uint24 defaultFee = 100 << 12 | 100;
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+
+    (Currency c0, Currency c1) = _sortedCurrencies();
+    PoolKey memory key = _staticKey(address(0), c0, c1);
+    poolManager.mockInitialize(key);
+    assertEq(address(policy.rulesets(policy.HOOKLESS_POLICY_SENTINEL())), address(0));
+
+    // Then: triggerFeeUpdate pushes defaultFee onto the pool.
+    adapter.triggerFeeUpdate(key);
+    assertEq(poolManager.getProtocolFee(key.toId()), defaultFee);
+  }
+
+  function test_triggerFeeUpdate_ZeroHooklessPolicyBeforeDefaultFeeKeepsZero() public {
+    // Runbook: set a zero policy at address(0) before raising defaultFee. The hookless pool stays
+    // at 0, including after defaultFee is raised. Raising defaultFee first, with address(0)
+    // unset, pushes defaultFee instead.
+    uint24 defaultFee = 100 << 12 | 100;
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+
+    (Currency c0, Currency c1) = _sortedCurrencies();
+    PoolKey memory keptAtZero = _staticKey(address(0), c0, c1);
+    keptAtZero.fee = 3000;
+    poolManager.mockInitialize(keptAtZero);
+
+    MockProtocolFeeRuleset zeroPolicy = new MockProtocolFeeRuleset({fee: 0, reverts: false});
+    address hooklessSentinel = policy.HOOKLESS_POLICY_SENTINEL();
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(hooklessSentinel, zeroPolicy);
+
+    adapter.triggerFeeUpdate(keptAtZero);
+    assertEq(poolManager.getProtocolFee(keptAtZero.toId()), 0);
+
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+    adapter.triggerFeeUpdate(keptAtZero);
+    assertEq(poolManager.getProtocolFee(keptAtZero.toId()), 0);
+
+    // Contrasting order on a fresh policy: defaultFee is raised while address(0) is unset.
+    V4FeePolicy raisedFirst = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(raisedFirst)));
+    vm.prank(feeSetter);
+    raisedFirst.setDefaultFee(defaultFee);
+    assertEq(address(raisedFirst.rulesets(raisedFirst.HOOKLESS_POLICY_SENTINEL())), address(0));
+
+    PoolKey memory getsDefault = _staticKey(address(0), c0, c1);
+    getsDefault.fee = 500;
+    poolManager.mockInitialize(getsDefault);
+    adapter.triggerFeeUpdate(getsDefault);
+    assertEq(poolManager.getProtocolFee(getsDefault.toId()), defaultFee);
+    assertEq(poolManager.getProtocolFee(keptAtZero.toId()), 0);
+  }
+
   function test_triggerFeeUpdate_StaticHookNotOptedIn_PushesDefaultFee() public {
     // Given: address(1) is unset. The pool is static and hooked, and the hook has not opted in.
     uint24 defaultFee = 100 << 12 | 100;
