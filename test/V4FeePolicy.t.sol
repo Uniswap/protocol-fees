@@ -17,9 +17,11 @@ import {
 } from "../src/interfaces/IV4FeePolicy.sol";
 import {
   MockGarbageHook,
+  MockOutOfGasRuleset,
   MockProtocolFeeRuleset,
   MockRevertingHook,
-  MockSelfReportingHook
+  MockSelfReportingHook,
+  MockShortReturnRuleset
 } from "./mocks/MockProtocolFeeRuleset.sol";
 
 /// @dev Each section starts with the branch tree of one function. The tests are in the same
@@ -48,6 +50,13 @@ contract V4FeePolicyTest is Test {
     uint24 zeroForOne = uint24(bound(fee & 0xFFF, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
     uint24 oneForZero = uint24(bound(fee >> 12, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
     return oneForZero << 12 | zeroForOne;
+  }
+
+  /// @dev A static LP fee and a hook address that has no RETURNS_DELTA flags.
+  function _staticHookedKey(address hook) internal pure returns (PoolKey memory key) {
+    key.fee = 3000;
+    key.tickSpacing = 60;
+    key.hooks = IHooks(hook);
   }
 
   // ============ constructor ============
@@ -98,6 +107,10 @@ contract V4FeePolicyTest is Test {
   //         │   ├── when a static curve is set at STATIC_CURVE_POLICY_SENTINEL
   //         │   │   ├── when the static curve reverts
   //         │   │   │   └── it reverts with the error of the static curve
+  //         │   │   ├── when the static curve runs out of gas
+  //         │   │   │   └── it reverts and does not fall through
+  //         │   │   ├── when the static curve returns short data
+  //         │   │   │   └── it reverts and does not fall through
   //         │   │   ├── when the static curve returns a fee above MAX_PROTOCOL_FEE
   //         │   │   │   └── it reverts with InvalidFeeValue
   //         │   │   ├── when the static curve returns a nonzero fee
@@ -391,8 +404,62 @@ contract V4FeePolicyTest is Test {
     vm.prank(feeSetter);
     policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
 
-    // Then: computeFee reverts with InvalidFeeValue.
+    // Then: computeFee reverts with InvalidFeeValue. A curve that runs out of gas or returns
+    // short data also fails the call, below, and does not fall through to the hook or defaultFee.
     vm.expectRevert(IV4FeePolicy.InvalidFeeValue.selector);
+    policy.computeFee(key);
+  }
+
+  function test_computeFee_RevertWhen_TheStaticCurveRunsOutOfGas() public {
+    // Given: a static curve that burns the gas of getProtocolFee. The hook has opted in and would
+    // return a fee, and the default fee is set. Neither is used when the curve call fails.
+    uint24 hookFee = 200 << 12 | 200;
+    uint24 defaultFee = 100 << 12 | 100;
+    MockOutOfGasRuleset staticCurve = new MockOutOfGasRuleset();
+    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(staticCurveSentinel, IV4ProtocolFeeRuleset(address(staticCurve)));
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+
+    MockSelfReportingHook implementation = new MockSelfReportingHook({
+      fee: hookFee, reverts: false, supportsERC165: true, supportsRuleset: true
+    });
+    PoolKey memory key = _staticHookedKey(address(uint160(Hooks.BEFORE_SWAP_FLAG)));
+    vm.etch(address(key.hooks), address(implementation).code);
+
+    // Then: computeFee reverts. It does not return the hook fee or the default fee.
+    vm.expectCall(
+      address(key.hooks), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)), 0
+    );
+    vm.expectRevert();
+    policy.computeFee(key);
+  }
+
+  function test_computeFee_RevertWhen_TheStaticCurveReturnsShortData() public {
+    // Given: a static curve that returns fewer than 32 bytes from getProtocolFee. The hook has
+    // opted in and would return a fee, and the default fee is set.
+    uint24 hookFee = 200 << 12 | 200;
+    uint24 defaultFee = 100 << 12 | 100;
+    MockShortReturnRuleset staticCurve = new MockShortReturnRuleset();
+    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(staticCurveSentinel, IV4ProtocolFeeRuleset(address(staticCurve)));
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+
+    MockSelfReportingHook implementation = new MockSelfReportingHook({
+      fee: hookFee, reverts: false, supportsERC165: true, supportsRuleset: true
+    });
+    PoolKey memory key = _staticHookedKey(address(uint160(Hooks.AFTER_SWAP_FLAG)));
+    vm.etch(address(key.hooks), address(implementation).code);
+
+    // Then: the ABI decode reverts computeFee, the same as an invalid fee in that the call fails
+    // and does not fall through to the hook or the default fee.
+    vm.expectCall(
+      address(key.hooks), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)), 0
+    );
+    vm.expectRevert();
     policy.computeFee(key);
   }
 

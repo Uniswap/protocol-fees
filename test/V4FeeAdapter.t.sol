@@ -17,7 +17,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {IV4FeePolicy} from "../src/interfaces/IV4FeePolicy.sol";
+import {IV4FeePolicy, IV4ProtocolFeeRuleset} from "../src/interfaces/IV4FeePolicy.sol";
 import {MockV4PoolManager} from "./mocks/MockV4PoolManager.sol";
 import {MockFeePolicy} from "./mocks/MockFeePolicy.sol";
 import {MockProtocolFeeRuleset, MockSelfReportingHook} from "./mocks/MockProtocolFeeRuleset.sol";
@@ -58,6 +58,22 @@ contract V4FeeAdapterTest is Test {
     uint24 zeroForOne = uint24(bound(fee & 0xFFF, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
     uint24 oneForZero = uint24(bound(fee >> 12, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
     return oneForZero << 12 | zeroForOne;
+  }
+
+  function _sortedCurrencies() internal returns (Currency c0, Currency c1) {
+    MockERC20 other = new MockERC20("Other", "OTH", 18);
+    address a = address(token);
+    address b = address(other);
+    if (a > b) (a, b) = (b, a);
+    return (Currency.wrap(a), Currency.wrap(b));
+  }
+
+  function _staticKey(address hook, Currency c0, Currency c1)
+    internal
+    pure
+    returns (PoolKey memory)
+  {
+    return PoolKey({currency0: c0, currency1: c1, fee: 3000, tickSpacing: 60, hooks: IHooks(hook)});
   }
 
   // ============ constructor ============
@@ -318,6 +334,110 @@ contract V4FeeAdapterTest is Test {
     for (uint256 i; i < count; ++i) {
       assertEq(poolManager.getProtocolFee(keys[i].toId()), initialized[i] ? policyFee : 0);
     }
+  }
+
+  function test_triggerFeeUpdate_StaticHookNotOptedIn_PushesDefaultFee() public {
+    // Given: address(1) is unset. The pool is static and hooked, and the hook has not opted in.
+    uint24 defaultFee = 100 << 12 | 100;
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+
+    address hook = address(uint160(Hooks.BEFORE_SWAP_FLAG));
+    assertEq(hook.code.length, 0);
+    (Currency c0, Currency c1) = _sortedCurrencies();
+    PoolKey memory key = _staticKey(hook, c0, c1);
+    poolManager.mockInitialize(key);
+    assertEq(address(policy.rulesets(policy.STATIC_CURVE_POLICY_SENTINEL())), address(0));
+    assertEq(policy.computeFee(key), defaultFee);
+
+    // Then: triggerFeeUpdate pushes defaultFee onto the pool.
+    vm.expectEmit(address(adapter));
+    emit IV4FeeAdapter.FeeUpdateTriggered(address(this), key.toId(), defaultFee);
+    adapter.triggerFeeUpdate(key);
+    assertEq(poolManager.getProtocolFee(key.toId()), defaultFee);
+  }
+
+  function test_batchTriggerFeeUpdate_RevertingHookRevertsOnlyTheBatchThatIncludesIt() public {
+    // Given: address(1) is unset. One static hooked pool has not opted in, so it resolves to
+    // defaultFee. The other has opted in, and its getProtocolFee reverts.
+    uint24 defaultFee = 100 << 12 | 100;
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+    vm.prank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+
+    address quietHook = address(uint160(Hooks.BEFORE_SWAP_FLAG));
+    address revertingHook = address(uint160(Hooks.AFTER_SWAP_FLAG));
+    assertEq(quietHook.code.length, 0);
+    assertEq(revertingHook.code.length, 0);
+    MockSelfReportingHook implementation = new MockSelfReportingHook({
+      fee: 0, reverts: true, supportsERC165: true, supportsRuleset: true
+    });
+    vm.etch(revertingHook, address(implementation).code);
+
+    (Currency c0, Currency c1) = _sortedCurrencies();
+    PoolKey memory quiet = _staticKey(quietHook, c0, c1);
+    PoolKey memory broken = _staticKey(revertingHook, c0, c1);
+    poolManager.mockInitialize(quiet);
+    poolManager.mockInitialize(broken);
+
+    // Today, batchTriggerFeeUpdate does not catch a revert. The batch that includes the hook
+    // reverts, and the quiet pool earlier in that call is not updated.
+    PoolKey[] memory keys = new PoolKey[](2);
+    keys[0] = quiet;
+    keys[1] = broken;
+    vm.expectRevert(MockProtocolFeeRuleset.MockReverted.selector);
+    adapter.batchTriggerFeeUpdate(keys);
+    assertEq(poolManager.getProtocolFee(quiet.toId()), 0);
+    assertEq(poolManager.getProtocolFee(broken.toId()), 0);
+
+    // A single trigger of the quiet pool succeeds. The reverting hook does not affect it.
+    adapter.triggerFeeUpdate(quiet);
+    assertEq(poolManager.getProtocolFee(quiet.toId()), defaultFee);
+
+    // A single trigger of the reverting hook reverts, and leaves both pools as they were.
+    vm.expectRevert(MockProtocolFeeRuleset.MockReverted.selector);
+    adapter.triggerFeeUpdate(broken);
+    assertEq(poolManager.getProtocolFee(broken.toId()), 0);
+    assertEq(poolManager.getProtocolFee(quiet.toId()), defaultFee);
+  }
+
+  function test_triggerFeeUpdate_UnsettingTheStaticCurveMovesThePoolToDefaultFee() public {
+    // Given: a static hooked pool whose hook has not opted in. A curve is set at address(1),
+    // and the default fee is different from the curve fee.
+    uint24 defaultFee = 100 << 12 | 100;
+    uint24 curveFee = 300 << 12 | 300;
+    V4FeePolicy policy = new V4FeePolicy(owner, feeSetter);
+    vm.prank(owner);
+    adapter.setPolicy(IV4FeePolicy(address(policy)));
+    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    MockProtocolFeeRuleset curve = new MockProtocolFeeRuleset({fee: curveFee, reverts: false});
+    vm.startPrank(feeSetter);
+    policy.setDefaultFee(defaultFee);
+    policy.setProtocolFeeRuleset(staticCurveSentinel, curve);
+    vm.stopPrank();
+
+    address hook = address(uint160(Hooks.BEFORE_DONATE_FLAG));
+    assertEq(hook.code.length, 0);
+    (Currency c0, Currency c1) = _sortedCurrencies();
+    PoolKey memory key = _staticKey(hook, c0, c1);
+    poolManager.mockInitialize(key);
+
+    adapter.triggerFeeUpdate(key);
+    assertEq(poolManager.getProtocolFee(key.toId()), curveFee);
+
+    // When: the curve at address(1) is unset, and the fee is pushed again.
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(staticCurveSentinel, IV4ProtocolFeeRuleset(address(0)));
+    adapter.triggerFeeUpdate(key);
+
+    // Then: the pool moves to the default fee. The hook has not opted in.
+    assertEq(policy.computeFee(key), defaultFee);
+    assertEq(poolManager.getProtocolFee(key.toId()), defaultFee);
   }
 
   // ============ collect ============

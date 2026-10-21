@@ -44,6 +44,24 @@ contract MockSelfReportingHook is MockProtocolFeeRuleset, IERC165 {
   }
 }
 
+/// @notice A ruleset whose getProtocolFee burns the gas of the call with INVALID.
+contract MockOutOfGasRuleset {
+  fallback() external {
+    assembly {
+      invalid()
+    }
+  }
+}
+
+/// @notice A ruleset whose getProtocolFee returns fewer than 32 bytes.
+contract MockShortReturnRuleset {
+  fallback() external {
+    assembly {
+      return(0x00, 0x10)
+    }
+  }
+}
+
 /// @notice A hook whose every call reverts. ERC165Checker treats a reverting supportsInterface
 /// as "not supported", so computeFee does not revert on the opt-in check.
 contract MockRevertingHook {
