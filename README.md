@@ -360,7 +360,7 @@ Ethereum Mainnet
 | TokenJar         | [`0x95E337C5B155385945D407f5396387D0c2a3A263`](https://arbiscan.io/address/0x95E337C5B155385945D407f5396387D0c2a3A263) |
 | Releaser         | [`0xB8018422bcE25D82E70cB98FdA96a4f502D89427`](https://arbiscan.io/address/0xB8018422bcE25D82E70cB98FdA96a4f502D89427) |
 | V3OpenFeeAdapter | [`0xFF7aD5dA31fECdC678796c88B05926dB896b0699`](https://arbiscan.io/address/0xFF7aD5dA31fECdC678796c88B05926dB896b0699) |
-| V4FeeAdapter     | [`0x66276D2e80784180E4B9b859e4327b9C5646B87c`](https://arbiscan.io/address/0x66276D2e80784180E4B9b859e4327b9C5646B87c) |
+| V4FeeAdapter     | [`0x6b3C04567CC62fc5D6AB8D50f1bc1Dee161eb2Cc`](https://arbiscan.io/address/0x6b3C04567CC62fc5D6AB8D50f1bc1Dee161eb2Cc) |
 | V4FeePolicy      | [`0x020B1Ad79037f02feC357Ec4601fFbe5f7ED6872`](https://arbiscan.io/address/0x8F6a5A19Ff1adc6AA9456d6b201fA4FC7589BD0B) |
 
 
