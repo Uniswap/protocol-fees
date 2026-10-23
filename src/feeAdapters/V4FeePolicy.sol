@@ -8,7 +8,6 @@ import {
   ProtocolFeeRulesetAssignment,
   IV4ProtocolFeeRuleset
 } from "../interfaces/IV4FeePolicy.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {ERC165Checker} from "openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
@@ -20,14 +19,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Bitmask for the four RETURNS_DELTA flags (bits 0-3 of hook address).
   uint160 public constant CUSTOM_ACCOUNTING_MASK = 0xF;
 
-  /// @notice Sentinel addresses for hookless and static curve policies.
-  /// @dev These MAY be overwritten by the fee setter.
-  address public constant HOOKLESS_POLICY_SENTINEL = address(0);
-  address public constant STATIC_CURVE_POLICY_SENTINEL = address(1);
-  /// @notice The zero fee.
-  uint24 public constant ZERO_FEE = 0;
+  /// @notice Sentinel address that assigns a policy to native math hooked pools.
+  address public constant NATIVE_MATH_POOL_SENTINEL = address(1);
 
-  /// @notice Registered rulesets per hook.
+  /// @notice Registered rulesets per hook. `address(0)` assigns a policy to hookless pools.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
 
   uint24 public defaultFee;
@@ -54,12 +49,11 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     // Hookless pools use the address(0) policy if set, else defaultFee.
     if (address(key.hooks) == address(0)) return defaultFee;
 
-    // Static-fee hooked pools use the curve at STATIC_CURVE_POLICY_SENTINEL when it is set.
-    // An unset curve falls through to hook opt-in, then defaultFee.
+    // Native math hooked pools (aka pools with a hook, static LP fee, and no delta returning flags)
     if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
-        IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
-        if (address(staticCurveRuleset) != address(0)) {
-            return _handleGetProtocolFee(staticCurveRuleset, key);
+        IV4ProtocolFeeRuleset nativeMathRuleset = rulesets[NATIVE_MATH_POOL_SENTINEL];
+        if (address(nativeMathRuleset) != address(0)) {
+            return _handleGetProtocolFee(nativeMathRuleset, key);
         }
     }
     // For hooks that return a protocol fee themselves, fetch it from the hook
