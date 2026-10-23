@@ -235,6 +235,26 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 | WITHDRAWAL_MIN_GAS    | 100,000     | Gas for L1 transfer to burn address |
 | L1_RESOURCE_RECIPIENT | `0xdead`    | Final burn destination on mainnet   |
 
+##### L1 finalization after Glamsterdam
+
+The deployed contracts do not change. The gas of the L1 finalization changes after the Glamsterdam activation on Ethereum mainnet (EIP-7773). The numbers below use the EIP values at the time of writing.
+
+`WITHDRAWAL_MIN_GAS` is the minimum gas that the L1 messenger gives to the `L1StandardBridge` call. The messenger forwards all remaining gas minus a reserve, so the bridge call usually gets more. The `Firepit` on Ethereum mainnet has no stipend. It uses an ordinary token transfer.
+
+Measured by replaying a real L1 finalization of a Base Firepit withdrawal (transaction `0x3c60ed7bc3cf67a0b1bb6acb9dea8c30da2aff166dcd608e33bec5e879ab25d6`, 2,000 UNI to `0xdead`). The replay used the deployed Base `OptimismPortal`, `L1CrossDomainMessenger`, `L1StandardBridge` and the UNI token, with the exact prestate of the original transaction:
+
+| Value | Before the activation | After the activation |
+| --- | ---: | ---: |
+| Gas used by the `L1StandardBridge` call (UNI to `0xdead`) | 64,634 | 87,534 |
+| Gas used by the finalization transaction | 284,854 | 483,794 |
+| Lowest transaction gas limit that finalizes | about 603,500 | about 698,500 |
+
+The bridge call stays below `WITHDRAWAL_MIN_GAS`. A finalization with a gas limit below the lowest value reverts in the portal. The withdrawal is then not finalized, and it can be finalized again with more gas. The original transaction used a gas limit of 604,093. That limit finalizes before the activation and reverts after it. Finalizers that use fixed gas limits must raise them.
+
+The transaction uses more gas after the activation because the portal and the messenger each write a new storage slot (97,920 state gas each).
+
+Before the activation, a bridge call that runs out of gas leaves a failed message that anyone can replay. After the activation, the 40,000 gas reserve of the messenger does not cover the new slot for the failed message. In a test with a token that uses all gas, finalizations with gas limits up to 1,000,000 ended with `WithdrawalFinalized` success `false` and no replayable message. The UNI transfer to `0xdead` uses 87,534 gas and received at least 358,000 gas in the measurements, so it is not near this case. The result after the activation was also replayed with `eth_simulateV1` on reth and Geth on Sepolia, with the same prestate. The gas used matched.
+
 #### (Future) Hub-and-Spoke Cross-Chain
 
 > Note: Additional cross-chain patterns are planned for future development
