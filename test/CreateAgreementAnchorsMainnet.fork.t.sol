@@ -8,6 +8,9 @@ contract CreateAgreementAnchorsMainnetForkTest is Test {
   CreateAgreementAnchors public script;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     vm.createSelectFork("mainnet");
     script = new CreateAgreementAnchors();
   }

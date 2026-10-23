@@ -447,11 +447,14 @@ forge build
 ### Testing
 
 ```bash
-# Run all tests
+# Run all non-fork tests
 forge test
 
 # Run with verbosity
 forge test -vvv
+
+# Run all fork tests
+SHOULD_FORK_TEST=true forge test
 
 # Generate coverage
 forge coverage

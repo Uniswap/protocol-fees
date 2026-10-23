@@ -40,6 +40,9 @@ contract V3OpenFeeAdapterMainnetForkTest is Test {
   address public user = makeAddr("user");
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     // Fork mainnet after Unification Proposal executed (current state)
     vm.createSelectFork("mainnet", 24_398_700);
     assertEq(block.chainid, 1, "Not on mainnet");
