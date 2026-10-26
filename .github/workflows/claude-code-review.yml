@@ -8,7 +8,12 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, labeled, unlabeled]
 
-permissions: {}
+permissions:
+  contents: write # required by ai-toolkit _claude-code-review.yml for the auto_fix feature
+  pull-requests: write
+  issues: read
+  actions: read
+  id-token: write
 
 jobs:
   claude-review-auto:
@@ -31,7 +36,7 @@ jobs:
       toolkit_ref: 96ef665ba04221de07e94fcc3ea69fe32c7cf306
       custom_prompt_path: ".claude/prompts/claude-pr-review.md"
 
-      model: "claude-opus-4-5"
+      model: "claude-opus-4-7"
 
       # Standard timeout for most PRs
       timeout_minutes: 20
