@@ -31,7 +31,7 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// not accept any. The X Layer bridge mints its own wrapped UNI (`TokenWrapped`) for Ethereum UNI
 /// and burns it directly from the caller rather than pulling it through an allowance. X Layer also
 /// carries OP Stack predeploys and an `OptimismMintableERC20` UNI; that token is a different asset
-/// and the constructor rejects it, since the unified bridge does not recognize it.
+/// and releases revert if it is configured, since the unified bridge does not recognize it.
 /// @custom:security-contact security@uniswap.org
 contract AggLayerReleaser is ExchangeReleaser {
   using SafeTransferLib for ERC20;
@@ -56,7 +56,7 @@ contract AggLayerReleaser is ExchangeReleaser {
   IAggLayerBridge public immutable BRIDGE;
 
   /// @dev The resource token address on Ethereum, the origin token of the wrapped resource
-  /// @dev Used to check at construction that the bridge maps `RESOURCE` back to it
+  /// @dev Used to check on each release that the bridge maps `RESOURCE` back to it
   address public immutable L1_RESOURCE;
 
   /// @notice Creates a new AggLayerReleaser instance
@@ -67,8 +67,6 @@ contract AggLayerReleaser is ExchangeReleaser {
   /// @param _tokenJar The address of the TokenJar contract holding accumulated fee assets
   /// @dev Sets RESOURCE_RECIPIENT to address(this) to enable the two-stage burn:
   ///      Stage 1: Collect tokens here (L2) -> Stage 2: Bridge and burn on Ethereum
-  /// @dev Reverts unless the bridge reports `_resource` as the wrapped token of `_l1Resource`
-  /// from Ethereum, so a native or otherwise-bridged token cannot be configured by mistake
   constructor(
     address _bridge,
     address _resource,
@@ -80,12 +78,6 @@ contract AggLayerReleaser is ExchangeReleaser {
     require(_l1Resource != address(0), ZeroAddress());
     BRIDGE = IAggLayerBridge(_bridge);
     L1_RESOURCE = _l1Resource;
-
-    (uint32 originNetwork, address originTokenAddress) = BRIDGE.wrappedTokenToTokenInfo(_resource);
-    require(
-      originNetwork == AGGLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == _l1Resource,
-      ResourceNotWrappedL1Resource()
-    );
   }
 
   /// @notice Hook called after assets are released - initiates stage 2 withdrawal to Ethereum
@@ -94,7 +86,19 @@ contract AggLayerReleaser is ExchangeReleaser {
   /// token, as on X Layer, the bridge burns directly and the allowance is left in place. That is
   /// harmless: the bridge only ever transfers from `msg.sender`, so it can only be spent during
   /// this contract's own `bridgeAsset` calls, and it is overwritten rather than accumulated.
+  /// @dev Reverts unless the bridge reports `RESOURCE` as the wrapped token of `L1_RESOURCE` from
+  /// Ethereum. For any other token the bridge escrows it on this chain and mints a wrapped token on
+  /// Ethereum instead of burning the resource. This covers a native or otherwise-bridged token
+  /// configured by mistake, and a sovereign bridge manager remapping Ethereum UNI to a new token
+  /// and then deleting the legacy mapping for `RESOURCE` after deployment.
   function _afterRelease(Currency[] calldata, address) internal override {
+    (uint32 originNetwork, address originTokenAddress) =
+      BRIDGE.wrappedTokenToTokenInfo(address(RESOURCE));
+    require(
+      originNetwork == AGGLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == L1_RESOURCE,
+      ResourceNotWrappedL1Resource()
+    );
+
     // Stage 2: Initiate bridge withdrawal to the Ethereum burn address
     // The bridge will:
     // 1. Burn the wrapped resource held by this contract

@@ -11,9 +11,10 @@ import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {INonce} from "../src/interfaces/base/INonce.sol";
 import {IAggLayerBridge} from "../src/interfaces/external/IAggLayerBridge.sol";
 
-/// @dev Mock of the AggLayer unified bridge as deployed on an L2. Mirrors the two `bridgeAsset`
-/// paths for a wrapped token: a bridge-minted token is burned from the caller directly, a
-/// "not mintable" sovereign token is pulled through the caller's allowance and escrowed.
+/// @dev Mock of the AggLayer unified bridge as deployed on an L2. Mirrors the three `bridgeAsset`
+/// ERC20 paths: a bridge-minted wrapped token is burned from the caller directly, a "not mintable"
+/// sovereign token is pulled through the caller's allowance and escrowed, and a token with no
+/// mapping is treated as native to this network, pulled through the allowance and escrowed.
 contract MockAggLayerBridge is IAggLayerBridge {
   error DestinationNetworkInvalid();
   error MsgValueNotZero();
@@ -43,6 +44,13 @@ contract MockAggLayerBridge is IAggLayerBridge {
     wrapped[originNetwork][originTokenAddress] = token;
   }
 
+  /// @dev Mirrors `AgglayerBridgeL2.removeLegacySovereignTokenAddress`, which deletes a legacy
+  /// token's mapping once its origin token has been remapped to a new sovereign token
+  function removeWrappedToken(address token) external {
+    delete tokenInfo[token];
+    delete wrappedAddressIsNotMintable[token];
+  }
+
   function setNotMintable(address token, bool notMintable) external {
     wrappedAddressIsNotMintable[token] = notMintable;
   }
@@ -64,9 +72,11 @@ contract MockAggLayerBridge is IAggLayerBridge {
     require(msg.value == 0, MsgValueNotZero());
 
     TokenInformation memory info = tokenInfo[token];
-    require(info.originTokenAddress != address(0), "mock: only wrapped tokens supported");
 
-    if (wrappedAddressIsNotMintable[token]) {
+    if (info.originTokenAddress == address(0)) {
+      MockERC20(token).transferFrom(msg.sender, address(this), amount);
+      info = TokenInformation(networkID, token);
+    } else if (wrappedAddressIsNotMintable[token]) {
       MockERC20(token).transferFrom(msg.sender, address(this), amount);
     } else {
       MockERC20(token).burn(msg.sender, amount);
@@ -175,31 +185,13 @@ contract AggLayerReleaserTest is Test {
     );
   }
 
-  /// @dev A token the bridge has never wrapped, e.g. X Layer's OptimismMintableERC20 UNI
-  function test_revert_constructor_resourceUnknownToBridge() public {
+  /// @dev The resource mapping is checked on release rather than at construction
+  function test_constructor_doesNotCheckResourceMapping() public {
     MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
+    AggLayerReleaser unchecked_ = new AggLayerReleaser(
       address(bridge), address(opUni), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
-  }
-
-  function test_revert_constructor_resourceWrapsDifferentL1Token() public {
-    MockERC20 other = new MockERC20("Other", "OTH", 18);
-    bridge.setWrappedToken(address(other), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
-      address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
-    );
-  }
-
-  function test_revert_constructor_resourceWrapsNonEthereumToken() public {
-    MockERC20 other = new MockERC20("Other", "OTH", 18);
-    bridge.setWrappedToken(address(other), 1, L1_UNI);
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
-      address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
-    );
+    assertEq(address(unchecked_.RESOURCE()), address(opUni));
   }
 
   // ─── release ───
@@ -333,7 +325,87 @@ contract AggLayerReleaserTest is Test {
     assertEq(resource.balanceOf(address(releaser)), 0);
   }
 
+  /// @dev After the origin token is remapped to a new sovereign token, the legacy mapping is
+  /// still in place, so the old token is still burned and bridged as Ethereum UNI
+  function test_release_succeedsAfterRemapWhileLegacyMappingRemains() public {
+    MockERC20 newUni = new MockERC20("Uniswap", "UNI", 18);
+    bridge.setWrappedToken(address(newUni), ETHEREUM_NETWORK_ID, L1_UNI);
+    assertEq(bridge.getTokenWrappedAddress(ETHEREUM_NETWORK_ID, L1_UNI), address(newUni));
+
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = Currency.wrap(address(mockToken));
+
+    uint256 supplyBefore = resource.totalSupply();
+
+    vm.startPrank(alice);
+    resource.approve(address(releaser), INITIAL_THRESHOLD);
+    vm.expectEmit(address(bridge));
+    emit IAggLayerBridge.BridgeEvent(
+      0, ETHEREUM_NETWORK_ID, L1_UNI, ETHEREUM_NETWORK_ID, BURN_ADDRESS, INITIAL_THRESHOLD, "", 0
+    );
+    releaser.release(releaser.nonce(), assets, alice);
+    vm.stopPrank();
+
+    assertEq(resource.totalSupply(), supplyBefore - INITIAL_THRESHOLD);
+  }
+
   // ─── reverts ───
+
+  /// @dev A token the bridge has never wrapped, e.g. X Layer's OptimismMintableERC20 UNI
+  function test_revert_release_resourceUnknownToBridge() public {
+    MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
+    _assertReleaseRevertsForResource(opUni);
+  }
+
+  function test_revert_release_resourceWrapsDifferentL1Token() public {
+    MockERC20 other = new MockERC20("Other", "OTH", 18);
+    bridge.setWrappedToken(address(other), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
+    _assertReleaseRevertsForResource(other);
+  }
+
+  function test_revert_release_resourceWrapsNonEthereumToken() public {
+    MockERC20 other = new MockERC20("Other", "OTH", 18);
+    bridge.setWrappedToken(address(other), 1, L1_UNI);
+    _assertReleaseRevertsForResource(other);
+  }
+
+  /// @dev Once the legacy mapping is deleted, the bridge would treat the resource as a token
+  /// native to this chain and escrow it, minting a wrapped token on Ethereum rather than
+  /// releasing L1 UNI to the burn address
+  function test_revert_release_resourceMappingRemovedAfterRemap() public {
+    MockERC20 newUni = new MockERC20("Uniswap", "UNI", 18);
+    bridge.setWrappedToken(address(newUni), ETHEREUM_NETWORK_ID, L1_UNI);
+    bridge.removeWrappedToken(address(resource));
+
+    _assertReleaseReverts(releaser, resource);
+  }
+
+  /// @dev Without the check in `_afterRelease`, the mock bridge escrows an unmapped resource and
+  /// emits a leaf with this chain as origin, so the check is what prevents the release
+  function test_bridge_escrowsUnmappedResourceAsNativeToken() public {
+    bridge.removeWrappedToken(address(resource));
+
+    vm.startPrank(address(releaser));
+    resource.mint(address(releaser), INITIAL_THRESHOLD);
+    resource.approve(address(bridge), INITIAL_THRESHOLD);
+    vm.expectEmit(address(bridge));
+    emit IAggLayerBridge.BridgeEvent(
+      0,
+      X_LAYER_NETWORK_ID,
+      address(resource),
+      ETHEREUM_NETWORK_ID,
+      BURN_ADDRESS,
+      INITIAL_THRESHOLD,
+      "",
+      0
+    );
+    bridge.bridgeAsset(
+      ETHEREUM_NETWORK_ID, BURN_ADDRESS, INITIAL_THRESHOLD, address(resource), true, ""
+    );
+    vm.stopPrank();
+
+    assertEq(resource.balanceOf(address(bridge)), INITIAL_THRESHOLD);
+  }
 
   function test_revert_release_insufficientApproval() public {
     Currency[] memory assets = new Currency[](1);
@@ -398,5 +470,35 @@ contract AggLayerReleaserTest is Test {
     vm.prank(alice);
     (bool success,) = address(releaser).call{value: 1 ether}("");
     assertFalse(success);
+  }
+
+  // ─── helpers ───
+
+  function _assertReleaseRevertsForResource(MockERC20 token) internal {
+    AggLayerReleaser misconfigured = new AggLayerReleaser(
+      address(bridge), address(token), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
+    );
+    tokenJar.setReleaser(address(misconfigured));
+    token.mint(alice, INITIAL_TOKEN_AMOUNT);
+    _assertReleaseReverts(misconfigured, token);
+  }
+
+  /// @dev The release reverts atomically: no fee assets leave the jar, no resource leaves the
+  /// caller and nothing is bridged
+  function _assertReleaseReverts(AggLayerReleaser target, MockERC20 token) internal {
+    Currency[] memory assets = new Currency[](1);
+    assets[0] = Currency.wrap(address(mockToken));
+
+    vm.startPrank(alice);
+    token.approve(address(target), INITIAL_THRESHOLD);
+    uint256 currentNonce = target.nonce();
+    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    target.release(currentNonce, assets, alice);
+    vm.stopPrank();
+
+    assertEq(mockToken.balanceOf(address(tokenJar)), INITIAL_TOKEN_AMOUNT);
+    assertEq(token.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(token.balanceOf(address(bridge)), 0);
+    assertEq(bridge.depositCount(), 0);
   }
 }
