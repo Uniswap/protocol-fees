@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+pragma solidity 0.8.29;
+
+import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+
+import {FeeBucket, FlagRule} from "../../src/interfaces/IV4FeePolicy.sol";
+
+/// @dev The protocol fee schedule governance has set on every chain where fees are live: the v3
+/// tier defaults, and the v4 buckets, flag rule, and aggregator hook family from proposal 6. A
+/// chain that departs from it, as Base did on the aggregator fee, overrides at the call site.
+///
+/// Also the encoding helpers the schedule needs: aggregator hook fees as the policy stores them,
+/// v4 fees packed into both swap directions, pairs sorted and hashed the way `V4FeePolicy` keys
+/// them.
+library FeeSchedule {
+  // ─── V3 ───
+
+  /// @dev Protocol fee per tier (100, 500, 3000, and 10000), packed as
+  /// (1/x for token0) << 4 | (1/x for token1).
+  uint8 constant V3_FEE_100 = (4 << 4) | 4; // 1/4 for 0.01% tier
+  uint8 constant V3_FEE_500 = (4 << 4) | 4; // 1/4 for 0.05% tier
+  uint8 constant V3_FEE_3000 = (6 << 4) | 6; // 1/6 for 0.30% tier
+  uint8 constant V3_FEE_10000 = (6 << 4) | 6; // 1/6 for 1.00% tier
+
+  /// @dev `V3OpenFeeAdapter` default, applied when no tier default is set.
+  uint8 constant V3_DEFAULT_FEE = V3_FEE_100;
+
+  /// @dev Per-tier defaults, in tier order: 100, 500, 3000, 10000.
+  function v3FeeTierDefaults() internal pure returns (uint8[4] memory) {
+    return [V3_FEE_100, V3_FEE_500, V3_FEE_3000, V3_FEE_10000];
+  }
+
+  // ─── V4 ───
+
+  /// @dev Aggregator hook family: a hook whose self-reported flags include bit 11 is classified
+  /// into family 11.
+  uint256 constant AGG_HOOK_FLAGS = 1 << 11;
+  uint8 constant AGG_HOOK_FAMILY_ID = 11;
+
+  /// @dev Aggregator hooks charge their pools this many times the protocol fee the policy assigns
+  /// them, which is how they get above the PoolManager's per-direction cap. The policy therefore
+  /// stores the intended fee divided by this, as proposal 6 did (`encodeFee(300 / 25)`).
+  uint24 constant AGG_HOOK_FEE_MULTIPLIER = 25;
+
+  /// @dev Fee buckets, ordered by ascending `lpFeeFloor`.
+  function feeBuckets() internal pure returns (FeeBucket[] memory buckets) {
+    buckets = new FeeBucket[](8);
+    buckets[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 1, betaPips: 0});
+    buckets[1] = FeeBucket({lpFeeFloor: 3, alphaPips: 1, betaPips: 263_889});
+    buckets[2] = FeeBucket({lpFeeFloor: 75, alphaPips: 20, betaPips: 200_000});
+    buckets[3] = FeeBucket({lpFeeFloor: 100, alphaPips: 25, betaPips: 272_728});
+    buckets[4] = FeeBucket({lpFeeFloor: 375, alphaPips: 100, betaPips: 200_000});
+    buckets[5] = FeeBucket({lpFeeFloor: 500, alphaPips: 125, betaPips: 137_500});
+    buckets[6] = FeeBucket({lpFeeFloor: 2500, alphaPips: 400, betaPips: 200_000});
+    buckets[7] = FeeBucket({lpFeeFloor: 5500, alphaPips: 1000, betaPips: 0});
+  }
+
+  /// @dev Flag rules. Aggregator hooks are the one hook family with a fee rule.
+  ///
+  /// | Name             | Family ID | Required flags |
+  /// | ---------------- | --------- | -------------- |
+  /// | Aggregator Hooks | `11`      | `1 << 11`      |
+  function flagRules() internal pure returns (FlagRule[] memory rules) {
+    rules = new FlagRule[](1);
+    rules[0] = FlagRule({requiredFlags: AGG_HOOK_FLAGS, familyId: AGG_HOOK_FAMILY_ID});
+  }
+
+  // ─── Encoding ───
+
+  /// @dev The value `V4FeePolicy` stores so that aggregator hook pools end up charging `feePips`
+  /// (hundredths of a basis point, so 1000 is 10 bps): the fee divided by
+  /// `AGG_HOOK_FEE_MULTIPLIER`, packed into both swap directions.
+  ///
+  /// Reverts unless the division is exact and the stored per-direction fee is within the
+  /// PoolManager's cap, so a fee the policy would silently truncate or reject cannot be written.
+  /// The division lives here, behind the pips figure, so the undivided fee cannot be stored by
+  /// mistake; the policy would accept it as valid.
+  function aggHookFeeValue(uint24 feePips) internal pure returns (uint24) {
+    require(feePips % AGG_HOOK_FEE_MULTIPLIER == 0, "FeeSchedule: fee not a multiple of 25 pips");
+    uint24 stored = feePips / AGG_HOOK_FEE_MULTIPLIER;
+    require(stored <= ProtocolFeeLibrary.MAX_PROTOCOL_FEE, "FeeSchedule: fee above the v4 cap");
+    return bothDirections(stored);
+  }
+
+  /// @dev Packs one fee into both swap directions of a v4 protocol fee: the lower 12 bits apply
+  /// to zero-for-one swaps and the upper 12 bits to one-for-zero.
+  function bothDirections(uint24 fee) internal pure returns (uint24) {
+    return fee << 12 | fee;
+  }
+
+  /// @dev Sorts two addresses ascending, the order `V4FeePolicy` requires of a pair.
+  function sort(address a, address b) internal pure returns (address, address) {
+    return a < b ? (a, b) : (b, a);
+  }
+
+  /// @dev The key `V4FeePolicy` stores a sorted pair under.
+  function pairHash(Currency c0, Currency c1) internal pure returns (bytes32) {
+    return keccak256(abi.encodePacked(Currency.unwrap(c0), Currency.unwrap(c1)));
+  }
+}

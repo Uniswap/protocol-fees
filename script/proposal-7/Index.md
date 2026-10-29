@@ -1,0 +1,398 @@
+# Proposal 7
+
+Activates v2, v3, and v4 protocol fees on Arc, and registers Arc as a Wormhole NTT peer on Ethereum so that UNI burned there releases on mainnet.
+
+Arc has no canonical bridge to Ethereum, so the burn path uses Wormhole's Native Token Transfer system, the same mechanism proposal 4 activated for BNB Chain and Polygon. Fee infrastructure is deployed permissionlessly ahead of the vote and handed to the governance-owned Wormhole receiver, so the proposal itself only does the two things governance alone can do: register the peer on Ethereum, and flip the three fee switches on Arc over Wormhole.
+
+## Wormhole context
+
+Unchanged from proposal 4. See its [Wormhole Context](../proposal-4/Index.md#wormhole-context) for the send and receive paths, the burn-over-Wormhole flow, and the note on why the NTT contracts use ERC-1967 proxies.
+
+## Arc context
+
+Arc is Circle's EVM chain. Its gas token is USDC: native balances and `msg.value` count it in 18 decimals, while the ERC-20 view of the same USDC at `0x3600000000000000000000000000000000000000` uses 6. There is no wrapped-native token. Blocks carry a 30M gas limit, with no opt-in needed for large transactions.
+
+The prerequisite script needs a native USDC balance for gas **and** for Wormhole core message fees. The fee is zero on Arc today, matching BNB Chain, but the script queries it at run time rather than assuming it.
+
+| Name                | Network  | Value                                        | Description                                      |
+| ------------------- | -------- | -------------------------------------------- | ------------------------------------------------ |
+| `CHAIN_ID`          | Arc      | `5042`                                       | EIP-155 chain id                                 |
+| `WORMHOLE_CHAIN_ID` | Arc      | `71`                                         | Wormhole-defined chain id                        |
+| `WORMHOLE_CORE`     | Arc      | `0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027` | Wormhole core bridge, deployed by Wormhole       |
+| `WORMHOLE_SENDER`   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a` | Uniswap's Wormhole sender, owned by the Timelock |
+
+New-chain addresses live in [`params/Constants.sol`](./params/Constants.sol) until the proposal activating them has executed, then move to govkit's address book. That file is the single source for every value below; the tables in this document restate it, so change it first.
+
+The `arc` RPC alias in `foundry.toml` reads `ARC_RPC_URL`. Uniswap's internal RPC gateway serves Arc at its chain id path.
+
+## Prerequisite actions
+
+These are permissionless and must all be done before governance can act. Step 1 writes one record file, `.records/Arc.json`, which step 2 reads. Step 1 refuses to run twice; clear the record deliberately to redeploy.
+
+Separately, the governance-owned `UniswapWormholeMessageReceiver` must be deployed on Arc and given the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. That handoff is outside this repository. Run the Arc preflight before step 1, and repeat it in step 2 before the proposal is submitted. Step 1 also checks inside `run()` before its explicit deployment calls.
+
+1. [Deploy fee infra](#1-deploy-fee-infra)
+2. [Write the proposal](#2-write-the-proposal)
+
+### 1. Deploy fee infra
+
+**Overview**:
+
+On Arc we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter. We initialize the proxies, register the transceiver with the manager, set `SyntheticNttUni`'s minting authority to the manager, and register Ethereum as a peer on both. We then transfer everything to the governance receiver and renounce the pauser capability on both proxies.
+
+We then deploy `TokenJar`, `WormholeReleaser`, `V3OpenFeeAdapter`, `V4FeeAdapter`, and `V4FeePolicy`. Each contract keeps deployer authority only for as long as its own configuration needs, then hands both ownership and the fee-setter role to the governance receiver.
+
+Proposal 4 split this into three scripts per chain, because the infra for Ethereum was brought up in the same proposal and so the peers were not known until every chain had deployed. Nothing is deployed on the Ethereum side this time, so the peers are known up front and everything collapses into one run.
+
+The v3 tier defaults match every chain where fees are live. The v4 fee buckets, aggregator flag rule, and aggregator family default match every chain configured by proposal 6. Proposal 6's two per-chain lists, hook family assignments and pair-class fees, come from [`params/v4-fee-policy.json`](./params/v4-fee-policy.json), described below.
+
+**V4 fee policy assignments**:
+
+[`params/v4-fee-policy.json`](./params/v4-fee-policy.json) holds the per-chain `V4FeePolicy` assignments, keyed by EIP-155 chain id. The script reads the entry for the chain it is running on, through [`script/shared/V4FeePolicyAssignments.sol`](../shared/V4FeePolicyAssignments.sol), and fails if that chain has no entry.
+
+```json
+{
+  "5042": {
+    "hookFamilyAssignments": [
+      {"hook": "0x…", "familyId": 11}
+    ],
+    "pairClassAssignments": [
+      {"token0": "0x…", "token1": "0x…", "familyId": 11, "feePips": 300}
+    ]
+  }
+}
+```
+
+`hookFamilyAssignments` puts a hook into a fee family by address, for hooks the flag rules do not classify. `pairClassAssignments` gives a pair a fee that overrides its family default, which is how proposal 6 gave stable-stable pairs a lower fee than other aggregator-hook pools. Tokens may be listed in either order. Fields are matched by name, so extra fields such as a `symbol` are ignored.
+
+`feePips` is the protocol fee the pair's pools should end up charging, in pips (hundredths of a basis point, so 300 is 3 bps). Aggregator hooks charge 25 times the fee the policy assigns them, so the policy stores `feePips / 25` per swap direction; the script performs that division and rejects a fee that is not a multiple of 25 or that exceeds the PoolManager's per-direction cap. Only the aggregator family (`familyId` 11) has a pair-class fee today, and any other family is rejected rather than encoded with the wrong multiplier. The `check` phase reads every assignment back from the policy and compares it to the encoded value.
+
+**Foundry Script**:
+
+[`./prereq/DeployFeeInfraArc.s.sol`](./prereq/DeployFeeInfraArc.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc
+forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --rpc-url arc --broadcast
+```
+
+The standalone preflight runs before Forge can broadcast the implicit library deployment in transaction 00. `run()` repeats the same checks before `startBroadcast()`, stopping its explicit deployment calls if the receiver's state changed between commands.
+
+**Transactions**:
+
+| Index          | Action                                                                              |
+| -------------- | ----------------------------------------------------------------------------------- |
+| 00             | (Implicit) Deploy the `TransceiverStructs` external library for wormhole contracts. |
+| 01             | Deploy `SyntheticNttUni`.                                                           |
+| 02             | Deploy `NttManager` implementation.                                                 |
+| 03             | Deploy `NttManager` proxy.                                                          |
+| 04             | Initialize `NttManager` proxy.                                                      |
+| 05             | Deploy `WormholeTransceiver` implementation.                                        |
+| 06             | Deploy `WormholeTransceiver` proxy.                                                 |
+| 07             | Initialize `WormholeTransceiver` proxy.                                             |
+| 08             | Set `NttManager` proxy's transceiver to the `WormholeTransceiver` proxy.            |
+| 09             | Set `SyntheticNttUni` mint authority to `NttManager` proxy.                         |
+| 10             | Set the Ethereum `WormholeTransceiver` as a peer.                                   |
+| 11             | Set the Ethereum `NttManager` as a peer.                                            |
+| 12             | Transfer ownership of `SyntheticNttUni` to governance.                              |
+| 13             | Transfer ownership of `NttManager`, and with it the transceiver, to governance.     |
+| 14             | Renounce pauser capability on the `WormholeTransceiver` proxy.                      |
+| 15             | Renounce pauser capability on the `NttManager` proxy.                               |
+| 16             | Deploy `TokenJar`.                                                                  |
+| 17             | Deploy `WormholeReleaser`.                                                          |
+| 18             | Set `WormholeReleaser` as the releaser on `TokenJar`.                               |
+| 19             | Transfer `TokenJar` ownership to governance.                                        |
+| 20             | Set `WormholeReleaser` threshold-setter to governance.                              |
+| 21             | Transfer ownership of `WormholeReleaser` to governance.                             |
+| 22             | Deploy `V3OpenFeeAdapter`.                                                          |
+| 23             | Set `V3OpenFeeAdapter` fee-setter to the deployer for configuration.                |
+| 24             | Set `V3OpenFeeAdapter` default fee.                                                 |
+| 25, 26, 27, 28 | Set `V3OpenFeeAdapter` fee tier defaults.                                           |
+| 29, 30, 31, 32 | Store `V3OpenFeeAdapter` fee tiers.                                                 |
+| 33             | Transfer `V3OpenFeeAdapter` fee-setter permission to governance.                    |
+| 34             | Transfer `V3OpenFeeAdapter` ownership to governance.                                |
+| 35             | Deploy `V4FeeAdapter`.                                                              |
+| 36             | Deploy `V4FeePolicy`.                                                               |
+| 37             | Set `V4FeePolicy` on `V4FeeAdapter`.                                                |
+| 38             | Set `V4FeePolicy` fee-setter to the deployer for configuration.                     |
+| 39             | Set `V4FeePolicy` fee buckets.                                                      |
+| 40             | Set `V4FeePolicy` flag rules.                                                       |
+| 41             | Set `V4FeePolicy` aggregator hook family default.                                   |
+| 42             | Assign `V4FeePolicy` hook families by address.                                      |
+| 43             | Set `V4FeePolicy` pair-class fees.                                                  |
+| 44             | Transfer `V4FeePolicy` fee-setter permission to governance.                         |
+| 45             | Transfer `V4FeePolicy` ownership to governance.                                     |
+| 46             | Transfer `V4FeeAdapter` fee-setter permission to governance.                        |
+| 47             | Transfer `V4FeeAdapter` ownership to governance.                                    |
+
+> Note: proposal 4 and Wormhole's own script call `setThreshold(1)` after registering the transceiver. It is a no-op, because registering the first transceiver already raises the threshold from 0 to 1 and the manager rejects any value above the number of enabled transceivers. Here, we omit the transaction and assert the property instead.
+
+**Verification**:
+
+Re-runs every assertion against the chain rather than against the simulation, reading the deployment out of the record:
+
+```bash
+forge script script/proposal-7/prereq/DeployFeeInfraArc.s.sol --sig "check()" --rpc-url arc
+```
+
+### 2. Write the proposal
+
+**Overview**:
+
+Reads the prerequisite deployments out of the record and writes the proposal to `./out/.seatbelt/ArcFeeProposal.json` for Seatbelt. It does not broadcast; the `propose` call is made separately from that output. Run against Ethereum, where it also asserts that every target answers to the Timelock and that neither NTT contract knows Arc yet.
+
+**Foundry Script**:
+
+[`./ArcFees.s.sol`](./ArcFees.s.sol)
+
+**Shell Command**:
+
+```bash
+# from root directory of this repository:
+forge script script/proposal-7/ArcFees.s.sol --rpc-url mainnet
+```
+
+**Preflight**:
+
+The Arc half assumes the receiver still trusts the Ethereum sender and holds the v2 `feeToSetter`, the v3 `owner`, and the `PoolManager` `owner`. The deployment checked these conditions before broadcasting; repeat `preflightArc()` against Arc before proposing to catch any subsequent change:
+
+```bash
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightArc()" --rpc-url arc
+```
+
+The Ethereum half's checks run inside `run()`, and stand alone as `preflightEthereum()`:
+
+```bash
+forge script script/proposal-7/ArcFees.s.sol --sig "preflightEthereum()" --rpc-url mainnet
+```
+
+## Governance actions
+
+### Ethereum actions
+
+---
+
+**OVERVIEW**:
+
+Registers the Arc `WormholeTransceiver` and `NttManager` as peers on their Ethereum counterparts, which proposal 4 deployed and the Timelock owns. This is what lets UNI burned on Arc release on Ethereum. Without it the burn path does not complete.
+
+**RELEVANT ADDRESSES**:
+
+| Name                  | Network  | Address                                      | Description                              |
+| --------------------- | -------- | -------------------------------------------- | ---------------------------------------- |
+| `nttManager`          | Ethereum | `0x6569925Aac77D6B8Bb085F31F9828ff80D5a0c44` | Ethereum NTT manager, from proposal 4    |
+| `wormholeTransceiver` | Ethereum | `0x7597C40Fd3df66b750C14ad4D90524e247499011` | Ethereum transceiver, from proposal 4    |
+| `timelock`            | Ethereum | `0x1a9C8182C09F50C8318d769245beA52c32BE35BC` | Owner of both, and the proposal executor |
+| `NttManager`          | Arc      | recorded by step 1                           | Peer being registered                    |
+| `WormholeTransceiver` | Arc      | recorded by step 1                           | Peer being registered                    |
+
+**ACTIONS**:
+
+- From the `Timelock`:
+    - Set the Arc `WormholeTransceiver` as a peer on the Ethereum `WormholeTransceiver`.
+    - Set the Arc `NttManager` as a peer on the Ethereum `NttManager`.
+
+**BEFORE AND AFTER**:
+
+```mermaid
+---
+config:
+    theme: 'dark'
+---
+flowchart LR
+    subgraph after[After Action]
+        direction LR
+
+        A_NttManager(NttManager)
+        A_WormholeTransceiver(WormholeTransceiver)
+        A_BNBChain(BNB Chain)
+        A_Polygon(Polygon)
+        A_Arc(Arc)
+
+        A_NttManager --> A_BNBChain
+        A_NttManager --> A_Polygon
+        A_NttManager --> A_Arc
+
+        A_WormholeTransceiver --> A_BNBChain
+        A_WormholeTransceiver --> A_Polygon
+        A_WormholeTransceiver --> A_Arc
+    end
+
+    subgraph before[Before Action]
+        direction LR
+
+        B_NttManager(NttManager)
+        B_WormholeTransceiver(WormholeTransceiver)
+        B_BNBChain(BNB Chain)
+        B_Polygon(Polygon)
+
+        B_NttManager --> B_BNBChain
+        B_NttManager --> B_Polygon
+
+        B_WormholeTransceiver --> B_BNBChain
+        B_WormholeTransceiver --> B_Polygon
+    end
+
+    before:::before
+    after:::after
+
+    A_Arc:::changed
+
+    %% Link indices count across the whole diagram in declaration order.
+    %% 2 and 5 are the two new Arc peer registrations.
+    linkStyle 2,5 stroke:#52b788
+
+    classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
+    classDef after fill:#202020,color:#fff,stroke:#3d7d69,stroke-width:4
+    classDef changed fill:#2d6a4f,stroke:#52b788,color:#fff
+```
+
+This proposal's changes (including prerequisite deployments) are in green. Both peer registrations happen on Ethereum, on contracts proposal 4 deployed.
+
+### Arc actions
+
+---
+
+**OVERVIEW**:
+
+One Wormhole message carrying three calls, executed by the `UniswapWormholeMessageReceiver`, which owns all three protocol contracts. V3 sends fees to the factory owner, so activating v3 means transferring factory ownership to the `V3OpenFeeAdapter` rather than setting a collector.
+
+**RELEVANT ADDRESSES**:
+
+| Name                | Network  | Address                                              | Description                        |
+| ------------------- | -------- | ---------------------------------------------------- | ---------------------------------- |
+| `V2_FACTORY`        | Arc      | `0x89e5DB8B5aA49aA85AC63f691524311AEB649eba`         | Uniswap V2 Factory                 |
+| `V3_FACTORY`        | Arc      | `0xf0db7b58379503491d857dB50AC9ece64c653918`         | Uniswap V3 Factory                 |
+| `POOL_MANAGER`      | Arc      | `0x8366a39CC670B4001A1121B8F6A443A643e40951`         | Uniswap V4 Pool Manager            |
+| `WORMHOLE_RECEIVER` | Arc      | `0xbCA30b5429935205037069cF5b8A165F55d05a75`         | Governance owned Wormhole receiver |
+| `WORMHOLE_SENDER`   | Ethereum | `0xf5F4496219F31CDCBa6130B5402873624585615a`         | Wormhole sender, owned by Timelock |
+| `TokenJar`          | Arc      | recorded by step 1                                   | Fee destination                    |
+| `V3OpenFeeAdapter`  | Arc      | recorded by step 1                                   | New V3 factory owner               |
+| `V4FeeAdapter`      | Arc      | recorded by step 1                                   | New protocol fee controller        |
+
+**ACTIONS**:
+
+- From `UniswapWormholeMessageReceiver`:
+    - Set `UniswapV2Factory.feeTo` to `TokenJar`.
+    - Set `UniswapV3Factory.owner` to `V3OpenFeeAdapter`.
+    - Set `PoolManager.protocolFeeController` to `V4FeeAdapter`.
+
+**BEFORE AND AFTER**:
+
+```mermaid
+---
+config:
+    theme: 'dark'
+---
+flowchart LR
+    subgraph after[After Action]
+        direction LR
+
+        A_UniswapV2Factory(UniswapV2Factory)
+        A_UniswapV3Factory(UniswapV3Factory)
+        A_PoolManager(PoolManager)
+        A_TokenJar(TokenJar)
+        A_V3OpenFeeAdapter(V3OpenFeeAdapter)
+        A_V4FeeAdapter(V4FeeAdapter)
+        A_WormholeReceiver(WormholeReceiver)
+        A_WormholeNTTManager(WormholeNTTManager)
+        A_WormholeReleaser(WormholeReleaser)
+        A_WormholeBridge((WormholeBridge))
+
+        subgraph A_Core[Uniswap Core]
+            A_UniswapV2Factory
+            A_UniswapV3Factory
+            A_PoolManager
+        end
+
+        A_WormholeNTTManager -->|"owner()"| A_WormholeReceiver
+        A_WormholeNTTManager -.->|"bridge"| A_WormholeBridge
+        A_WormholeReleaser -->|"owner()"| A_WormholeReceiver
+        A_TokenJar -->|"owner()"| A_WormholeReceiver
+
+        A_UniswapV2Factory -->|"feeTo()"| A_TokenJar
+        A_UniswapV2Factory -->|"feeToSetter()"| A_WormholeReceiver
+
+        A_UniswapV3Factory -->|"owner()"| A_V3OpenFeeAdapter
+        A_V3OpenFeeAdapter -->|"owner()"| A_WormholeReceiver
+        A_V3OpenFeeAdapter -->|"TOKEN_JAR()"| A_TokenJar
+
+        A_PoolManager -->|"protocolFeeController()"| A_V4FeeAdapter
+        A_PoolManager -->|"owner()"| A_WormholeReceiver
+        A_V4FeeAdapter -->|"owner()"| A_WormholeReceiver
+
+        A_WormholeReceiver -.->|"bridge"| A_WormholeBridge
+    end
+
+    subgraph before[Before Action]
+        direction LR
+
+        B_UniswapV2Factory(UniswapV2Factory)
+        B_UniswapV3Factory(UniswapV3Factory)
+        B_PoolManager(PoolManager)
+        B_WormholeReceiver(WormholeReceiver)
+        B_WormholeBridge((WormholeBridge))
+        B_Z(0x00...00)
+
+        subgraph B_Core[Uniswap Core]
+            B_UniswapV2Factory
+            B_UniswapV3Factory
+            B_PoolManager
+        end
+
+        B_UniswapV2Factory -->|"feeTo()"| B_Z
+        B_UniswapV2Factory -->|"feeToSetter()"| B_WormholeReceiver
+
+        B_UniswapV3Factory -->|"owner()"| B_WormholeReceiver
+
+        B_PoolManager -->|"protocolFeeController()"| B_Z
+        B_PoolManager -->|"owner()"| B_WormholeReceiver
+
+        B_WormholeReceiver -.->|"bridge"| B_WormholeBridge
+    end
+
+    before:::before
+    after:::after
+    A_Core:::core
+    B_Core:::core
+
+    A_TokenJar:::changed
+    A_V3OpenFeeAdapter:::changed
+    A_V4FeeAdapter:::changed
+
+    %% Link indices count across the whole diagram in declaration order.
+    %% 4 = feeTo(), 6 = v3 factory owner(), 9 = protocolFeeController().
+    linkStyle 4,6,9 stroke:#52b788
+
+    classDef before fill:#202020,color:#fff,stroke:#59213f,stroke-width:4
+    classDef after fill:#202020,color:#fff,stroke:#3d7d69,stroke-width:4
+    classDef core fill:#202020,color:#fff,stroke:#f50db4,stroke-width:4
+    classDef changed fill:#2d6a4f,stroke:#52b788,color:#fff
+```
+
+This proposal's changes (including prerequisite deployments) are in green.
+
+## Tests
+
+Persistent tests for both halves of the proposal live in [`test/end-to-end/proposal-7/`](../../test/end-to-end/proposal-7/). They run locally only; none is wired into CI.
+
+| File | Fork | Covers |
+| ---- | ---- | ------ |
+| `ArcFeesProposal.t.sol` | none | `encodeWormhole` inverts under [`test/utils/WormholeDecode.sol`](../../test/utils/WormholeDecode.sol), and `buildProposal` emits the three actions with the expected targets, values, and calldata |
+| `ArcFeesEthereum.fork.t.sol` | Ethereum, pinned | `preflightEthereum()` holds; executing the proposal as the Timelock registers the Arc peers on the live NTT contracts, and publishes the Arc message from the live sender |
+| `ArcFeesArc.fork.t.sol` | Arc and Ethereum, pinned | `preflightArc()` holds; step 1 runs and records every deployment; executing the proposal on Ethereum publishes an Arc message from the live sender, whose payload is delivered to the deployed receiver with the Arc core's `parseAndVerifyVM` mocked; the receiver dispatches exactly the calls decoded from the proposal and sets `feeTo`, the v3 `owner`, and the `protocolFeeController`; a release through the Arc `WormholeReleaser`, delivered to the live Ethereum transceiver with the mainnet core's `parseAndVerifyVM` mocked, is refused before actions 00 and 01 execute and unlocks UNI to the burn address after. Until `.records/Arc.json` exists, each test deploys under its own record name; once it does, the tests read it and run against the live deployment, with `ARC_BLOCK` moved past it |
+
+Each test writes its own record under `.records/*Test.json`, which is gitignored, so a fork deployment can never be mistaken for `.records/Arc.json`. The Arc fork reads `ARC_RPC_URL`, and forge fails loudly if it is unset.
+
+```sh
+forge test --match-path 'test/end-to-end/proposal-7/*'
+```
+
+## Relaying the message
+
+Wormhole does not deliver the Arc message. After the proposal executes, the VAA for the Arc action has to be fetched from Wormhole's API and passed to `receiveMessage` on the receiver. Proposal 4 did this with a finalizer script carrying the VAA bytes; the equivalent here can only be written once there is a VAA.
+
+Someone, potentially Wormhole, will sometimes batch-relay messages themselves. Nothing in that path logs an observable event or shows as a transaction on Etherscan-style explorers, so a later relay attempt reverts as a replay and looks like a failure even though the message already executed.
