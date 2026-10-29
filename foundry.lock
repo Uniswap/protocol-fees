@@ -11,6 +11,9 @@
   "lib/forge-std": {
     "rev": "77041d2ce690e692d6e03cc812b57d1ddaa4d505"
   },
+  "lib/govkit": {
+    "rev": "3a12378362e6c444d5312ed82c2ee98ef1d0841f"
+  },
   "lib/murky": {
     "rev": "5feccd1253d7da820f7cccccdedf64471025455d"
   },
