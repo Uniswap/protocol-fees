@@ -52,6 +52,9 @@ contract ProtocolFeesForkTest is Test {
   IUniswapV2Pair pair;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     vm.createSelectFork("mainnet", 24_106_377);
     factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
     v2Factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);

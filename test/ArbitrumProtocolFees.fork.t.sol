@@ -74,6 +74,9 @@ contract ArbitrumProtocolFeesForkTest is Test {
   address constant ARB_SYS = address(0x64);
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     // Fork Arbitrum One
     vm.createSelectFork("arbitrum");
 

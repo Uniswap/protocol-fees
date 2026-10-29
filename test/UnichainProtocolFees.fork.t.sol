@@ -25,6 +25,9 @@ contract UnichainProtocolFeesForkTest is Test {
   address public constant owner = 0x2BAD8182C09F50c8318d769245beA52C32Be46CD;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     // Fork Unichain
     vm.createSelectFork("unichain");
 
