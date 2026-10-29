@@ -34,6 +34,9 @@ contract V4FeePolicyTest is Test {
     | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
     | Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG;
 
+  /// @dev The rulesets key of pools that have no hook.
+  address internal constant NO_HOOK = address(0);
+
   V4FeePolicy public policy;
 
   address public owner;
@@ -72,10 +75,8 @@ contract V4FeePolicyTest is Test {
     assertEq(deployed.owner(), initialOwner);
     assertEq(deployed.feeSetter(), initialFeeSetter);
     assertEq(deployed.defaultFee(), 0);
-    assertEq(deployed.ZERO_FEE(), 0);
     assertEq(deployed.CUSTOM_ACCOUNTING_MASK(), RETURNS_DELTA_FLAGS);
-    assertEq(deployed.HOOKLESS_POLICY_SENTINEL(), address(0));
-    assertEq(deployed.STATIC_CURVE_POLICY_SENTINEL(), address(1));
+    assertEq(deployed.NATIVE_MATH_POOL_SENTINEL(), address(1));
   }
 
   // ============ computeFee ============
@@ -88,7 +89,7 @@ contract V4FeePolicyTest is Test {
   // │   │   └── it reverts with InvalidFeeValue
   // │   └── when the ruleset returns a fee at or below MAX_PROTOCOL_FEE
   // │       ├── when the pool has no hook
-  // │       │   ├── it returns the fee of the ruleset at HOOKLESS_POLICY_SENTINEL
+  // │       │   ├── it returns the fee of the ruleset at address(0)
   // │       │   └── when that ruleset returns zero
   // │       │       └── it returns zero and does not fall through to the default fee
   // │       ├── when the static curve also applies to the pool
@@ -108,7 +109,7 @@ contract V4FeePolicyTest is Test {
   //     │       └── it returns zero
   //     └── given the pool has a hook
   //         ├── given the hook has no custom accounting and the LP fee is static
-  //         │   ├── when a static curve is set at STATIC_CURVE_POLICY_SENTINEL
+  //         │   ├── when a static curve is set at NATIVE_MATH_POOL_SENTINEL
   //         │   │   ├── when the static curve reverts
   //         │   │   │   └── it reverts with the error of the static curve
   //         │   │   ├── when the static curve runs out of gas
@@ -156,9 +157,9 @@ contract V4FeePolicyTest is Test {
   //                         └── it returns the hook fee and does not call the static curve
   //
   // A hook without RETURNS_DELTA flags and a static LP fee uses the static curve when a ruleset is
-  // set at STATIC_CURVE_POLICY_SENTINEL. With no ruleset there, computeFee continues to hook
+  // set at NATIVE_MATH_POOL_SENTINEL. With no ruleset there, computeFee continues to hook
   // opt-in, then the default fee. A configured static curve that returns zero does not fall
-  // through. Hookless pools use the address(0) policy if it is set, and defaultFee if it is not.
+  // through. Hookless pools use the address(0) ruleset if it is set, and defaultFee if it is not.
   // They cannot opt in. Custom accounting and a dynamic LP fee skip the static curve. Tests that
   // put code at a hook address deploy all mocks first. Then they assume that the fuzzed hook
   // address has no
@@ -204,14 +205,13 @@ contract V4FeePolicyTest is Test {
     vm.prank(feeSetter);
     policy.setDefaultFee(_boundProtocolFee(defaultFee));
 
-    // Given: a ruleset at HOOKLESS_POLICY_SENTINEL returns a fee at or below MAX_PROTOCOL_FEE.
+    // Given: a ruleset at address(0) returns a fee at or below MAX_PROTOCOL_FEE.
     rulesetFee = _boundProtocolFee(rulesetFee);
     MockProtocolFeeRuleset ruleset = new MockProtocolFeeRuleset({fee: rulesetFee, reverts: false});
-    address hooklessSentinel = policy.HOOKLESS_POLICY_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(hooklessSentinel, ruleset);
+    policy.setProtocolFeeRuleset(NO_HOOK, ruleset);
 
-    // Then: computeFee returns the fee of the ruleset at HOOKLESS_POLICY_SENTINEL.
+    // Then: computeFee returns the fee of the ruleset at address(0).
     vm.expectCall(address(ruleset), abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (key)));
     assertEq(policy.computeFee(key), rulesetFee);
   }
@@ -220,16 +220,15 @@ contract V4FeePolicyTest is Test {
     PoolKey memory key,
     uint24 defaultFee
   ) public {
-    // Given: the pool has no hook. The address(0) policy returns zero, and the default fee is not
+    // Given: the pool has no hook. The address(0) ruleset returns zero, and the default fee is not
     // zero. A configured zero does not fall through.
     key.hooks = IHooks(address(0));
     defaultFee = _boundProtocolFee(defaultFee);
     vm.assume(defaultFee != 0);
     MockProtocolFeeRuleset ruleset = new MockProtocolFeeRuleset({fee: 0, reverts: false});
-    address hooklessSentinel = policy.HOOKLESS_POLICY_SENTINEL();
     vm.startPrank(feeSetter);
     policy.setDefaultFee(defaultFee);
-    policy.setProtocolFeeRuleset(hooklessSentinel, ruleset);
+    policy.setProtocolFeeRuleset(NO_HOOK, ruleset);
     vm.stopPrank();
 
     // Then: computeFee returns zero and does not use the default fee.
@@ -248,12 +247,12 @@ contract V4FeePolicyTest is Test {
     );
     key.fee = uint24(bound(key.fee, 0, LPFeeLibrary.MAX_LP_FEE));
 
-    // When: the static curve at STATIC_CURVE_POLICY_SENTINEL also applies to the pool.
+    // When: the static curve at NATIVE_MATH_POOL_SENTINEL also applies to the pool.
     MockProtocolFeeRuleset staticCurve =
       new MockProtocolFeeRuleset({fee: _boundProtocolFee(curveFee), reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a ruleset is set for the hook, and it returns a fee at or below MAX_PROTOCOL_FEE.
     rulesetFee = _boundProtocolFee(rulesetFee);
@@ -295,9 +294,9 @@ contract V4FeePolicyTest is Test {
     // Given: a static curve, a default fee, and a ruleset assigned to the hook.
     MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: curveFee, reverts: false});
     MockProtocolFeeRuleset ruleset = new MockProtocolFeeRuleset({fee: rulesetFee, reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
     policy.setProtocolFeeRuleset(address(key.hooks), ruleset);
     policy.setDefaultFee(defaultFee);
     vm.stopPrank();
@@ -351,15 +350,15 @@ contract V4FeePolicyTest is Test {
     uint24 curveFee,
     uint24 defaultFee
   ) public {
-    // Given: the pool has no hook, and no ruleset is set at HOOKLESS_POLICY_SENTINEL.
+    // Given: the pool has no hook, and no ruleset is set at address(0).
     key.hooks = IHooks(address(0));
 
-    // Given: a static curve is set at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve is set at NATIVE_MATH_POOL_SENTINEL.
     MockProtocolFeeRuleset staticCurve =
       new MockProtocolFeeRuleset({fee: _boundProtocolFee(curveFee), reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a default fee other than zero.
     defaultFee = _boundProtocolFee(defaultFee);
@@ -378,8 +377,8 @@ contract V4FeePolicyTest is Test {
     PoolKey memory key,
     uint24 defaultFee
   ) public {
-    // Given: the pool has no hook, and no ruleset is set at HOOKLESS_POLICY_SENTINEL.
-    // When: no static curve is set at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: the pool has no hook, and no ruleset is set at address(0).
+    // When: no static curve is set at NATIVE_MATH_POOL_SENTINEL.
     key.hooks = IHooks(address(0));
 
     // Given: a default fee other than zero.
@@ -390,7 +389,7 @@ contract V4FeePolicyTest is Test {
 
     // Then: computeFee returns the default fee. Hookless pools cannot opt in.
     assertEq(policy.computeFee(key), defaultFee);
-    assertEq(address(policy.rulesets(policy.HOOKLESS_POLICY_SENTINEL())), address(0));
+    assertEq(address(policy.rulesets(NO_HOOK)), address(0));
   }
 
   function testFuzz_computeFee_GivenNoRuleset_GivenThePoolHasNoHook_WhenDefaultFeeIsZero(PoolKey memory key)
@@ -399,7 +398,7 @@ contract V4FeePolicyTest is Test {
     // Given: the pool has no hook, address(0) is unset, and the default fee is zero.
     key.hooks = IHooks(address(0));
     assertEq(policy.defaultFee(), 0);
-    assertEq(address(policy.rulesets(policy.HOOKLESS_POLICY_SENTINEL())), address(0));
+    assertEq(address(policy.rulesets(NO_HOOK)), address(0));
 
     // Then: computeFee returns zero.
     assertEq(policy.computeFee(key), 0);
@@ -412,12 +411,12 @@ contract V4FeePolicyTest is Test {
     );
     key.fee = uint24(bound(key.fee, 0, LPFeeLibrary.MAX_LP_FEE));
 
-    // Given: a static curve is set at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve is set at NATIVE_MATH_POOL_SENTINEL.
     // When: the static curve reverts.
     MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: 0, reverts: true});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Then: computeFee reverts with the error of the static curve.
     vm.expectRevert(MockProtocolFeeRuleset.MockReverted.selector);
@@ -434,13 +433,13 @@ contract V4FeePolicyTest is Test {
     );
     key.fee = uint24(bound(key.fee, 0, LPFeeLibrary.MAX_LP_FEE));
 
-    // Given: a static curve is set at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve is set at NATIVE_MATH_POOL_SENTINEL.
     // When: the static curve returns a fee above MAX_PROTOCOL_FEE in one or two directions.
     vm.assume(!ProtocolFeeLibrary.isValidProtocolFee(curveFee));
     MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: curveFee, reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Then: computeFee reverts with InvalidFeeValue. A curve that runs out of gas or returns
     // short data also fails the call, below, and does not fall through to the hook or defaultFee.
@@ -454,9 +453,11 @@ contract V4FeePolicyTest is Test {
     uint24 hookFee = 200 << 12 | 200;
     uint24 defaultFee = 100 << 12 | 100;
     MockOutOfGasRuleset staticCurve = new MockOutOfGasRuleset();
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, IV4ProtocolFeeRuleset(address(staticCurve)));
+    policy.setProtocolFeeRuleset(
+      nativeMathPoolSentinel, IV4ProtocolFeeRuleset(address(staticCurve))
+    );
     vm.prank(feeSetter);
     policy.setDefaultFee(defaultFee);
 
@@ -480,9 +481,11 @@ contract V4FeePolicyTest is Test {
     uint24 hookFee = 200 << 12 | 200;
     uint24 defaultFee = 100 << 12 | 100;
     MockShortReturnRuleset staticCurve = new MockShortReturnRuleset();
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, IV4ProtocolFeeRuleset(address(staticCurve)));
+    policy.setProtocolFeeRuleset(
+      nativeMathPoolSentinel, IV4ProtocolFeeRuleset(address(staticCurve))
+    );
     vm.prank(feeSetter);
     policy.setDefaultFee(defaultFee);
 
@@ -506,14 +509,14 @@ contract V4FeePolicyTest is Test {
     uint24 curveFee,
     uint24 hookFee
   ) public {
-    // Given: a static curve at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve at NATIVE_MATH_POOL_SENTINEL.
     // When: the static curve returns a nonzero fee at or below MAX_PROTOCOL_FEE.
     curveFee = _boundProtocolFee(curveFee);
     vm.assume(curveFee != 0);
     MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: curveFee, reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a hook without RETURNS_DELTA flags and without a ruleset, and a static LP fee. The
     // hook also returns a fee through ERC165.
@@ -540,12 +543,12 @@ contract V4FeePolicyTest is Test {
     uint24 hookFee,
     uint24 defaultFee
   ) public {
-    // Given: a static curve at STATIC_CURVE_POLICY_SENTINEL that returns zero. Zero from a
+    // Given: a static curve at NATIVE_MATH_POOL_SENTINEL that returns zero. Zero from a
     // configured curve is deliberate.
     MockProtocolFeeRuleset staticCurve = new MockProtocolFeeRuleset({fee: 0, reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a hook without RETURNS_DELTA flags and without a ruleset, and a static LP fee. The
     // hook would return a nonzero fee, and the default fee is also nonzero.
@@ -849,12 +852,12 @@ contract V4FeePolicyTest is Test {
     uint24 hookFee,
     uint24 curveFee
   ) public {
-    // Given: a static curve at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve at NATIVE_MATH_POOL_SENTINEL.
     MockProtocolFeeRuleset staticCurve =
       new MockProtocolFeeRuleset({fee: _boundProtocolFee(curveFee), reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a hook without a ruleset, which returns a fee at or below MAX_PROTOCOL_FEE through
     // ERC165.
@@ -887,12 +890,12 @@ contract V4FeePolicyTest is Test {
     uint24 hookFee,
     uint24 curveFee
   ) public {
-    // Given: a static curve at STATIC_CURVE_POLICY_SENTINEL.
+    // Given: a static curve at NATIVE_MATH_POOL_SENTINEL.
     MockProtocolFeeRuleset staticCurve =
       new MockProtocolFeeRuleset({fee: _boundProtocolFee(curveFee), reverts: false});
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, staticCurve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, staticCurve);
 
     // Given: a hook without RETURNS_DELTA flags and without a ruleset, which returns a fee at or
     // below MAX_PROTOCOL_FEE through ERC165.

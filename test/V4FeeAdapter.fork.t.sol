@@ -44,6 +44,7 @@ contract V4FeeAdapterForkTest is Deployers {
   uint24 constant PROTO_FEE_200 = (200 << 12) | 200;
   uint24 constant PROTO_FEE_300 = (300 << 12) | 300;
   uint24 constant PROTO_FEE_500 = (500 << 12) | 500;
+  address constant NO_HOOK = address(0); // the rulesets key of pools that have no hook
 
   function setUp() public {
     owner = address(this);
@@ -101,9 +102,8 @@ contract V4FeeAdapterForkTest is Deployers {
 
   /// @dev Sets the static curve as the ruleset of all pools that have no hook.
   function _registerCurveForHooklessPools() internal {
-    address hooklessSentinel = policy.HOOKLESS_POLICY_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(hooklessSentinel, curve);
+    policy.setProtocolFeeRuleset(NO_HOOK, curve);
   }
 
   // ============ Static curve on hooked pools ============
@@ -116,9 +116,9 @@ contract V4FeeAdapterForkTest is Deployers {
 
     // 100_000 pips × 3000 / 1_000_000 = 300 in each direction (= PROTO_FEE_300)
     _setSingleBucketSlope(100_000);
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     vm.prank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, curve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, curve);
 
     adapter.triggerFeeUpdate(staticHookPool);
 
@@ -134,11 +134,11 @@ contract V4FeeAdapterForkTest is Deployers {
 
     // The static curve gives PROTO_FEE_300 for this pool.
     _setSingleBucketSlope(100_000);
-    address staticCurveSentinel = policy.STATIC_CURVE_POLICY_SENTINEL();
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
     MockProtocolFeeRuleset ruleset =
       new MockProtocolFeeRuleset({fee: PROTO_FEE_200, reverts: false});
     vm.startPrank(feeSetter);
-    policy.setProtocolFeeRuleset(staticCurveSentinel, curve);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, curve);
     policy.setProtocolFeeRuleset(address(hook), ruleset);
     vm.stopPrank();
 
