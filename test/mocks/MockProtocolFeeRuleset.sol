@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {IV4ProtocolFeeRuleset} from "../../src/interfaces/IV4FeePolicy.sol";
 
@@ -20,6 +21,25 @@ contract MockProtocolFeeRuleset is IV4ProtocolFeeRuleset {
   function getProtocolFee(PoolKey calldata) external view returns (uint24) {
     if (REVERTS) revert MockReverted();
     return FEE;
+  }
+}
+
+/// @notice A mock ruleset whose fee is linear in the LP fee: `betaPips * lpFee / 1_000_000` in each
+/// direction, capped at MAX_PROTOCOL_FEE. It stands in for a static curve with one bucket at floor
+/// 0.
+contract MockLinearRuleset is IV4ProtocolFeeRuleset {
+  uint32 public betaPips;
+
+  function setBetaPips(uint32 _betaPips) external {
+    betaPips = _betaPips;
+  }
+
+  function getProtocolFee(PoolKey calldata key) external view returns (uint24) {
+    uint256 perDirection = uint256(betaPips) * key.fee / 1_000_000;
+    if (perDirection > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) {
+      perDirection = ProtocolFeeLibrary.MAX_PROTOCOL_FEE;
+    }
+    return uint24((perDirection << 12) | perDirection);
   }
 }
 

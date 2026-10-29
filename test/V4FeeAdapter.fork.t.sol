@@ -17,20 +17,23 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
 import {V4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {V4StaticCurveRuleset} from "../src/feeAdapters/examples/V4StaticCurveRuleset.sol";
-import {FeeBucket} from "../src/interfaces/IV4StaticCurveRuleset.sol";
-import {MockProtocolFeeRuleset, MockSelfReportingHook} from "./mocks/MockProtocolFeeRuleset.sol";
+import {
+  MockLinearRuleset,
+  MockProtocolFeeRuleset,
+  MockSelfReportingHook
+} from "./mocks/MockProtocolFeeRuleset.sol";
 
 /// @notice Integration tests on a real v4 PoolManager, which Deployers deploys locally. The tests
 /// examine protocol fee accrual from real swaps, collection to the TokenJar, and the full fee
-/// waterfall of the adapter, the policy, and the static curve.
+/// waterfall of the adapter, the policy, and a ruleset that is linear in the LP fee, in place of
+/// a static curve.
 contract V4FeeAdapterForkTest is Deployers {
   using PoolIdLibrary for PoolKey;
   using StateLibrary for IPoolManager;
 
   V4FeeAdapter adapter;
   V4FeePolicy policy;
-  V4StaticCurveRuleset curve;
+  MockLinearRuleset curve;
   address tokenJar;
 
   address owner;
@@ -59,7 +62,7 @@ contract V4FeeAdapterForkTest is Deployers {
 
     // Deploy the adapter, the policy, and the static curve.
     policy = new V4FeePolicy(owner, feeSetter);
-    curve = new V4StaticCurveRuleset(owner, feeSetter);
+    curve = new MockLinearRuleset();
     adapter = new V4FeeAdapter(manager, tokenJar);
     adapter.setPolicy(policy);
     adapter.setFeeSetter(feeSetter);
@@ -91,13 +94,10 @@ contract V4FeeAdapterForkTest is Deployers {
     );
   }
 
-  /// @dev Sets one bucket with a floor of 0 and `betaPips` = X. Thus, the static curve gives
+  /// @dev Sets the slope of the curve to X. Thus, the curve gives
   /// `protocolFee = X * lpFee / 1_000_000`.
   function _setSingleBucketSlope(uint32 betaPips) internal {
-    FeeBucket[] memory buckets = new FeeBucket[](1);
-    buckets[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
-    vm.prank(feeSetter);
-    curve.setFeeBuckets(buckets);
+    curve.setBetaPips(betaPips);
   }
 
   /// @dev Sets the static curve as the ruleset of all pools that have no hook.

@@ -42,6 +42,10 @@ interface IV4FeePolicy {
   /// @notice Calculates the protocol fee of a pool.
   function computeFee(PoolKey calldata key) external view returns (uint24);
 
+  /// @notice Returns the ruleset set for a hook. `address(0)` is the key of hookless pools.
+  /// @param hook The hook address, or a sentinel key.
+  function rulesets(address hook) external view returns (IV4ProtocolFeeRuleset);
+
   /// @notice Sets the protocol fee ruleset of a hook. This ruleset applies before a fee from the
   /// hook. Only the fee setter can call this function.
   function setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) external;
