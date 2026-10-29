@@ -22,6 +22,9 @@ contract RotateEarnSentinelsForkTest is Test {
   RotateEarnSentinels internal script;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     vm.createSelectFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();
     script = new RotateEarnSentinels();
