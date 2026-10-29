@@ -66,6 +66,9 @@ contract ArcFeesArcForkTest is Test {
   uint256 internal mainnetFork;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     arcFork = vm.createSelectFork("arc", ARC_BLOCK);
     mainnetFork = vm.createFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();

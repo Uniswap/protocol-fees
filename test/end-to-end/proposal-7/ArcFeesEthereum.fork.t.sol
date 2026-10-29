@@ -32,6 +32,9 @@ contract ArcFeesEthereumForkTest is Test {
   Recorder internal recorder;
 
   function setUp() public {
+    bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
+    vm.skip(!shouldRun);
+
     vm.createSelectFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();
   }
