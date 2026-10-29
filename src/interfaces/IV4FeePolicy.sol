@@ -42,7 +42,7 @@ interface IV4FeePolicy {
   /// @notice Compute the protocol fee for a given pool.
   function computeFee(PoolKey calldata key) external view returns (uint24);
 
-  /// @notice Explictly set a protocol fee policy for a given hook. This overrides
+  /// @notice Explictly set a protocol fee ruleset for a given hook. This overrides
   ///         any reported by the hook itself.
   function setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) external;
 
