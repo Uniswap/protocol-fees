@@ -21,14 +21,10 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Mask for the four RETURNS_DELTA flags (bits 0-3 of the hook address).
   uint160 public constant CUSTOM_ACCOUNTING_MASK = 0xF;
 
-  /// @notice Sentinel addresses for pools that have no hook, and for the static curve.
-  /// @dev The fee setter can set a ruleset at these addresses.
-  address public constant HOOKLESS_POLICY_SENTINEL = address(0);
-  address public constant STATIC_CURVE_POLICY_SENTINEL = address(1);
-  /// @notice The zero fee.
-  uint24 public constant ZERO_FEE = 0;
+  /// @notice Sentinel address that assigns a ruleset to native math hooked pools.
+  address public constant NATIVE_MATH_POOL_SENTINEL = address(1);
 
-  /// @notice The ruleset of each hook.
+  /// @notice Registered rulesets per hook. `address(0)` assigns a ruleset to hookless pools.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
 
   uint24 public defaultFee;
@@ -48,26 +44,28 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function computeFee(PoolKey calldata key) public view returns (uint24) {
-    IV4ProtocolFeeRuleset ruleset = rulesets[address(key.hooks)];
+    address hook = address(key.hooks);
+    IV4ProtocolFeeRuleset ruleset = rulesets[hook];
 
-    // If a ruleset is set for the hook, return the fee from that ruleset.
+    // If a ruleset is set for the hook address (including hookless), return its fee.
     if (address(ruleset) != address(0)) return _handleGetProtocolFee(ruleset, key);
-    // Hookless pools use the address(0) policy if set, else defaultFee.
-    if (address(key.hooks) == address(0)) return defaultFee;
+    // If hookless pools have no ruleset, fallback to defaultFee.
+    if (hook == address(0)) return defaultFee;
 
-    // Static-fee hooked pools use the curve at STATIC_CURVE_POLICY_SENTINEL when it is set.
-    // An unset curve falls through to hook opt-in, then defaultFee.
-    if (!_isCustomAccounting(address(key.hooks)) && !key.fee.isDynamicFee()) {
-      IV4ProtocolFeeRuleset staticCurveRuleset = rulesets[STATIC_CURVE_POLICY_SENTINEL];
-      if (address(staticCurveRuleset) != address(0)) {
-        return _handleGetProtocolFee(staticCurveRuleset, key);
+    // Native math hooked pools (aka pools with a hook, static LP fee, and no delta returning flags)
+    if (!_isCustomAccounting(hook) && !key.fee.isDynamicFee()) {
+      IV4ProtocolFeeRuleset nativeMathRuleset = rulesets[NATIVE_MATH_POOL_SENTINEL];
+      if (address(nativeMathRuleset) != address(0)) {
+        return _handleGetProtocolFee(nativeMathRuleset, key);
       }
     }
-    // If the hook supports the ruleset interface, return the fee from the hook.
-    if (ERC165Checker.supportsInterface(
-        address(key.hooks), type(IV4ProtocolFeeRuleset).interfaceId
-      )) return _handleGetProtocolFee(IV4ProtocolFeeRuleset(address(key.hooks)), key);
-    // Return the default fee.
+
+    // If the hook declares its own ruleset, return the fee from the hook.
+    if (ERC165Checker.supportsInterface(hook, type(IV4ProtocolFeeRuleset).interfaceId)) {
+      return _handleGetProtocolFee(IV4ProtocolFeeRuleset(hook), key);
+    }
+
+    // Fallback to the default fee.
     return defaultFee;
   }
 
@@ -114,13 +112,13 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Reverts if the ruleset is the zero address. The caller must not pass the zero address.
   /// @dev A call to an address without code, or to a contract that does not implement
   ///      IV4ProtocolFeeRuleset, reverts.
-  function _handleGetProtocolFee(IV4ProtocolFeeRuleset policy, PoolKey calldata key)
+  function _handleGetProtocolFee(IV4ProtocolFeeRuleset ruleset, PoolKey calldata key)
     internal
     view
     returns (uint24)
   {
-    if (address(policy) == address(0)) revert AddressCannotBeZero();
-    uint24 fee = policy.getProtocolFee(key);
+    if (address(ruleset) == address(0)) revert AddressCannotBeZero();
+    uint24 fee = ruleset.getProtocolFee(key);
     _validateFee(fee);
     return fee;
   }
