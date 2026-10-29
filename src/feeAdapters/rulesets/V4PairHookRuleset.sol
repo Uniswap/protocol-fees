@@ -2,34 +2,36 @@
 pragma solidity ^0.8.26;
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {IV4FeePolicy, IV4ProtocolFeeRuleset} from "../../interfaces/IV4FeePolicy.sol";
 import {IV4PairHookRuleset} from "../../interfaces/IV4PairHookRuleset.sol";
-import {IV4StaticCurveRuleset} from "../../interfaces/IV4StaticCurveRuleset.sol";
 
 /// @title V4PairHookRuleset
-/// @notice The base of the rulesets for dynamic-fee pair hooks. It returns the fee of the hookless
-/// curve for an LP fee from the hook's configuration of the pool.
+/// @notice The base of the rulesets for dynamic-fee pair hooks. It returns the fee that the policy
+/// gives a hookless pool with the same currencies and tick spacing, and an LP fee from the hook's
+/// configuration of the pool.
 /// @custom:security-contact security@uniswap.org
 abstract contract V4PairHookRuleset is IV4PairHookRuleset {
-  /// @dev The key of hookless pools in the rulesets of the policy.
-  address internal constant NO_HOOK = address(0);
-
   /// @inheritdoc IV4PairHookRuleset
   IV4FeePolicy public immutable POLICY;
 
-  /// @param policy The policy on which the ruleset looks up the hookless curve.
+  /// @param policy The policy that gives the fee of hookless pools.
   constructor(IV4FeePolicy policy) {
     if (address(policy) == address(0)) revert AddressCannotBeZero();
     POLICY = policy;
   }
 
   /// @inheritdoc IV4ProtocolFeeRuleset
-  /// @dev Reverts if no ruleset is set for hookless pools, or if that ruleset is not a static
-  /// curve.
   function getProtocolFee(PoolKey calldata key) external view returns (uint24) {
-    IV4ProtocolFeeRuleset curve = POLICY.rulesets(NO_HOOK);
-    if (address(curve) == address(0)) revert HooklessCurveNotSet();
-    return IV4StaticCurveRuleset(address(curve)).getFeeForLpFee(_lpFee(key));
+    return POLICY.computeFee(
+      PoolKey({
+        currency0: key.currency0,
+        currency1: key.currency1,
+        fee: _lpFee(key),
+        tickSpacing: key.tickSpacing,
+        hooks: IHooks(address(0))
+      })
+    );
   }
 
   /// @inheritdoc IV4PairHookRuleset
