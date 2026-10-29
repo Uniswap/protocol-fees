@@ -59,9 +59,9 @@ interface IV4StaticCurveRuleset is IV4ProtocolFeeRuleset {
     returns (uint24 lpFeeFloor, uint24 alphaPips, uint32 betaPips);
 
   /// @notice Calculates the protocol fee for an LP fee on this curve.
-  /// @dev A ruleset for a hook looks up the hookless ruleset and calls this with the LP fee it
-  /// uses, so a later change of that ruleset applies to the hook. The two swap directions have
-  /// the same fee.
+  /// @dev For a static LP fee, this is the same fee as `getProtocolFee`. A hook that takes more
+  /// than its LP fee can call this with an effective LP fee. The two swap directions have the same
+  /// fee.
   /// @param lpFee The LP fee, in pips. This can be an effective LP fee above 1_000_000.
   /// @return The packed protocol fee.
   function getFeeForLpFee(uint24 lpFee) external view returns (uint24);
