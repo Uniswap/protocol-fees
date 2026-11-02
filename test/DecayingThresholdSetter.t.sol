@@ -9,7 +9,6 @@ import {DecayingThresholdSetter} from "../src/DecayingThresholdSetter.sol";
 import {IDecayingThresholdSetter} from "../src/interfaces/IDecayingThresholdSetter.sol";
 import {Firepit} from "../src/releasers/Firepit.sol";
 import {TokenJar} from "../src/TokenJar.sol";
-import {IResourceManager} from "../src/interfaces/base/IResourceManager.sol";
 
 contract DecayingThresholdSetterTest is Test {
   DecayingThresholdSetter internal setter;
@@ -228,11 +227,50 @@ contract DecayingThresholdSetterTest is Test {
     assertEq(releaser.threshold(), 40_000e18);
   }
 
-  function test_poke_afterFloor_writesFloor() public {
+  function test_poke_justAboveFloor_keepsControl() public {
+    _start();
+    vm.warp(T0 + 466_560 - 1);
+    assertGt(setter.poke(), FLOOR);
+    assertFalse(setter.controlReturned());
+    assertEq(releaser.owner(), address(setter));
+    assertEq(releaser.thresholdSetter(), address(setter));
+  }
+
+  function test_poke_atFloor_writesFloorAndReturnsControl() public {
+    _start();
+    vm.warp(T0 + 466_560);
+
+    vm.expectEmit(address(setter));
+    emit IDecayingThresholdSetter.ThresholdUpdated(FLOOR);
+    vm.expectEmit(address(setter));
+    emit IDecayingThresholdSetter.ControlReturned(true);
+    vm.prank(searcher);
+    assertEq(setter.poke(), FLOOR);
+
+    assertTrue(setter.controlReturned());
+    assertEq(releaser.threshold(), FLOOR);
+    assertEq(releaser.thresholdSetter(), governance);
+    assertEq(releaser.owner(), governance);
+  }
+
+  function test_poke_afterFloor_writesFloorAndReturnsControl() public {
     _start();
     vm.warp(T0 + 30 days);
     assertEq(setter.poke(), FLOOR);
+
+    assertTrue(setter.controlReturned());
     assertEq(releaser.threshold(), FLOOR);
+    assertEq(releaser.thresholdSetter(), governance);
+    assertEq(releaser.owner(), governance);
+  }
+
+  function test_poke_revertsAfterPokeAtFloor() public {
+    _start();
+    vm.warp(T0 + 30 days);
+    setter.poke();
+
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
+    setter.poke();
   }
 
   function test_poke_revertsAfterFinalize() public {
@@ -240,7 +278,7 @@ contract DecayingThresholdSetterTest is Test {
     vm.warp(T0 + 30 days);
     setter.finalize();
 
-    vm.expectRevert(IResourceManager.Unauthorized.selector);
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
     setter.poke();
   }
 
@@ -265,6 +303,7 @@ contract DecayingThresholdSetterTest is Test {
     vm.prank(searcher);
     setter.finalize();
 
+    assertTrue(setter.controlReturned());
     assertEq(releaser.threshold(), FLOOR);
     assertEq(releaser.thresholdSetter(), governance);
     assertEq(releaser.owner(), governance);
@@ -283,8 +322,37 @@ contract DecayingThresholdSetterTest is Test {
     vm.warp(T0 + 30 days);
     setter.finalize();
 
-    vm.expectRevert(IResourceManager.Unauthorized.selector);
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
     setter.finalize();
+  }
+
+  function test_finalize_revertsAfterPokeAtFloor() public {
+    _start();
+    vm.warp(T0 + 30 days);
+    setter.poke();
+
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
+    setter.finalize();
+  }
+
+  function test_reclaim_revertsAfterControlReturned() public {
+    _start();
+    vm.warp(T0 + 30 days);
+    setter.poke();
+
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
+    vm.prank(governance);
+    setter.reclaim();
+  }
+
+  function test_start_revertsAfterReclaim() public {
+    vm.startPrank(governance);
+    releaser.transferOwnership(address(setter));
+    setter.reclaim();
+
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
+    setter.start();
+    vm.stopPrank();
   }
 
   function test_reclaim_revertsWhenNotGovernance() public {
@@ -308,7 +376,7 @@ contract DecayingThresholdSetterTest is Test {
     assertEq(releaser.thresholdSetter(), governance);
     assertEq(releaser.owner(), governance);
 
-    vm.expectRevert(IResourceManager.Unauthorized.selector);
+    vm.expectRevert(IDecayingThresholdSetter.ControlAlreadyReturned.selector);
     setter.poke();
   }
 
@@ -349,7 +417,7 @@ contract DecayingThresholdSetterTest is Test {
     assertEq(searcher.balance, 10 ether);
     assertEq(releaser.nonce(), 1);
 
-    // A later release pays the further-decayed threshold, down to the floor
+    // A later release pays the floor; the poke that writes it also returns control to governance
     feeToken.mint(address(tokenJar), 1e18);
     vm.warp(T0 + 30 days);
     vm.startPrank(searcher);
@@ -357,9 +425,14 @@ contract DecayingThresholdSetterTest is Test {
     releaser.release(releaser.nonce(), assets, searcher);
     vm.stopPrank();
     assertEq(resource.balanceOf(address(0xdead)), 22_000e18);
-
-    setter.finalize();
     assertEq(releaser.owner(), governance);
     assertEq(releaser.thresholdSetter(), governance);
+
+    // After the hand-back searchers release directly at the floor without poking
+    feeToken.mint(address(tokenJar), 1e18);
+    vm.startPrank(searcher);
+    releaser.release(releaser.nonce(), assets, searcher);
+    vm.stopPrank();
+    assertEq(resource.balanceOf(address(0xdead)), 24_000e18);
   }
 }

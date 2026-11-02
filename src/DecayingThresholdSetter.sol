@@ -16,10 +16,12 @@ import {IDecayingThresholdSetter} from "./interfaces/IDecayingThresholdSetter.so
 ///    to be able to hand the role back later.
 /// 2. Anyone calls `poke()` to write the current threshold; searchers bundle it with `release`.
 ///    The stored threshold only ever lags above the curve, never below it.
-/// 3. Once the curve reaches the floor anyone calls `finalize()`, which writes the floor and
-/// returns the threshold setter role and ownership to `GOVERNANCE`. `GOVERNANCE` can `reclaim()`
-/// both at
-///    any time instead.
+/// 3. The first `poke()` that computes the floor writes it and, in the same call, returns the
+///    threshold setter role and ownership to `GOVERNANCE`. `finalize()` does the same hand-back
+///    for anyone who wants it without poking. `GOVERNANCE` can `reclaim()` both at any time.
+/// 4. Once control is returned this contract is inert: `poke`, `finalize`, `reclaim` and `start`
+///    revert with `ControlAlreadyReturned`. Searchers should then call `release` directly, as the
+///    releaser keeps the floor threshold until governance changes it.
 /// The releaser's only owner-gated functions are `setThresholdSetter` and `transferOwnership`, so
 /// governance gives up nothing else while this contract holds ownership.
 /// @custom:security-contact security@uniswap.org
@@ -42,8 +44,16 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   /// @inheritdoc IDecayingThresholdSetter
   uint256 public startTime;
 
+  /// @inheritdoc IDecayingThresholdSetter
+  bool public controlReturned;
+
   modifier onlyGovernance() {
     require(msg.sender == GOVERNANCE, Unauthorized());
+    _;
+  }
+
+  modifier whileInControl() {
+    require(!controlReturned, ControlAlreadyReturned());
     _;
   }
 
@@ -80,7 +90,7 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   }
 
   /// @inheritdoc IDecayingThresholdSetter
-  function start() external onlyGovernance {
+  function start() external onlyGovernance whileInControl {
     require(startTime == 0, AlreadyStarted());
     startTime = block.timestamp;
     RELEASER.setThresholdSetter(address(this));
@@ -90,30 +100,40 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   }
 
   /// @inheritdoc IDecayingThresholdSetter
-  function poke() external returns (uint256 threshold) {
+  function poke() external whileInControl returns (uint256 threshold) {
     require(startTime != 0, NotStarted());
     threshold = currentThreshold();
-    RELEASER.setThreshold(threshold);
-    emit ThresholdUpdated(threshold);
+    if (threshold == FLOOR_THRESHOLD) {
+      _finalize();
+    } else {
+      RELEASER.setThreshold(threshold);
+      emit ThresholdUpdated(threshold);
+    }
   }
 
   /// @inheritdoc IDecayingThresholdSetter
-  function finalize() external {
+  function finalize() external whileInControl {
     require(startTime != 0, NotStarted());
     require(currentThreshold() == FLOOR_THRESHOLD, DecayNotComplete());
+    _finalize();
+  }
+
+  /// @inheritdoc IDecayingThresholdSetter
+  function reclaim() external onlyGovernance whileInControl {
+    _returnControl();
+    emit ControlReturned(false);
+  }
+
+  /// @dev Writes the floor and hands both roles back. Callers check the decay is complete.
+  function _finalize() internal {
     RELEASER.setThreshold(FLOOR_THRESHOLD);
     emit ThresholdUpdated(FLOOR_THRESHOLD);
     _returnControl();
     emit ControlReturned(true);
   }
 
-  /// @inheritdoc IDecayingThresholdSetter
-  function reclaim() external onlyGovernance {
-    _returnControl();
-    emit ControlReturned(false);
-  }
-
   function _returnControl() internal {
+    controlReturned = true;
     RELEASER.setThresholdSetter(GOVERNANCE);
     IOwned(address(RELEASER)).transferOwnership(GOVERNANCE);
   }
