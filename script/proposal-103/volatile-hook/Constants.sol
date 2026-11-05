@@ -15,9 +15,9 @@ library VolatileHook {
   ///      https://etherscan.io/address/0x1DDbf7215be4F8A7623B9B1B0255C6e1E3F6c000
   address constant CURRENT_IMPLEMENTATION = 0x1DDbf7215be4F8A7623B9B1B0255C6e1E3F6c000;
 
-  /// @dev The implementation the proposal installs, built from `v4-hooks-public` PR 87.
-  // TODO: replace the placeholder with the implementation's address once it is deployed on Ethereum.
-  address constant NEW_IMPLEMENTATION = address(0xBEEF);
+  /// @dev The implementation the proposal installs
+  ///      https://etherscan.io/address/0xd944fa96798916Fe72161ccaF0F30DF7bb220000
+  address constant NEW_IMPLEMENTATION = 0xd944fa96798916Fe72161ccaF0F30DF7bb220000;
 
   /// @dev The new implementation's `maxTempFeeBlockGap` on Ethereum, from PR 87's deploy
   /// parameters: the temporary fee applies only on the block right after the previous block open.

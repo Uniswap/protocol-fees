@@ -18,9 +18,8 @@ import {
 import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {XLayerStandIns} from "../../utils/XLayerStandIns.sol";
 
-/// @dev Mainnet block the fork is pinned to.
-// TODO: advance this past the new hook implementation's deployment once it is deployed.
-uint256 constant MAINNET_BLOCK = 26_336_800;
+/// @dev After the new implementation's deployment at block 26_347_359.
+uint256 constant MAINNET_BLOCK = 26_349_000;
 
 /// @dev Record file these tests write, gitignored as `.records/*Test.json`. The Ethereum side does
 /// not read the new releaser, so a stand-in serves.

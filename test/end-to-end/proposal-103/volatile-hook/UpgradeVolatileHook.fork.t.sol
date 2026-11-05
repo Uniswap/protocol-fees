@@ -14,9 +14,8 @@ import {VolatileHook} from "../../../../script/proposal-103/volatile-hook/Consta
 import {IVolatilePairHook} from "../../../../script/proposal-103/volatile-hook/Interfaces.sol";
 import {executeAsTimelock} from "../../../utils/TimelockExecution.sol";
 
-/// @dev Mainnet block the fork is pinned to.
-// TODO: advance this past the new implementation's deployment once it is deployed.
-uint256 constant MAINNET_BLOCK = 26_336_800;
+/// @dev After the new implementation's deployment at block 26_347_359.
+uint256 constant MAINNET_BLOCK = 26_349_000;
 
 /// @dev Tests for the hook upgrade, against a mainnet fork.
 contract UpgradeVolatileHookForkTest is Test {
