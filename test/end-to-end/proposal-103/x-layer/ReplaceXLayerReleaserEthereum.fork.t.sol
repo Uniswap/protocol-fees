@@ -55,7 +55,7 @@ contract ReplaceXLayerReleaserEthereumForkTest is Test {
     executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
     Vm.Log[] memory logs = vm.getRecordedLogs();
 
-    // Asserts the action results in a single `SentMessage` event from X Layer's messenger, with 
+    // Asserts the action results in a single `SentMessage` event from X Layer's messenger, with
     // the CrossChainAccount as the indexed target.
     uint256 sent;
     for (uint256 i; i < logs.length; i++) {

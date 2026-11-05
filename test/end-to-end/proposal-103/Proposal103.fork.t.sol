@@ -26,8 +26,8 @@ uint256 constant MAINNET_BLOCK = 26_336_800;
 /// not read the new releaser, so a stand-in serves.
 string constant RECORD_NAME = "Proposal103ForkTest";
 
-/// @dev Tests for the whole proposal executing on Ethereum. Each action's directory covers that action
-/// in more depth, including the X Layer message's effect on X Layer.
+/// @dev Tests for the whole proposal executing on Ethereum. Each action's directory covers that
+/// action in more depth, including the X Layer message's effect on X Layer.
 contract Proposal103ForkTest is Test {
   Uniswap internal uniswap;
   Recorder internal recorder;
@@ -67,7 +67,7 @@ contract Proposal103ForkTest is Test {
       }
       sent++;
     }
-    
+
     assertEq(sent, 1, "SentMessage.count");
   }
 }
