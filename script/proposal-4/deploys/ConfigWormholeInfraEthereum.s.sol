@@ -110,13 +110,12 @@ contract ConfigWormholeInfraEthereumScript is Script {
     // Sources:
     //
     // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
-    NttManagerNoRateLimiting(eth.nttManagerProxy)
-      .setPeer({
-        peerChainId: Constants.Wormhole.BNB_CHAIN_ID,
-        peerContract: bytes32(uint256(uint160(bnb.nttManagerProxy))),
-        decimals: 18,
-        inboundLimit: 0
-      });
+    NttManagerNoRateLimiting(eth.nttManagerProxy).setPeer({
+      peerChainId: Constants.Wormhole.BNB_CHAIN_ID,
+      peerContract: bytes32(uint256(uint160(bnb.nttManagerProxy))),
+      decimals: 18,
+      inboundLimit: 0
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 03
@@ -133,13 +132,12 @@ contract ConfigWormholeInfraEthereumScript is Script {
     // Sources:
     //
     // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
-    NttManagerNoRateLimiting(eth.nttManagerProxy)
-      .setPeer({
-        peerChainId: Constants.Wormhole.POLYGON_CHAIN_ID,
-        peerContract: bytes32(uint256(uint160(polygon.nttManagerProxy))),
-        decimals: 18,
-        inboundLimit: 0
-      });
+    NttManagerNoRateLimiting(eth.nttManagerProxy).setPeer({
+      peerChainId: Constants.Wormhole.POLYGON_CHAIN_ID,
+      peerContract: bytes32(uint256(uint160(polygon.nttManagerProxy))),
+      decimals: 18,
+      inboundLimit: 0
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 04
@@ -153,8 +151,9 @@ contract ConfigWormholeInfraEthereumScript is Script {
     //
     // - `newOwner`: Governance-owned Timelock.
     //
-    NttManagerNoRateLimiting(eth.nttManagerProxy)
-      .transferOwnership({newOwner: Constants.Ethereum.TIMELOCK});
+    NttManagerNoRateLimiting(eth.nttManagerProxy).transferOwnership({
+      newOwner: Constants.Ethereum.TIMELOCK
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 05

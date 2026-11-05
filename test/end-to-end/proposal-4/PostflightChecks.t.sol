@@ -223,7 +223,8 @@ contract PostflightCheckTest is Test {
       );
       NttManagerNoRateLimiting.NttManagerPeer memory bnbChainNttManagerPeer = NttManagerNoRateLimiting(
           state.bnbChain.nttManager
-        ).getPeer(Constants.Wormhole.ETH_CHAIN_ID);
+        )
+        .getPeer(Constants.Wormhole.ETH_CHAIN_ID);
 
       assertEq(bnbChainTransceiverPeer, state.ethereum.wormholeTransceiver);
       assertEq(b32Addr(bnbChainNttManagerPeer.peerAddress), state.ethereum.nttManager);

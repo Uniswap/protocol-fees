@@ -89,13 +89,12 @@ contract ConfigWormholeInfraPolygonScript is Script {
     // Sources:
     //
     // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
-    NttManagerNoRateLimiting(polygon.nttManagerProxy)
-      .setPeer({
-        peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
-        peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
-        decimals: 18,
-        inboundLimit: 0
-      });
+    NttManagerNoRateLimiting(polygon.nttManagerProxy).setPeer({
+      peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
+      peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
+      decimals: 18,
+      inboundLimit: 0
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 02
@@ -109,8 +108,9 @@ contract ConfigWormholeInfraPolygonScript is Script {
     //
     // - `newOwner`: Polygon governance receiver.
     //
-    NttManagerNoRateLimiting(polygon.nttManagerProxy)
-      .transferOwnership({newOwner: Constants.Polygon.ETHEREUM_PROXY});
+    NttManagerNoRateLimiting(polygon.nttManagerProxy).transferOwnership({
+      newOwner: Constants.Polygon.ETHEREUM_PROXY
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 03
