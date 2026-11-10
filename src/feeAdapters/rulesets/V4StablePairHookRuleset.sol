@@ -21,8 +21,9 @@ contract V4StablePairHookRuleset is V4PairHookRuleset {
 
   /// @dev Returns the optimal fee of the pool.
   /// @param key The key of the pool.
-  /// @return optimalFeeE6 The optimal fee of the pool, in pips.
-  function _lpFee(PoolKey calldata key) internal view override returns (uint24 optimalFeeE6) {
-    (, optimalFeeE6,,) = IStablePairHookFeeConfig(address(key.hooks)).feeConfig(key.toId());
+  /// @return The optimal fee of the pool, in pips.
+  function _lpFee(PoolKey calldata key) internal view override returns (uint24) {
+    (, uint24 optimalFeeE6,,) = IStablePairHookFeeConfig(address(key.hooks)).feeConfig(key.toId());
+    return optimalFeeE6;
   }
 }

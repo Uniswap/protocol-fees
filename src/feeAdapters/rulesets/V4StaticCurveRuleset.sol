@@ -68,11 +68,7 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
   }
 
   /// @inheritdoc IV4StaticCurveRuleset
-  function feeBucket(uint256 index)
-    external
-    view
-    returns (uint24 lpFeeFloor, uint24 alphaPips, uint32 betaPips)
-  {
+  function feeBucket(uint256 index) external view returns (uint24, uint24, uint32) {
     FeeBucket storage b = _feeBuckets[index];
     return (b.lpFeeFloor, b.alphaPips, b.betaPips);
   }
