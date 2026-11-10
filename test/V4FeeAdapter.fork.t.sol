@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.26;
 
-import "forge-std/Test.sol";
 import {Deployers} from "../lib/v4-core/test/utils/Deployers.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
+import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
-import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
@@ -18,19 +16,24 @@ import {ModifyLiquidityParams, SwapParams} from "v4-core/types/PoolOperation.sol
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {V4FeeAdapter, IV4FeeAdapter} from "../src/feeAdapters/V4FeeAdapter.sol";
-import {V4FeePolicy, IV4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {FeeBucket} from "../src/interfaces/IV4FeePolicy.sol";
+import {V4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
+import {
+  MockLinearRuleset,
+  MockProtocolFeeRuleset,
+  MockSelfReportingHook
+} from "./mocks/MockProtocolFeeRuleset.sol";
 
-/// @notice Integration tests using a real v4 PoolManager (deployed locally via Deployers).
-/// Verifies protocol fee accrual from real swaps, collection to TokenJar, and the full
-/// adapter + policy waterfall against live pool state.
+/// @notice Integration tests on a real v4 PoolManager, which Deployers deploys locally. The tests
+/// examine protocol fee accrual from real swaps, collection to the TokenJar, and the full fee
+/// waterfall of the adapter, the policy, and a ruleset that is linear in the LP fee, in place of
+/// a static curve.
 contract V4FeeAdapterForkTest is Deployers {
   using PoolIdLibrary for PoolKey;
   using StateLibrary for IPoolManager;
-  using CurrencyLibrary for Currency;
 
   V4FeeAdapter adapter;
   V4FeePolicy policy;
+  MockLinearRuleset curve;
   address tokenJar;
 
   address owner;
@@ -44,6 +47,7 @@ contract V4FeeAdapterForkTest is Deployers {
   uint24 constant PROTO_FEE_200 = (200 << 12) | 200;
   uint24 constant PROTO_FEE_300 = (300 << 12) | 300;
   uint24 constant PROTO_FEE_500 = (500 << 12) | 500;
+  address constant NO_HOOK = address(0); // the rulesets key of pools that have no hook
 
   function setUp() public {
     owner = address(this);
@@ -56,14 +60,14 @@ contract V4FeeAdapterForkTest is Deployers {
     // Use a plain address as the fee destination (avoids TokenJar pragma conflict)
     tokenJar = makeAddr("tokenJar");
 
-    // Deploy adapter + policy
-    policy = new V4FeePolicy(manager);
+    // Deploy the adapter, the policy, and the static curve.
+    policy = new V4FeePolicy(owner, feeSetter);
+    curve = new MockLinearRuleset();
     adapter = new V4FeeAdapter(manager, tokenJar);
     adapter.setPolicy(policy);
     adapter.setFeeSetter(feeSetter);
-    policy.setFeeSetter(feeSetter);
 
-    // Register adapter as the protocolFeeController on the real PoolManager
+    // Register the adapter as the protocolFeeController on the real PoolManager
     manager.setProtocolFeeController(address(adapter));
 
     // Initialize pools with liquidity at different fee tiers.
@@ -90,68 +94,52 @@ contract V4FeeAdapterForkTest is Deployers {
     );
   }
 
-  /// @dev Equivalent of the pre-bucket-era global multiplier: a single bucket starting
-  /// at floor 0 with `betaPips = X`. Result: `protocolFee = X * lpFee / 1_000_000`.
-  function _singleBucketSlope(uint32 betaPips) internal pure returns (FeeBucket[] memory bs) {
-    bs = new FeeBucket[](1);
-    bs[0] = FeeBucket({lpFeeFloor: 0, alphaPips: 0, betaPips: betaPips});
+  /// @dev Sets the slope of the curve to X. Thus, the curve gives
+  /// `protocolFee = X * lpFee / 1_000_000`.
+  function _setSingleBucketSlope(uint32 betaPips) internal {
+    curve.setBetaPips(betaPips);
   }
 
-  // ============ Unified resolution regression (deployed policy) ============
-
-  function test_policy_familyIdConstants() public view {
-    assertEq(policy.NATIVE_MATH_FAMILY_ID(), 0xFF);
-    assertEq(policy.UNCLASSIFIED_FAMILY_ID(), 0);
+  /// @dev Sets the static curve as the ruleset of all pools that have no hook.
+  function _registerCurveForHooklessPools() internal {
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(NO_HOOK, curve);
   }
 
-  function test_policy_dynamicFee_governancePairClassFee() public {
-    PoolKey memory dynamicPool = PoolKey({
-      currency0: currency0,
-      currency1: currency1,
-      fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
-      tickSpacing: 60,
-      hooks: IHooks(address(0))
-    });
+  // ============ Static curve on hooked pools ============
 
-    vm.startPrank(feeSetter);
-    policy.setHookFamily(address(0), 2);
-    policy.setPairClassFee(currency0, currency1, 2, PROTO_FEE_100);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(dynamicPool), PROTO_FEE_100);
-  }
-
-  function test_policy_staticPool_governanceOptIn_classifiedFamilyDefault() public {
-    PoolKey memory staticHookPool = PoolKey({
-      currency0: currency0,
-      currency1: currency1,
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: IHooks(address(uint160(1 << 7)))
-    });
-
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
-    policy.setHookFamily(address(staticHookPool.hooks), 1);
-    policy.setFamilyDefault(1, PROTO_FEE_200);
-    vm.stopPrank();
-
-    assertEq(policy.computeFee(staticHookPool), PROTO_FEE_200);
-  }
-
-  function test_fork_governanceStaticHook_optIn_triggersClassifiedFeeOnManager() public {
+  function test_fork_staticHook_staticCurve_triggersCurveFeeOnManager() public {
+    // This hook has only the beforeSwap flag. Thus, it does not do custom accounting.
     IHooks hook = IHooks(address(uint160(1 << 7)));
     PoolKey memory staticHookPool;
     (staticHookPool,) = initPool(currency0, currency1, hook, 3000, 60, SQRT_PRICE_1_1);
-    modifyLiquidityRouter.modifyLiquidity(
-      staticHookPool,
-      ModifyLiquidityParams({tickLower: -120, tickUpper: 120, liquidityDelta: 10e18, salt: 0}),
-      ZERO_BYTES
-    );
 
+    // 100_000 pips × 3000 / 1_000_000 = 300 in each direction (= PROTO_FEE_300)
+    _setSingleBucketSlope(100_000);
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, curve);
+
+    adapter.triggerFeeUpdate(staticHookPool);
+
+    (,, uint24 fee,) = manager.getSlot0(staticHookPool.toId());
+    assertEq(fee, PROTO_FEE_300);
+  }
+
+  function test_fork_staticHook_registeredRuleset_beatsStaticCurve() public {
+    // This hook has only the beforeSwap flag. Thus, it does not do custom accounting.
+    IHooks hook = IHooks(address(uint160(1 << 7)));
+    PoolKey memory staticHookPool;
+    (staticHookPool,) = initPool(currency0, currency1, hook, 3000, 60, SQRT_PRICE_1_1);
+
+    // The static curve gives PROTO_FEE_300 for this pool.
+    _setSingleBucketSlope(100_000);
+    address nativeMathPoolSentinel = policy.NATIVE_MATH_POOL_SENTINEL();
+    MockProtocolFeeRuleset ruleset =
+      new MockProtocolFeeRuleset({fee: PROTO_FEE_200, reverts: false});
     vm.startPrank(feeSetter);
-    policy.setHookFamily(address(staticHookPool.hooks), 1);
-    policy.setFamilyDefault(1, PROTO_FEE_200);
+    policy.setProtocolFeeRuleset(nativeMathPoolSentinel, curve);
+    policy.setProtocolFeeRuleset(address(hook), ruleset);
     vm.stopPrank();
 
     adapter.triggerFeeUpdate(staticHookPool);
@@ -160,12 +148,85 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(fee, PROTO_FEE_200);
   }
 
+  // ============ Hook fee on a dynamic-fee pool ============
+
+  function test_fork_selfReportingHook_dynamicFeePool_accruesHookFee() public {
+    // A hook address without permission flags is correct for a dynamic-fee pool. The PoolManager
+    // does not call this hook.
+    address hook = address(uint160(1) << 100);
+    MockSelfReportingHook implementation = new MockSelfReportingHook({
+      fee: PROTO_FEE_200, reverts: false, supportsERC165: true, supportsRuleset: true
+    });
+    vm.etch(hook, address(implementation).code);
+
+    PoolKey memory dynamicPool;
+    (dynamicPool,) = initPool(
+      currency0, currency1, IHooks(hook), LPFeeLibrary.DYNAMIC_FEE_FLAG, 60, SQRT_PRICE_1_1
+    );
+    modifyLiquidityRouter.modifyLiquidity(
+      dynamicPool,
+      ModifyLiquidityParams({tickLower: -120, tickUpper: 120, liquidityDelta: 100e18, salt: 0}),
+      ZERO_BYTES
+    );
+    // A dynamic-fee pool starts with an LP fee of zero. Only the hook can change the LP fee.
+    vm.prank(hook);
+    manager.updateDynamicLPFee(dynamicPool, 3000);
+
+    adapter.triggerFeeUpdate(dynamicPool);
+    (,, uint24 protocolFee,) = manager.getSlot0(dynamicPool.toId());
+    assertEq(protocolFee, PROTO_FEE_200);
+
+    // Swap oneForZero (the input is currency1). The protocol fee is 200 pips of the input.
+    SwapParams memory params =
+      SwapParams({zeroForOne: false, amountSpecified: -1e18, sqrtPriceLimitX96: MAX_PRICE_LIMIT});
+    BalanceDelta delta =
+      swapRouter.swap(dynamicPool, params, PoolSwapTest.TestSettings(false, false), ZERO_BYTES);
+
+    uint256 expectedFee =
+      uint256(uint128(-delta.amount1())) * 200 / ProtocolFeeLibrary.PIPS_DENOMINATOR;
+    assertEq(manager.protocolFeesAccrued(currency1), expectedFee);
+  }
+
+  // ============ Ruleset that reverts ============
+
+  function test_fork_revertingRuleset_revertsBatch_untilPoolOverride() public {
+    // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 in each direction (= PROTO_FEE_300)
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
+
+    // This hook has only the beforeSwap flag. Thus, it does not do custom accounting.
+    IHooks hook = IHooks(address(uint160(1 << 7)));
+    PoolKey memory brokenPool;
+    (brokenPool,) = initPool(currency0, currency1, hook, 3000, 60, SQRT_PRICE_1_1);
+    MockProtocolFeeRuleset reverting = new MockProtocolFeeRuleset({fee: 0, reverts: true});
+    vm.prank(feeSetter);
+    policy.setProtocolFeeRuleset(address(hook), reverting);
+
+    PoolKey[] memory keys = new PoolKey[](2);
+    keys[0] = pool3000;
+    keys[1] = brokenPool;
+
+    // The ruleset reverts. Thus, the full batch reverts, and pool3000 does not get a fee update.
+    vm.expectRevert(MockProtocolFeeRuleset.MockReverted.selector);
+    adapter.batchTriggerFeeUpdate(keys);
+
+    // With a pool override, the adapter does not call the policy for that pool.
+    vm.prank(feeSetter);
+    adapter.setPoolOverride(brokenPool.toId(), PROTO_FEE_100);
+    adapter.batchTriggerFeeUpdate(keys);
+
+    (,, uint24 healthyFee,) = manager.getSlot0(pool3000.toId());
+    (,, uint24 overriddenFee,) = manager.getSlot0(brokenPool.toId());
+    assertEq(healthyFee, PROTO_FEE_300);
+    assertEq(overriddenFee, PROTO_FEE_100);
+  }
+
   // ============ End-to-End: Set Fee -> Swap -> Accrue -> Collect ============
 
   function test_e2e_setFee_swap_collect() public {
     // 66_667 pips × pool3000.fee (3000) / 1_000_000 = 200 per direction (= PROTO_FEE_200)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(66_667));
+    _setSingleBucketSlope(66_667);
+    _registerCurveForHooklessPools();
 
     // Trigger fee update on the 3000 bps pool
     adapter.triggerFeeUpdate(pool3000);
@@ -203,15 +264,15 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(manager.protocolFeesAccrued(currency1), 0);
   }
 
-  // ============ Multiplier: Pools Scale Linearly With LP Fee ============
+  // ============ Static Curve: The Fee Is Linear In The LP Fee ============
 
   function test_buckets_differentPoolsLinearlyScaled() public {
-    // multiplier = 100_000 (10% of LP fee)
+    // slope = 100_000 (10% of LP fee)
     //   pool500   (LP 500)    -> 50  per direction
     //   pool3000  (LP 3000)   -> 300 per direction (= PROTO_FEE_300)
     //   pool10000 (LP 10_000) -> 1000 per direction, clamped to MAX_PROTOCOL_FEE
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
 
     PoolKey[] memory keys = new PoolKey[](3);
     keys[0] = pool500;
@@ -236,47 +297,32 @@ contract V4FeeAdapterForkTest is Deployers {
 
   function test_poolOverride_bypassesPolicy() public {
     // 200_000 pips × pool500.fee (500) / 1_000_000 = 100 per direction (= PROTO_FEE_100)
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(200_000));
+    _setSingleBucketSlope(200_000);
+    _registerCurveForHooklessPools();
 
     // Override one pool to PROTO_FEE_500
+    vm.prank(feeSetter);
     adapter.setPoolOverride(pool3000.toId(), PROTO_FEE_500);
-    vm.stopPrank();
 
     // Trigger both
     adapter.triggerFeeUpdate(pool3000);
     adapter.triggerFeeUpdate(pool500);
 
-    // pool3000 gets the override (multiplier-derived value would have been higher)
+    // pool3000 gets the override. The static curve gives a higher fee.
     (,, uint24 fee3000,) = manager.getSlot0(pool3000.toId());
     assertEq(fee3000, PROTO_FEE_500);
 
-    // pool500 gets the multiplier-derived fee
+    // pool500 gets the fee from the static curve.
     (,, uint24 fee500,) = manager.getSlot0(pool500.toId());
     assertEq(fee500, PROTO_FEE_100);
-  }
-
-  // ============ Native Pair Class Fee Overrides Buckets ============
-
-  function test_nativePairClassFee_overridesBuckets() public {
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
-    policy.setPairClassFee(currency0, currency1, policy.NATIVE_MATH_FAMILY_ID(), PROTO_FEE_300);
-    vm.stopPrank();
-
-    adapter.triggerFeeUpdate(pool3000);
-
-    // Native pair class fee takes precedence over the bucket schedule
-    (,, uint24 fee,) = manager.getSlot0(pool3000.toId());
-    assertEq(fee, PROTO_FEE_300);
   }
 
   // ============ Fees Accrue From Multiple Swaps ============
 
   function test_feesAccrueFromMultipleSwaps() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
 
     adapter.triggerFeeUpdate(pool3000);
 
@@ -303,26 +349,25 @@ contract V4FeeAdapterForkTest is Deployers {
     assertEq(MockERC20(Currency.unwrap(currency1)).balanceOf(tokenJar), accrued1);
   }
 
-  // ============ Fee Update After Multiplier Change ============
+  // ============ Fee Update After Bucket Change ============
 
   function test_bucketsChange_requiresRetrigger() public {
     // 33_334 pips × 3000 / 1_000_000 = 100 per direction (= PROTO_FEE_100, integer-truncated)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(33_334));
+    _setSingleBucketSlope(33_334);
+    _registerCurveForHooklessPools();
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
     assertEq(feeBefore, PROTO_FEE_100);
 
     // 166_667 pips × 3000 / 1_000_000 = 500 per direction (= PROTO_FEE_500, integer-truncated)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(166_667));
+    _setSingleBucketSlope(166_667);
 
     // Pool still has old fee until retriggered
     (,, uint24 feeStale,) = manager.getSlot0(pool3000.toId());
     assertEq(feeStale, PROTO_FEE_100);
 
-    // Retrigger picks up new multiplier
+    // The next trigger uses the new buckets.
     adapter.triggerFeeUpdate(pool3000);
     (,, uint24 feeAfter,) = manager.getSlot0(pool3000.toId());
     assertEq(feeAfter, PROTO_FEE_500);
@@ -332,15 +377,15 @@ contract V4FeeAdapterForkTest is Deployers {
 
   function test_policySwap_newPolicyTakesEffect() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
     adapter.triggerFeeUpdate(pool3000);
 
     (,, uint24 feeBefore,) = manager.getSlot0(pool3000.toId());
     assertEq(feeBefore, PROTO_FEE_300);
 
-    // Deploy new policy with no multiplier configured (default 0, everything returns 0)
-    V4FeePolicy newPolicy = new V4FeePolicy(manager);
+    // Deploy a new policy without rulesets and without a default fee. It returns 0 for all pools.
+    V4FeePolicy newPolicy = new V4FeePolicy(owner, feeSetter);
     adapter.setPolicy(newPolicy);
 
     // Retrigger
@@ -353,12 +398,12 @@ contract V4FeeAdapterForkTest is Deployers {
 
   function test_explicitZeroOverride_preventsFeeAccrual() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
 
     // Override pool to explicit zero
+    vm.prank(feeSetter);
     adapter.setPoolOverride(pool3000.toId(), 0);
-    vm.stopPrank();
 
     adapter.triggerFeeUpdate(pool3000);
 
@@ -376,10 +421,10 @@ contract V4FeeAdapterForkTest is Deployers {
 
   function test_clearOverride_restoresPolicy() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
-    vm.startPrank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
+    vm.prank(feeSetter);
     adapter.setPoolOverride(pool3000.toId(), 0); // explicit zero
-    vm.stopPrank();
 
     adapter.triggerFeeUpdate(pool3000);
     (,, uint24 feeZero,) = manager.getSlot0(pool3000.toId());
@@ -402,8 +447,8 @@ contract V4FeeAdapterForkTest is Deployers {
 
   function test_partialCollection() public {
     // 100_000 pips × pool3000.fee (3000) / 1_000_000 = 300 per direction (= PROTO_FEE_300)
-    vm.prank(feeSetter);
-    policy.setFeeBuckets(_singleBucketSlope(100_000));
+    _setSingleBucketSlope(100_000);
+    _registerCurveForHooklessPools();
     adapter.triggerFeeUpdate(pool3000);
 
     // Swap to accrue fees
