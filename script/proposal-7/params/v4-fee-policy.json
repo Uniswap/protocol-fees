@@ -1,0 +1,10 @@
+{
+  "5042": {
+    "hookFamilyAssignments": [
+      {"hook": "0x542BCDA1015485ef0B1cD11B835DC58DF5102000", "familyId": 255}
+    ],
+    "pairClassAssignments": [
+      {"token0": "0x0dC6b79F3c3854E4d74514fD4d29BE6c96Beee39", "token1": "0x3600000000000000000000000000000000000000", "familyId": 11, "feePips": 300}
+    ]
+  }
+}

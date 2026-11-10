@@ -10,6 +10,9 @@ out/
 # Dotenv file
 .env
 
+# Records written by tests, never a deployment
+.records/*Test.json
+
 # Coverage
 lcov.info
 

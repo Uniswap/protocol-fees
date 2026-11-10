@@ -1,0 +1,14 @@
+{
+  "5042": {
+    "SyntheticNttUni": "0x0ff2262B299D2a7784Cfb29f944FbAB239Ad1df6",
+    "NttManagerImplementation": "0xcaABe9866eb34178922651d6e51e414B29174A31",
+    "NttManager": "0xC8271548CC9c2F9BE3e926b99a588E211B1A0417",
+    "WormholeTransceiverImplementation": "0x06e8bdE95BE4ce5cB1134BD47aD18a79fFB35822",
+    "WormholeTransceiver": "0x0B359a34f94c9371d43560448d6765d508771fFc",
+    "TokenJar": "0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233",
+    "Releaser": "0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16",
+    "V3OpenFeeAdapter": "0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2",
+    "V4FeeAdapter": "0x2f2bd3F43880b9644211f16d861b0672aaB23782",
+    "V4FeePolicy": "0x9671B518dA771c5c73d8115b3800FA7653a72015"
+  }
+}
