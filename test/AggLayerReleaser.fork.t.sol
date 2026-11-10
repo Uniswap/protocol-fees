@@ -123,12 +123,12 @@ contract AggLayerReleaserForkTest is Test {
     assertEq(alice.balance, FEE_AMOUNT);
     assertEq(TOKEN_JAR.balance, 0);
 
-    // Stage 2: the bridge burned the wrapped UNI directly, without spending the allowance
+    // Stage 2: the bridge burned the wrapped UNI directly, without an allowance
     assertEq(IERC20(RESOURCE).balanceOf(alice), 0);
     assertEq(IERC20(RESOURCE).balanceOf(address(releaser)), 0);
     assertEq(IERC20(RESOURCE).balanceOf(BRIDGE), 0);
     assertEq(IERC20(RESOURCE).totalSupply(), supplyBefore - THRESHOLD);
-    assertEq(IERC20(RESOURCE).allowance(address(releaser), BRIDGE), THRESHOLD);
+    assertEq(IERC20(RESOURCE).allowance(address(releaser), BRIDGE), 0);
 
     // A new leaf was appended and, with `forceUpdateGlobalExitRoot`, pushed to the GER manager
     bytes32 rootAfter = IAggLayerBridgeViews(BRIDGE).getRoot();

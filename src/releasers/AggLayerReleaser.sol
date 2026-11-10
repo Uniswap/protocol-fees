@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
-import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {IAggLayerBridge} from "../interfaces/external/IAggLayerBridge.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
@@ -34,8 +32,6 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// and deployment reverts if it is configured, since the unified bridge does not recognize it.
 /// @custom:security-contact security@uniswap.org
 contract AggLayerReleaser is ExchangeReleaser {
-  using SafeTransferLib for ERC20;
-
   error ZeroAddress();
 
   /// @dev Thrown when the bridge does not recognize the resource as its wrapped representation of
@@ -92,11 +88,10 @@ contract AggLayerReleaser is ExchangeReleaser {
   }
 
   /// @notice Hook called after assets are released - initiates stage 2 withdrawal to Ethereum
-  /// @dev The allowance is only consumed if the chain maps the resource to a token the bridge
-  /// cannot mint and burn itself (a "not mintable" sovereign token). For a bridge-minted wrapped
-  /// token, as on X Layer, the bridge burns directly and the allowance is left in place. That is
-  /// harmless: the bridge only ever transfers from `msg.sender`, so it can only be spent during
-  /// this contract's own `bridgeAsset` calls, and it is overwritten rather than accumulated.
+  /// @dev No allowance is set: the bridge burns a bridge-minted wrapped token, as on X Layer,
+  /// directly from this contract. If the bridge is upgraded to a sovereign bridge that flags the
+  /// resource as "not mintable", it pulls the resource with `transferFrom` instead, so the release
+  /// reverts and the TokenJar keeps its fee assets until the releaser is replaced.
   /// @dev Reverts unless the bridge reports `RESOURCE` as the wrapped token of `L1_RESOURCE` from
   /// Ethereum. For any other token the bridge escrows it on this chain and mints a wrapped token on
   /// Ethereum instead of burning the resource. The constructor checks this too, but it is
@@ -116,7 +111,6 @@ contract AggLayerReleaser is ExchangeReleaser {
     // 1. Burn the wrapped resource held by this contract
     // 2. Append a leaf to the local exit tree and push the new root to the global exit root
     // 3. After settlement on Ethereum, `claimAsset` releases the escrowed resource to 0xdead
-    RESOURCE.safeApprove(address(BRIDGE), threshold);
     BRIDGE.bridgeAsset({
       destinationNetwork: AGGLAYER_ETHEREUM_NETWORK_ID,
       destinationAddress: L1_RESOURCE_RECIPIENT,

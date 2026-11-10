@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
@@ -267,52 +267,37 @@ contract AggLayerReleaserTest is Test {
     assertEq(mockToken.balanceOf(address(tokenJar)), 0);
     assertEq(address(tokenJar).balance, 0);
 
-    // Stage 2: the bridge burned the wrapped resource held by the releaser
+    // Stage 2: the bridge burned the wrapped resource held by the releaser, without an allowance
     assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT - INITIAL_THRESHOLD);
     assertEq(resource.balanceOf(address(releaser)), 0);
     assertEq(resource.balanceOf(address(bridge)), 0);
     assertEq(resource.totalSupply(), supplyBefore - INITIAL_THRESHOLD);
+    assertEq(resource.allowance(address(releaser), address(bridge)), 0);
     assertEq(bridge.depositCount(), 1);
 
     assertEq(releaser.nonce(), nonceBefore + 1);
   }
 
   /// @dev On a sovereign chain that maps UNI to a token the bridge cannot mint, the bridge pulls
-  /// through the allowance set in `_afterRelease` and escrows the tokens instead of burning
-  function test_release_notMintableResourceIsEscrowedViaAllowance() public {
+  /// the resource with `transferFrom` instead of burning it. The releaser sets no allowance, so the
+  /// release reverts atomically and the TokenJar keeps its fee assets.
+  function test_revert_release_notMintableResource() public {
     bridge.setNotMintable(address(resource), true);
 
     Currency[] memory assets = new Currency[](1);
     assets[0] = Currency.wrap(address(mockToken));
 
-    uint256 supplyBefore = resource.totalSupply();
-
     vm.startPrank(alice);
     resource.approve(address(releaser), INITIAL_THRESHOLD);
-    releaser.release(releaser.nonce(), assets, alice);
+    uint256 currentNonce = releaser.nonce();
+    vm.expectRevert(stdError.arithmeticError);
+    releaser.release(currentNonce, assets, alice);
     vm.stopPrank();
 
-    assertEq(resource.balanceOf(address(releaser)), 0);
-    assertEq(resource.balanceOf(address(bridge)), INITIAL_THRESHOLD);
-    assertEq(resource.totalSupply(), supplyBefore);
-    assertEq(resource.allowance(address(releaser), address(bridge)), 0);
-  }
-
-  /// @dev For a bridge-minted token the allowance is not consumed; it is bounded by `threshold`
-  /// and overwritten on each release rather than accumulated
-  function test_release_leftoverAllowanceIsBoundedByThreshold() public {
-    Currency[] memory assets = new Currency[](1);
-    assets[0] = Currency.wrap(address(mockToken));
-
-    vm.startPrank(alice);
-    resource.approve(address(releaser), INITIAL_THRESHOLD * 2);
-    releaser.release(releaser.nonce(), assets, alice);
-    assertEq(resource.allowance(address(releaser), address(bridge)), INITIAL_THRESHOLD);
-
-    mockToken.mint(address(tokenJar), INITIAL_TOKEN_AMOUNT);
-    releaser.release(releaser.nonce(), assets, alice);
-    assertEq(resource.allowance(address(releaser), address(bridge)), INITIAL_THRESHOLD);
-    vm.stopPrank();
+    assertEq(mockToken.balanceOf(address(tokenJar)), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(bridge)), 0);
+    assertEq(bridge.depositCount(), 0);
   }
 
   function test_release_emptyAssetArrayStillBridges() public {
