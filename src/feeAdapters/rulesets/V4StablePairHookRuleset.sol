@@ -10,8 +10,10 @@ import {V4PairHookRuleset} from "./V4PairHookRuleset.sol";
 /// @title V4StablePairHookRuleset
 /// @notice A protocol fee ruleset for the StablePairHook. The LP fee is the optimal fee of the
 /// pool, `optimalFeeE6`.
-/// @dev The fee of a StablePairHook pool changes in each block. The optimal fee is fixed per pool,
-/// so the time at which a caller triggers the fee update does not change the protocol fee.
+/// @dev The fee of a StablePairHook pool changes in each block. The ruleset reads the optimal fee
+/// from the hook at each call. The optimal fee changes only when the hook's configuration of the
+/// pool changes. Thus, between configuration changes, the time at which a caller triggers the fee
+/// update does not change the protocol fee.
 /// @custom:security-contact security@uniswap.org
 contract V4StablePairHookRuleset is V4PairHookRuleset {
   using PoolIdLibrary for PoolKey;

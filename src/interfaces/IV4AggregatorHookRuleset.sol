@@ -31,13 +31,15 @@ interface IV4AggregatorHookRuleset is IV4ProtocolFeeRuleset {
   /// @param hook The hook.
   error ZeroMultiplier(address hook);
 
-  /// @notice The actual fee that the hook charges in each direction on a pair that is not two
-  /// stablecoins, in pips, after the multiplier has been applied.
+  /// @notice The target fee that the hook charges in each direction on a pair that is not two
+  /// stablecoins, in pips, after the multiplier has been applied. The ruleset divides it by the
+  /// multiplier, rounded down, to a maximum of MAX_PROTOCOL_FEE. Thus the hook can charge less.
   /// @return The volatile pair fee, in pips.
   function VOLATILE_PAIR_FEE() external view returns (uint24);
 
-  /// @notice The actual fee that the hook charges in each direction on a pair of two
-  /// stablecoins, in pips, after the multiplier has been applied.
+  /// @notice The target fee that the hook charges in each direction on a pair of two
+  /// stablecoins, in pips, after the multiplier has been applied. The ruleset divides it by the
+  /// multiplier, rounded down, to a maximum of MAX_PROTOCOL_FEE. Thus the hook can charge less.
   /// @return The stable pair fee, in pips.
   function STABLE_PAIR_FEE() external view returns (uint24);
 

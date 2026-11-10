@@ -25,10 +25,12 @@ contract V4AggregatorHookRuleset is IV4AggregatorHookRuleset {
   /// @inheritdoc IV4AggregatorHookRuleset
   mapping(Currency currency => bool) public isStablecoin;
 
-  /// @param volatilePairFee The actual fee that the hook charges in each direction on a pair that
-  /// is not two stablecoins, in pips, after the multiplier has been applied.
-  /// @param stablePairFee The actual fee that the hook charges in each direction on a pair of two
-  /// stablecoins, in pips, after the multiplier has been applied.
+  /// @param volatilePairFee The target fee that the hook charges in each direction on a pair that
+  /// is not two stablecoins, in pips, after the multiplier has been applied. The hook can charge
+  /// less, because the division by the multiplier rounds down and the result has a maximum.
+  /// @param stablePairFee The target fee that the hook charges in each direction on a pair of two
+  /// stablecoins, in pips, after the multiplier has been applied. The hook can charge less,
+  /// because the division by the multiplier rounds down and the result has a maximum.
   /// @param stablecoins The stablecoins on this chain.
   constructor(uint24 volatilePairFee, uint24 stablePairFee, Currency[] memory stablecoins) {
     VOLATILE_PAIR_FEE = volatilePairFee;
