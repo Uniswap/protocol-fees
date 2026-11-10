@@ -55,18 +55,23 @@ contract V4AggregatorHookRulesetTest is Test {
   //
   // constructor
   // ├── when a stablecoin is the native currency
-  // │   └── it reverts with NativeCurrencyNotStablecoin
+  // │   └── it sets the native currency as a stablecoin
   // ├── when a stablecoin is in the list twice
   // │   └── it reverts with DuplicateStablecoin
   // └── when the stablecoins are correct
   //     └── it sets the fees and the stablecoins
 
-  function test_constructor_RevertWhen_AStablecoinIsTheNativeCurrency() public {
+  function test_constructor_WhenAStablecoinIsTheNativeCurrency() public {
+    // When: the native currency is in the list.
     Currency[] memory stablecoins = _stablecoins();
     stablecoins[1] = NATIVE;
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, stablecoins);
 
-    vm.expectRevert(IV4AggregatorHookRuleset.NativeCurrencyNotStablecoin.selector);
-    new V4AggregatorHookRuleset(1000, 300, stablecoins);
+    // Then: the constructor sets the native currency and the other currencies as stablecoins.
+    assertTrue(ruleset.isStablecoin(NATIVE));
+    assertTrue(ruleset.isStablecoin(USDC));
+    assertTrue(ruleset.isStablecoin(DAI));
+    assertFalse(ruleset.isStablecoin(USDT));
   }
 
   function test_constructor_RevertWhen_AStablecoinIsInTheListTwice() public {
@@ -237,6 +242,20 @@ contract V4AggregatorHookRulesetTest is Test {
 
     assertEq(ruleset.getProtocolFee(_key(hook, USDC, WETH)), _packed(12));
     assertEq(ruleset.getProtocolFee(_key(hook, USDC, USDT)), _packed(4));
+  }
+
+  function test_nativeStablecoinConfiguration_pricesNativePairsByTheOtherCurrency() public {
+    // Given: a chain where the native currency is a stablecoin.
+    Currency[] memory stablecoins = new Currency[](2);
+    stablecoins[0] = NATIVE;
+    stablecoins[1] = USDT;
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, stablecoins);
+    address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
+
+    // Then: a pool of the native currency and a stablecoin pays the stable pair fee.
+    assertEq(ruleset.getProtocolFee(_key(hook, NATIVE, USDT)), _packed(12));
+    // Then: a pool of the native currency and another currency pays the volatile pair fee.
+    assertEq(ruleset.getProtocolFee(_key(hook, NATIVE, WETH)), _packed(40));
   }
 
   // ============ V4FeePolicy integration ============

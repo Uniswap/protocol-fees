@@ -17,12 +17,10 @@ address constant AGGREGATOR_HOOK_RULESET_KEY = address(uint160(uint256(keccak256
 /// and charges the result on the swap. The ruleset reads the multiplier from each hook and returns
 /// the fee divided by it, rounded down, so the hook charges at most the fee. The fees and the
 /// stablecoins are set at deployment and cannot change. To change them, deploy a new ruleset and
-/// set it on the policy.
+/// set it on the policy. The stablecoins can include the native currency, for a chain where the
+/// native currency is a stablecoin.
 /// @custom:security-contact security@uniswap.org
 interface IV4AggregatorHookRuleset is IV4ProtocolFeeRuleset {
-  /// @notice A stablecoin is the native currency.
-  error NativeCurrencyNotStablecoin();
-
   /// @notice A stablecoin is in the list more than once.
   /// @param stablecoin The stablecoin.
   error DuplicateStablecoin(Currency stablecoin);
