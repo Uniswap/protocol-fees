@@ -123,7 +123,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @notice Returns the protocol fee from a ruleset. Reverts if the fee is above MAX_PROTOCOL_FEE.
-  /// @dev Reverts if the ruleset is the zero address. The caller must not pass the zero address.
+  /// @dev The caller must not pass the zero address.
   /// @dev A call to an address without code, or to a contract that does not implement
   ///      IV4ProtocolFeeRuleset, reverts.
   /// @param ruleset The ruleset.
@@ -134,7 +134,6 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
     view
     returns (uint24)
   {
-    if (address(ruleset) == address(0)) revert AddressCannotBeZero();
     uint24 fee = ruleset.getProtocolFee(key);
     _validateFee(fee);
     return fee;

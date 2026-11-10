@@ -80,8 +80,8 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
     uint256 len = _feeBuckets.length;
 
     FeeBucket memory bucket = _feeBuckets[0];
-    for (uint256 i = len; i > 1; --i) {
-      FeeBucket memory candidate = _feeBuckets[i - 1];
+    for (uint256 i = len - 1; i > 0; --i) {
+      FeeBucket memory candidate = _feeBuckets[i];
       if (candidate.lpFeeFloor <= lpFee) {
         bucket = candidate;
         break;
