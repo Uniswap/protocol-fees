@@ -138,30 +138,21 @@ contract AggLayerReleaserForkTest is Test {
     assertEq(IGlobalExitRootL2(gerManager).lastRollupExitRoot(), rootAfter);
   }
 
-  /// @dev The OP Stack UNI is a different asset the unified bridge does not recognize
-  function test_fork_revert_release_opStackUni() public {
-    AggLayerReleaser misconfigured =
-      new AggLayerReleaser(BRIDGE, OP_STACK_UNI, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
-    _setJarReleaser(address(misconfigured));
-    deal(OP_STACK_UNI, alice, THRESHOLD);
+  /// @dev The OP Stack UNI is a different asset the unified bridge does not recognize, so a
+  /// releaser configured with it cannot be deployed
+  function test_fork_revert_constructor_opStackUni() public {
+    (uint32 originNetwork, address originTokenAddress) =
+      IAggLayerBridge(BRIDGE).wrappedTokenToTokenInfo(OP_STACK_UNI);
+    assertEq(originNetwork, 0);
+    assertEq(originTokenAddress, address(0));
 
-    Currency[] memory assets = new Currency[](1);
-    assets[0] = Currency.wrap(address(0));
-
-    vm.startPrank(alice);
-    IERC20(OP_STACK_UNI).approve(address(misconfigured), THRESHOLD);
-    uint256 currentNonce = misconfigured.nonce();
     vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    misconfigured.release(currentNonce, assets, alice);
-    vm.stopPrank();
-
-    assertEq(TOKEN_JAR.balance, FEE_AMOUNT);
-    assertEq(IERC20(OP_STACK_UNI).balanceOf(alice), THRESHOLD);
+    new AggLayerReleaser(BRIDGE, OP_STACK_UNI, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
   }
 
   /// @dev The real bridge escrows a token it has no mapping for as a token native to X Layer,
-  /// pulling it through the caller's allowance. This is what `_afterRelease` guards against, and
-  /// what the mock bridge models for a deleted legacy mapping.
+  /// pulling it through the caller's allowance. This is what the resource mapping check guards
+  /// against, and what the mock bridge models for a deleted legacy mapping.
   function test_fork_bridge_escrowsUnmappedTokenAsNative() public {
     MockERC20 unmapped = new MockERC20("Unmapped", "UNM", 18);
     unmapped.mint(alice, THRESHOLD);

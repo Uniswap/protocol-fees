@@ -185,13 +185,57 @@ contract AggLayerReleaserTest is Test {
     );
   }
 
-  /// @dev The resource mapping is checked on release rather than at construction
-  function test_constructor_doesNotCheckResourceMapping() public {
+  /// @dev A token the bridge has never wrapped, e.g. X Layer's OptimismMintableERC20 UNI
+  function test_revert_constructor_resourceUnknownToBridge() public {
     MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
-    AggLayerReleaser unchecked_ = new AggLayerReleaser(
+    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new AggLayerReleaser(
       address(bridge), address(opUni), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
-    assertEq(address(unchecked_.RESOURCE()), address(opUni));
+  }
+
+  function test_revert_constructor_resourceWrapsDifferentL1Token() public {
+    MockERC20 other = new MockERC20("Other", "OTH", 18);
+    bridge.setWrappedToken(address(other), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
+    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new AggLayerReleaser(
+      address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
+    );
+  }
+
+  function test_revert_constructor_resourceWrapsNonEthereumToken() public {
+    MockERC20 other = new MockERC20("Other", "OTH", 18);
+    bridge.setWrappedToken(address(other), 1, L1_UNI);
+    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new AggLayerReleaser(
+      address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
+    );
+  }
+
+  function test_revert_constructor_wrongL1Resource() public {
+    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new AggLayerReleaser(
+      address(bridge),
+      address(resource),
+      makeAddr("otherL1Token"),
+      INITIAL_THRESHOLD,
+      address(tokenJar)
+    );
+  }
+
+  /// @dev The bridge reports an unknown token as `(0, address(0))`, so without the zero check a
+  /// zero `_l1Resource` would pass the mapping check for any token the bridge does not know
+  function test_revert_constructor_zeroL1ResourceWithUnknownResource() public {
+    MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
+    (uint32 originNetwork, address originTokenAddress) =
+      bridge.wrappedTokenToTokenInfo(address(opUni));
+    assertEq(originNetwork, ETHEREUM_NETWORK_ID);
+    assertEq(originTokenAddress, address(0));
+
+    vm.expectRevert(AggLayerReleaser.ZeroAddress.selector);
+    new AggLayerReleaser(
+      address(bridge), address(opUni), address(0), INITIAL_THRESHOLD, address(tokenJar)
+    );
   }
 
   // ─── release ───
@@ -351,22 +395,16 @@ contract AggLayerReleaserTest is Test {
 
   // ─── reverts ───
 
-  /// @dev A token the bridge has never wrapped, e.g. X Layer's OptimismMintableERC20 UNI
-  function test_revert_release_resourceUnknownToBridge() public {
-    MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
-    _assertReleaseRevertsForResource(opUni);
+  /// @dev The mapping is re-checked on release because the bridge is upgradeable and can change
+  /// it after deployment
+  function test_revert_release_resourceRemappedToDifferentL1TokenAfterDeployment() public {
+    bridge.setWrappedToken(address(resource), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
+    _assertReleaseReverts();
   }
 
-  function test_revert_release_resourceWrapsDifferentL1Token() public {
-    MockERC20 other = new MockERC20("Other", "OTH", 18);
-    bridge.setWrappedToken(address(other), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
-    _assertReleaseRevertsForResource(other);
-  }
-
-  function test_revert_release_resourceWrapsNonEthereumToken() public {
-    MockERC20 other = new MockERC20("Other", "OTH", 18);
-    bridge.setWrappedToken(address(other), 1, L1_UNI);
-    _assertReleaseRevertsForResource(other);
+  function test_revert_release_resourceRemappedToNonEthereumTokenAfterDeployment() public {
+    bridge.setWrappedToken(address(resource), 1, L1_UNI);
+    _assertReleaseReverts();
   }
 
   /// @dev Once the legacy mapping is deleted, the bridge would treat the resource as a token
@@ -377,7 +415,7 @@ contract AggLayerReleaserTest is Test {
     bridge.setWrappedToken(address(newUni), ETHEREUM_NETWORK_ID, L1_UNI);
     bridge.removeWrappedToken(address(resource));
 
-    _assertReleaseReverts(releaser, resource);
+    _assertReleaseReverts();
   }
 
   /// @dev Without the check in `_afterRelease`, the mock bridge escrows an unmapped resource and
@@ -474,31 +512,22 @@ contract AggLayerReleaserTest is Test {
 
   // ─── helpers ───
 
-  function _assertReleaseRevertsForResource(MockERC20 token) internal {
-    AggLayerReleaser misconfigured = new AggLayerReleaser(
-      address(bridge), address(token), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
-    );
-    tokenJar.setReleaser(address(misconfigured));
-    token.mint(alice, INITIAL_TOKEN_AMOUNT);
-    _assertReleaseReverts(misconfigured, token);
-  }
-
   /// @dev The release reverts atomically: no fee assets leave the jar, no resource leaves the
   /// caller and nothing is bridged
-  function _assertReleaseReverts(AggLayerReleaser target, MockERC20 token) internal {
+  function _assertReleaseReverts() internal {
     Currency[] memory assets = new Currency[](1);
     assets[0] = Currency.wrap(address(mockToken));
 
     vm.startPrank(alice);
-    token.approve(address(target), INITIAL_THRESHOLD);
-    uint256 currentNonce = target.nonce();
+    resource.approve(address(releaser), INITIAL_THRESHOLD);
+    uint256 currentNonce = releaser.nonce();
     vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    target.release(currentNonce, assets, alice);
+    releaser.release(currentNonce, assets, alice);
     vm.stopPrank();
 
     assertEq(mockToken.balanceOf(address(tokenJar)), INITIAL_TOKEN_AMOUNT);
-    assertEq(token.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
-    assertEq(token.balanceOf(address(bridge)), 0);
+    assertEq(resource.balanceOf(alice), INITIAL_TOKEN_AMOUNT);
+    assertEq(resource.balanceOf(address(bridge)), 0);
     assertEq(bridge.depositCount(), 0);
   }
 }
