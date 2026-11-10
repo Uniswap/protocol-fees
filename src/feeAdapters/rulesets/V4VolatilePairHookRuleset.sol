@@ -3,7 +3,6 @@ pragma solidity ^0.8.26;
 
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {IV4FeePolicy} from "../../interfaces/IV4FeePolicy.sol";
 import {IVolatilePairHookFeeConfig} from "../../interfaces/external/IPairHookFeeConfig.sol";
 import {V4PairHookRuleset} from "./V4PairHookRuleset.sol";
 
@@ -17,9 +16,6 @@ import {V4PairHookRuleset} from "./V4PairHookRuleset.sol";
 /// @custom:security-contact security@uniswap.org
 contract V4VolatilePairHookRuleset is V4PairHookRuleset {
   using PoolIdLibrary for PoolKey;
-
-  /// @param policy The policy on which the ruleset looks up the hookless curve.
-  constructor(IV4FeePolicy policy) V4PairHookRuleset(policy) {}
 
   /// @dev Returns half of the resting spread of the pool, rounded down.
   function _lpFee(PoolKey calldata key) internal view override returns (uint24) {
