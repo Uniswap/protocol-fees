@@ -46,7 +46,7 @@ interface IV4FeePolicy {
   /// @notice The fee is above MAX_PROTOCOL_FEE.
   error InvalidFeeValue();
 
-  /// @notice The call is to the zero address.
+  /// @notice An address is the zero address, but the zero address is not permitted.
   error AddressCannotBeZero();
 
   /// @notice The caller is not the fee setter.
@@ -75,7 +75,7 @@ interface IV4FeePolicy {
   function batchSetProtocolFeeRulesets(ProtocolFeeRulesetAssignment[] calldata assignments) external;
 
   /// @notice Sets the fee setter. Only the owner can call this function.
-  /// @param newFeeSetter The new fee setter.
+  /// @param newFeeSetter The new fee setter. It cannot be the zero address.
   function setFeeSetter(address newFeeSetter) external;
 
   /// @notice Sets the default fee. Only the fee setter can call this function.

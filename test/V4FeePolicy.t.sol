@@ -65,9 +65,22 @@ contract V4FeePolicyTest is Test {
   // ============ constructor ============
   //
   // constructor
-  // └── it sets the owner and the fee setter, and the default fee is zero
+  // ├── when the fee setter is the zero address
+  // │   └── it reverts with AddressCannotBeZero
+  // └── when the fee setter is not the zero address
+  //     ├── it sets the owner and the fee setter, and the default fee is zero
+  //     └── when the owner is the zero address
+  //         └── it sets the zero address as the owner
+
+  function testFuzz_constructor_RevertWhen_TheFeeSetterIsTheZeroAddress(address initialOwner)
+    public
+  {
+    vm.expectRevert(IV4FeePolicy.AddressCannotBeZero.selector);
+    new V4FeePolicy(initialOwner, address(0));
+  }
 
   function testFuzz_constructor(address initialOwner, address initialFeeSetter) public {
+    vm.assume(initialFeeSetter != address(0));
     vm.expectEmit();
     emit Owned.OwnershipTransferred(address(0), initialOwner);
     V4FeePolicy deployed = new V4FeePolicy(initialOwner, initialFeeSetter);
@@ -77,6 +90,14 @@ contract V4FeePolicyTest is Test {
     assertEq(deployed.defaultFee(), 0);
     assertEq(deployed.CUSTOM_ACCOUNTING_MASK(), RETURNS_DELTA_FLAGS);
     assertEq(deployed.NATIVE_MATH_POOL_SENTINEL(), address(1));
+  }
+
+  function testFuzz_constructor_WhenTheOwnerIsTheZeroAddress(address initialFeeSetter) public {
+    vm.assume(initialFeeSetter != address(0));
+    V4FeePolicy deployed = new V4FeePolicy(address(0), initialFeeSetter);
+
+    assertEq(deployed.owner(), address(0));
+    assertEq(deployed.feeSetter(), initialFeeSetter);
   }
 
   // ============ computeFee ============
@@ -1057,8 +1078,11 @@ contract V4FeePolicyTest is Test {
   // ├── when the caller is not the owner
   // │   └── it reverts with UNAUTHORIZED
   // └── when the caller is the owner
-  //     ├── it sets the fee setter
-  //     └── it emits FeeSetterUpdated
+  //     ├── when the new fee setter is the zero address
+  //     │   └── it reverts with AddressCannotBeZero
+  //     └── when the new fee setter is not the zero address
+  //         ├── it sets the fee setter
+  //         └── it emits FeeSetterUpdated
 
   function testFuzz_setFeeSetter_RevertWhen_CallerIsNotTheOwner(
     address caller,
@@ -1073,8 +1097,20 @@ contract V4FeePolicyTest is Test {
     policy.setFeeSetter(newFeeSetter);
   }
 
+  function test_setFeeSetter_RevertWhen_TheNewFeeSetterIsTheZeroAddress() public {
+    // When: the caller is the owner, and the new fee setter is the zero address.
+    // Then: setFeeSetter reverts with AddressCannotBeZero.
+    vm.prank(owner);
+    vm.expectRevert(IV4FeePolicy.AddressCannotBeZero.selector);
+    policy.setFeeSetter(address(0));
+
+    // Then: the fee setter does not change.
+    assertEq(policy.feeSetter(), feeSetter);
+  }
+
   function testFuzz_setFeeSetter_WhenCallerIsTheOwner(address newFeeSetter) public {
-    // When: the caller is the owner.
+    // When: the caller is the owner, and the new fee setter is not the zero address.
+    vm.assume(newFeeSetter != address(0));
     // Then: setFeeSetter emits FeeSetterUpdated.
     vm.expectEmit(address(policy));
     emit IV4FeePolicy.FeeSetterUpdated(feeSetter, newFeeSetter);

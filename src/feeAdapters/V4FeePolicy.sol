@@ -38,9 +38,12 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @notice The address that can set protocol fee rulesets.
   address public feeSetter;
 
-  /// @param owner The owner. The owner can set the fee setter.
-  /// @param _feeSetter The fee setter. The fee setter can set the rulesets and the default fee.
+  /// @param owner The owner. The owner can set the fee setter. The owner can be the zero address,
+  /// but then nobody can change the fee setter.
+  /// @param _feeSetter The fee setter. The fee setter can set the rulesets and the default fee. It
+  /// cannot be the zero address.
   constructor(address owner, address _feeSetter) Owned(owner) {
+    if (_feeSetter == address(0)) revert AddressCannotBeZero();
     feeSetter = _feeSetter;
   }
 
@@ -99,6 +102,7 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
 
   /// @inheritdoc IV4FeePolicy
   function setFeeSetter(address newFeeSetter) external onlyOwner {
+    if (newFeeSetter == address(0)) revert AddressCannotBeZero();
     emit FeeSetterUpdated(feeSetter, newFeeSetter);
     feeSetter = newFeeSetter;
   }
