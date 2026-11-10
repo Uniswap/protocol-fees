@@ -46,6 +46,7 @@ interface IV4StaticCurveRuleset is IV4ProtocolFeeRuleset {
   // --- State ---
 
   /// @notice Returns the number of fee buckets.
+  /// @return The number of fee buckets.
   function feeBucketsLength() external view returns (uint256);
 
   /// @notice Returns the fee bucket at an index.

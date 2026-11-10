@@ -33,13 +33,16 @@ interface IV4AggregatorHookRuleset is IV4ProtocolFeeRuleset {
 
   /// @notice The actual fee that the hook charges in each direction on a pair that is not two
   /// stablecoins, in pips, after the multiplier has been applied.
+  /// @return The volatile pair fee, in pips.
   function VOLATILE_PAIR_FEE() external view returns (uint24);
 
   /// @notice The actual fee that the hook charges in each direction on a pair of two
   /// stablecoins, in pips, after the multiplier has been applied.
+  /// @return The stable pair fee, in pips.
   function STABLE_PAIR_FEE() external view returns (uint24);
 
   /// @notice Returns true if the currency is a stablecoin.
   /// @param currency The currency.
+  /// @return True if the currency is in the stablecoin list.
   function isStablecoin(Currency currency) external view returns (bool);
 }

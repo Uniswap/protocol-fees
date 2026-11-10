@@ -78,6 +78,8 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
   }
 
   /// @dev Calculates the fee from `_feeBuckets`. The fee is the same in the two swap directions.
+  /// @param lpFee The LP fee of the pool, in pips.
+  /// @return The protocol fee, in pips, with the same value in the two 12-bit directions.
   function _computeFee(uint24 lpFee) internal view returns (uint24) {
     uint256 len = _feeBuckets.length;
 

@@ -15,6 +15,11 @@ import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 
 /// @title V4FeePolicy
+/// @notice Gives the protocol fee of a Uniswap v4 pool to V4FeeAdapter. The fee comes from the
+/// first of these that applies: the ruleset of the hook (or of hookless pools), the ruleset of
+/// native math hooked pools, a ruleset that the hook declares, and the default fee.
+/// @dev The owner sets the fee setter. The fee setter sets the rulesets and the default fee.
+/// @custom:security-contact security@uniswap.org
 contract V4FeePolicy is IV4FeePolicy, Owned {
   using LPFeeLibrary for uint24;
 
@@ -27,11 +32,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @notice Registered rulesets per hook. `address(0)` assigns a ruleset to hookless pools.
   mapping(address hook => IV4ProtocolFeeRuleset) public rulesets;
 
+  /// @notice The protocol fee of a pool that no ruleset applies to.
   uint24 public defaultFee;
 
   /// @notice The address that can set protocol fee rulesets.
   address public feeSetter;
 
+  /// @param owner The owner. The owner can set the fee setter.
+  /// @param _feeSetter The fee setter. The fee setter can set the rulesets and the default fee.
   constructor(address owner, address _feeSetter) Owned(owner) {
     feeSetter = _feeSetter;
   }
@@ -103,6 +111,8 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @dev Sets the ruleset of a hook.
+  /// @param hook The hook address, or a sentinel key.
+  /// @param ruleset The ruleset of the hook. The zero address removes the ruleset of the hook.
   function _setProtocolFeeRuleset(address hook, IV4ProtocolFeeRuleset ruleset) internal {
     emit ProtocolFeeRulesetChanged(hook, ruleset);
     rulesets[hook] = ruleset;
@@ -112,6 +122,9 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   /// @dev Reverts if the ruleset is the zero address. The caller must not pass the zero address.
   /// @dev A call to an address without code, or to a contract that does not implement
   ///      IV4ProtocolFeeRuleset, reverts.
+  /// @param ruleset The ruleset.
+  /// @param key The key of the pool.
+  /// @return The protocol fee from the ruleset.
   function _handleGetProtocolFee(IV4ProtocolFeeRuleset ruleset, PoolKey calldata key)
     internal
     view
@@ -124,11 +137,14 @@ contract V4FeePolicy is IV4FeePolicy, Owned {
   }
 
   /// @dev Reverts if the fee is above MAX_PROTOCOL_FEE.
+  /// @param feeValue The protocol fee.
   function _validateFee(uint24 feeValue) internal pure {
     if (!ProtocolFeeLibrary.isValidProtocolFee(feeValue)) revert InvalidFeeValue();
   }
 
   /// @dev Returns true if the hook has a RETURNS_DELTA flag (bits 0-3).
+  /// @param hook The hook address.
+  /// @return True if the hook address has a RETURNS_DELTA flag.
   function _isCustomAccounting(address hook) internal pure returns (bool) {
     return uint160(hook) & CUSTOM_ACCOUNTING_MASK != 0;
   }

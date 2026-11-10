@@ -40,5 +40,7 @@ abstract contract V4PairHookRuleset is IV4PairHookRuleset {
   }
 
   /// @dev Returns the LP fee from the hook's configuration of the pool, in pips.
+  /// @param key The key of the pool.
+  /// @return The LP fee, in pips.
   function _lpFee(PoolKey calldata key) internal view virtual returns (uint24);
 }

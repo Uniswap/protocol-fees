@@ -22,6 +22,8 @@ contract V4VolatilePairHookRuleset is V4PairHookRuleset {
   constructor(IV4FeePolicy policy) V4PairHookRuleset(policy) {}
 
   /// @dev Returns half of the resting spread of the pool, rounded down.
+  /// @param key The key of the pool.
+  /// @return Half of the resting spread of the pool, in pips.
   function _lpFee(PoolKey calldata key) internal view override returns (uint24) {
     (uint24 restingSpreadE6,,,,,,,,,) =
       IVolatilePairHookFeeConfig(address(key.hooks)).feeConfig(key.toId());
