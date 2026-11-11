@@ -19,11 +19,17 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// - The unified bridge burns the wrapped resource held by this contract and appends a leaf to
 ///   this chain's local exit tree
 /// - The chain's aggregator settles the new local exit root on Ethereum through the rollup manager
-/// - Anyone submits `claimAsset` on the Ethereum bridge with the exit proof (permissionless, and
-///   the bridge service normally auto-claims); the Ethereum bridge transfers the escrowed
-///   resource to 0xdead
+/// - Someone submits `claimAsset` on the Ethereum bridge with the exit proofs; the Ethereum bridge
+///   transfers the escrowed resource to 0xdead
 /// @dev Unlike OP Stack and Arbitrum withdrawals there is no challenge period, but the claim on
-/// Ethereum is a separate transaction that someone must submit once the exit root has settled.
+/// Ethereum is a separate, manual transaction. The bridge service only auto-claims deposits into
+/// an L2, not exits to Ethereum, and 0xdead cannot claim for itself. `claimAsset` is
+/// permissionless and can only pay 0xdead, but nothing pays or rewards the caller, so the claim
+/// depends on an off-chain claimer paying Ethereum gas. Until a leaf is claimed, the wrapped
+/// resource is already burned on this chain, but the resource stays escrowed in the upgradeable
+/// Ethereum bridge and is not reflected in the balance of 0xdead. This contract emits no event of
+/// its own; a claimer finds leaves through the bridge's `BridgeEvent` on this chain (destination
+/// network 0, destination address 0xdead, origin address `L1_RESOURCE`).
 /// @dev X Layer nuances: the chain's gas token is OKB rather than Ether. `bridgeAsset` is payable
 /// but rejects nonzero value for ERC20s, so no native token is required and this contract does
 /// not accept any. The X Layer bridge mints its own wrapped UNI (`TokenWrapped`) for Ethereum UNI
