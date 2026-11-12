@@ -31,8 +31,9 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
   FeeBucket[] internal _feeBuckets;
 
   /// @param buckets The buckets, from the lowest floor to the highest floor. There must be 1 to 16
-  /// buckets, and each floor must be higher than the previous floor. A pool with an LP fee below
-  /// the lowest floor pays the alpha of bucket 0.
+  /// buckets, and each floor must be higher than the previous floor. The maximum floor is
+  /// MAX_LP_FEE (1_000_000). A pool with an LP fee below the lowest floor pays the alpha of
+  /// bucket 0.
   constructor(FeeBucket[] memory buckets) {
     uint256 len = buckets.length;
     if (len == 0) revert EmptyBuckets();
@@ -42,6 +43,7 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
     for (uint256 i; i < len; ++i) {
       FeeBucket memory b = buckets[i];
       if (i > 0 && b.lpFeeFloor <= prevFloor) revert BucketsNotAscending();
+      if (b.lpFeeFloor > LPFeeLibrary.MAX_LP_FEE) revert LpFeeFloorTooLarge();
       if (b.alphaPips > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) revert InvalidFeeValue();
       if (b.betaPips > MAX_BETA_PIPS) revert MultiplierTooLarge();
       _feeBuckets.push(b);

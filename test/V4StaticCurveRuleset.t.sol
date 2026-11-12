@@ -66,12 +66,16 @@ contract V4StaticCurveRulesetTest is Test {
   // └── when there are 1 to 16 buckets
   //     ├── when a floor is not higher than the previous floor
   //     │   └── it reverts with BucketsNotAscending
+  //     ├── when a floor is more than MAX_LP_FEE
+  //     │   └── it reverts with LpFeeFloorTooLarge
   //     ├── when an alpha is more than MAX_PROTOCOL_FEE
   //     │   └── it reverts with InvalidFeeValue
   //     ├── when a beta is more than MAX_BETA_PIPS
   //     │   └── it reverts with MultiplierTooLarge
   //     └── when all buckets are correct
-  //         └── it sets the fee buckets
+  //         ├── it sets the fee buckets
+  //         └── when the highest floor is MAX_LP_FEE
+  //             └── it sets the fee buckets, and a pool at MAX_LP_FEE uses the highest bucket
 
   function test_constructor_RevertWhen_ThereAreNoBuckets() public {
     // When: there are no buckets.
@@ -109,6 +113,27 @@ contract V4StaticCurveRulesetTest is Test {
 
     // Then: the constructor reverts with BucketsNotAscending.
     vm.expectRevert(IV4StaticCurveRuleset.BucketsNotAscending.selector);
+    new V4StaticCurveRuleset(buckets);
+  }
+
+  function testFuzz_constructor_RevertWhen_AFloorIsMoreThanMaxLpFee(
+    FeeBucket[16] memory raw,
+    uint256 count,
+    uint256 index,
+    uint24 lpFeeFloor
+  ) public {
+    // When: there are 1 to 16 buckets.
+    count = bound(count, 1, 16);
+    FeeBucket[] memory buckets = _boundFeeBuckets(raw, count);
+
+    // When: the floor of one bucket is more than MAX_LP_FEE. It is still higher than the previous
+    // floor.
+    index = bound(index, 0, count - 1);
+    buckets[index].lpFeeFloor =
+      uint24(bound(lpFeeFloor, LPFeeLibrary.MAX_LP_FEE + 1, type(uint24).max));
+
+    // Then: the constructor reverts with LpFeeFloorTooLarge.
+    vm.expectRevert(IV4StaticCurveRuleset.LpFeeFloorTooLarge.selector);
     new V4StaticCurveRuleset(buckets);
   }
 
@@ -166,6 +191,25 @@ contract V4StaticCurveRulesetTest is Test {
       assertEq(alphaPips, buckets[i].alphaPips);
       assertEq(betaPips, buckets[i].betaPips);
     }
+  }
+
+  function testFuzz_constructor_WhenTheHighestFloorIsMaxLpFee(
+    FeeBucket[16] memory raw,
+    uint256 count
+  ) public {
+    // When: all of the 1 to 16 buckets are correct, and the highest floor is MAX_LP_FEE.
+    FeeBucket[] memory buckets = _boundFeeBuckets(raw, bound(count, 1, 16));
+    FeeBucket memory highest = buckets[buckets.length - 1];
+    highest.lpFeeFloor = LPFeeLibrary.MAX_LP_FEE;
+    V4StaticCurveRuleset curve = new V4StaticCurveRuleset(buckets);
+
+    // Then: the constructor sets the fee buckets.
+    (uint24 lpFeeFloor,,) = curve.feeBucket(buckets.length - 1);
+    assertEq(lpFeeFloor, LPFeeLibrary.MAX_LP_FEE);
+
+    // Then: a pool with an LP fee of MAX_LP_FEE pays the alpha of the highest bucket.
+    uint256 alphaPips = highest.alphaPips;
+    assertEq(curve.getFeeForLpFee(LPFeeLibrary.MAX_LP_FEE), uint24(alphaPips << 12 | alphaPips));
   }
 
   // ============ getProtocolFee ============

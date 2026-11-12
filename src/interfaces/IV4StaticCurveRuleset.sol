@@ -9,6 +9,7 @@ import {IV4ProtocolFeeRuleset} from "./IV4FeePolicy.sol";
 /// alpha + beta * (LP fee - floor) / 1_000_000, to a maximum of MAX_PROTOCOL_FEE.
 struct FeeBucket {
   /// @dev The lowest LP fee of the bucket, in pips. Each floor is higher than the previous floor.
+  /// The maximum is MAX_LP_FEE (1_000_000), the maximum static LP fee of a pool.
   uint24 lpFeeFloor;
   /// @dev The fee in each direction at the floor, in pips. The maximum is MAX_PROTOCOL_FEE (1000).
   uint24 alphaPips;
@@ -37,6 +38,9 @@ interface IV4StaticCurveRuleset is IV4ProtocolFeeRuleset {
   /// @notice The floor of a bucket is not higher than the floor of the previous bucket.
   error BucketsNotAscending();
 
+  /// @notice The floor of a bucket is more than MAX_LP_FEE (1_000_000).
+  error LpFeeFloorTooLarge();
+
   /// @notice There are more than 16 buckets.
   error TooManyBuckets();
 
@@ -63,7 +67,8 @@ interface IV4StaticCurveRuleset is IV4ProtocolFeeRuleset {
   /// @dev For a static LP fee, this is the same fee as `getProtocolFee`. A hook that takes more
   /// than its LP fee can call this with an effective LP fee. The two swap directions have the same
   /// fee.
-  /// @param lpFee The LP fee, in pips. This can be an effective LP fee above 1_000_000.
+  /// @param lpFee The LP fee, in pips. This can be an effective LP fee above 1_000_000. Such an LP
+  /// fee uses the bucket with the highest floor.
   /// @return The packed protocol fee.
   function getFeeForLpFee(uint24 lpFee) external view returns (uint24);
 }
