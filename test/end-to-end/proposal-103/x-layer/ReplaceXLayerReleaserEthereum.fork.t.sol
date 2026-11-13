@@ -7,9 +7,6 @@ import {Vm} from "forge-std/Vm.sol";
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {Call, LibCall} from "govkit/types/Call.sol";
-import {
-  ICrossDomainMessenger
-} from "@eth-optimism-bedrock/interfaces/universal/ICrossDomainMessenger.sol";
 
 import {
   ReplaceXLayerReleaser,
@@ -17,6 +14,7 @@ import {
 } from "../../../../script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol";
 import {executeAsTimelock} from "../../../utils/TimelockExecution.sol";
 import {XLayerStandIns} from "../../../utils/XLayerStandIns.sol";
+import {countOPStackSentMessages} from "../../../utils/OPStackSentMessages.sol";
 
 /// @dev Mainnet block the fork is pinned to. Any block where X Layer's L1CrossDomainMessenger is
 /// live and unpaused satisfies `preflightEthereum`.
@@ -55,18 +53,13 @@ contract ReplaceXLayerReleaserEthereumForkTest is Test {
     executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
     Vm.Log[] memory logs = vm.getRecordedLogs();
 
-    // Asserts the action results in a single `SentMessage` event from X Layer's messenger, with
-    // the CrossChainAccount as the indexed target.
-    uint256 sent;
-    for (uint256 i; i < logs.length; i++) {
-      if (logs[i].emitter != uniswap.ethereum.bridge.xLayer) continue;
-      if (logs[i].topics[0] != ICrossDomainMessenger.SentMessage.selector) continue;
-      // An indexed address is left-padded to the 32-byte topic.
-      if (logs[i].topics[1] != bytes32(uint256(uint160(uniswap.xLayer.crossChainAccount)))) {
-        continue;
-      }
-      sent++;
-    }
-    assertEq(sent, 1, "SentMessage.count");
+    // Assert X Layer's messenger sent a single message, to the CrossChainAccount.
+    assertEq(
+      countOPStackSentMessages(
+        logs, uniswap.ethereum.bridge.xLayer, uniswap.xLayer.crossChainAccount
+      ),
+      1,
+      "SentMessage.count"
+    );
   }
 }
