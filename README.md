@@ -466,6 +466,7 @@ forge coverage
 src/
 ├── TokenJar.sol             // General purpose contract for receiving fees
 ├── Deployer.sol              // A deployer contract to instantiate the initial contracts
+├── DecayingThresholdSetter.sol // Temporarily owns a releaser and decays its threshold to a floor
 ├── base
 │   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
 │   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
@@ -485,6 +486,7 @@ src/
 test
 ├── TokenJar.t.sol
 ├── Deployer.t.sol                        // Test Deployer configures the system properly
+├── DecayingThresholdSetter.t.sol
 ├── ExchangeReleaser.t.sol
 ├── Firepit.t.sol
 ├── OptimismBridgedResourceFirepit.t.sol  // Tests for L2 bridge burn mechanism
