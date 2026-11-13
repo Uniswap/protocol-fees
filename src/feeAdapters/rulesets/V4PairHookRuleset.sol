@@ -14,7 +14,8 @@ import {IV4PairHookRuleset} from "../../interfaces/IV4PairHookRuleset.sol";
 abstract contract V4PairHookRuleset is IV4PairHookRuleset {
   /// @inheritdoc IV4ProtocolFeeRuleset
   /// @dev The caller must be the policy. The ruleset asks the caller for the fee of the hookless
-  /// pool. Thus a call from an account that is not a policy reverts.
+  /// pool. Thus a call from an account that is not a policy reverts, or returns the result of the
+  /// caller's `computeFee`.
   function getProtocolFee(PoolKey calldata key) external view returns (uint24) {
     IV4FeePolicy policy = IV4FeePolicy(msg.sender);
     return policy.computeFee(
