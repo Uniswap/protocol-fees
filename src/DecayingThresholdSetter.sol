@@ -1,33 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {IResourceManager} from "./interfaces/base/IResourceManager.sol";
 import {IOwned} from "./interfaces/base/IOwned.sol";
+import {IReleaser} from "./interfaces/IReleaser.sol";
 import {IDecayingThresholdSetter} from "./interfaces/IDecayingThresholdSetter.sol";
 
 /// @title DecayingThresholdSetter
-/// @notice Runs a descending-price auction on a releaser's `threshold`: it starts at
-/// `START_THRESHOLD`, halves every `HALF_LIFE` seconds and stops at `FLOOR_THRESHOLD`. A searcher
-/// releases once the threshold falls to the value they can extract, so the surplus that a fixed
-/// threshold would leak to the first searcher is competed away and paid in `RESOURCE` instead.
-/// @dev Lifecycle, driven by `GOVERNANCE` (the releaser's owner and threshold setter):
-/// 1. Deploy, then in one governance action call `releaser.transferOwnership(this)` followed by
-///    `this.start()`. Only the owner can change `thresholdSetter`, so this contract needs ownership
-///    to be able to hand the role back later.
-/// 2. Anyone calls `poke()` to write the current threshold; searchers bundle it with `release`.
-///    The stored threshold only ever lags above the curve, never below it.
-/// 3. The first `poke()` that computes the floor writes it and, in the same call, returns the
-///    threshold setter role and ownership to `GOVERNANCE`. `finalize()` does the same hand-back
-///    for anyone who wants it without poking. `GOVERNANCE` can `reclaim()` both at any time.
-/// 4. Once control is returned this contract is inert: `poke`, `finalize`, `reclaim` and `start`
-///    revert with `ControlAlreadyReturned`. Searchers should then call `release` directly, as the
-///    releaser keeps the floor threshold until governance changes it.
-/// The releaser's only owner-gated functions are `setThresholdSetter` and `transferOwnership`, so
-/// governance gives up nothing else while this contract holds ownership.
+/// @notice Runs a descending-price auction on a releaser's `threshold`, so searchers compete away
+/// the surplus that a fixed threshold would leak. Once the decay ends, the releaser is left with a
+/// threshold of `_floorThreshold`, and ownership and threshold setting powers are set to
+/// governance.
+/// @dev Assumes the releaser's only owner-gated functions are
+/// `ResourceManager.setThresholdSetter` and `IOwned.transferOwnership`.
 /// @custom:security-contact security@uniswap.org
 contract DecayingThresholdSetter is IDecayingThresholdSetter {
   /// @inheritdoc IDecayingThresholdSetter
-  IResourceManager public immutable RELEASER;
+  IReleaser public immutable RELEASER;
 
   /// @inheritdoc IDecayingThresholdSetter
   address public immutable GOVERNANCE;
@@ -57,12 +45,11 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     _;
   }
 
-  /// @param _releaser The releaser whose threshold is decayed
-  /// @param _governance The releaser's current owner, which receives ownership and the threshold
-  /// setter role back
-  /// @param _startThreshold The threshold at the start of the decay
-  /// @param _floorThreshold The threshold the decay ends at
-  /// @param _halfLife The number of seconds over which the threshold halves
+  /// @param _releaser The releaser whose threshold decays.
+  /// @param _governance The address of governance on the current chain.
+  /// @param _startThreshold The threshold at the start of the decay.
+  /// @param _floorThreshold The threshold the decay ends at.
+  /// @param _halfLife The number of seconds over which the threshold halves.
   constructor(
     address _releaser,
     address _governance,
@@ -70,13 +57,18 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     uint256 _floorThreshold,
     uint256 _halfLife
   ) {
-    // The bounds on the start threshold and half-life keep `_decay` free of overflow
+    // Upper bounds keep `_decay` from overflowing.
     require(
       _releaser != address(0) && _governance != address(0) && _startThreshold > _floorThreshold
         && _startThreshold <= type(uint128).max && _halfLife != 0 && _halfLife <= type(uint64).max,
       InvalidParameters()
     );
-    RELEASER = IResourceManager(_releaser);
+    // Check the governance address against the token jar's owner for safety.
+    require(
+      IOwned(address(IReleaser(_releaser).TOKEN_JAR())).owner() == _governance,
+      GovernanceNotJarOwner()
+    );
+    RELEASER = IReleaser(_releaser);
     GOVERNANCE = _governance;
     START_THRESHOLD = _startThreshold;
     FLOOR_THRESHOLD = _floorThreshold;
@@ -92,6 +84,8 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   /// @inheritdoc IDecayingThresholdSetter
   function start() external onlyGovernance whileInControl {
     require(startTime == 0, AlreadyStarted());
+    // Searchers must be able to release while the threshold decays.
+    require(RELEASER.TOKEN_JAR().releaser() == address(RELEASER), ReleaserNotActive());
     startTime = block.timestamp;
     RELEASER.setThresholdSetter(address(this));
     RELEASER.setThreshold(START_THRESHOLD);
@@ -124,7 +118,7 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     emit ControlReturned(false);
   }
 
-  /// @dev Writes the floor and hands both roles back. Callers check the decay is complete.
+  /// @dev Assumes the threshold has decayed to the floor.
   function _finalize() internal {
     RELEASER.setThreshold(FLOOR_THRESHOLD);
     emit ThresholdUpdated(FLOOR_THRESHOLD);
@@ -138,10 +132,8 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     IOwned(address(RELEASER)).transferOwnership(GOVERNANCE);
   }
 
-  /// @dev `START_THRESHOLD * 2^(-elapsed / HALF_LIFE)`, floored at `FLOOR_THRESHOLD`. Whole
-  /// half-lives are applied exactly with a right shift; within a half-life the value is linearly
-  /// interpolated between the two neighbouring powers of two, which overstates the exact curve by
-  /// at most ~6.2% and keeps it continuous and non-increasing.
+  /// @return threshold `START_THRESHOLD * 2^(-elapsed / HALF_LIFE)`, floored at `FLOOR_THRESHOLD`.
+  /// @dev Interpolates linearly within each half-life, overstating the exact curve by at most 6.2%.
   function _decay(uint256 elapsed) internal view returns (uint256 threshold) {
     threshold = START_THRESHOLD >> (elapsed / HALF_LIFE);
     threshold -= threshold * (elapsed % HALF_LIFE) / (2 * HALF_LIFE);
