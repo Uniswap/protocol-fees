@@ -31,8 +31,9 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
   FeeBucket[] internal _feeBuckets;
 
   /// @param buckets The buckets, from the lowest floor to the highest floor. There must be 1 to 16
-  /// buckets, and each floor must be higher than the previous floor. A pool with an LP fee below
-  /// the lowest floor pays the alpha of bucket 0.
+  /// buckets, and each floor must be higher than the previous floor. The maximum floor is
+  /// MAX_LP_FEE (1_000_000). A pool with an LP fee below the lowest floor pays the alpha of
+  /// bucket 0.
   constructor(FeeBucket[] memory buckets) {
     uint256 len = buckets.length;
     if (len == 0) revert EmptyBuckets();
@@ -42,6 +43,7 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
     for (uint256 i; i < len; ++i) {
       FeeBucket memory b = buckets[i];
       if (i > 0 && b.lpFeeFloor <= prevFloor) revert BucketsNotAscending();
+      if (b.lpFeeFloor > LPFeeLibrary.MAX_LP_FEE) revert LpFeeFloorTooLarge();
       if (b.alphaPips > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) revert InvalidFeeValue();
       if (b.betaPips > MAX_BETA_PIPS) revert MultiplierTooLarge();
       _feeBuckets.push(b);
@@ -68,22 +70,20 @@ contract V4StaticCurveRuleset is IV4StaticCurveRuleset {
   }
 
   /// @inheritdoc IV4StaticCurveRuleset
-  function feeBucket(uint256 index)
-    external
-    view
-    returns (uint24 lpFeeFloor, uint24 alphaPips, uint32 betaPips)
-  {
+  function feeBucket(uint256 index) external view returns (uint24, uint24, uint32) {
     FeeBucket storage b = _feeBuckets[index];
     return (b.lpFeeFloor, b.alphaPips, b.betaPips);
   }
 
   /// @dev Calculates the fee from `_feeBuckets`. The fee is the same in the two swap directions.
+  /// @param lpFee The LP fee of the pool, in pips.
+  /// @return The protocol fee, in pips, with the same value in the two 12-bit directions.
   function _computeFee(uint24 lpFee) internal view returns (uint24) {
     uint256 len = _feeBuckets.length;
 
     FeeBucket memory bucket = _feeBuckets[0];
-    for (uint256 i = len; i > 1; --i) {
-      FeeBucket memory candidate = _feeBuckets[i - 1];
+    for (uint256 i = len - 1; i > 0; --i) {
+      FeeBucket memory candidate = _feeBuckets[i];
       if (candidate.lpFeeFloor <= lpFee) {
         bucket = candidate;
         break;

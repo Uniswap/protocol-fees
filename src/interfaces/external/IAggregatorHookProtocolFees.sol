@@ -7,5 +7,6 @@ pragma solidity ^0.8.26;
 interface IAggregatorHookProtocolFees {
   /// @notice The multiplier that the hook applies to the protocol fee of its pool. The hook
   /// charges the protocol fee times this multiplier on each swap.
+  /// @return The protocol fee multiplier.
   function protocolFeeMultiplier() external view returns (uint24);
 }

@@ -25,10 +25,12 @@ contract V4AggregatorHookRuleset is IV4AggregatorHookRuleset {
   /// @inheritdoc IV4AggregatorHookRuleset
   mapping(Currency currency => bytes32) public id;
 
-  /// @param volatilePairFee The actual fee that the hook charges in each direction on a pair that
-  /// is not a stable pair, in pips, after the multiplier has been applied.
-  /// @param stablePairFee The actual fee that the hook charges in each direction on a stable pair,
-  /// in pips, after the multiplier has been applied.
+  /// @param volatilePairFee The target fee that the hook charges in each direction on a pair that
+  /// is not a stable pair, in pips, after the multiplier has been applied. The hook can charge
+  /// less, because the division by the multiplier rounds down and the result has a maximum.
+  /// @param stablePairFee The target fee that the hook charges in each direction on a stable pair,
+  /// in pips, after the multiplier has been applied. The hook can charge less, because the
+  /// division by the multiplier rounds down and the result has a maximum.
   /// @param ids The currencies on this chain that have an ID, and their IDs. Currencies with the
   /// same ID are stable pairs. A currency can be the native currency.
   constructor(uint24 volatilePairFee, uint24 stablePairFee, CurrencyId[] memory ids) {

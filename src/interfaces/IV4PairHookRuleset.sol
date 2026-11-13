@@ -14,7 +14,8 @@ import {IV4ProtocolFeeRuleset} from "./IV4FeePolicy.sol";
 /// can use the same ruleset. A call to `getProtocolFee` from an account that is not a policy
 /// reverts, or returns the result of the caller's `computeFee`. To read the protocol fee of a pool,
 /// call `V4FeeAdapter.getFee` or `IV4FeePolicy.computeFee`, not the ruleset. Do not set it as the
-/// ruleset of hookless pools: it would call itself until it runs out of gas.
+/// ruleset of hookless pools: the ruleset reads the LP fee from the hook, and for a hookless pool
+/// that call goes to the zero address and reverts.
 /// @custom:security-contact security@uniswap.org
 interface IV4PairHookRuleset is IV4ProtocolFeeRuleset {
   /// @notice Returns the LP fee that the ruleset uses for a pool, from the hook's configuration.
