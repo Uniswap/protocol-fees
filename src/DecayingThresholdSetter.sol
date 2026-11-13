@@ -57,7 +57,7 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   ) {
     // Upper bounds keep `_decay` from overflowing.
     require(
-      _releaser != address(0) && _startThreshold > _floorThreshold
+      _releaser != address(0) && _floorThreshold != 0 && _startThreshold > _floorThreshold
         && _startThreshold <= type(uint128).max && _halfLife != 0 && _halfLife <= type(uint64).max,
       InvalidParameters()
     );

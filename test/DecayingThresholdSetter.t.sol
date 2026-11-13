@@ -67,6 +67,9 @@ contract DecayingThresholdSetterTest is Test {
     new DecayingThresholdSetter(address(0), START, FLOOR, HALF_LIFE);
 
     vm.expectRevert(IDecayingThresholdSetter.InvalidParameters.selector);
+    new DecayingThresholdSetter(address(releaser), START, 0, HALF_LIFE);
+
+    vm.expectRevert(IDecayingThresholdSetter.InvalidParameters.selector);
     new DecayingThresholdSetter(address(releaser), FLOOR, FLOOR, HALF_LIFE);
 
     vm.expectRevert(IDecayingThresholdSetter.InvalidParameters.selector);
@@ -249,8 +252,8 @@ contract DecayingThresholdSetterTest is Test {
     uint256 t1,
     uint256 t2
   ) public {
-    start = bound(start, 1, type(uint128).max);
-    floor = bound(floor, 0, start - 1);
+    start = bound(start, 2, type(uint128).max);
+    floor = bound(floor, 1, start - 1);
     halfLife = bound(halfLife, 1, type(uint64).max);
     t1 = bound(t1, 0, type(uint64).max);
     t2 = bound(t2, t1, type(uint64).max);
