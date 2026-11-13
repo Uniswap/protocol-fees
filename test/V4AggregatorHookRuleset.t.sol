@@ -231,6 +231,10 @@ contract V4AggregatorHookRulesetTest is Test {
   // ├── when the multiplier of the hook is zero
   // │   └── it reverts with ZeroMultiplier
   // └── when the multiplier of the hook is not zero
+  //     ├── when the multiplier is more than a fee that is not zero
+  //     │   └── it reverts with MultiplierAboveFee
+  //     ├── when the fee is zero
+  //     │   └── it returns zero for any multiplier
   //     ├── when the two currencies have the same ID
   //     │   └── it returns the stable pair fee divided by the multiplier, rounded down
   //     ├── when the two currencies have different IDs
@@ -250,6 +254,47 @@ contract V4AggregatorHookRulesetTest is Test {
     ruleset.getProtocolFee(_key(hook, USDC, WETH));
   }
 
+  function testFuzz_getProtocolFee_RevertWhen_TheMultiplierIsMoreThanAFeeThatIsNotZero(
+    uint24 multiplier,
+    uint24 volatilePairFee,
+    uint24 stablePairFee
+  ) public {
+    // Given: a hook, and fees that are not zero and less than the multiplier.
+    multiplier = uint24(bound(multiplier, 2, type(uint24).max));
+    volatilePairFee = uint24(bound(volatilePairFee, 1, multiplier - 1));
+    stablePairFee = uint24(bound(stablePairFee, 1, multiplier - 1));
+    V4AggregatorHookRuleset ruleset =
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, _ids());
+    address hook = address(new MockAggregatorHook(multiplier));
+
+    // Then: getProtocolFee reverts with MultiplierAboveFee for a volatile pair.
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IV4AggregatorHookRuleset.MultiplierAboveFee.selector, hook, multiplier, volatilePairFee
+      )
+    );
+    ruleset.getProtocolFee(_key(hook, USDC, WETH));
+
+    // Then: getProtocolFee reverts with MultiplierAboveFee for a stable pair.
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IV4AggregatorHookRuleset.MultiplierAboveFee.selector, hook, multiplier, stablePairFee
+      )
+    );
+    ruleset.getProtocolFee(_key(hook, USDC, USDT));
+  }
+
+  function testFuzz_getProtocolFee_WhenTheFeeIsZero(uint24 multiplier) public {
+    // Given: a hook with any multiplier that is not zero, and fees of zero.
+    multiplier = uint24(bound(multiplier, 1, type(uint24).max));
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(0, 0, _ids());
+    address hook = address(new MockAggregatorHook(multiplier));
+
+    // Then: getProtocolFee returns zero.
+    assertEq(ruleset.getProtocolFee(_key(hook, USDC, WETH)), 0);
+    assertEq(ruleset.getProtocolFee(_key(hook, USDC, USDT)), 0);
+  }
+
   function testFuzz_getProtocolFee_WhenTheTwoCurrenciesHaveTheSameId(
     uint24 multiplier,
     uint24 volatilePairFee,
@@ -257,10 +302,11 @@ contract V4AggregatorHookRulesetTest is Test {
     uint256 indexA,
     uint256 indexB
   ) public {
-    // Given: a hook, and a fee that is at most MAX_PROTOCOL_FEE after the division.
+    // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
+    // the division.
     multiplier = uint24(bound(multiplier, 1, 1000));
     stablePairFee =
-      uint24(bound(stablePairFee, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
+      uint24(bound(stablePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
     IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
     V4AggregatorHookRuleset ruleset =
       new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
@@ -285,10 +331,11 @@ contract V4AggregatorHookRulesetTest is Test {
     uint256 indexA,
     uint256 indexB
   ) public {
-    // Given: a hook, and a fee that is at most MAX_PROTOCOL_FEE after the division.
+    // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
+    // the division.
     multiplier = uint24(bound(multiplier, 1, 1000));
     volatilePairFee =
-      uint24(bound(volatilePairFee, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
+      uint24(bound(volatilePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
     IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
     V4AggregatorHookRuleset ruleset =
       new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
@@ -315,10 +362,11 @@ contract V4AggregatorHookRulesetTest is Test {
     uint256 idIndex,
     uint8 idSide
   ) public {
-    // Given: a hook, and a fee that is at most MAX_PROTOCOL_FEE after the division.
+    // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
+    // the division.
     multiplier = uint24(bound(multiplier, 1, 1000));
     volatilePairFee =
-      uint24(bound(volatilePairFee, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
+      uint24(bound(volatilePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
     IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
     V4AggregatorHookRuleset ruleset =
       new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
@@ -438,6 +486,23 @@ contract V4AggregatorHookRulesetTest is Test {
     // Then: the policy returns the fee of the ruleset for the hook's pools.
     assertEq(policy.computeFee(_key(hook, USDC, WETH)), 0x028028);
     assertEq(policy.computeFee(_key(hook, USDC, USDT)), 0x00c00c);
+  }
+
+  function test_policy_revertsWhenTheMultiplierOfAnAssignedHookIsMoreThanTheFee() public {
+    // Given: a ruleset assigned to an aggregator hook with a multiplier above the stable pair fee.
+    V4FeePolicy policy = new V4FeePolicy(address(this), address(this));
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
+    address hook = address(new MockAggregatorHook(500));
+    policy.setProtocolFeeRuleset(hook, ruleset);
+
+    // Then: the policy returns the volatile pair fee, which is at least the multiplier.
+    assertEq(policy.computeFee(_key(hook, USDC, WETH)), _packed(2));
+
+    // Then: the policy reverts with MultiplierAboveFee for a stable pair.
+    vm.expectRevert(
+      abi.encodeWithSelector(IV4AggregatorHookRuleset.MultiplierAboveFee.selector, hook, 500, 300)
+    );
+    policy.computeFee(_key(hook, USDC, USDT));
   }
 
   function test_policy_canRegisterTheRulesetAtTheAggregatorKey() public {

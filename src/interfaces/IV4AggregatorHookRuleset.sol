@@ -22,7 +22,8 @@ address constant AGGREGATOR_HOOK_RULESET_KEY = address(uint160(uint256(keccak256
 /// charges the result on the swap. The ruleset reads the multiplier from each hook and returns the
 /// fee divided by it, rounded down, so the hook charges at most the fee. The fees and the IDs
 /// are set at deployment and cannot change. To change them, deploy a new ruleset and set it on the
-/// policy.
+/// policy. If the multiplier is more than a fee that is not zero, that fee rounds down to zero,
+/// thus the ruleset reverts.
 /// @custom:security-contact security@uniswap.org
 interface IV4AggregatorHookRuleset is IV4ProtocolFeeRuleset {
   /// @notice A currency and its ID. Currencies with the same ID have the same value.
@@ -45,6 +46,13 @@ interface IV4AggregatorHookRuleset is IV4ProtocolFeeRuleset {
   /// @notice The protocol fee multiplier of the hook is zero.
   /// @param hook The hook.
   error ZeroMultiplier(address hook);
+
+  /// @notice The protocol fee multiplier of the hook is more than the fee, which is not zero. The
+  /// fee divided by the multiplier rounds down to zero.
+  /// @param hook The hook.
+  /// @param multiplier The protocol fee multiplier of the hook.
+  /// @param fee The fee of the pair, in pips.
+  error MultiplierAboveFee(address hook, uint24 multiplier, uint24 fee);
 
   /// @notice The actual fee that the hook charges in each direction on a pair that is not a
   /// stable pair, in pips, after the multiplier has been applied.

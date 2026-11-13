@@ -53,12 +53,15 @@ contract V4AggregatorHookRuleset is IV4AggregatorHookRuleset {
   /// @inheritdoc IV4ProtocolFeeRuleset
   /// @dev Returns the fee divided by the hook's multiplier, rounded down, in each direction. If
   /// that is more than MAX_PROTOCOL_FEE, returns MAX_PROTOCOL_FEE. Reverts if the multiplier is
-  /// zero.
+  /// zero, or if the multiplier is more than a fee that is not zero. A fee of zero returns zero.
   function getProtocolFee(PoolKey calldata key) external view returns (uint24) {
     uint24 fee = isStablePair(key.currency0, key.currency1) ? STABLE_PAIR_FEE : VOLATILE_PAIR_FEE;
 
     uint24 multiplier = IAggregatorHookProtocolFees(address(key.hooks)).protocolFeeMultiplier();
     if (multiplier == 0) revert ZeroMultiplier(address(key.hooks));
+    if (fee != 0 && multiplier > fee) {
+      revert MultiplierAboveFee(address(key.hooks), multiplier, fee);
+    }
 
     uint24 perDirection = fee / multiplier;
     if (perDirection > ProtocolFeeLibrary.MAX_PROTOCOL_FEE) {
