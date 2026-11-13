@@ -86,6 +86,33 @@ contract DecayingThresholdSetterTest is Test {
     );
   }
 
+  function test_constructor_revertsWhenGovernanceNotJarOwner() public {
+    vm.expectRevert(IDecayingThresholdSetter.GovernanceNotJarOwner.selector);
+    new DecayingThresholdSetter(address(releaser), searcher, START, FLOOR, HALF_LIFE);
+  }
+
+  /// @dev New releasers can go straight from their deployer to the setter
+  function test_newReleaser_handedStraightToSetter_endsWithGovernance() public {
+    address deployer = makeAddr("deployer");
+    vm.startPrank(deployer);
+    Firepit newReleaser = new Firepit(address(resource), START, address(tokenJar));
+    setter = new DecayingThresholdSetter(address(newReleaser), governance, START, FLOOR, HALF_LIFE);
+    newReleaser.transferOwnership(address(setter));
+    vm.stopPrank();
+
+    vm.startPrank(governance);
+    tokenJar.setReleaser(address(newReleaser));
+    setter.start();
+    vm.stopPrank();
+    assertEq(newReleaser.thresholdSetter(), address(setter));
+
+    vm.warp(T0 + 466_560);
+    setter.poke();
+    assertEq(newReleaser.threshold(), FLOOR);
+    assertEq(newReleaser.owner(), governance);
+    assertEq(newReleaser.thresholdSetter(), governance);
+  }
+
   function test_currentThreshold_beforeStart_isStartThreshold() public {
     assertEq(setter.currentThreshold(), START);
     vm.warp(T0 + 30 days);
@@ -127,6 +154,25 @@ contract DecayingThresholdSetterTest is Test {
     vm.expectRevert(IDecayingThresholdSetter.AlreadyStarted.selector);
     vm.prank(governance);
     setter.start();
+  }
+
+  function test_start_revertsUntilJarReleasesThroughReleaser() public {
+    vm.startPrank(governance);
+    tokenJar.setReleaser(makeAddr("otherReleaser"));
+    releaser.transferOwnership(address(setter));
+
+    vm.expectRevert(IDecayingThresholdSetter.ReleaserNotActive.selector);
+    setter.start();
+
+    // The decay starts only once the jar releases through the releaser
+    vm.warp(T0 + 3 days);
+    tokenJar.setReleaser(address(releaser));
+    setter.start();
+    vm.stopPrank();
+
+    assertEq(setter.startTime(), T0 + 3 days);
+    assertEq(setter.currentThreshold(), START);
+    assertEq(releaser.threshold(), START);
   }
 
   /// @dev Expected values are hand-computed from START = 80,000, HALF_LIFE = 1 day, FLOOR = 2,000
