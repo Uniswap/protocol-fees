@@ -148,6 +148,8 @@ adapter.poolOverrides[poolId]  ──►  return (sentinel-decoded)
 
 Constants: `NATIVE_MATH_FAMILY_ID = 255`, `UNCLASSIFIED_FAMILY_ID = 0`. After policy or override changes, call `triggerFeeUpdate` so the PoolManager picks up new fees.
 
+To read the protocol fee of a pool, call `V4FeeAdapter.getFee(key)` (it applies pool overrides) or `V4FeePolicy.computeFee(key)`. Do not call `getProtocolFee` on a ruleset directly. A pair-hook ruleset reads the policy from `msg.sender`, so a direct call reverts or returns the result of the caller's `computeFee`.
+
 Permissioned roles:
 
 - **owner** — swaps the policy, sets the fee-setter
