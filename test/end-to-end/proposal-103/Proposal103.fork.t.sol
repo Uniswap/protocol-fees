@@ -7,9 +7,6 @@ import {Vm} from "forge-std/Vm.sol";
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {Proposal} from "govkit/types/Proposal.sol";
-import {
-  ICrossDomainMessenger
-} from "@eth-optimism-bedrock/interfaces/universal/ICrossDomainMessenger.sol";
 
 import {Proposal103, buildProposal} from "../../../script/proposal-103/Proposal103.s.sol";
 import {
@@ -17,6 +14,7 @@ import {
 } from "../../../script/proposal-103/volatile-hook/UpgradeVolatileHook.s.sol";
 import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {XLayerStandIns} from "../../utils/XLayerStandIns.sol";
+import {countOPStackSentMessages} from "../../utils/OPStackSentMessages.sol";
 
 /// @dev After the new implementation's deployment at block 26_347_359.
 uint256 constant MAINNET_BLOCK = 26_349_000;
@@ -55,18 +53,13 @@ contract Proposal103ForkTest is Test {
     // Assert the hook runs the new implementation
     new UpgradeVolatileHook().postflightEthereum();
 
-    // Assert X Layer's messenger sent a single message to Uniswap's CrossChainAccount on X Layer
-    uint256 sent;
-    for (uint256 i; i < logs.length; i++) {
-      if (logs[i].emitter != uniswap.ethereum.bridge.xLayer) continue;
-      if (logs[i].topics[0] != ICrossDomainMessenger.SentMessage.selector) continue;
-      // An indexed address is left-padded to the 32-byte topic.
-      if (logs[i].topics[1] != bytes32(uint256(uint160(uniswap.xLayer.crossChainAccount)))) {
-        continue;
-      }
-      sent++;
-    }
-
-    assertEq(sent, 1, "SentMessage.count");
+    // Assert X Layer's messenger sent a single message, to the CrossChainAccount
+    assertEq(
+      countOPStackSentMessages(
+        logs, uniswap.ethereum.bridge.xLayer, uniswap.xLayer.crossChainAccount
+      ),
+      1,
+      "SentMessage.count"
+    );
   }
 }
