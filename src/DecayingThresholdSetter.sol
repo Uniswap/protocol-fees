@@ -46,30 +46,26 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
   }
 
   /// @param _releaser The releaser whose threshold decays.
-  /// @param _governance The address of governance on the current chain.
   /// @param _startThreshold The threshold at the start of the decay.
   /// @param _floorThreshold The threshold the decay ends at.
   /// @param _halfLife The number of seconds over which the threshold halves.
   constructor(
     address _releaser,
-    address _governance,
     uint256 _startThreshold,
     uint256 _floorThreshold,
     uint256 _halfLife
   ) {
     // Upper bounds keep `_decay` from overflowing.
     require(
-      _releaser != address(0) && _governance != address(0) && _startThreshold > _floorThreshold
+      _releaser != address(0) && _startThreshold > _floorThreshold
         && _startThreshold <= type(uint128).max && _halfLife != 0 && _halfLife <= type(uint64).max,
       InvalidParameters()
     );
-    // Check the governance address against the token jar's owner for safety.
-    require(
-      IOwned(address(IReleaser(_releaser).TOKEN_JAR())).owner() == _governance,
-      GovernanceNotJarOwner()
-    );
+    // Read governance from the token jar so it cannot be misconfigured.
+    address governance = IOwned(address(IReleaser(_releaser).TOKEN_JAR())).owner();
+    require(governance != address(0), InvalidParameters());
     RELEASER = IReleaser(_releaser);
-    GOVERNANCE = _governance;
+    GOVERNANCE = governance;
     START_THRESHOLD = _startThreshold;
     FLOOR_THRESHOLD = _floorThreshold;
     HALF_LIFE = _halfLife;
@@ -88,48 +84,28 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     require(RELEASER.TOKEN_JAR().releaser() == address(RELEASER), ReleaserNotActive());
     startTime = block.timestamp;
     RELEASER.setThresholdSetter(address(this));
-    RELEASER.setThreshold(START_THRESHOLD);
     emit Started(block.timestamp, START_THRESHOLD);
-    emit ThresholdUpdated(START_THRESHOLD);
+    _setThreshold(START_THRESHOLD);
   }
 
   /// @inheritdoc IDecayingThresholdSetter
   function poke() external whileInControl returns (uint256 threshold) {
     require(startTime != 0, NotStarted());
     threshold = currentThreshold();
-    if (threshold == FLOOR_THRESHOLD) {
-      _finalize();
-    } else {
-      RELEASER.setThreshold(threshold);
-      emit ThresholdUpdated(threshold);
-    }
+    _setThreshold(threshold);
+    if (threshold == FLOOR_THRESHOLD) _returnControl();
   }
 
-  /// @inheritdoc IDecayingThresholdSetter
-  function finalize() external whileInControl {
-    require(startTime != 0, NotStarted());
-    require(currentThreshold() == FLOOR_THRESHOLD, DecayNotComplete());
-    _finalize();
-  }
-
-  /// @inheritdoc IDecayingThresholdSetter
-  function reclaim() external onlyGovernance whileInControl {
-    _returnControl();
-    emit ControlReturned(false);
-  }
-
-  /// @dev Assumes the threshold has decayed to the floor.
-  function _finalize() internal {
-    RELEASER.setThreshold(FLOOR_THRESHOLD);
-    emit ThresholdUpdated(FLOOR_THRESHOLD);
-    _returnControl();
-    emit ControlReturned(true);
+  function _setThreshold(uint256 threshold) internal {
+    RELEASER.setThreshold(threshold);
+    emit ThresholdUpdated(threshold);
   }
 
   function _returnControl() internal {
     controlReturned = true;
     RELEASER.setThresholdSetter(GOVERNANCE);
     IOwned(address(RELEASER)).transferOwnership(GOVERNANCE);
+    emit ControlReturned();
   }
 
   /// @return threshold `START_THRESHOLD * 2^(-elapsed / HALF_LIFE)`, floored at `FLOOR_THRESHOLD`.
