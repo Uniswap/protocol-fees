@@ -107,7 +107,7 @@ contract ReplaceXLayerReleaser is Script {
   ///      block it ran at.
   function preflightEthereum() public view {
     require(block.chainid == ChainId.Ethereum, "not Ethereum");
-    console.log("preflightEthereum at block", block.number);
+    console.log("preflightEthereum ReplaceXLayerReleaser at block", block.number);
 
     ICrossDomainMessenger messenger = ICrossDomainMessenger(uniswap.ethereum.bridge.xLayer);
     require(
@@ -134,7 +134,7 @@ contract ReplaceXLayerReleaser is Script {
     _initializeRecorder();
 
     require(block.chainid == ChainId.XLayer, "not X Layer");
-    console.log("preflightXLayer at block", block.number);
+    console.log("preflightXLayer ReplaceXLayerReleaser at block", block.number);
 
     address crossChainAccount = uniswap.xLayer.crossChainAccount;
     ITokenJar tokenJar = ITokenJar(uniswap.xLayer.tokenJar);
@@ -170,7 +170,7 @@ contract ReplaceXLayerReleaser is Script {
   ///      Layer to verify the outcome: `--sig "postflightXLayer()" --rpc-url xlayer`.
   function postflightXLayer() public {
     require(block.chainid == ChainId.XLayer, "not X Layer");
-    console.log("postflightXLayer at block", block.number);
+    console.log("postflightXLayer ReplaceXLayerReleaser at block", block.number);
     _initializeRecorder();
 
     address newReleaser = readNewReleaser(recorder);

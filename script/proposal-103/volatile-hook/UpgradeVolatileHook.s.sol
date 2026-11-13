@@ -73,7 +73,7 @@ contract UpgradeVolatileHook is Script {
   function preflightEthereum() public view {
     smokeCheck();
     require(block.chainid == ChainId.Ethereum, "not Ethereum");
-    console.log("preflight UpgradeVolatileHook at block", block.number);
+    console.log("preflightEthereum UpgradeVolatileHook at block", block.number);
 
     IVolatilePairHook proxy = IVolatilePairHook(VolatileHook.PROXY);
     IVolatilePairHook newImplementation = IVolatilePairHook(VolatileHook.NEW_IMPLEMENTATION);
@@ -117,7 +117,7 @@ contract UpgradeVolatileHook is Script {
   ///      the upgrade; after the proposal executes, run it against Ethereum to verify the outcome.
   function postflightEthereum() public view {
     require(block.chainid == ChainId.Ethereum, "not Ethereum");
-    console.log("postflight UpgradeVolatileHook at block", block.number);
+    console.log("postflightEthereum UpgradeVolatileHook at block", block.number);
 
     require(
       ERC1967Reader.implementation(VolatileHook.PROXY) == VolatileHook.NEW_IMPLEMENTATION,
