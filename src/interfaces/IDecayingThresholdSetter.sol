@@ -12,11 +12,8 @@ interface IDecayingThresholdSetter {
   /// @notice Thrown when the caller is not `GOVERNANCE`.
   error Unauthorized();
 
-  /// @notice Thrown when the constructor parameters do not describe a valid decay.
+  /// @notice Thrown when the constructor parameters are invalid or the token jar has no owner.
   error InvalidParameters();
-
-  /// @notice Thrown when `_governance` does not own the releaser's token jar.
-  error GovernanceNotJarOwner();
 
   /// @notice Thrown when the token jar does not release through the releaser.
   error ReleaserNotActive();
@@ -26,9 +23,6 @@ interface IDecayingThresholdSetter {
 
   /// @notice Thrown when the decay has not started.
   error NotStarted();
-
-  /// @notice Thrown when the threshold has not decayed to the floor.
-  error DecayNotComplete();
 
   /// @notice Thrown once control has been returned to `GOVERNANCE`.
   error ControlAlreadyReturned();
@@ -40,14 +34,12 @@ interface IDecayingThresholdSetter {
   event ThresholdUpdated(uint256 threshold);
 
   /// @notice Emitted when control is returned to `GOVERNANCE`.
-  /// @param completed True when the decay reached the floor, false when `GOVERNANCE` reclaimed
-  /// control early.
-  event ControlReturned(bool completed);
+  event ControlReturned();
 
   /// @return The releaser whose threshold decays.
   function RELEASER() external view returns (IReleaser);
 
-  /// @return The address control is returned to.
+  /// @return The owner of the releaser's token jar, which control is returned to.
   function GOVERNANCE() external view returns (address);
 
   /// @return The threshold when the decay starts.
@@ -80,12 +72,4 @@ interface IDecayingThresholdSetter {
   /// charges the last written threshold.
   /// @return threshold The threshold written.
   function poke() external returns (uint256 threshold);
-
-  /// @notice Writes `FLOOR_THRESHOLD` to the releaser and returns control.
-  /// @dev Permissionless once the threshold has decayed to the floor.
-  function finalize() external;
-
-  /// @notice Returns control to `GOVERNANCE` without changing the threshold.
-  /// @dev Only callable by `GOVERNANCE`.
-  function reclaim() external;
 }
