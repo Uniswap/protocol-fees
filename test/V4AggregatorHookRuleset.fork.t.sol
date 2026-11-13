@@ -7,6 +7,7 @@ import {Currency} from "v4-core/types/Currency.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 
 import {V4AggregatorHookRuleset} from "../src/feeAdapters/rulesets/V4AggregatorHookRuleset.sol";
+import {IV4AggregatorHookRuleset} from "../src/interfaces/IV4AggregatorHookRuleset.sol";
 import {
   IAggregatorHookProtocolFees
 } from "../src/interfaces/external/IAggregatorHookProtocolFees.sol";
@@ -36,10 +37,10 @@ contract V4AggregatorHookRulesetMainnetForkTest is Test {
     vm.createSelectFork("mainnet", 26_300_005);
     assertEq(block.chainid, 1, "Not on mainnet");
 
-    Currency[] memory stablecoins = new Currency[](2);
-    stablecoins[0] = USDC;
-    stablecoins[1] = USDT;
-    ruleset = new V4AggregatorHookRuleset(1000, 300, stablecoins);
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = new IV4AggregatorHookRuleset.CurrencyId[](2);
+    ids[0] = IV4AggregatorHookRuleset.CurrencyId({currency: USDC, id: bytes32("USD")});
+    ids[1] = IV4AggregatorHookRuleset.CurrencyId({currency: USDT, id: bytes32("USD")});
+    ruleset = new V4AggregatorHookRuleset(1000, 300, ids);
   }
 
   function _key(address hook, Currency currency0, Currency currency1)
