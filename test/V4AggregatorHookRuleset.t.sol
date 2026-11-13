@@ -22,26 +22,56 @@ contract V4AggregatorHookRulesetTest is Test {
   /// @dev The multiplier of most aggregator hooks on mainnet.
   uint24 internal constant AGGREGATOR_MULTIPLIER = 25;
 
+  bytes32 internal constant USD = bytes32("USD");
+  bytes32 internal constant EUR = bytes32("EUR");
+  bytes32 internal constant BTC = bytes32("BTC");
+  bytes32 internal constant ETH = bytes32("ETH");
+  bytes32 internal constant STOCK = bytes32("STOCK");
+
+  Currency internal constant NATIVE = Currency.wrap(address(0));
   Currency internal constant USDC = Currency.wrap(address(0x1001));
   Currency internal constant USDT = Currency.wrap(address(0x1002));
   Currency internal constant DAI = Currency.wrap(address(0x1003));
+  Currency internal constant EURC = Currency.wrap(address(0x1101));
+  Currency internal constant EURT = Currency.wrap(address(0x1102));
   Currency internal constant WETH = Currency.wrap(address(0x2001));
-  Currency internal constant NATIVE = Currency.wrap(address(0));
+  Currency internal constant WBTC = Currency.wrap(address(0x3001));
+  Currency internal constant CBBTC = Currency.wrap(address(0x3002));
+  Currency internal constant STOCK_A = Currency.wrap(address(0x4001));
+  Currency internal constant STOCK_B = Currency.wrap(address(0x4002));
 
-  function _stablecoins() internal pure returns (Currency[] memory stablecoins) {
-    stablecoins = new Currency[](3);
-    stablecoins[0] = USDC;
-    stablecoins[1] = USDT;
-    stablecoins[2] = DAI;
+  function _entry(Currency currency, bytes32 id)
+    internal
+    pure
+    returns (IV4AggregatorHookRuleset.CurrencyId memory)
+  {
+    return IV4AggregatorHookRuleset.CurrencyId({currency: currency, id: id});
   }
 
-  function _key(address hook, Currency currency0, Currency currency1)
+  /// @dev Five IDs. The ETH ID includes the native currency.
+  function _ids() internal pure returns (IV4AggregatorHookRuleset.CurrencyId[] memory ids) {
+    ids = new IV4AggregatorHookRuleset.CurrencyId[](11);
+    ids[0] = _entry(USDC, USD);
+    ids[1] = _entry(USDT, USD);
+    ids[2] = _entry(DAI, USD);
+    ids[3] = _entry(EURC, EUR);
+    ids[4] = _entry(EURT, EUR);
+    ids[5] = _entry(WBTC, BTC);
+    ids[6] = _entry(CBBTC, BTC);
+    ids[7] = _entry(NATIVE, ETH);
+    ids[8] = _entry(WETH, ETH);
+    ids[9] = _entry(STOCK_A, STOCK);
+    ids[10] = _entry(STOCK_B, STOCK);
+  }
+
+  /// @dev Puts the currencies in ascending order, as the PoolManager requires.
+  function _key(address hook, Currency currencyA, Currency currencyB)
     internal
     pure
     returns (PoolKey memory key)
   {
-    key.currency0 = currency0;
-    key.currency1 = currency1;
+    (key.currency0, key.currency1) =
+      currencyA < currencyB ? (currencyA, currencyB) : (currencyB, currencyA);
     key.fee = 0;
     key.tickSpacing = 1;
     key.hooks = IHooks(hook);
@@ -54,47 +84,145 @@ contract V4AggregatorHookRulesetTest is Test {
   // ============ constructor ============
   //
   // constructor
-  // ├── when a stablecoin is the native currency
-  // │   └── it reverts with NativeCurrencyNotStablecoin
-  // ├── when a stablecoin is in the list twice
-  // │   └── it reverts with DuplicateStablecoin
-  // └── when the stablecoins are correct
-  //     └── it sets the fees and the stablecoins
+  // ├── when an ID is zero
+  // │   └── it reverts with ZeroId
+  // ├── when a currency is in the list two times
+  // │   ├── when the two entries have the same ID
+  // │   │   └── it reverts with DuplicateCurrency
+  // │   └── when the two entries have different IDs
+  // │       └── it reverts with DuplicateCurrency
+  // ├── when the list is empty
+  // │   └── it sets the fees and no ID
+  // └── when the list is correct
+  //     └── it sets the fees and the IDs
 
-  function test_constructor_RevertWhen_AStablecoinIsTheNativeCurrency() public {
-    Currency[] memory stablecoins = _stablecoins();
-    stablecoins[1] = NATIVE;
+  function testFuzz_constructor_RevertWhen_AnIdIsZero(address token) public {
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    ids[ids.length - 1] = _entry(Currency.wrap(token), bytes32(0));
 
-    vm.expectRevert(IV4AggregatorHookRuleset.NativeCurrencyNotStablecoin.selector);
-    new V4AggregatorHookRuleset(1000, 300, stablecoins);
+    vm.expectRevert(abi.encodeWithSelector(IV4AggregatorHookRuleset.ZeroId.selector, token));
+    new V4AggregatorHookRuleset(1000, 300, ids);
   }
 
-  function test_constructor_RevertWhen_AStablecoinIsInTheListTwice() public {
-    Currency[] memory stablecoins = _stablecoins();
-    stablecoins[2] = USDC;
+  function test_constructor_RevertWhen_TheTwoEntriesHaveTheSameId() public {
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    ids[2] = _entry(USDC, USD);
 
     vm.expectRevert(
-      abi.encodeWithSelector(IV4AggregatorHookRuleset.DuplicateStablecoin.selector, USDC)
+      abi.encodeWithSelector(IV4AggregatorHookRuleset.DuplicateCurrency.selector, USDC)
     );
-    new V4AggregatorHookRuleset(1000, 300, stablecoins);
+    new V4AggregatorHookRuleset(1000, 300, ids);
   }
 
-  function testFuzz_constructor_WhenTheStablecoinsAreCorrect(
-    uint24 volatilePairFee,
-    uint24 stablePairFee
-  ) public {
-    Currency[] memory stablecoins = _stablecoins();
-    V4AggregatorHookRuleset ruleset =
-      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, stablecoins);
+  function test_constructor_RevertWhen_TheTwoEntriesHaveDifferentIds() public {
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    ids[4] = _entry(USDC, EUR);
 
-    // Then: the constructor sets the fees and the stablecoins.
+    vm.expectRevert(
+      abi.encodeWithSelector(IV4AggregatorHookRuleset.DuplicateCurrency.selector, USDC)
+    );
+    new V4AggregatorHookRuleset(1000, 300, ids);
+  }
+
+  function test_constructor_WhenTheListIsEmpty() public {
+    V4AggregatorHookRuleset ruleset =
+      new V4AggregatorHookRuleset(1000, 300, new IV4AggregatorHookRuleset.CurrencyId[](0));
+
+    // Then: the constructor sets the fees and no ID.
+    assertEq(ruleset.VOLATILE_PAIR_FEE(), 1000);
+    assertEq(ruleset.STABLE_PAIR_FEE(), 300);
+    assertEq(ruleset.id(USDC), bytes32(0));
+    assertEq(ruleset.id(NATIVE), bytes32(0));
+    assertFalse(ruleset.isStablePair(USDC, USDT));
+  }
+
+  function testFuzz_constructor_WhenTheListIsCorrect(uint24 volatilePairFee, uint24 stablePairFee)
+    public
+  {
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    V4AggregatorHookRuleset ruleset =
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
+
+    // Then: the constructor sets the fees and the IDs.
     assertEq(ruleset.VOLATILE_PAIR_FEE(), volatilePairFee);
     assertEq(ruleset.STABLE_PAIR_FEE(), stablePairFee);
-    for (uint256 i; i < stablecoins.length; ++i) {
-      assertTrue(ruleset.isStablecoin(stablecoins[i]));
+    for (uint256 i; i < ids.length; ++i) {
+      assertEq(ruleset.id(ids[i].currency), ids[i].id);
     }
-    assertFalse(ruleset.isStablecoin(WETH));
-    assertFalse(ruleset.isStablecoin(NATIVE));
+    assertEq(ruleset.id(Currency.wrap(address(0xdead))), bytes32(0));
+  }
+
+  // ============ isStablePair ============
+  //
+  // isStablePair
+  // ├── when the two currencies have the same ID
+  // │   └── it returns true for the two orders of the currencies
+  // ├── when the two currencies have different IDs
+  // │   └── it returns false
+  // └── when one or no currency has an ID
+  //     └── it returns false
+
+  function testFuzz_isStablePair_WhenTheTwoCurrenciesHaveTheSameId(
+    address tokenA,
+    address tokenB,
+    bytes32 id
+  ) public {
+    // Given: two different currencies with the same ID.
+    vm.assume(tokenA != tokenB && id != bytes32(0));
+    Currency currencyA = Currency.wrap(tokenA);
+    Currency currencyB = Currency.wrap(tokenB);
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = new IV4AggregatorHookRuleset.CurrencyId[](2);
+    ids[0] = _entry(currencyA, id);
+    ids[1] = _entry(currencyB, id);
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, ids);
+
+    // Then: isStablePair returns true for the two orders of the currencies.
+    assertTrue(ruleset.isStablePair(currencyA, currencyB));
+    assertTrue(ruleset.isStablePair(currencyB, currencyA));
+  }
+
+  function testFuzz_isStablePair_WhenTheTwoCurrenciesHaveDifferentIds(
+    address tokenA,
+    address tokenB,
+    bytes32 idA,
+    bytes32 idB
+  ) public {
+    // Given: two different currencies with different IDs.
+    vm.assume(tokenA != tokenB && idA != bytes32(0) && idB != bytes32(0));
+    vm.assume(idA != idB);
+    Currency currencyA = Currency.wrap(tokenA);
+    Currency currencyB = Currency.wrap(tokenB);
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = new IV4AggregatorHookRuleset.CurrencyId[](2);
+    ids[0] = _entry(currencyA, idA);
+    ids[1] = _entry(currencyB, idB);
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, ids);
+
+    // Then: isStablePair returns false.
+    assertFalse(ruleset.isStablePair(currencyA, currencyB));
+    assertFalse(ruleset.isStablePair(currencyB, currencyA));
+  }
+
+  function testFuzz_isStablePair_WhenOneOrNoCurrencyHasAnId(
+    address tokenA,
+    address tokenB,
+    uint256 idIndex,
+    uint8 idSide
+  ) public {
+    // Given: the default IDs, and two currencies without an ID.
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
+    Currency currencyA = Currency.wrap(tokenA);
+    Currency currencyB = Currency.wrap(tokenB);
+    vm.assume(ruleset.id(currencyA) == bytes32(0) && ruleset.id(currencyB) == bytes32(0));
+
+    // When: at most one of the currencies has an ID.
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    Currency currencyWithId = ids[bound(idIndex, 0, ids.length - 1)].currency;
+    if (idSide % 3 == 1) currencyA = currencyWithId;
+    else if (idSide % 3 == 2) currencyB = currencyWithId;
+
+    // Then: isStablePair returns false, also when the two currencies are the same.
+    assertFalse(ruleset.isStablePair(currencyA, currencyB));
+    assertFalse(ruleset.isStablePair(currencyB, currencyA));
   }
 
   // ============ getProtocolFee ============
@@ -107,9 +235,11 @@ contract V4AggregatorHookRulesetTest is Test {
   //     │   └── it reverts with MultiplierAboveFee
   //     ├── when the fee is zero
   //     │   └── it returns zero for any multiplier
-  //     ├── when the two currencies are stablecoins
+  //     ├── when the two currencies have the same ID
   //     │   └── it returns the stable pair fee divided by the multiplier, rounded down
-  //     ├── when one or no currency is a stablecoin
+  //     ├── when the two currencies have different IDs
+  //     │   └── it returns the volatile pair fee divided by the multiplier, rounded down
+  //     ├── when one or no currency has an ID
   //     │   └── it returns the volatile pair fee divided by the multiplier, rounded down
   //     └── when the fee divided by the multiplier is more than MAX_PROTOCOL_FEE
   //         └── it returns MAX_PROTOCOL_FEE
@@ -117,7 +247,7 @@ contract V4AggregatorHookRulesetTest is Test {
   // The fee is the same in the two directions.
 
   function test_getProtocolFee_RevertWhen_TheMultiplierOfTheHookIsZero() public {
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     address hook = address(new MockAggregatorHook(0));
 
     vm.expectRevert(abi.encodeWithSelector(IV4AggregatorHookRuleset.ZeroMultiplier.selector, hook));
@@ -134,7 +264,7 @@ contract V4AggregatorHookRulesetTest is Test {
     volatilePairFee = uint24(bound(volatilePairFee, 1, multiplier - 1));
     stablePairFee = uint24(bound(stablePairFee, 1, multiplier - 1));
     V4AggregatorHookRuleset ruleset =
-      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, _stablecoins());
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, _ids());
     address hook = address(new MockAggregatorHook(multiplier));
 
     // Then: getProtocolFee reverts with MultiplierAboveFee for a volatile pair.
@@ -157,7 +287,7 @@ contract V4AggregatorHookRulesetTest is Test {
   function testFuzz_getProtocolFee_WhenTheFeeIsZero(uint24 multiplier) public {
     // Given: a hook with any multiplier that is not zero, and fees of zero.
     multiplier = uint24(bound(multiplier, 1, type(uint24).max));
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(0, 0, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(0, 0, _ids());
     address hook = address(new MockAggregatorHook(multiplier));
 
     // Then: getProtocolFee returns zero.
@@ -165,63 +295,94 @@ contract V4AggregatorHookRulesetTest is Test {
     assertEq(ruleset.getProtocolFee(_key(hook, USDC, USDT)), 0);
   }
 
-  function testFuzz_getProtocolFee_WhenTheTwoCurrenciesAreStablecoins(
+  function testFuzz_getProtocolFee_WhenTheTwoCurrenciesHaveTheSameId(
     uint24 multiplier,
     uint24 volatilePairFee,
     uint24 stablePairFee,
-    uint256 index0,
-    uint256 index1
+    uint256 indexA,
+    uint256 indexB
   ) public {
     // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
     // the division.
     multiplier = uint24(bound(multiplier, 1, 1000));
     stablePairFee =
       uint24(bound(stablePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
-    Currency[] memory stablecoins = _stablecoins();
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
     V4AggregatorHookRuleset ruleset =
-      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, stablecoins);
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
     address hook = address(new MockAggregatorHook(multiplier));
 
-    // When: the two currencies are stablecoins.
-    Currency currency0 = stablecoins[bound(index0, 0, stablecoins.length - 1)];
-    Currency currency1 = stablecoins[bound(index1, 0, stablecoins.length - 1)];
+    // When: the two currencies are different and have the same ID.
+    IV4AggregatorHookRuleset.CurrencyId memory entryA = ids[bound(indexA, 0, ids.length - 1)];
+    IV4AggregatorHookRuleset.CurrencyId memory entryB = ids[bound(indexB, 0, ids.length - 1)];
+    vm.assume(!(entryA.currency == entryB.currency) && entryA.id == entryB.id);
 
     // Then: getProtocolFee returns the stable pair fee divided by the multiplier, rounded down.
     assertEq(
-      ruleset.getProtocolFee(_key(hook, currency0, currency1)), _packed(stablePairFee / multiplier)
+      ruleset.getProtocolFee(_key(hook, entryA.currency, entryB.currency)),
+      _packed(stablePairFee / multiplier)
     );
   }
 
-  function testFuzz_getProtocolFee_WhenOneOrNoCurrencyIsAStablecoin(
+  function testFuzz_getProtocolFee_WhenTheTwoCurrenciesHaveDifferentIds(
     uint24 multiplier,
     uint24 volatilePairFee,
     uint24 stablePairFee,
-    address token0,
-    address token1,
-    uint256 stableIndex,
-    uint8 stableSide
+    uint256 indexA,
+    uint256 indexB
   ) public {
     // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
     // the division.
     multiplier = uint24(bound(multiplier, 1, 1000));
     volatilePairFee =
       uint24(bound(volatilePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
-    Currency[] memory stablecoins = _stablecoins();
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
     V4AggregatorHookRuleset ruleset =
-      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, stablecoins);
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
     address hook = address(new MockAggregatorHook(multiplier));
 
-    // When: the currencies are not stablecoins, except for at most one of them.
-    Currency currency0 = Currency.wrap(token0);
-    Currency currency1 = Currency.wrap(token1);
-    vm.assume(!ruleset.isStablecoin(currency0) && !ruleset.isStablecoin(currency1));
-    Currency stablecoin = stablecoins[bound(stableIndex, 0, stablecoins.length - 1)];
-    if (stableSide % 3 == 1) currency0 = stablecoin;
-    else if (stableSide % 3 == 2) currency1 = stablecoin;
+    // When: each currency has an ID, but the two IDs are different.
+    IV4AggregatorHookRuleset.CurrencyId memory entryA = ids[bound(indexA, 0, ids.length - 1)];
+    IV4AggregatorHookRuleset.CurrencyId memory entryB = ids[bound(indexB, 0, ids.length - 1)];
+    vm.assume(entryA.id != entryB.id);
 
     // Then: getProtocolFee returns the volatile pair fee divided by the multiplier, rounded down.
     assertEq(
-      ruleset.getProtocolFee(_key(hook, currency0, currency1)),
+      ruleset.getProtocolFee(_key(hook, entryA.currency, entryB.currency)),
+      _packed(volatilePairFee / multiplier)
+    );
+  }
+
+  function testFuzz_getProtocolFee_WhenOneOrNoCurrencyHasAnId(
+    uint24 multiplier,
+    uint24 volatilePairFee,
+    uint24 stablePairFee,
+    address tokenA,
+    address tokenB,
+    uint256 idIndex,
+    uint8 idSide
+  ) public {
+    // Given: a hook, and a fee that is at least the multiplier and at most MAX_PROTOCOL_FEE after
+    // the division.
+    multiplier = uint24(bound(multiplier, 1, 1000));
+    volatilePairFee =
+      uint24(bound(volatilePairFee, multiplier, ProtocolFeeLibrary.MAX_PROTOCOL_FEE * multiplier));
+    IV4AggregatorHookRuleset.CurrencyId[] memory ids = _ids();
+    V4AggregatorHookRuleset ruleset =
+      new V4AggregatorHookRuleset(volatilePairFee, stablePairFee, ids);
+    address hook = address(new MockAggregatorHook(multiplier));
+
+    // When: the currencies have no ID, except for at most one of them.
+    Currency currencyA = Currency.wrap(tokenA);
+    Currency currencyB = Currency.wrap(tokenB);
+    vm.assume(ruleset.id(currencyA) == bytes32(0) && ruleset.id(currencyB) == bytes32(0));
+    Currency currencyWithId = ids[bound(idIndex, 0, ids.length - 1)].currency;
+    if (idSide % 3 == 1) currencyA = currencyWithId;
+    else if (idSide % 3 == 2) currencyB = currencyWithId;
+
+    // Then: getProtocolFee returns the volatile pair fee divided by the multiplier, rounded down.
+    assertEq(
+      ruleset.getProtocolFee(_key(hook, currencyA, currencyB)),
       _packed(volatilePairFee / multiplier)
     );
   }
@@ -237,14 +398,41 @@ contract V4AggregatorHookRulesetTest is Test {
         volatilePairFee, (ProtocolFeeLibrary.MAX_PROTOCOL_FEE + 1) * multiplier, type(uint24).max
       )
     );
-    V4AggregatorHookRuleset ruleset =
-      new V4AggregatorHookRuleset(volatilePairFee, 0, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(volatilePairFee, 0, _ids());
     address hook = address(new MockAggregatorHook(multiplier));
 
     // Then: getProtocolFee returns MAX_PROTOCOL_FEE.
     assertEq(
       ruleset.getProtocolFee(_key(hook, USDC, WETH)), _packed(ProtocolFeeLibrary.MAX_PROTOCOL_FEE)
     );
+  }
+
+  // ============ Like-for-like pairs ============
+  //
+  // A pair is stable only when its two currencies have the same ID. A currency with an ID
+  // does not make its other pairs stable.
+
+  function test_getProtocolFee_twoCurrenciesWithDifferentIdsPayTheVolatileFee() public {
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
+    address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
+
+    // USD/USD and EUR/EUR pairs are stable, but a USD/EUR pair is not.
+    assertEq(ruleset.getProtocolFee(_key(hook, USDC, USDT)), _packed(12));
+    assertEq(ruleset.getProtocolFee(_key(hook, EURC, EURT)), _packed(12));
+    assertEq(ruleset.getProtocolFee(_key(hook, USDC, EURC)), _packed(40));
+  }
+
+  function test_getProtocolFee_twoTokensOfTheSameAssetPayTheStableFee() public {
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
+    address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
+
+    // Two tokens of the same asset are a stable pair, but their pairs with USDC are not.
+    assertEq(ruleset.getProtocolFee(_key(hook, WBTC, CBBTC)), _packed(12));
+    assertEq(ruleset.getProtocolFee(_key(hook, NATIVE, WETH)), _packed(12));
+    assertEq(ruleset.getProtocolFee(_key(hook, STOCK_A, STOCK_B)), _packed(12));
+    assertEq(ruleset.getProtocolFee(_key(hook, WBTC, USDC)), _packed(40));
+    assertEq(ruleset.getProtocolFee(_key(hook, NATIVE, USDC)), _packed(40));
+    assertEq(ruleset.getProtocolFee(_key(hook, STOCK_A, USDC)), _packed(40));
   }
 
   // ============ Hooks with different multipliers ============
@@ -254,7 +442,7 @@ contract V4AggregatorHookRulesetTest is Test {
   // fee that makes it charge the same fee.
 
   function test_getProtocolFee_hooksWithDifferentMultipliersChargeTheSameFee() public {
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     address hook25 = address(new MockAggregatorHook(25));
     address hook10 = address(new MockAggregatorHook(10));
 
@@ -271,7 +459,7 @@ contract V4AggregatorHookRulesetTest is Test {
   // as 0x028028 and the stable fee as 0x00c00c, for hooks with a multiplier of 25.
 
   function test_mainnetConfiguration_returnsTheLiveFees() public {
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
 
     assertEq(ruleset.getProtocolFee(_key(hook, USDC, WETH)), 0x028028);
@@ -279,7 +467,7 @@ contract V4AggregatorHookRulesetTest is Test {
   }
 
   function test_baseConfiguration_returnsTheProposalFees() public {
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(300, 100, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(300, 100, _ids());
     address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
 
     assertEq(ruleset.getProtocolFee(_key(hook, USDC, WETH)), _packed(12));
@@ -291,7 +479,7 @@ contract V4AggregatorHookRulesetTest is Test {
   function test_policy_returnsTheRulesetFeeForAnAssignedAggregatorHook() public {
     // Given: a ruleset assigned to an aggregator hook.
     V4FeePolicy policy = new V4FeePolicy(address(this), address(this));
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     address hook = address(new MockAggregatorHook(AGGREGATOR_MULTIPLIER));
     policy.setProtocolFeeRuleset(hook, ruleset);
 
@@ -303,7 +491,7 @@ contract V4AggregatorHookRulesetTest is Test {
   function test_policy_revertsWhenTheMultiplierOfAnAssignedHookIsMoreThanTheFee() public {
     // Given: a ruleset assigned to an aggregator hook with a multiplier above the stable pair fee.
     V4FeePolicy policy = new V4FeePolicy(address(this), address(this));
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     address hook = address(new MockAggregatorHook(500));
     policy.setProtocolFeeRuleset(hook, ruleset);
 
@@ -322,7 +510,7 @@ contract V4AggregatorHookRulesetTest is Test {
     assertEq(AGGREGATOR_HOOK_RULESET_KEY, address(uint160(uint256(keccak256("AGGREGATOR")))));
 
     V4FeePolicy policy = new V4FeePolicy(address(this), address(this));
-    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _stablecoins());
+    V4AggregatorHookRuleset ruleset = new V4AggregatorHookRuleset(1000, 300, _ids());
     policy.setProtocolFeeRuleset(AGGREGATOR_HOOK_RULESET_KEY, ruleset);
 
     assertEq(address(policy.rulesets(AGGREGATOR_HOOK_RULESET_KEY)), address(ruleset));

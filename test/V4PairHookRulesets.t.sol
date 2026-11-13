@@ -10,10 +10,9 @@ import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {ProtocolFeeLibrary} from "v4-core/libraries/ProtocolFeeLibrary.sol";
 
 import {V4FeePolicy} from "../src/feeAdapters/V4FeePolicy.sol";
-import {IV4FeePolicy, IV4ProtocolFeeRuleset} from "../src/interfaces/IV4FeePolicy.sol";
+import {IV4ProtocolFeeRuleset} from "../src/interfaces/IV4FeePolicy.sol";
 import {V4StaticCurveRuleset} from "../src/feeAdapters/rulesets/V4StaticCurveRuleset.sol";
 import {FeeBucket} from "../src/interfaces/IV4StaticCurveRuleset.sol";
-import {IV4PairHookRuleset} from "../src/interfaces/IV4PairHookRuleset.sol";
 import {V4StablePairHookRuleset} from "../src/feeAdapters/rulesets/V4StablePairHookRuleset.sol";
 import {V4VolatilePairHookRuleset} from "../src/feeAdapters/rulesets/V4VolatilePairHookRuleset.sol";
 import {MockStablePairHook, MockVolatilePairHook} from "./mocks/MockPairHooks.sol";
@@ -44,8 +43,8 @@ contract V4PairHookRulesetsTest is Test {
 
     stableHook = new MockStablePairHook();
     volatileHook = new MockVolatilePairHook();
-    stableRuleset = new V4StablePairHookRuleset(policy);
-    volatileRuleset = new V4VolatilePairHookRuleset(policy);
+    stableRuleset = new V4StablePairHookRuleset();
+    volatileRuleset = new V4VolatilePairHookRuleset();
   }
 
   /// @dev The curve of proposal 6, in pips.
@@ -88,30 +87,22 @@ contract V4PairHookRulesetsTest is Test {
     key.hooks = IHooks(hook);
   }
 
-  // ============ constructor ============
-  //
-  // constructor
-  // ├── when the policy is the zero address
-  // │   └── it reverts with AddressCannotBeZero
-  // └── when the policy is not the zero address
-  //     └── it sets the policy
-
-  function test_constructor_RevertWhen_ThePolicyIsTheZeroAddress() public {
-    vm.expectRevert(IV4PairHookRuleset.AddressCannotBeZero.selector);
-    new V4StablePairHookRuleset(IV4FeePolicy(address(0)));
-
-    vm.expectRevert(IV4PairHookRuleset.AddressCannotBeZero.selector);
-    new V4VolatilePairHookRuleset(IV4FeePolicy(address(0)));
-  }
-
-  function test_constructor_SetsThePolicy() public view {
-    assertEq(address(stableRuleset.POLICY()), address(policy));
-    assertEq(address(volatileRuleset.POLICY()), address(policy));
+  /// @dev Calls `ruleset.getProtocolFee` from `policy`, as the policy does in `computeFee`.
+  function _getProtocolFee(IV4ProtocolFeeRuleset ruleset, PoolKey memory key)
+    internal
+    returns (uint24)
+  {
+    vm.prank(address(policy));
+    return ruleset.getProtocolFee(key);
   }
 
   // ============ getProtocolFee ============
   //
   // getProtocolFee
+  // ├── when the caller is not a policy
+  // │   └── it reverts
+  // ├── when the caller is another policy
+  // │   └── it returns the fee that the caller gives the hookless pool
   // ├── given no ruleset is set for hookless pools
   // │   └── it returns the default fee of the policy
   // └── given a ruleset is set for hookless pools
@@ -125,6 +116,62 @@ contract V4PairHookRulesetsTest is Test {
   //     └── when the ruleset for hookless pools changes
   //         └── it returns the fee of the new ruleset
 
+  function test_getProtocolFee_RevertWhen_TheCallerIsNotAPolicy() public {
+    PoolKey memory stableKey = _key(address(stableHook), 0);
+    PoolKey memory volatileKey = _key(address(volatileHook), 0);
+
+    // When: the caller is an account without code.
+    address eoa = makeAddr("eoa");
+    vm.prank(eoa);
+    vm.expectRevert();
+    stableRuleset.getProtocolFee(stableKey);
+    vm.prank(eoa);
+    vm.expectRevert();
+    volatileRuleset.getProtocolFee(volatileKey);
+
+    // When: the caller is a contract that does not implement computeFee.
+    vm.prank(address(curve));
+    vm.expectRevert();
+    stableRuleset.getProtocolFee(stableKey);
+    vm.prank(address(curve));
+    vm.expectRevert();
+    volatileRuleset.getProtocolFee(volatileKey);
+  }
+
+  function testFuzz_getProtocolFee_WhenTheCallerIsAnotherPolicy(
+    uint256 salt,
+    uint24 optimalFeeE6,
+    uint24 restingSpreadE6,
+    uint24 otherFee
+  ) public {
+    // Given: another policy with a different ruleset for hookless pools.
+    otherFee = _boundProtocolFee(otherFee);
+    V4FeePolicy otherPolicy = new V4FeePolicy(address(this), address(this));
+    otherPolicy.setProtocolFeeRuleset(
+      NO_HOOK, new MockProtocolFeeRuleset({fee: otherFee, reverts: false})
+    );
+
+    PoolKey memory stableKey = _key(address(stableHook), salt);
+    PoolKey memory volatileKey = _key(address(volatileHook), salt);
+    optimalFeeE6 = uint24(bound(optimalFeeE6, 0, MAX_OPTIMAL_FEE_E6));
+    restingSpreadE6 = uint24(bound(restingSpreadE6, 0, LPFeeLibrary.MAX_LP_FEE));
+    stableHook.setOptimalFee(stableKey.toId(), optimalFeeE6);
+    volatileHook.setRestingSpread(volatileKey.toId(), restingSpreadE6);
+
+    // When: the other policy calls the rulesets.
+    // Then: getProtocolFee returns the hookless fee of the other policy.
+    vm.prank(address(otherPolicy));
+    assertEq(stableRuleset.getProtocolFee(stableKey), otherFee);
+    vm.prank(address(otherPolicy));
+    assertEq(volatileRuleset.getProtocolFee(volatileKey), otherFee);
+
+    // Then: a call from the first policy still returns the hookless fee of the first policy.
+    assertEq(_getProtocolFee(stableRuleset, stableKey), curve.getFeeForLpFee(optimalFeeE6));
+    assertEq(
+      _getProtocolFee(volatileRuleset, volatileKey), curve.getFeeForLpFee(restingSpreadE6 / 2)
+    );
+  }
+
   function testFuzz_getProtocolFee_GivenNoRulesetIsSetForHooklessPools(
     uint256 salt,
     uint24 defaultFee
@@ -135,8 +182,8 @@ contract V4PairHookRulesetsTest is Test {
     policy.setDefaultFee(defaultFee);
 
     // Then: getProtocolFee returns the default fee, as for hookless pools.
-    assertEq(stableRuleset.getProtocolFee(_key(address(stableHook), salt)), defaultFee);
-    assertEq(volatileRuleset.getProtocolFee(_key(address(volatileHook), salt)), defaultFee);
+    assertEq(_getProtocolFee(stableRuleset, _key(address(stableHook), salt)), defaultFee);
+    assertEq(_getProtocolFee(volatileRuleset, _key(address(volatileHook), salt)), defaultFee);
   }
 
   function testFuzz_getProtocolFee_AsksTheHooklessRulesetForTheHooklessPool(
@@ -163,7 +210,7 @@ contract V4PairHookRulesetsTest is Test {
       address(hooklessRuleset),
       abi.encodeCall(IV4ProtocolFeeRuleset.getProtocolFee, (_hooklessKey(stableKey, optimalFeeE6)))
     );
-    assertEq(stableRuleset.getProtocolFee(stableKey), hooklessFee);
+    assertEq(_getProtocolFee(stableRuleset, stableKey), hooklessFee);
 
     vm.expectCall(
       address(hooklessRuleset),
@@ -171,7 +218,7 @@ contract V4PairHookRulesetsTest is Test {
         IV4ProtocolFeeRuleset.getProtocolFee, (_hooklessKey(volatileKey, restingSpreadE6 / 2))
       )
     );
-    assertEq(volatileRuleset.getProtocolFee(volatileKey), hooklessFee);
+    assertEq(_getProtocolFee(volatileRuleset, volatileKey), hooklessFee);
   }
 
   function testFuzz_getProtocolFee_GivenTheStablePairHookRuleset(uint256 salt, uint24 optimalFeeE6)
@@ -184,7 +231,7 @@ contract V4PairHookRulesetsTest is Test {
 
     // Then: getProtocolFee returns the hookless fee for the optimal fee.
     assertEq(stableRuleset.lpFee(key), optimalFeeE6);
-    assertEq(stableRuleset.getProtocolFee(key), curve.getFeeForLpFee(optimalFeeE6));
+    assertEq(_getProtocolFee(stableRuleset, key), curve.getFeeForLpFee(optimalFeeE6));
   }
 
   function testFuzz_getProtocolFee_GivenTheVolatilePairHookRuleset(
@@ -198,7 +245,7 @@ contract V4PairHookRulesetsTest is Test {
 
     // Then: getProtocolFee returns the hookless fee for half of the resting spread, rounded down.
     assertEq(volatileRuleset.lpFee(key), restingSpreadE6 / 2);
-    assertEq(volatileRuleset.getProtocolFee(key), curve.getFeeForLpFee(restingSpreadE6 / 2));
+    assertEq(_getProtocolFee(volatileRuleset, key), curve.getFeeForLpFee(restingSpreadE6 / 2));
   }
 
   function testFuzz_getProtocolFee_WhenTheRulesetForHooklessPoolsChanges(
@@ -223,8 +270,8 @@ contract V4PairHookRulesetsTest is Test {
 
     // Then: getProtocolFee returns the fee of the new ruleset.
     uint24 expected = alphaPips << 12 | alphaPips;
-    assertEq(stableRuleset.getProtocolFee(stableKey), expected);
-    assertEq(volatileRuleset.getProtocolFee(volatileKey), expected);
+    assertEq(_getProtocolFee(stableRuleset, stableKey), expected);
+    assertEq(_getProtocolFee(volatileRuleset, volatileKey), expected);
   }
 
   // ============ Examples ============
@@ -233,14 +280,14 @@ contract V4PairHookRulesetsTest is Test {
     // 1 + 263_889 * (90 - 3) / 1_000_000 = 23 pips.
     PoolKey memory key = _key(address(stableHook), 0);
     stableHook.setOptimalFee(key.toId(), 90);
-    assertEq(stableRuleset.getProtocolFee(key), 23 << 12 | 23);
+    assertEq(_getProtocolFee(stableRuleset, key), 23 << 12 | 23);
   }
 
   function test_volatilePairHook_restingSpreadOf60Bps_pays5Bps() public {
     // Half of the spread is 30 bps, and the hookless curve gives 5 bps for an LP fee of 30 bps.
     PoolKey memory key = _key(address(volatileHook), 0);
     volatileHook.setRestingSpread(key.toId(), 6000);
-    assertEq(volatileRuleset.getProtocolFee(key), 500 << 12 | 500);
+    assertEq(_getProtocolFee(volatileRuleset, key), 500 << 12 | 500);
   }
 
   // ============ V4FeePolicy integration ============
@@ -264,5 +311,39 @@ contract V4PairHookRulesetsTest is Test {
     // Then: the policy returns the hookless fee for each dynamic-fee pool.
     assertEq(policy.computeFee(stableKey), curve.getFeeForLpFee(optimalFeeE6));
     assertEq(policy.computeFee(volatileKey), curve.getFeeForLpFee(restingSpreadE6 / 2));
+  }
+
+  function testFuzz_policy_eachPolicyReturnsItsOwnHooklessFeeForTheSameRulesets(
+    uint256 salt,
+    uint24 optimalFeeE6,
+    uint24 restingSpreadE6,
+    uint24 alphaPips
+  ) public {
+    // Given: two policies with different curves for hookless pools.
+    alphaPips = uint24(bound(alphaPips, 0, ProtocolFeeLibrary.MAX_PROTOCOL_FEE));
+    FeeBucket[] memory flat = new FeeBucket[](1);
+    flat[0] = FeeBucket({lpFeeFloor: 0, alphaPips: alphaPips, betaPips: 0});
+    V4FeePolicy otherPolicy = new V4FeePolicy(address(this), address(this));
+    otherPolicy.setProtocolFeeRuleset(NO_HOOK, new V4StaticCurveRuleset(flat));
+
+    // Given: the two policies assign the same rulesets to the hooks.
+    policy.setProtocolFeeRuleset(address(stableHook), stableRuleset);
+    policy.setProtocolFeeRuleset(address(volatileHook), volatileRuleset);
+    otherPolicy.setProtocolFeeRuleset(address(stableHook), stableRuleset);
+    otherPolicy.setProtocolFeeRuleset(address(volatileHook), volatileRuleset);
+
+    PoolKey memory stableKey = _key(address(stableHook), salt);
+    PoolKey memory volatileKey = _key(address(volatileHook), salt);
+    optimalFeeE6 = uint24(bound(optimalFeeE6, 0, MAX_OPTIMAL_FEE_E6));
+    restingSpreadE6 = uint24(bound(restingSpreadE6, 0, LPFeeLibrary.MAX_LP_FEE));
+    stableHook.setOptimalFee(stableKey.toId(), optimalFeeE6);
+    volatileHook.setRestingSpread(volatileKey.toId(), restingSpreadE6);
+
+    // Then: each policy returns the fee of its own curve for hookless pools.
+    assertEq(policy.computeFee(stableKey), curve.getFeeForLpFee(optimalFeeE6));
+    assertEq(policy.computeFee(volatileKey), curve.getFeeForLpFee(restingSpreadE6 / 2));
+    uint24 expected = alphaPips << 12 | alphaPips;
+    assertEq(otherPolicy.computeFee(stableKey), expected);
+    assertEq(otherPolicy.computeFee(volatileKey), expected);
   }
 }
