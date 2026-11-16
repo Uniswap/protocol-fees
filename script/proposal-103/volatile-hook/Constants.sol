@@ -15,7 +15,7 @@ library VolatileHook {
   ///      https://etherscan.io/address/0x1DDbf7215be4F8A7623B9B1B0255C6e1E3F6c000
   address constant CURRENT_IMPLEMENTATION = 0x1DDbf7215be4F8A7623B9B1B0255C6e1E3F6c000;
 
-  /// @dev The implementation the proposal installs
+  /// @dev The implementation the proposal installs, built from `v4-hooks-public` commit 1e6e865f.
   ///      https://etherscan.io/address/0xd944fa96798916Fe72161ccaF0F30DF7bb220000
   address constant NEW_IMPLEMENTATION = 0xd944fa96798916Fe72161ccaF0F30DF7bb220000;
 
