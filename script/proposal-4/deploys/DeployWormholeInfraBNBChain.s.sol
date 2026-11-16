@@ -169,8 +169,9 @@ contract DeployWormholeInfraBNBChainScript is Script {
     //
     // - `transceiver`: WormholeTransceiver proxy.
     //
-    NttManagerNoRateLimiting(nttManagerProxy)
-      .setTransceiver({transceiver: wormholeTransceiverProxy});
+    NttManagerNoRateLimiting(nttManagerProxy).setTransceiver({
+      transceiver: wormholeTransceiverProxy
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 09
@@ -211,8 +212,9 @@ contract DeployWormholeInfraBNBChainScript is Script {
     //
     // - `newOwner`: Uniswap Wormhole Governance Receiver
     //
-    SyntheticNttUni(syntheticNttUni)
-      .transferOwnership({newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER});
+    SyntheticNttUni(syntheticNttUni).transferOwnership({
+      newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+    });
 
     // -----------------------------------------------------------------------------------------
     // Logs

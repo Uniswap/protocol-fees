@@ -90,13 +90,12 @@ contract ConfigWormholeInfraBNBChainScript is Script {
     // Sources:
     //
     // [1] https://github.com/wormhole-foundation/native-token-transfers/blob/main/evm/README.md
-    NttManagerNoRateLimiting(bnb.nttManagerProxy)
-      .setPeer({
-        peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
-        peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
-        decimals: 18,
-        inboundLimit: 0
-      });
+    NttManagerNoRateLimiting(bnb.nttManagerProxy).setPeer({
+      peerChainId: Constants.Wormhole.ETH_CHAIN_ID,
+      peerContract: bytes32(uint256(uint160(eth.nttManagerProxy))),
+      decimals: 18,
+      inboundLimit: 0
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 02
@@ -110,8 +109,9 @@ contract ConfigWormholeInfraBNBChainScript is Script {
     //
     // - `newOwner`: Uniswap Wormhole Message Receiver (governance-owned).
     //
-    NttManagerNoRateLimiting(bnb.nttManagerProxy)
-      .transferOwnership({newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER});
+    NttManagerNoRateLimiting(bnb.nttManagerProxy).transferOwnership({
+      newOwner: Constants.BNB.UNISWAP_WORMHOLE_MESSAGE_RECEIVER
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 03

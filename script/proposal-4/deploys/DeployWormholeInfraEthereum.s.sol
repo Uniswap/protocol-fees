@@ -160,8 +160,9 @@ contract DeployWormholeInfraEthereumScript is Script {
     //
     // - `transceiver`: WormholeTransceiver proxy.
     //
-    NttManagerNoRateLimiting(nttManagerProxy)
-      .setTransceiver({transceiver: wormholeTransceiverProxy});
+    NttManagerNoRateLimiting(nttManagerProxy).setTransceiver({
+      transceiver: wormholeTransceiverProxy
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 08
