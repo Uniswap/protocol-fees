@@ -6,18 +6,18 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
-import {AggLayerReleaser} from "../src/releasers/AggLayerReleaser.sol";
+import {XLayerReleaser} from "../src/releasers/XLayerReleaser.sol";
 import {ITokenJar} from "../src/interfaces/ITokenJar.sol";
 import {IOwned} from "../src/interfaces/base/IOwned.sol";
-import {IAggLayerBridge} from "../src/interfaces/external/IAggLayerBridge.sol";
+import {IXLayerBridge} from "../src/interfaces/external/IXLayerBridge.sol";
 
 /// @dev Bridge-minted `TokenWrapped`; only the bridge can mint
 interface ITokenWrapped {
   function mint(address to, uint256 value) external;
 }
 
-/// @dev `PolygonZkEVMBridgeV2` views not in `IAggLayerBridge`
-interface IAggLayerBridgeViews {
+/// @dev `PolygonZkEVMBridgeV2` views not in `IXLayerBridge`
+interface IXLayerBridgeViews {
   function depositCount() external view returns (uint256);
   function getRoot() external view returns (bytes32);
   function globalExitRootManager() external view returns (address);
@@ -28,23 +28,23 @@ interface IGlobalExitRootL2 {
   function lastRollupExitRoot() external view returns (bytes32);
 }
 
-/// @notice Runs `AggLayerReleaser` against the real AggLayer unified bridge and TokenJar on X Layer
-/// @dev Complements the mock bridge in AggLayerReleaser.t.sol. The X Layer bridge is the
+/// @notice Runs `XLayerReleaser` against the real unified bridge and TokenJar on X Layer
+/// @dev Complements the mock bridge in XLayerReleaser.t.sol. The X Layer bridge is the
 /// pre-sovereign `PolygonZkEVMBridgeV2` lineage, so the remap and legacy-removal path of the
 /// sovereign bridge cannot be exercised here; the unmapped-token test instead confirms the real
 /// bridge escrows such a token rather than reverting, which is the behavior the mock models.
-contract AggLayerReleaserForkTest is Test {
+contract XLayerReleaserForkTest is Test {
   uint256 internal constant FORK_BLOCK = 74_354_718;
   uint256 internal constant X_LAYER_CHAIN_ID = 196;
 
   uint32 internal constant ETHEREUM_NETWORK_ID = 0;
   uint32 internal constant X_LAYER_NETWORK_ID = 3;
 
-  /// @dev AggLayer unified bridge on X Layer
+  /// @dev Unified bridge on X Layer
   /// https://www.oklink.com/xlayer/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
   address internal constant BRIDGE = 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe;
 
-  /// @dev AggLayer-wrapped UNI on X Layer (`TokenWrapped`, origin network 0, origin L1 UNI)
+  /// @dev Bridge-wrapped UNI on X Layer (`TokenWrapped`, origin network 0, origin L1 UNI)
   /// https://www.oklink.com/xlayer/address/0x2548C94A3092494dB3aF864cc2cF781a72f55678
   address internal constant RESOURCE = 0x2548C94A3092494dB3aF864cc2cF781a72f55678;
 
@@ -64,7 +64,7 @@ contract AggLayerReleaserForkTest is Test {
   uint256 internal constant FEE_AMOUNT = 10 ether;
 
   ITokenJar internal tokenJar = ITokenJar(TOKEN_JAR);
-  AggLayerReleaser internal releaser;
+  XLayerReleaser internal releaser;
 
   address internal alice = makeAddr("alice");
 
@@ -75,14 +75,14 @@ contract AggLayerReleaserForkTest is Test {
     vm.createSelectFork("xlayer", FORK_BLOCK);
     assertEq(block.chainid, X_LAYER_CHAIN_ID, "Not on X Layer");
 
-    releaser = new AggLayerReleaser(BRIDGE, RESOURCE, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
+    releaser = new XLayerReleaser(BRIDGE, RESOURCE, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
     _setJarReleaser(address(releaser));
 
     vm.deal(TOKEN_JAR, FEE_AMOUNT);
   }
 
   function test_fork_bridgeMapsResourceToL1Uni() public view {
-    IAggLayerBridge bridge = IAggLayerBridge(BRIDGE);
+    IXLayerBridge bridge = IXLayerBridge(BRIDGE);
     assertEq(bridge.networkID(), X_LAYER_NETWORK_ID);
 
     (uint32 originNetwork, address originTokenAddress) = bridge.wrappedTokenToTokenInfo(RESOURCE);
@@ -98,15 +98,15 @@ contract AggLayerReleaserForkTest is Test {
     assets[0] = Currency.wrap(address(0));
 
     uint256 supplyBefore = IERC20(RESOURCE).totalSupply();
-    uint256 depositCountBefore = IAggLayerBridgeViews(BRIDGE).depositCount();
-    bytes32 rootBefore = IAggLayerBridgeViews(BRIDGE).getRoot();
+    uint256 depositCountBefore = IXLayerBridgeViews(BRIDGE).depositCount();
+    bytes32 rootBefore = IXLayerBridgeViews(BRIDGE).getRoot();
 
     vm.startPrank(alice);
     IERC20(RESOURCE).approve(address(releaser), THRESHOLD);
 
     // The V2 bridge encodes the wrapped token's metadata into the leaf
     vm.expectEmit(BRIDGE);
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0,
       ETHEREUM_NETWORK_ID,
       L1_RESOURCE,
@@ -131,10 +131,10 @@ contract AggLayerReleaserForkTest is Test {
     assertEq(IERC20(RESOURCE).allowance(address(releaser), BRIDGE), 0);
 
     // A new leaf was appended and, with `forceUpdateGlobalExitRoot`, pushed to the GER manager
-    bytes32 rootAfter = IAggLayerBridgeViews(BRIDGE).getRoot();
-    assertEq(IAggLayerBridgeViews(BRIDGE).depositCount(), depositCountBefore + 1);
+    bytes32 rootAfter = IXLayerBridgeViews(BRIDGE).getRoot();
+    assertEq(IXLayerBridgeViews(BRIDGE).depositCount(), depositCountBefore + 1);
     assertNotEq(rootAfter, rootBefore);
-    address gerManager = IAggLayerBridgeViews(BRIDGE).globalExitRootManager();
+    address gerManager = IXLayerBridgeViews(BRIDGE).globalExitRootManager();
     assertEq(IGlobalExitRootL2(gerManager).lastRollupExitRoot(), rootAfter);
   }
 
@@ -142,12 +142,12 @@ contract AggLayerReleaserForkTest is Test {
   /// releaser configured with it cannot be deployed
   function test_fork_revert_constructor_opStackUni() public {
     (uint32 originNetwork, address originTokenAddress) =
-      IAggLayerBridge(BRIDGE).wrappedTokenToTokenInfo(OP_STACK_UNI);
+      IXLayerBridge(BRIDGE).wrappedTokenToTokenInfo(OP_STACK_UNI);
     assertEq(originNetwork, 0);
     assertEq(originTokenAddress, address(0));
 
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(BRIDGE, OP_STACK_UNI, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new XLayerReleaser(BRIDGE, OP_STACK_UNI, L1_RESOURCE, THRESHOLD, TOKEN_JAR);
   }
 
   /// @dev The real bridge escrows a token it has no mapping for as a token native to X Layer,
@@ -157,12 +157,12 @@ contract AggLayerReleaserForkTest is Test {
     MockERC20 unmapped = new MockERC20("Unmapped", "UNM", 18);
     unmapped.mint(alice, THRESHOLD);
 
-    uint256 depositCountBefore = IAggLayerBridgeViews(BRIDGE).depositCount();
+    uint256 depositCountBefore = IXLayerBridgeViews(BRIDGE).depositCount();
 
     vm.startPrank(alice);
     unmapped.approve(BRIDGE, THRESHOLD);
     vm.expectEmit(BRIDGE);
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0,
       X_LAYER_NETWORK_ID,
       address(unmapped),
@@ -172,7 +172,7 @@ contract AggLayerReleaserForkTest is Test {
       abi.encode("Unmapped", "UNM", uint8(18)),
       uint32(depositCountBefore)
     );
-    IAggLayerBridge(BRIDGE)
+    IXLayerBridge(BRIDGE)
       .bridgeAsset(ETHEREUM_NETWORK_ID, BURN_ADDRESS, THRESHOLD, address(unmapped), true, "");
     vm.stopPrank();
 

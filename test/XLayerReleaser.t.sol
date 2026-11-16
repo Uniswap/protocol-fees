@@ -5,17 +5,17 @@ import {Test, stdError} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 
-import {AggLayerReleaser} from "../src/releasers/AggLayerReleaser.sol";
+import {XLayerReleaser} from "../src/releasers/XLayerReleaser.sol";
 import {TokenJar} from "../src/TokenJar.sol";
 import {IReleaser} from "../src/interfaces/IReleaser.sol";
 import {INonce} from "../src/interfaces/base/INonce.sol";
-import {IAggLayerBridge} from "../src/interfaces/external/IAggLayerBridge.sol";
+import {IXLayerBridge} from "../src/interfaces/external/IXLayerBridge.sol";
 
-/// @dev Mock of the AggLayer unified bridge as deployed on an L2. Mirrors the three `bridgeAsset`
+/// @dev Mock of the X Layer unified bridge. Mirrors the three `bridgeAsset`
 /// ERC20 paths: a bridge-minted wrapped token is burned from the caller directly, a "not mintable"
 /// sovereign token is pulled through the caller's allowance and escrowed, and a token with no
 /// mapping is treated as native to this network, pulled through the allowance and escrowed.
-contract MockAggLayerBridge is IAggLayerBridge {
+contract MockXLayerBridge is IXLayerBridge {
   error DestinationNetworkInvalid();
   error MsgValueNotZero();
   error OnlyNotEmergencyState();
@@ -114,12 +114,12 @@ contract MockAggLayerBridge is IAggLayerBridge {
   }
 }
 
-contract AggLayerReleaserTest is Test {
-  AggLayerReleaser internal releaser;
+contract XLayerReleaserTest is Test {
+  XLayerReleaser internal releaser;
   TokenJar internal tokenJar;
   MockERC20 internal resource;
   MockERC20 internal mockToken;
-  MockAggLayerBridge internal bridge;
+  MockXLayerBridge internal bridge;
 
   address internal alice = makeAddr("alice");
   address internal bob = makeAddr("bob");
@@ -134,7 +134,7 @@ contract AggLayerReleaserTest is Test {
   uint256 internal constant INITIAL_NATIVE_AMOUNT = 10 ether;
 
   function setUp() public {
-    bridge = new MockAggLayerBridge(X_LAYER_NETWORK_ID);
+    bridge = new MockXLayerBridge(X_LAYER_NETWORK_ID);
 
     // Wrapped UNI minted by the bridge for Ethereum UNI
     resource = new MockERC20("Uniswap", "UNI", 18);
@@ -143,7 +143,7 @@ contract AggLayerReleaserTest is Test {
     mockToken = new MockERC20("MockToken", "MTK", 18);
     tokenJar = new TokenJar();
 
-    releaser = new AggLayerReleaser(
+    releaser = new XLayerReleaser(
       address(bridge), address(resource), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
 
@@ -168,19 +168,17 @@ contract AggLayerReleaserTest is Test {
     assertEq(address(releaser.TOKEN_JAR()), address(tokenJar));
     assertEq(releaser.owner(), address(this));
     assertEq(releaser.thresholdSetter(), thresholdSetter);
-    assertEq(releaser.AGGLAYER_ETHEREUM_NETWORK_ID(), ETHEREUM_NETWORK_ID);
+    assertEq(releaser.XLAYER_ETHEREUM_NETWORK_ID(), ETHEREUM_NETWORK_ID);
   }
 
   function test_revert_constructor_zeroBridge() public {
-    vm.expectRevert(AggLayerReleaser.ZeroAddress.selector);
-    new AggLayerReleaser(
-      address(0), address(resource), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
-    );
+    vm.expectRevert(XLayerReleaser.ZeroAddress.selector);
+    new XLayerReleaser(address(0), address(resource), L1_UNI, INITIAL_THRESHOLD, address(tokenJar));
   }
 
   function test_revert_constructor_zeroL1Resource() public {
-    vm.expectRevert(AggLayerReleaser.ZeroAddress.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ZeroAddress.selector);
+    new XLayerReleaser(
       address(bridge), address(resource), address(0), INITIAL_THRESHOLD, address(tokenJar)
     );
   }
@@ -188,8 +186,8 @@ contract AggLayerReleaserTest is Test {
   /// @dev A token the bridge has never wrapped, e.g. X Layer's OptimismMintableERC20 UNI
   function test_revert_constructor_resourceUnknownToBridge() public {
     MockERC20 opUni = new MockERC20("Uniswap", "UNI", 18);
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new XLayerReleaser(
       address(bridge), address(opUni), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
   }
@@ -197,8 +195,8 @@ contract AggLayerReleaserTest is Test {
   function test_revert_constructor_resourceWrapsDifferentL1Token() public {
     MockERC20 other = new MockERC20("Other", "OTH", 18);
     bridge.setWrappedToken(address(other), ETHEREUM_NETWORK_ID, makeAddr("otherL1Token"));
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new XLayerReleaser(
       address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
   }
@@ -206,15 +204,15 @@ contract AggLayerReleaserTest is Test {
   function test_revert_constructor_resourceWrapsNonEthereumToken() public {
     MockERC20 other = new MockERC20("Other", "OTH", 18);
     bridge.setWrappedToken(address(other), 1, L1_UNI);
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new XLayerReleaser(
       address(bridge), address(other), L1_UNI, INITIAL_THRESHOLD, address(tokenJar)
     );
   }
 
   function test_revert_constructor_wrongL1Resource() public {
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    new XLayerReleaser(
       address(bridge),
       address(resource),
       makeAddr("otherL1Token"),
@@ -232,8 +230,8 @@ contract AggLayerReleaserTest is Test {
     assertEq(originNetwork, ETHEREUM_NETWORK_ID);
     assertEq(originTokenAddress, address(0));
 
-    vm.expectRevert(AggLayerReleaser.ZeroAddress.selector);
-    new AggLayerReleaser(
+    vm.expectRevert(XLayerReleaser.ZeroAddress.selector);
+    new XLayerReleaser(
       address(bridge), address(opUni), address(0), INITIAL_THRESHOLD, address(tokenJar)
     );
   }
@@ -254,7 +252,7 @@ contract AggLayerReleaserTest is Test {
     vm.expectEmit(address(releaser));
     emit IReleaser.Released(nonceBefore, alice, assets);
     vm.expectEmit(address(bridge));
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0, ETHEREUM_NETWORK_ID, L1_UNI, ETHEREUM_NETWORK_ID, BURN_ADDRESS, INITIAL_THRESHOLD, "", 0
     );
 
@@ -342,7 +340,7 @@ contract AggLayerReleaserTest is Test {
     resource.approve(address(releaser), thresholdAmount);
 
     vm.expectEmit(address(bridge));
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0, ETHEREUM_NETWORK_ID, L1_UNI, ETHEREUM_NETWORK_ID, BURN_ADDRESS, thresholdAmount, "", 0
     );
 
@@ -369,7 +367,7 @@ contract AggLayerReleaserTest is Test {
     vm.startPrank(alice);
     resource.approve(address(releaser), INITIAL_THRESHOLD);
     vm.expectEmit(address(bridge));
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0, ETHEREUM_NETWORK_ID, L1_UNI, ETHEREUM_NETWORK_ID, BURN_ADDRESS, INITIAL_THRESHOLD, "", 0
     );
     releaser.release(releaser.nonce(), assets, alice);
@@ -412,7 +410,7 @@ contract AggLayerReleaserTest is Test {
     resource.mint(address(releaser), INITIAL_THRESHOLD);
     resource.approve(address(bridge), INITIAL_THRESHOLD);
     vm.expectEmit(address(bridge));
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0,
       X_LAYER_NETWORK_ID,
       address(resource),
@@ -479,7 +477,7 @@ contract AggLayerReleaserTest is Test {
     vm.startPrank(alice);
     resource.approve(address(releaser), INITIAL_THRESHOLD);
     uint256 currentNonce = releaser.nonce();
-    vm.expectRevert(MockAggLayerBridge.OnlyNotEmergencyState.selector);
+    vm.expectRevert(MockXLayerBridge.OnlyNotEmergencyState.selector);
     releaser.release(currentNonce, assets, alice);
     vm.stopPrank();
 
@@ -506,7 +504,7 @@ contract AggLayerReleaserTest is Test {
     vm.startPrank(alice);
     resource.approve(address(releaser), INITIAL_THRESHOLD);
     uint256 currentNonce = releaser.nonce();
-    vm.expectRevert(AggLayerReleaser.ResourceNotWrappedL1Resource.selector);
+    vm.expectRevert(XLayerReleaser.ResourceNotWrappedL1Resource.selector);
     releaser.release(currentNonce, assets, alice);
     vm.stopPrank();
 

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {IAggLayerBridge} from "../interfaces/external/IAggLayerBridge.sol";
+import {IXLayerBridge} from "../interfaces/external/IXLayerBridge.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 
-/// @title AggLayerReleaser
-/// @notice A releaser that implements a two-stage burn for resource tokens bridged to an AggLayer
-/// chain (e.g. X Layer) through Polygon's AggLayer unified bridge
-/// @dev Two-stage burn from an AggLayer chain to the underlying resource on Ethereum
+/// @title XLayerReleaser
+/// @notice A releaser that implements a two-stage burn for resource tokens bridged to X Layer
+/// through its unified bridge (Polygon's AggLayer bridge)
+/// @dev Two-stage burn from X Layer to the underlying resource on Ethereum
 /// **Stage 1: L2 Collection and Bridge Initiation**
 /// - User calls `release()` providing resource tokens as payment
 /// - ExchangeReleaser transfers resource tokens from user to this smart contract
@@ -37,7 +37,7 @@ import {ExchangeReleaser} from "./ExchangeReleaser.sol";
 /// carries OP Stack predeploys and an `OptimismMintableERC20` UNI; that token is a different asset
 /// and deployment reverts if it is configured, since the unified bridge does not recognize it.
 /// @custom:security-contact security@uniswap.org
-contract AggLayerReleaser is ExchangeReleaser {
+contract XLayerReleaser is ExchangeReleaser {
   error ZeroAddress();
 
   /// @dev Thrown when the bridge does not recognize the resource as its wrapped representation of
@@ -45,25 +45,25 @@ contract AggLayerReleaser is ExchangeReleaser {
   /// a wrapped token on Ethereum instead of burning the resource.
   error ResourceNotWrappedL1Resource();
 
-  /// @dev AggLayer network id of Ethereum mainnet, the settlement layer of every AggLayer chain
-  uint32 public constant AGGLAYER_ETHEREUM_NETWORK_ID = 0;
+  /// @dev Network id of Ethereum mainnet on the X Layer unified bridge
+  uint32 public constant XLAYER_ETHEREUM_NETWORK_ID = 0;
 
   /// @dev Final recipient of the bridged resource on Ethereum (burn address)
   /// @dev Note: This is different from RESOURCE_RECIPIENT which is address(this) on L2
   address internal constant L1_RESOURCE_RECIPIENT = address(0xdead);
 
-  /// @dev The AggLayer unified bridge on this chain
+  /// @dev The X Layer unified bridge
   /// @dev Deployed at 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe on X Layer and most CDK chains,
   /// but it is not a predeploy, so it is a constructor parameter
-  IAggLayerBridge public immutable BRIDGE;
+  IXLayerBridge public immutable BRIDGE;
 
   /// @dev The resource token address on Ethereum, the origin token of the wrapped resource
   /// @dev Used to check at deployment and on each release that the bridge maps `RESOURCE` back
   /// to it
   address public immutable L1_RESOURCE;
 
-  /// @notice Creates a new AggLayerReleaser instance
-  /// @param _bridge The AggLayer unified bridge on this chain
+  /// @notice Creates a new XLayerReleaser instance
+  /// @param _bridge The X Layer unified bridge
   /// @param _resource The address of the resource token on this chain (bridge wrapped token)
   /// @param _l1Resource The address of the resource token on Ethereum (origin token)
   /// @param _threshold The minimum amount of resource tokens required for exchange
@@ -84,12 +84,12 @@ contract AggLayerReleaser is ExchangeReleaser {
     require(_bridge != address(0), ZeroAddress());
     require(_l1Resource != address(0), ZeroAddress());
     (uint32 originNetwork, address originTokenAddress) =
-      IAggLayerBridge(_bridge).wrappedTokenToTokenInfo(_resource);
+      IXLayerBridge(_bridge).wrappedTokenToTokenInfo(_resource);
     require(
-      originNetwork == AGGLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == _l1Resource,
+      originNetwork == XLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == _l1Resource,
       ResourceNotWrappedL1Resource()
     );
-    BRIDGE = IAggLayerBridge(_bridge);
+    BRIDGE = IXLayerBridge(_bridge);
     L1_RESOURCE = _l1Resource;
   }
 
@@ -108,7 +108,7 @@ contract AggLayerReleaser is ExchangeReleaser {
     (uint32 originNetwork, address originTokenAddress) =
       BRIDGE.wrappedTokenToTokenInfo(address(RESOURCE));
     require(
-      originNetwork == AGGLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == L1_RESOURCE,
+      originNetwork == XLAYER_ETHEREUM_NETWORK_ID && originTokenAddress == L1_RESOURCE,
       ResourceNotWrappedL1Resource()
     );
 
@@ -118,7 +118,7 @@ contract AggLayerReleaser is ExchangeReleaser {
     // 2. Append a leaf to the local exit tree and push the new root to the global exit root
     // 3. After settlement on Ethereum, `claimAsset` releases the escrowed resource to 0xdead
     BRIDGE.bridgeAsset({
-      destinationNetwork: AGGLAYER_ETHEREUM_NETWORK_ID,
+      destinationNetwork: XLAYER_ETHEREUM_NETWORK_ID,
       destinationAddress: L1_RESOURCE_RECIPIENT,
       amount: threshold,
       token: address(RESOURCE),

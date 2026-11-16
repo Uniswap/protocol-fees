@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-/// @title IAggLayerBridge
-/// @notice Interface for Polygon's AggLayer unified bridge (`PolygonZkEVMBridgeV2`, since renamed
-/// `AgglayerBridge`), deployed on Ethereum and on every AggLayer-connected chain
-/// @dev Used to initiate asset withdrawals from an AggLayer chain to Ethereum (network id 0)
-interface IAggLayerBridge {
+/// @title IXLayerBridge
+/// @notice Interface for the X Layer unified bridge, Polygon's AggLayer bridge
+/// (`PolygonZkEVMBridgeV2`, since renamed `AgglayerBridge`), deployed on Ethereum and on X Layer
+/// @dev Used to initiate asset withdrawals from X Layer to Ethereum (network id 0)
+interface IXLayerBridge {
   /// @notice Emitted when an asset or message is bridged out of this network
   /// @param leafType 0 for assets, 1 for messages
   /// @param originNetwork Network id the token is native to
@@ -31,7 +31,7 @@ interface IAggLayerBridge {
   /// allowance. Any other ERC20 is pulled with `transferFrom` and escrowed on this network.
   /// `msg.value` must be zero unless `token` is the zero address (this network's gas token).
   /// Reverts if `destinationNetwork` is this network or the bridge is in emergency state.
-  /// @param destinationNetwork AggLayer network id of the destination (0 is Ethereum)
+  /// @param destinationNetwork Network id of the destination (0 is Ethereum)
   /// @param destinationAddress Recipient on the destination network
   /// @param amount Amount of tokens to bridge
   /// @param token Token to bridge on this network, or the zero address for the gas token
@@ -47,7 +47,7 @@ interface IAggLayerBridge {
     bytes calldata permitData
   ) external payable;
 
-  /// @notice AggLayer network id of the network this bridge is deployed on (0 on Ethereum)
+  /// @notice Network id of the network this bridge is deployed on (0 on Ethereum)
   function networkID() external view returns (uint32);
 
   /// @notice Origin network and origin token of a wrapped token known to this bridge
