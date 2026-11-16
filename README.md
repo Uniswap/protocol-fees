@@ -35,6 +35,7 @@
     - [Polygon (Chain ID: 137)](#polygon-chain-id-137)
     - [BNB Chain (Chain ID: 56)](#bnb-chain-chain-id-56)
     - [Robinhood Chain (Chain ID: 4663)](#robinhood-chain-chain-id-4663)
+    - [Arc (Chain ID: 5042)](#arc-chain-id-5042)
   - [Development](#development)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
@@ -422,6 +423,19 @@ Ethereum Mainnet
 | V3OpenFeeAdapter | [`0x05C420bC4823e039AA4dA645eDde743486dAAA25`](https://robinhoodchain.blockscout.com/address/0x05C420bC4823e039AA4dA645eDde743486dAAA25) |
 | V4FeeAdapter     | [`0x6d0009504D129CF5002Dba61D9Ae8575AA79314c`](https://robinhoodchain.blockscout.com/address/0x6d0009504D129CF5002Dba61D9Ae8575AA79314c) |
 | V4FeePolicy      | [`0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc`](https://robinhoodchain.blockscout.com/address/0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc) |
+
+### Arc (Chain ID: 5042)
+
+| Contract                    | Address                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| SyntheticNttUni             | [`0x0ff2262B299D2a7784Cfb29f944FbAB239Ad1df6`](https://www.arcexplorer.org/address/0x0ff2262B299D2a7784Cfb29f944FbAB239Ad1df6) |
+| NttManager                  | [`0xC8271548CC9c2F9BE3e926b99a588E211B1A0417`](https://www.arcexplorer.org/address/0xC8271548CC9c2F9BE3e926b99a588E211B1A0417) |
+| WormholeTransceiver         | [`0x0B359a34f94c9371d43560448d6765d508771fFc`](https://www.arcexplorer.org/address/0x0B359a34f94c9371d43560448d6765d508771fFc) |
+| TokenJar                    | [`0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233`](https://www.arcexplorer.org/address/0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233) |
+| Releaser (WormholeReleaser) | [`0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16`](https://www.arcexplorer.org/address/0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16) |
+| V3OpenFeeAdapter            | [`0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2`](https://www.arcexplorer.org/address/0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2) |
+| V4FeeAdapter                | [`0x2f2bd3F43880b9644211f16d861b0672aaB23782`](https://www.arcexplorer.org/address/0x2f2bd3F43880b9644211f16d861b0672aaB23782) |
+| V4FeePolicy                 | [`0x9671B518dA771c5c73d8115b3800FA7653a72015`](https://www.arcexplorer.org/address/0x9671B518dA771c5c73d8115b3800FA7653a72015) |
 
 ## Development
 
