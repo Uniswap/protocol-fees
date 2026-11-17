@@ -12,6 +12,8 @@ import {IDecayingThresholdSetter} from "./interfaces/IDecayingThresholdSetter.so
 /// governance.
 /// @dev Assumes the releaser's only owner-gated functions are
 /// `ResourceManager.setThresholdSetter` and `IOwned.transferOwnership`.
+/// @dev Not compatible with `WormholeReleaser`, which strands the remainder of thresholds that
+/// are not multiples of 1e10.
 /// @custom:security-contact security@uniswap.org
 contract DecayingThresholdSetter is IDecayingThresholdSetter {
   /// @inheritdoc IDecayingThresholdSetter
