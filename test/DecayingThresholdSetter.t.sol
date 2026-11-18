@@ -7,18 +7,27 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 
 import {DecayingThresholdSetter} from "../src/DecayingThresholdSetter.sol";
 import {IDecayingThresholdSetter} from "../src/interfaces/IDecayingThresholdSetter.sol";
-import {Firepit} from "../src/releasers/Firepit.sol";
+import {IXLayerBridge} from "../src/interfaces/external/IXLayerBridge.sol";
+import {XLayerReleaser} from "../src/releasers/XLayerReleaser.sol";
 import {TokenJar} from "../src/TokenJar.sol";
+import {MockXLayerBridge} from "./mocks/MockXLayerBridge.sol";
 
 contract DecayingThresholdSetterTest is Test {
   DecayingThresholdSetter internal setter;
-  Firepit internal releaser;
+  XLayerReleaser internal releaser;
+  MockXLayerBridge internal bridge;
   TokenJar internal tokenJar;
   MockERC20 internal resource;
   MockERC20 internal feeToken;
 
   address internal governance = makeAddr("governance");
   address internal searcher = makeAddr("searcher");
+
+  /// @dev UNI on Ethereum mainnet, the origin token of the wrapped UNI on X Layer.
+  address internal constant L1_UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
+  address internal constant BURN_ADDRESS = address(0xdead);
+  uint32 internal constant ETHEREUM_NETWORK_ID = 0;
+  uint32 internal constant X_LAYER_NETWORK_ID = 3;
 
   uint256 internal constant START = 80_000e18;
   uint256 internal constant FLOOR = 2000e18;
@@ -27,18 +36,26 @@ contract DecayingThresholdSetterTest is Test {
 
   function setUp() public {
     vm.warp(T0);
-    resource = new MockERC20("Resource", "RSC", 18);
+    bridge = new MockXLayerBridge(X_LAYER_NETWORK_ID);
+    // Wrapped UNI minted by the bridge for Ethereum UNI.
+    resource = new MockERC20("Uniswap", "UNI", 18);
+    bridge.setWrappedToken(address(resource), ETHEREUM_NETWORK_ID, L1_UNI);
     feeToken = new MockERC20("Fee", "FEE", 18);
 
     // Mirror production: governance owns the releaser and is its threshold setter
     vm.startPrank(governance);
     tokenJar = new TokenJar();
-    releaser = new Firepit(address(resource), FLOOR, address(tokenJar));
+    releaser = _newReleaser(FLOOR);
     tokenJar.setReleaser(address(releaser));
     releaser.setThresholdSetter(governance);
     vm.stopPrank();
 
     setter = new DecayingThresholdSetter(address(releaser), START, FLOOR, HALF_LIFE);
+  }
+
+  function _newReleaser(uint256 threshold) internal returns (XLayerReleaser) {
+    return
+      new XLayerReleaser(address(bridge), address(resource), L1_UNI, threshold, address(tokenJar));
   }
 
   function _start() internal {
@@ -106,7 +123,7 @@ contract DecayingThresholdSetterTest is Test {
   function test_newReleaser_handedStraightToSetter_endsWithGovernance() public {
     address deployer = makeAddr("deployer");
     vm.startPrank(deployer);
-    Firepit newReleaser = new Firepit(address(resource), START, address(tokenJar));
+    XLayerReleaser newReleaser = _newReleaser(START);
     setter = new DecayingThresholdSetter(address(newReleaser), START, FLOOR, HALF_LIFE);
     newReleaser.transferOwnership(address(setter));
     vm.stopPrank();
@@ -364,11 +381,17 @@ contract DecayingThresholdSetterTest is Test {
     // Without a poke the releaser still charges the last written, higher threshold
     assertEq(releaser.threshold(), START);
     setter.poke();
+    // The releaser bridges the whole threshold to the Ethereum burn address.
+    vm.expectEmit(address(bridge));
+    emit IXLayerBridge.BridgeEvent(
+      0, ETHEREUM_NETWORK_ID, L1_UNI, ETHEREUM_NETWORK_ID, BURN_ADDRESS, 20_000e18, "", 0
+    );
     releaser.release(releaser.nonce(), assets, searcher);
     vm.stopPrank();
 
-    assertEq(resource.balanceOf(address(0xdead)), 20_000e18);
+    assertEq(_burned(), 20_000e18);
     assertEq(resource.balanceOf(searcher), START - 20_000e18);
+    assertEq(resource.balanceOf(address(releaser)), 0);
     assertEq(feeToken.balanceOf(searcher), 1_000_000e18);
     assertEq(searcher.balance, 10 ether);
     assertEq(releaser.nonce(), 1);
@@ -380,7 +403,7 @@ contract DecayingThresholdSetterTest is Test {
     setter.poke();
     releaser.release(releaser.nonce(), assets, searcher);
     vm.stopPrank();
-    assertEq(resource.balanceOf(address(0xdead)), 22_000e18);
+    assertEq(_burned(), 22_000e18);
     assertEq(releaser.owner(), governance);
     assertEq(releaser.thresholdSetter(), governance);
 
@@ -389,6 +412,13 @@ contract DecayingThresholdSetterTest is Test {
     vm.startPrank(searcher);
     releaser.release(releaser.nonce(), assets, searcher);
     vm.stopPrank();
-    assertEq(resource.balanceOf(address(0xdead)), 24_000e18);
+    assertEq(_burned(), 24_000e18);
+    assertEq(resource.balanceOf(address(releaser)), 0);
+    assertEq(bridge.depositCount(), 3);
+  }
+
+  /// @return Wrapped UNI burned by the bridge, since `START` is the only amount ever minted.
+  function _burned() internal view returns (uint256) {
+    return START - resource.totalSupply();
   }
 }
