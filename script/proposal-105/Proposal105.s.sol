@@ -30,7 +30,8 @@ import {
   V4_FEE_ADAPTER_RECORD,
   chains,
   l1Messenger,
-  tokenJar
+  tokenJar,
+  v3OpenFeeAdapter
 } from "./params/Constants.sol";
 import {checkNewAdapter} from "./AdapterCheck.sol";
 
@@ -84,15 +85,15 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   for (uint256 i; i < chains().length; i++) {
     uint256 chainId = chains()[i];
     V4Accounts memory accounts = v4Accounts(uniswap, chainId);
+    address adapter = recorder.read(chainId, V4_FEE_ADAPTER_RECORD);
+    require(adapter != address(0), "recorded V4FeeAdapter is zero");
     proposal.calls[i] = L1CrossDomainMessengerEncoder.encode({
       l1CrossDomainMessenger: l1Messenger(uniswap, chainId),
       crossChainAccount: accounts.governanceExecutor,
       remoteCall: Call({
         target: accounts.poolManager,
         value: 0,
-        data: abi.encodeCall(
-          IPoolManager.setProtocolFeeController, (recorder.read(chainId, V4_FEE_ADAPTER_RECORD))
-        )
+        data: abi.encodeCall(IPoolManager.setProtocolFeeController, (adapter))
       })
     });
   }
@@ -139,7 +140,9 @@ contract Proposal105 is Script {
     console.log("preflightEthereum Proposal105 at block", block.number);
 
     for (uint256 i; i < chains().length; i++) {
-      checkOPStackMessengerEthereum(l1Messenger(uniswap, chains()[i]), vm.toString(chains()[i]));
+      checkOPStackMessengerEthereum(
+        l1Messenger(uniswap, chains()[i]), chains()[i], vm.toString(chains()[i])
+      );
     }
   }
 
@@ -174,6 +177,7 @@ contract Proposal105 is Script {
       V4FeeAdapter(recorder.read(block.chainid, V4_FEE_ADAPTER_RECORD)),
       accounts.poolManager,
       tokenJar(uniswap, block.chainid),
+      v3OpenFeeAdapter(uniswap, block.chainid),
       policy,
       accounts.governanceExecutor
     );
@@ -192,6 +196,7 @@ contract Proposal105 is Script {
     console.log("postflightRemote Proposal105 on chain", block.chainid, "at block", block.number);
 
     address adapter = recorder.read(block.chainid, V4_FEE_ADAPTER_RECORD);
+    require(adapter.code.length != 0, "adapter.code");
     require(
       IPoolManager(v4Accounts(uniswap, block.chainid).poolManager).protocolFeeController()
         == adapter,

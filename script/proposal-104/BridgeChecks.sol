@@ -25,6 +25,22 @@ interface IArbitrumRollup {
   function chainId() external view returns (uint256);
 }
 
+/// @dev The part of an OP Stack L1CrossDomainMessenger the preflights read: the portal it sends
+///      deposits through.
+interface IOPStackL1Messenger {
+  function PORTAL() external view returns (address);
+}
+
+/// @dev The part of an OP Stack OptimismPortal the preflights read: the chain's SystemConfig.
+interface IOPStackPortal {
+  function systemConfig() external view returns (address);
+}
+
+/// @dev The part of an OP Stack SystemConfig the preflights read: the chain the portal serves.
+interface IOPStackSystemConfig {
+  function l2ChainId() external view returns (uint256);
+}
+
 /// @dev The getters of Polygon's `EthereumProxy` that the preflights read.
 interface IEthereumProxy {
   function fxChild() external view returns (address);
@@ -39,8 +55,17 @@ interface IFxChild {
 /// @dev The ArbSys precompile on Arbitrum and on Orbit chains such as Robinhood Chain.
 IArbSys constant ARB_SYS = IArbSys(address(0x64));
 
-/// @notice Asserts on Ethereum that `l1Messenger` is an unpaused OP Stack L1CrossDomainMessenger.
-function checkOPStackMessengerEthereum(address l1Messenger, string memory label) view {
+/// @notice Asserts on Ethereum that `l1Messenger` is an unpaused OP Stack L1CrossDomainMessenger
+///         that delivers to the chain `chainId`.
+function checkOPStackMessengerEthereum(address l1Messenger, uint256 chainId, string memory label)
+  view {
+  // Every OP Stack chain has its L2 messenger at the same address, so only the portal's
+  // SystemConfig tells the chains apart.
+  require(
+    IOPStackSystemConfig(IOPStackPortal(IOPStackL1Messenger(l1Messenger).PORTAL()).systemConfig())
+      .l2ChainId() == chainId,
+    string.concat(label, ".l1CrossDomainMessenger.l2ChainId")
+  );
   ICrossDomainMessenger messenger = ICrossDomainMessenger(l1Messenger);
   require(
     address(messenger.OTHER_MESSENGER()) == Predeploys.L2_CROSS_DOMAIN_MESSENGER,
@@ -88,9 +113,18 @@ function checkInboxEthereum(address inbox, uint256 chainId, string memory label)
 }
 
 /// @notice Asserts that `receiver`, a `UniswapWormholeMessageReceiver`, runs only messages that
-///         `sender` publishes on Ethereum, and, if the receiver checks the destination chain, only
-///         messages for the Wormhole chain `wormholeChainId`.
+///         `sender` publishes on Ethereum for the Wormhole chain `wormholeChainId`.
 function checkWormholeReceiver(address receiver, address sender, uint16 wormholeChainId) view {
+  checkOlderWormholeReceiver(receiver, sender);
+  require(
+    IUniswapWormholeMessageReceiver(receiver).chainId() == wormholeChainId, "receiver.chainId"
+  );
+}
+
+/// @notice Asserts that `receiver`, an older `UniswapWormholeMessageReceiver` such as BNB Chain's,
+///         runs only messages that `sender` publishes on Ethereum. The older receiver has no
+///         `chainId()` and does not check the chain a message is addressed to.
+function checkOlderWormholeReceiver(address receiver, address sender) view {
   IUniswapWormholeMessageReceiver wormholeReceiver = IUniswapWormholeMessageReceiver(receiver);
   require(
     wormholeReceiver.messageSender() == WormholeEncoder.toWormholeFormat(sender),
@@ -99,12 +133,6 @@ function checkWormholeReceiver(address receiver, address sender, uint16 wormhole
   require(
     wormholeReceiver.ETHEREUM_CHAIN_ID() == WormholeChainId.Ethereum, "receiver.ethereumChainId"
   );
-  try wormholeReceiver.chainId() returns (uint16 chainId) {
-    require(chainId == wormholeChainId, "receiver.chainId");
-  } catch {
-    // Assume the receiver is the older receiver, as on BNB Chain, which has no `chainId()` and
-    // does not check the chain a message is addressed to.
-  }
 }
 
 /// @notice Asserts on Polygon that `ethereumProxy` runs only messages that the Timelock sends

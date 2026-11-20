@@ -1,31 +1,56 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
+import {Vm} from "forge-std/Vm.sol";
+
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
-import {Call} from "govkit/types/Call.sol";
+import {Call, LibCall} from "govkit/types/Call.sol";
 import {ChainId} from "govkit/constants/ChainId.sol";
+import {WormholeChainId} from "govkit/constants/WormholeChainId.sol";
 import {InboxDecoder} from "govkit/bridges/decoders/InboxDecoder.sol";
 import {
   L1CrossDomainMessengerDecoder
 } from "govkit/bridges/decoders/L1CrossDomainMessengerDecoder.sol";
-import {WormholeDecoder} from "govkit/bridges/decoders/WormholeDecoder.sol";
-import {FxRootDecoder} from "govkit/bridges/decoders/FxRootDecoder.sol";
 import {InboxEncoder} from "govkit/bridges/InboxEncoder.sol";
+import {IFxRoot} from "govkit/interfaces/bridges/IFxRoot.sol";
+
+import {
+  IWormhole as IWormholeCore
+} from "lib/native-token-transfers/evm/lib/wormhole-solidity-sdk/src/interfaces/IWormhole.sol";
 
 import {V4FeeAdapter} from "../../../src/feeAdapters/V4FeeAdapter.sol";
 import {Proposal104, buildProposal} from "../../../script/proposal-104/Proposal104.s.sol";
 import {DeployV4FeePolicy} from "../../../script/proposal-104/prereq/DeployV4FeePolicy.s.sol";
-import {Records, v4FeeAdapter} from "../../../script/proposal-104/params/Constants.sol";
+import {
+  POLYGON_FX_CHILD,
+  Records,
+  v4FeeAdapter
+} from "../../../script/proposal-104/params/Constants.sol";
 import {v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
+import {
+  checkInboxEthereum,
+  checkOPStackMessengerEthereum
+} from "../../../script/proposal-104/BridgeChecks.sol";
 import {Arc} from "../../../script/proposal-7/params/Constants.sol";
-import {WormholeDecode} from "../../utils/WormholeDecode.sol";
+import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {relayOPStackMessage} from "../../utils/OPStackDeposit.sol";
 import {V4FeeFixtureTest} from "../../utils/V4FeeFixtureTest.sol";
 
 /// @dev Mainnet block the proposal is built at. `buildProposal` reads the Wormhole message fee
 ///      from the mainnet core.
 uint256 constant MAINNET_BLOCK = 26_450_800;
+
+/// @dev The event Polygon's StateSender emits for each message FxRoot sends.
+event StateSynced(uint256 indexed id, address indexed contractAddress, bytes data);
+
+/// @dev The entry point of Polygon's FxChild that the chain's state sync calls.
+interface IFxStateReceiver {
+  function onStateReceive(uint256 stateId, bytes calldata data) external;
+}
+
+/// @dev The system address that Polygon's state sync calls FxChild from.
+address constant POLYGON_STATE_SYNC_CALLER = 0x0000000000000000000000000000000000001001;
 
 /// @dev The eight chains in the order of the proposal's actions.
 function proposalChains() pure returns (uint256[8] memory) {
@@ -129,11 +154,13 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
   }
 
   /// @dev Builds the proposal on the mainnet fork and runs this chain's action on the chain's
-  ///      fork. On Base and OP Mainnet, replays the deposit transaction the action creates. On the
-  ///      other chains, runs the decoded call as the governance executor with the gas limit of the
-  ///      route, after asserting the route delivers to the executor. Records stand-in policies for
-  ///      the other chains, so `buildProposal` can read the record. Leaves the chain's fork
-  ///      selected.
+  ///      fork, after asserting the route delivers to this chain's governance executor. On Base
+  ///      and OP Mainnet, replays the deposit transaction the action creates. On Polygon, replays
+  ///      the state sync the action emits through FxChild. On BNB Chain and Arc, runs the call in
+  ///      the payload the action publishes, as the receiver. On Ethereum, Arbitrum and Robinhood
+  ///      Chain, runs the decoded call as the executor with the route's gas limit. Records
+  ///      stand-in policies for the other chains, so `buildProposal` can read the record. Leaves
+  ///      the chain's fork selected.
   function _runAction() internal {
     vm.selectFork(mainnetFork);
     uint256[8] memory chains = proposalChains();
@@ -148,10 +175,15 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
     if (_chainId() == ChainId.Base || _chainId() == ChainId.Optimism) {
       (address l1Messenger, address crossChainAccount,,) =
         L1CrossDomainMessengerDecoder.decode(action);
+      checkOPStackMessengerEthereum(l1Messenger, _chainId(), "action");
       assertEq(crossChainAccount, executor, "l1CrossDomainMessenger.crossChainAccount");
       relayOPStackMessage(
         vm, uniswap.ethereum.timelock, action, l1Messenger, mainnetFork, remoteFork
       );
+      return;
+    }
+    if (_chainId() == ChainId.Polygon) {
+      _relayStateSync(action);
       return;
     }
 
@@ -160,24 +192,13 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
     if (_chainId() == ChainId.Ethereum) {
       remoteCall = action;
     } else if (_chainId() == ChainId.Arbitrum || _chainId() == ChainId.Robinhood) {
+      address inbox;
       address timelock;
-      (, timelock, gasLimit,,, remoteCall) = InboxDecoder.decode(action);
+      (inbox, timelock, gasLimit,,, remoteCall) = InboxDecoder.decode(action);
+      checkInboxEthereum(inbox, _chainId(), "action");
       assertEq(InboxEncoder.arbitrumAlias(timelock), executor, "inbox.timelock");
-    } else if (_chainId() == ChainId.BNBChain) {
-      (address receiver, uint256 chainId, Call[] memory calls) = _wormhole(action);
-      assertEq(receiver, executor, "wormhole.receiver");
-      assertEq(chainId, ChainId.BNBChain, "wormhole.chainId");
-      remoteCall = _only(calls);
-    } else if (_chainId() == ChainId.Polygon) {
-      (, address fxReceiver, Call[] memory calls) = FxRootDecoder.decode(action);
-      assertEq(fxReceiver, executor, "fxRoot.fxReceiver");
-      remoteCall = _only(calls);
     } else {
-      (, address receiver, uint16 wormholeChainId,, Call[] memory calls) =
-        WormholeDecode.decode(action);
-      assertEq(receiver, executor, "wormhole.receiver");
-      assertEq(wormholeChainId, Arc.WORMHOLE_CHAIN_ID, "wormhole.chainId");
-      remoteCall = _only(calls);
+      remoteCall = _publishedWormholeCall(action, executor);
     }
 
     vm.selectFork(remoteFork);
@@ -187,19 +208,80 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
     require(success, string(returndata));
   }
 
-  /// @dev Returns the receiver, chain id and calls of a govkit Wormhole action.
-  function _wormhole(Call memory action)
-    internal
-    pure
-    returns (address receiver, uint256 chainId, Call[] memory calls)
-  {
-    (, receiver, chainId,, calls) = WormholeDecoder.decode(action);
+  /// @dev Executes `action` as the Timelock on the mainnet fork and returns its logs.
+  function _executeAction(Call memory action) internal returns (Vm.Log[] memory) {
+    vm.deal(uniswap.ethereum.timelock, action.value);
+    vm.recordLogs();
+    executeAsTimelock(vm, uniswap.ethereum.timelock, LibCall.newCalls([action]));
+    return vm.getRecordedLogs();
   }
 
-  /// @dev Asserts `calls` has one call, and returns it.
-  function _only(Call[] memory calls) internal pure returns (Call memory) {
-    assertEq(calls.length, 1, "remoteCalls.length");
-    return calls[0];
+  /// @dev Executes `action` on the mainnet fork, then delivers the state sync it emits to
+  ///      Polygon's FxChild on the chain's fork, as the chain's state sync does.
+  function _relayStateSync(Call memory action) internal {
+    Vm.Log[] memory logs = _executeAction(action);
+    address stateSender = IFxRoot(uniswap.ethereum.bridge.polygon).stateSender();
+
+    uint256 found;
+    uint256 stateId;
+    bytes memory data;
+    for (uint256 i; i < logs.length; i++) {
+      if (logs[i].emitter != stateSender || logs[i].topics[0] != StateSynced.selector) continue;
+      assertEq(
+        logs[i].topics[2], bytes32(uint256(uint160(POLYGON_FX_CHILD))), "StateSynced.fxChild"
+      );
+      stateId = uint256(logs[i].topics[1]);
+      data = abi.decode(logs[i].data, (bytes));
+      found++;
+    }
+    assertEq(found, 1, "StateSynced.count");
+
+    vm.selectFork(remoteFork);
+    vm.prank(POLYGON_STATE_SYNC_CALLER);
+    IFxStateReceiver(POLYGON_FX_CHILD).onStateReceive(stateId, data);
+  }
+
+  /// @dev Executes `action` on the mainnet fork and returns the one call in the payload that
+  ///      Uniswap's Wormhole sender publishes, after asserting the payload names `executor` and
+  ///      this chain. The sender encodes the payload as a 32-byte header followed by the
+  ///      `sendMessage` arguments.
+  function _publishedWormholeCall(Call memory action, address executor)
+    internal
+    returns (Call memory)
+  {
+    Vm.Log[] memory logs = _executeAction(action);
+    address core = uniswap.ethereum.bridge.wormholeCore;
+    bytes32 sender = bytes32(uint256(uint160(uniswap.ethereum.bridge.bnbChain)));
+
+    uint256 found;
+    bytes memory payload;
+    for (uint256 i; i < logs.length; i++) {
+      if (logs[i].emitter != core) continue;
+      if (logs[i].topics[0] != IWormholeCore.LogMessagePublished.selector) continue;
+      assertEq(logs[i].topics[1], sender, "LogMessagePublished.sender");
+      (,, payload,) = abi.decode(logs[i].data, (uint64, uint32, bytes, uint8));
+      found++;
+    }
+    assertEq(found, 1, "LogMessagePublished.count");
+
+    (
+      ,
+      address[] memory targets,
+      uint256[] memory values,
+      bytes[] memory datas,
+      address receiver,
+      uint16 wormholeChainId
+    ) = abi.decode(payload, (bytes32, address[], uint256[], bytes[], address, uint16));
+    assertEq(receiver, executor, "payload.receiver");
+    assertEq(
+      wormholeChainId,
+      _chainId() == ChainId.BNBChain ? WormholeChainId.BNBChain : Arc.WORMHOLE_CHAIN_ID,
+      "payload.chainId"
+    );
+    assertEq(targets.length, 1, "payload.targets.length");
+    assertEq(values.length, 1, "payload.values.length");
+    assertEq(datas.length, 1, "payload.datas.length");
+    return Call({target: targets[0], value: values[0], data: datas[0]});
   }
 }
 

@@ -36,6 +36,10 @@ function checkNewPolicy(
 ) view {
   V4FeePolicy policy = deployment.policy;
   require(address(policy).code.length != 0, "policy.code");
+  require(address(deployment.staticCurveRuleset).code.length != 0, "staticCurveRuleset.code");
+  require(address(deployment.aggregatorHookRuleset).code.length != 0, "aggregatorRuleset.code");
+  require(address(deployment.stablePairHookRuleset).code.length != 0, "stablePairRuleset.code");
+  require(address(deployment.volatilePairHookRuleset).code.length != 0, "volatilePairRuleset.code");
 
   // Assert the handoff, and that pools no ruleset applies to pay no fee.
   require(policy.owner() == governanceExecutor, "policy.owner");

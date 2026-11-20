@@ -31,6 +31,17 @@ function tokenJar(Uniswap storage uniswap, uint256 chainId) view returns (addres
   revert("no TokenJar for chain");
 }
 
+/// @dev Returns the `V3OpenFeeAdapter` on `chainId`, whose TokenJar the new `V4FeeAdapter` must
+///      share.
+function v3OpenFeeAdapter(Uniswap storage uniswap, uint256 chainId) view returns (address) {
+  if (chainId == ChainId.Celo) return uniswap.celo.v3OpenFeeAdapter;
+  if (chainId == ChainId.Soneium) return uniswap.soneium.v3OpenFeeAdapter;
+  if (chainId == ChainId.WorldChain) return uniswap.worldChain.v3OpenFeeAdapter;
+  if (chainId == ChainId.XLayer) return uniswap.xLayer.v3OpenFeeAdapter;
+  if (chainId == ChainId.Zora) return uniswap.zora.v3OpenFeeAdapter;
+  revert("no V3OpenFeeAdapter for chain");
+}
+
 /// @dev Returns the L1CrossDomainMessenger on Ethereum that reaches `chainId`.
 function l1Messenger(Uniswap storage uniswap, uint256 chainId) view returns (address) {
   if (chainId == ChainId.Celo) return uniswap.ethereum.bridge.celo;

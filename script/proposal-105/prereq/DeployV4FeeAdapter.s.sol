@@ -11,7 +11,8 @@ import {
   RECORD_NAME,
   POLICY_PARAMS_JSON,
   V4_FEE_ADAPTER_RECORD,
-  tokenJar
+  tokenJar,
+  v3OpenFeeAdapter
 } from "../params/Constants.sol";
 import {checkNewAdapter} from "../AdapterCheck.sol";
 
@@ -65,6 +66,7 @@ contract DeployV4FeeAdapter is DeployV4FeePolicy {
       adapter,
       v4Accounts(uniswap, block.chainid).poolManager,
       tokenJar(uniswap, block.chainid),
+      v3OpenFeeAdapter(uniswap, block.chainid),
       address(deployment.policy),
       governanceExecutor
     );

@@ -46,6 +46,7 @@ string constant AGGREGATOR = "V4AggregatorHookRuleset";
 string constant STABLE_PAIR = "V4StablePairHookRuleset";
 string constant VOLATILE_PAIR = "V4VolatilePairHookRuleset";
 string constant STATIC_CURVE = "V4StaticCurveRuleset";
+string constant EXCLUDED = "excludedAggregatorFlagHooks";
 
 /// @notice Reads the parameters of `chainId` from the JSON file at `path`.
 /// @dev The file is keyed by EIP-155 chain id, then by the ruleset each object configures. Each
@@ -67,8 +68,10 @@ string constant STATIC_CURVE = "V4StaticCurveRuleset";
 ///   }
 ///
 /// Entries match by field name, so extra fields such as `symbol` or `name` document an entry
-/// without changing it, and keys other than the four rulesets are ignored. Reverts if the chain,
-/// a ruleset, a fee, `ids` or `hooks` is missing, or if an ID is empty or longer than 32 bytes.
+/// without changing it. A chain's entry may also hold `excludedAggregatorFlagHooks`, which the
+/// loader does not read. Reverts if the chain, a ruleset, a fee, `ids` or `hooks` is missing, if a
+/// chain or ruleset object has any other key, if a fee does not fit in `uint24`, or if an ID is
+/// empty or longer than 32 bytes.
 function loadPolicyParams(string memory path, uint256 chainId)
   view
   returns (PolicyParams memory params)
@@ -79,12 +82,16 @@ function loadPolicyParams(string memory path, uint256 chainId)
     vm.keyExistsJson(json, chainKey),
     string.concat(path, ": no entry for chain ", vm.toString(chainId))
   );
-  string memory aggregator = _key(json, chainKey, AGGREGATOR, path);
+  // Require the four rulesets and the exclusion list, and no other key.
+  _key(json, chainKey, EXCLUDED, path);
+  _requireKeyCount(json, chainKey, 5, path);
 
-  params.volatilePairFeePips =
-    uint24(vm.parseJsonUint(json, _key(json, aggregator, "volatilePairFee", path)));
-  params.stablePairFeePips =
-    uint24(vm.parseJsonUint(json, _key(json, aggregator, "stablePairFee", path)));
+  // Require the two fees, `ids` and `hooks`, and no other key.
+  string memory aggregator = _key(json, chainKey, AGGREGATOR, path);
+  _requireKeyCount(json, aggregator, 4, path);
+
+  params.volatilePairFeePips = _fee(json, _key(json, aggregator, "volatilePairFee", path), path);
+  params.stablePairFeePips = _fee(json, _key(json, aggregator, "stablePairFee", path), path);
 
   CurrencyIdEntry[] memory entries = abi.decode(
     vm.parseJsonTypeArray(json, _key(json, aggregator, "ids", path), CURRENCY_ID_TYPE),
@@ -100,9 +107,40 @@ function loadPolicyParams(string memory path, uint256 chainId)
   }
 
   params.aggregatorHooks = _hooks(json, aggregator, path);
-  params.stablePairHooks = _hooks(json, _key(json, chainKey, STABLE_PAIR, path), path);
-  params.volatilePairHooks = _hooks(json, _key(json, chainKey, VOLATILE_PAIR, path), path);
-  params.staticCurveHooks = _hooks(json, _key(json, chainKey, STATIC_CURVE, path), path);
+  params.stablePairHooks = _pairOrStaticHooks(json, chainKey, STABLE_PAIR, path);
+  params.volatilePairHooks = _pairOrStaticHooks(json, chainKey, VOLATILE_PAIR, path);
+  params.staticCurveHooks = _pairOrStaticHooks(json, chainKey, STATIC_CURVE, path);
+}
+
+/// @dev Returns the hooks of the ruleset object `<chainKey>.<ruleset>`, which may hold only
+///      `hooks`.
+function _pairOrStaticHooks(
+  string memory json,
+  string memory chainKey,
+  string memory ruleset,
+  string memory path
+) view returns (address[] memory) {
+  string memory rulesetKey = _key(json, chainKey, ruleset, path);
+  // Require `hooks` and no other key.
+  _requireKeyCount(json, rulesetKey, 1, path);
+  return _hooks(json, rulesetKey, path);
+}
+
+/// @dev Returns the fee at `key`. Reverts if it does not fit in `uint24`, so a mistyped fee cannot
+///      truncate to another fee.
+function _fee(string memory json, string memory key, string memory path) pure returns (uint24) {
+  uint256 fee = vm.parseJsonUint(json, key);
+  require(fee <= type(uint24).max, string.concat(path, ": fee too large at ", key));
+  return uint24(fee);
+}
+
+/// @dev Reverts if the object at `key` does not have exactly `count` keys. The caller requires
+///      each key it reads, so a count that matches leaves no room for a misplaced key.
+function _requireKeyCount(string memory json, string memory key, uint256 count, string memory path)
+  pure {
+  require(
+    vm.parseJsonKeys(json, key).length == count, string.concat(path, ": unexpected key in ", key)
+  );
 }
 
 /// @dev Returns the hook addresses in every group under `<rulesetKey>.hooks`, in the file's order.

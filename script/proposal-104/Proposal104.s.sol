@@ -23,7 +23,6 @@ import {Owned} from "solmate/src/auth/Owned.sol";
 import {IWormhole} from "../proposal-7/Interfaces.sol";
 import {encodeWormhole} from "../proposal-7/ArcFees.s.sol";
 import {Arc, Ethereum as Proposal7Ethereum} from "../proposal-7/params/Constants.sol";
-import {WormholeChainId} from "govkit/constants/WormholeChainId.sol";
 import {IFxRoot} from "govkit/interfaces/bridges/IFxRoot.sol";
 
 import {DESCRIPTION} from "./Description.sol";
@@ -44,6 +43,7 @@ import {
   checkCrossChainAccount,
   checkEthereumProxy,
   checkInboxEthereum,
+  checkOlderWormholeReceiver,
   checkOPStackMessengerEthereum,
   checkWormholeReceiver
 } from "./BridgeChecks.sol";
@@ -178,12 +178,12 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
 
 /// @notice Returns the call that sets the new policy on the adapter of `chainId`.
 function _setPolicyCall(Recorder storage recorder, uint256 chainId) view returns (Call memory) {
+  address policy = recorder.read(chainId, Records.V4_FEE_POLICY);
+  require(policy != address(0), "recorded V4FeePolicy is zero");
   return Call({
     target: v4FeeAdapter(chainId),
     value: 0,
-    data: abi.encodeCall(
-      IV4FeeAdapter.setPolicy, (IV4FeePolicy(recorder.read(chainId, Records.V4_FEE_POLICY)))
-    )
+    data: abi.encodeCall(IV4FeeAdapter.setPolicy, (IV4FeePolicy(policy)))
   });
 }
 
@@ -228,8 +228,8 @@ contract Proposal104 is Script {
 
     checkInboxEthereum(uniswap.ethereum.bridge.arbitrum, ChainId.Arbitrum, "arbitrum");
     checkInboxEthereum(uniswap.ethereum.bridge.robinhood, ChainId.Robinhood, "robinhood");
-    checkOPStackMessengerEthereum(uniswap.ethereum.bridge.base, "base");
-    checkOPStackMessengerEthereum(uniswap.ethereum.bridge.optimism, "optimism");
+    checkOPStackMessengerEthereum(uniswap.ethereum.bridge.base, ChainId.Base, "base");
+    checkOPStackMessengerEthereum(uniswap.ethereum.bridge.optimism, ChainId.Optimism, "optimism");
 
     // Assert actions 04 and 07 use the same Wormhole sender, and that the Timelock owns it.
     require(
@@ -295,6 +295,7 @@ contract Proposal104 is Script {
 
     address adapter = v4FeeAdapter(block.chainid);
     address policy = recorder.read(block.chainid, Records.V4_FEE_POLICY);
+    require(policy.code.length != 0, "policy.code");
     require(
       IPoolManager(v4Accounts(uniswap, block.chainid).poolManager).protocolFeeController()
         == adapter,
@@ -314,9 +315,7 @@ contract Proposal104 is Script {
     } else if (block.chainid == ChainId.Optimism) {
       checkCrossChainAccount(governanceExecutor, uniswap.ethereum.bridge.optimism, timelock);
     } else if (block.chainid == ChainId.BNBChain) {
-      checkWormholeReceiver(
-        governanceExecutor, uniswap.ethereum.bridge.bnbChain, WormholeChainId.BNBChain
-      );
+      checkOlderWormholeReceiver(governanceExecutor, uniswap.ethereum.bridge.bnbChain);
     } else if (block.chainid == Arc.CHAIN_ID) {
       checkWormholeReceiver(
         governanceExecutor, Proposal7Ethereum.WORMHOLE_SENDER, Arc.WORMHOLE_CHAIN_ID

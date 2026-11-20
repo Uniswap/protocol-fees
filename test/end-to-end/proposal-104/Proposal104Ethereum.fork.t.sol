@@ -20,13 +20,10 @@ import {Proposal104, buildProposal} from "../../../script/proposal-104/Proposal1
 import {Records, v4FeeAdapter} from "../../../script/proposal-104/params/Constants.sol";
 import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {countOPStackSentMessages} from "../../utils/OPStackSentMessages.sol";
-import {MAINNET_BLOCK, proposalChains} from "./Proposal104Remote.fork.t.sol";
+import {MAINNET_BLOCK, StateSynced, proposalChains} from "./Proposal104Remote.fork.t.sol";
 
 /// @dev Record file these tests write, gitignored as `.records/*Test.json`.
 string constant RECORD_NAME = "Proposal104EthereumForkTest";
-
-/// @dev The event Polygon's StateSender emits for each message FxRoot sends.
-event StateSynced(uint256 indexed id, address indexed contractAddress, bytes data);
 
 /// @dev Tests for the whole proposal executing on Ethereum, with stand-in policies. The remote
 ///      tests cover each chain's side.

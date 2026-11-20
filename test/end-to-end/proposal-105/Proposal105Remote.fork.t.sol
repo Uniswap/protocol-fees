@@ -16,6 +16,7 @@ import {V4_FEE_ADAPTER_RECORD, chains} from "../../../script/proposal-105/params
 import {v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
 import {V4FeeFixtureTest} from "../../utils/V4FeeFixtureTest.sol";
 import {relayOPStackMessage} from "../../utils/OPStackDeposit.sol";
+import {checkOPStackMessengerEthereum} from "../../../script/proposal-104/BridgeChecks.sol";
 
 /// @dev Mainnet block the proposal is built at.
 uint256 constant MAINNET_BLOCK = 26_450_800;
@@ -121,6 +122,7 @@ abstract contract Proposal105RemoteForkTest is V4FeeFixtureTest {
 
     (address l1Messenger, address crossChainAccount,,) =
       L1CrossDomainMessengerDecoder.decode(action);
+    checkOPStackMessengerEthereum(l1Messenger, _chainId(), "action");
     assertEq(
       crossChainAccount,
       v4Accounts(uniswap, _chainId()).governanceExecutor,
