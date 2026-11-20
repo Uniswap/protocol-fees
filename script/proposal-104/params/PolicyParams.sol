@@ -27,14 +27,14 @@ struct PolicyParams {
   address[] staticCurveHooks;
 }
 
-/// @dev One `currencyIds` entry as the file writes it. The ID is a string such as "USD", which
+/// @dev One `ids` entry as the file writes it. The ID is a string such as "USD", which
 ///      `loadPolicyParams` converts to `bytes32`.
 struct CurrencyIdEntry {
   address currency;
   string id;
 }
 
-/// @dev One entry of a hook list as the file writes it.
+/// @dev One entry of a hook group as the file writes it.
 struct HookEntry {
   address hook;
 }
@@ -42,24 +42,33 @@ struct HookEntry {
 string constant CURRENCY_ID_TYPE = "CurrencyIdEntry(address currency,string id)";
 string constant HOOK_TYPE = "HookEntry(address hook)";
 
+string constant AGGREGATOR = "V4AggregatorHookRuleset";
+string constant STABLE_PAIR = "V4StablePairHookRuleset";
+string constant VOLATILE_PAIR = "V4VolatilePairHookRuleset";
+string constant STATIC_CURVE = "V4StaticCurveRuleset";
+
 /// @notice Reads the parameters of `chainId` from the JSON file at `path`.
-/// @dev The file is keyed by EIP-155 chain id:
+/// @dev The file is keyed by EIP-155 chain id, then by the ruleset each object configures. Each
+///      ruleset's `hooks` holds named groups of the hooks it is assigned; the loader joins every
+///      group, so the group names only document why each hook is there.
 ///
 ///   {
 ///     "<chainId>": {
-///       "volatilePairFeePips": 1000,
-///       "stablePairFeePips": 300,
-///       "currencyIds": [{"currency": "0x…", "id": "USD", "symbol": "USDC"}],
-///       "aggregatorHooks": [{"hook": "0x…", "name": "…"}],
-///       "stablePairHooks": [],
-///       "volatilePairHooks": [],
-///       "staticCurveHooks": []
+///       "V4AggregatorHookRuleset": {
+///         "volatilePairFee": 1000,
+///         "stablePairFee": 300,
+///         "ids": [{"currency": "0x…", "id": "USD", "symbol": "USDC"}],
+///         "hooks": {"labs": [{"hook": "0x…"}], "thirdParty": []}
+///       },
+///       "V4StablePairHookRuleset": {"hooks": {"labs": []}},
+///       "V4VolatilePairHookRuleset": {"hooks": {"labs": []}},
+///       "V4StaticCurveRuleset": {"hooks": {"v1NativeMathFamily": [], "liquidityLauncher": []}}
 ///     }
 ///   }
 ///
 /// Entries match by field name, so extra fields such as `symbol` or `name` document an entry
-/// without changing it. Reverts if the chain or any key is missing, or if an ID is empty or longer
-/// than 32 bytes.
+/// without changing it, and keys other than the four rulesets are ignored. Reverts if the chain,
+/// a ruleset, a fee, `ids` or `hooks` is missing, or if an ID is empty or longer than 32 bytes.
 function loadPolicyParams(string memory path, uint256 chainId)
   view
   returns (PolicyParams memory params)
@@ -70,14 +79,15 @@ function loadPolicyParams(string memory path, uint256 chainId)
     vm.keyExistsJson(json, chainKey),
     string.concat(path, ": no entry for chain ", vm.toString(chainId))
   );
+  string memory aggregator = _key(json, chainKey, AGGREGATOR, path);
 
   params.volatilePairFeePips =
-    uint24(vm.parseJsonUint(json, _key(json, chainKey, "volatilePairFeePips", path)));
+    uint24(vm.parseJsonUint(json, _key(json, aggregator, "volatilePairFee", path)));
   params.stablePairFeePips =
-    uint24(vm.parseJsonUint(json, _key(json, chainKey, "stablePairFeePips", path)));
+    uint24(vm.parseJsonUint(json, _key(json, aggregator, "stablePairFee", path)));
 
   CurrencyIdEntry[] memory entries = abi.decode(
-    vm.parseJsonTypeArray(json, _key(json, chainKey, "currencyIds", path), CURRENCY_ID_TYPE),
+    vm.parseJsonTypeArray(json, _key(json, aggregator, "ids", path), CURRENCY_ID_TYPE),
     (CurrencyIdEntry[])
   );
   params.currencyIds = new IV4AggregatorHookRuleset.CurrencyId[](entries.length);
@@ -89,32 +99,44 @@ function loadPolicyParams(string memory path, uint256 chainId)
     });
   }
 
-  params.aggregatorHooks = _hooks(json, chainKey, "aggregatorHooks", path);
-  params.stablePairHooks = _hooks(json, chainKey, "stablePairHooks", path);
-  params.volatilePairHooks = _hooks(json, chainKey, "volatilePairHooks", path);
-  params.staticCurveHooks = _hooks(json, chainKey, "staticCurveHooks", path);
+  params.aggregatorHooks = _hooks(json, aggregator, path);
+  params.stablePairHooks = _hooks(json, _key(json, chainKey, STABLE_PAIR, path), path);
+  params.volatilePairHooks = _hooks(json, _key(json, chainKey, VOLATILE_PAIR, path), path);
+  params.staticCurveHooks = _hooks(json, _key(json, chainKey, STATIC_CURVE, path), path);
 }
 
-/// @dev Returns the hook addresses under `<chainKey>.<name>`.
-function _hooks(string memory json, string memory chainKey, string memory name, string memory path)
+/// @dev Returns the hook addresses in every group under `<rulesetKey>.hooks`, in the file's order.
+function _hooks(string memory json, string memory rulesetKey, string memory path)
   view
   returns (address[] memory hooks)
 {
-  HookEntry[] memory entries = abi.decode(
-    vm.parseJsonTypeArray(json, _key(json, chainKey, name, path), HOOK_TYPE), (HookEntry[])
-  );
-  hooks = new address[](entries.length);
+  string memory hooksKey = _key(json, rulesetKey, "hooks", path);
+  string[] memory groups = vm.parseJsonKeys(json, hooksKey);
+
+  HookEntry[][] memory entries = new HookEntry[][](groups.length);
+  uint256 count;
+  for (uint256 i; i < groups.length; i++) {
+    entries[i] = abi.decode(
+      vm.parseJsonTypeArray(json, string.concat(hooksKey, ".", groups[i]), HOOK_TYPE), (HookEntry[])
+    );
+    count += entries[i].length;
+  }
+
+  hooks = new address[](count);
+  uint256 next;
   for (uint256 i; i < entries.length; i++) {
-    hooks[i] = entries[i].hook;
+    for (uint256 j; j < entries[i].length; j++) {
+      hooks[next++] = entries[i][j].hook;
+    }
   }
 }
 
-/// @dev Returns the key `<chainKey>.<name>`. Reverts if the file does not have it, so a misspelled
+/// @dev Returns the key `<parent>.<name>`. Reverts if the file does not have it, so a misspelled
 ///      key cannot read as an empty list.
-function _key(string memory json, string memory chainKey, string memory name, string memory path)
+function _key(string memory json, string memory parent, string memory name, string memory path)
   view
   returns (string memory key)
 {
-  key = string.concat(chainKey, ".", name);
+  key = string.concat(parent, ".", name);
   require(vm.keyExistsJson(json, key), string.concat(path, ": missing ", key));
 }

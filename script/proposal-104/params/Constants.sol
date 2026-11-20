@@ -16,22 +16,24 @@ import {Arc} from "../../proposal-7/params/Constants.sol";
 ///      `.records/<RECORD_NAME>.json`.
 string constant RECORD_NAME = "Proposal104";
 
-/// @dev Per-chain policy parameters, read by `loadPolicyParams`. Each chain's entry lists the
-///      aggregator hook fees, the currency IDs and the hooks of each ruleset. We derived the
-///      entries from each chain's PoolManager `Initialize` events and v1 `V4FeePolicy`:
+/// @dev Per-chain policy parameters, read by `loadPolicyParams`. Each chain's entry has one object
+///      per ruleset, keyed by the ruleset's contract name, with the hooks it is assigned in named
+///      groups:
 ///
-///      - `aggregatorHooks`: the hooks whose `protocolFeeFlags()` returns 2048, the flag the v1
-///        policy charges the aggregator fee for, and that we traced to a Uniswap Labs deployer.
-///        `excludedAggregatorFlagHooks` lists the hooks with the flag that we could not trace or
-///        that third parties deployed. `loadPolicyParams` does not read it. The
-///        `LitePSMAggregator` hooks report flag 4096 instead and are in neither list, because
-///        Uniswap Labs confirmed they pay no fee.
-///      - `currencyIds`: one ID for each group of currencies that the v1 stable pairs connect.
-///      - `stablePairHooks` and `volatilePairHooks`: the hook proxies whose `feeConfig` returns
-///        the StablePairHook or VolatilePairHook configuration.
-///      - `staticCurveHooks`: the hooks the v1 policy assigns to its native-math family, 255.
-///
-// TODO: confirm the hook lists against Uniswap Labs' list of its hooks.
+///      - `V4AggregatorHookRuleset`: the constructor's `volatilePairFee`, `stablePairFee` and
+///        `ids`, and the aggregator hooks. `labs` holds the Uniswap Labs hooks whose
+///        `protocolFeeFlags()` returns 2048, and `thirdParty` holds aggregator hooks from other
+///        teams. `ids` gives one ID to each group of currencies that trade at parity: USD,
+///        BTC, ETH, GOLD, EUR, JPY, SOL, XRP and LINK. A pair of two currencies with the same ID
+///        pays `stablePairFee`.
+///      - `V4StablePairHookRuleset` and `V4VolatilePairHookRuleset`: the hook proxies whose
+///        `feeConfig` returns the StablePairHook or VolatilePairHook configuration.
+///      - `V4StaticCurveRuleset`: `v1NativeMathFamily` holds the hooks the v1 policy assigns to its
+///        native-math family, 255. `liquidityLauncher` holds the Uniswap liquidity-launcher hooks
+///        that the v1 policy does not assign.
+///      - `excludedAggregatorFlagHooks`: hooks with the aggregator flag that get no ruleset, each
+///        with its reason. `loadPolicyParams` does not read it. The `LitePSMAggregator` hooks
+///        report flag 4096 instead and are in no list, because they pay no fee.
 string constant POLICY_PARAMS_JSON = "script/proposal-104/params/v4-fee-policy.json";
 
 /// @dev Keys in the record file, one per deployment.
@@ -73,10 +75,9 @@ function v4FeeAdapter(uint256 chainId) pure returns (address) {
   revert("no V4FeeAdapter for chain");
 }
 
-/// @dev Returns the `V4FeePolicy` that the adapter on `chainId` uses before the proposal, from
-///      which `POLICY_PARAMS_JSON` was derived. Proposal 6 deployed the first seven and recorded
-///      them in `.records/DeployV4FeeInfra.json`; proposal 7 deployed Arc's and recorded it in
-///      `.records/Arc.json`.
+/// @dev Returns the v1 `V4FeePolicy` that the adapter on `chainId` uses before the proposal.
+///      Proposal 6 deployed the first seven and recorded them in `.records/DeployV4FeeInfra.json`;
+///      proposal 7 deployed Arc's and recorded it in `.records/Arc.json`.
 function replacedV4FeePolicy(uint256 chainId) pure returns (address) {
   if (chainId == ChainId.Ethereum) return 0x1cd822b70a0591420F65E94b9B3A0D0b0fB3a314;
   if (chainId == ChainId.Arbitrum) return 0x8F6a5A19Ff1adc6AA9456d6b201fA4FC7589BD0B;

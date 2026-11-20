@@ -1,88 +1,190 @@
 {
   "42220": {
-    "volatilePairFeePips": 1000,
-    "stablePairFeePips": 300,
-    "currencyIds": [
-      {
-        "currency": "0x37f750b7cc259a2f741af45294f6a16572cf5cad",
-        "id": "USD",
-        "symbol": "USDC"
-      },
-      {
-        "currency": "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e",
-        "id": "USD",
-        "symbol": "USD\u20ae"
-      },
-      {
-        "currency": "0x4f604735c1cf31399c6e711d5962b2b3e0225ad3",
-        "id": "USD",
-        "symbol": "USDGLO"
-      },
-      {
-        "currency": "0x617f3112bf5397d0467d315cc709ef968d9ba546",
-        "id": "USD",
-        "symbol": "USDT"
-      },
-      {
-        "currency": "0x765de816845861e75a25fca122bb6898b8b1282a",
-        "id": "USD",
-        "symbol": "USDm"
-      },
-      {
-        "currency": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
-        "id": "USD",
-        "symbol": "USDC"
+    "V4AggregatorHookRuleset": {
+      "volatilePairFee": 1000,
+      "stablePairFee": 300,
+      "ids": [
+        {
+          "currency": "0x37f750b7cc259a2f741af45294f6a16572cf5cad",
+          "id": "USD",
+          "symbol": "USDC"
+        },
+        {
+          "currency": "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e",
+          "id": "USD",
+          "symbol": "USD\u20ae"
+        },
+        {
+          "currency": "0x4f604735c1cf31399c6e711d5962b2b3e0225ad3",
+          "id": "USD",
+          "symbol": "USDGLO"
+        },
+        {
+          "currency": "0x617f3112bf5397d0467d315cc709ef968d9ba546",
+          "id": "USD",
+          "symbol": "USDT"
+        },
+        {
+          "currency": "0x765de816845861e75a25fca122bb6898b8b1282a",
+          "id": "USD",
+          "symbol": "USDm"
+        },
+        {
+          "currency": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+          "id": "USD",
+          "symbol": "USDC"
+        }
+      ],
+      "hooks": {
+        "labs": []
       }
-    ],
-    "aggregatorHooks": [],
-    "stablePairHooks": [],
-    "volatilePairHooks": [],
-    "staticCurveHooks": [],
+    },
+    "V4StablePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4VolatilePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StaticCurveRuleset": {
+      "hooks": {
+        "v1NativeMathFamily": [],
+        "liquidityLauncher": []
+      }
+    },
     "excludedAggregatorFlagHooks": []
   },
   "1868": {
-    "volatilePairFeePips": 1000,
-    "stablePairFeePips": 300,
-    "currencyIds": [],
-    "aggregatorHooks": [],
-    "stablePairHooks": [],
-    "volatilePairHooks": [],
-    "staticCurveHooks": [],
+    "V4AggregatorHookRuleset": {
+      "volatilePairFee": 1000,
+      "stablePairFee": 300,
+      "ids": [],
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StablePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4VolatilePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StaticCurveRuleset": {
+      "hooks": {
+        "v1NativeMathFamily": [],
+        "liquidityLauncher": []
+      }
+    },
     "excludedAggregatorFlagHooks": []
   },
   "480": {
-    "volatilePairFeePips": 1000,
-    "stablePairFeePips": 300,
-    "currencyIds": [],
-    "aggregatorHooks": [],
-    "stablePairHooks": [],
-    "volatilePairHooks": [],
-    "staticCurveHooks": [],
+    "V4AggregatorHookRuleset": {
+      "volatilePairFee": 1000,
+      "stablePairFee": 300,
+      "ids": [],
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StablePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4VolatilePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StaticCurveRuleset": {
+      "hooks": {
+        "v1NativeMathFamily": [],
+        "liquidityLauncher": []
+      }
+    },
     "excludedAggregatorFlagHooks": []
   },
   "196": {
-    "volatilePairFeePips": 1000,
-    "stablePairFeePips": 300,
-    "currencyIds": [],
-    "aggregatorHooks": [],
-    "stablePairHooks": [
-      {
-        "hook": "0x630e9cac0fff557bd3a01daa111ed253c771bcc0",
-        "name": "StablePairHook"
+    "V4AggregatorHookRuleset": {
+      "volatilePairFee": 1000,
+      "stablePairFee": 300,
+      "ids": [],
+      "hooks": {
+        "labs": []
       }
-    ],
-    "volatilePairHooks": [],
-    "staticCurveHooks": [],
+    },
+    "V4StablePairHookRuleset": {
+      "hooks": {
+        "labs": [
+          {
+            "hook": "0x630e9cac0fff557bd3a01daa111ed253c771bcc0",
+            "name": "StablePairHook"
+          }
+        ]
+      }
+    },
+    "V4VolatilePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StaticCurveRuleset": {
+      "hooks": {
+        "v1NativeMathFamily": [],
+        "liquidityLauncher": [
+          {
+            "hook": "0xde758D7B3202b7f4f842E8313Fc04Bf19c6Be000",
+            "name": "v3.3.0 LBPStrategy"
+          },
+          {
+            "hook": "0xcaf0443A5F171DC1dd5574eE50dD2c45274da000",
+            "name": "v3.3.0 InitializerHook"
+          },
+          {
+            "hook": "0x95bcb80e3804a085d23778F2956c305d6488e000",
+            "name": "LBP strategy assigned in proposal 6's deployment script, which X Layer never ran"
+          },
+          {
+            "hook": "0x58DF162fF41e5cB42B8515f75F90C1841938A000",
+            "name": "LBP strategy assigned in proposal 6's deployment script, which X Layer never ran"
+          }
+        ]
+      }
+    },
     "excludedAggregatorFlagHooks": []
   },
   "7777777": {
-    "volatilePairFeePips": 1000,
-    "stablePairFeePips": 300,
-    "currencyIds": [],
-    "aggregatorHooks": [],
-    "stablePairHooks": [],
-    "volatilePairHooks": [],
-    "staticCurveHooks": [],
+    "V4AggregatorHookRuleset": {
+      "volatilePairFee": 1000,
+      "stablePairFee": 300,
+      "ids": [],
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StablePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4VolatilePairHookRuleset": {
+      "hooks": {
+        "labs": []
+      }
+    },
+    "V4StaticCurveRuleset": {
+      "hooks": {
+        "v1NativeMathFamily": [],
+        "liquidityLauncher": []
+      }
+    },
     "excludedAggregatorFlagHooks": []
   }
 }

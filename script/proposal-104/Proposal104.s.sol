@@ -257,8 +257,8 @@ contract Proposal104 is Script {
 
   /// @notice Asserts that the chain is in the state its action assumes: the route delivers the
   ///         Timelock's message to the governance executor, the executor owns the adapter, the
-  ///         adapter is the PoolManager's fee controller and still uses the policy the parameters
-  ///         were derived from, and the recorded policy passes {checkNewPolicy}.
+  ///         adapter is the PoolManager's fee controller and still uses the v1 policy, and the
+  ///         recorded policy passes {checkNewPolicy}.
   /// @dev Run against each of the eight chains.
   function preflightRemote() public {
     recorder.initialize({scriptName: _recordName()});

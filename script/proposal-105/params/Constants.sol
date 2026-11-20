@@ -13,13 +13,9 @@ import {ChainId} from "govkit/constants/ChainId.sol";
 ///      `.records/<RECORD_NAME>.json`.
 string constant RECORD_NAME = "Proposal105";
 
-/// @dev Per-chain policy parameters, in the format `loadPolicyParams` reads, derived as proposal
-///      104's are. Celo's `currencyIds` come from its v1 `V4FeePolicy`, which proposal 6 deployed
-///      but never connected to the PoolManager.
-///
-// TODO: add `currencyIds` for Soneium, World Chain, X Layer and Zora from Uniswap Labs' stablecoin
-// lists. None of these chains has an aggregator hook, so the IDs apply only to aggregator hooks
-// that later look up the ruleset at `AGGREGATOR_HOOK_RULESET_KEY`.
+/// @dev Per-chain policy parameters, in the format `loadPolicyParams` reads. Celo's `ids` are
+///      those of its v1 `V4FeePolicy`, which proposal 6 deployed but never connected to the
+///      PoolManager.
 string constant POLICY_PARAMS_JSON = "script/proposal-105/params/v4-fee-policy.json";
 
 /// @dev Record key of the `V4FeeAdapter`. The policy and rulesets use proposal 104's keys.
