@@ -27,7 +27,8 @@ import {
   RECORD_NAME,
   POLICY_PARAMS_JSON,
   Records,
-  hooklessFeeBuckets
+  hooklessFeeBuckets,
+  readRecord
 } from "../params/Constants.sol";
 import {v4Accounts} from "../params/Chains.sol";
 import {PolicyParams, loadPolicyParams} from "../params/PolicyParams.sol";
@@ -253,18 +254,18 @@ function readPolicyDeployment(Recorder storage recorder, uint256 chainId)
   returns (PolicyDeployment memory)
 {
   return PolicyDeployment({
-    policy: V4FeePolicy(recorder.read(chainId, Records.V4_FEE_POLICY)),
+    policy: V4FeePolicy(readRecord(recorder, chainId, Records.V4_FEE_POLICY)),
     staticCurveRuleset: V4StaticCurveRuleset(
-      recorder.read(chainId, Records.V4_STATIC_CURVE_RULESET)
+      readRecord(recorder, chainId, Records.V4_STATIC_CURVE_RULESET)
     ),
     aggregatorHookRuleset: V4AggregatorHookRuleset(
-      recorder.read(chainId, Records.V4_AGGREGATOR_HOOK_RULESET)
+      readRecord(recorder, chainId, Records.V4_AGGREGATOR_HOOK_RULESET)
     ),
     stablePairHookRuleset: IV4ProtocolFeeRuleset(
-      recorder.read(chainId, Records.V4_STABLE_PAIR_HOOK_RULESET)
+      readRecord(recorder, chainId, Records.V4_STABLE_PAIR_HOOK_RULESET)
     ),
     volatilePairHookRuleset: IV4ProtocolFeeRuleset(
-      recorder.read(chainId, Records.V4_VOLATILE_PAIR_HOOK_RULESET)
+      readRecord(recorder, chainId, Records.V4_VOLATILE_PAIR_HOOK_RULESET)
     )
   });
 }

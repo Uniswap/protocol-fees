@@ -7,6 +7,7 @@ import {V4FeeAdapter} from "../../../src/feeAdapters/V4FeeAdapter.sol";
 
 import {DeployV4FeePolicy} from "../../proposal-104/prereq/DeployV4FeePolicy.s.sol";
 import {v4Accounts} from "../../proposal-104/params/Chains.sol";
+import {readRecord} from "../../proposal-104/params/Constants.sol";
 import {
   RECORD_NAME,
   POLICY_PARAMS_JSON,
@@ -81,7 +82,7 @@ contract DeployV4FeeAdapter is DeployV4FeePolicy {
   /// @inheritdoc DeployV4FeePolicy
   function _read() internal override {
     super._read();
-    adapter = V4FeeAdapter(recorder.read(block.chainid, V4_FEE_ADAPTER_RECORD));
+    adapter = V4FeeAdapter(readRecord(recorder, block.chainid, V4_FEE_ADAPTER_RECORD));
   }
 
   /// @inheritdoc DeployV4FeePolicy

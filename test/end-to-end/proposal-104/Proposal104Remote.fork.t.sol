@@ -25,9 +25,10 @@ import {DeployV4FeePolicy} from "../../../script/proposal-104/prereq/DeployV4Fee
 import {
   POLYGON_FX_CHILD,
   Records,
+  chains,
   v4FeeAdapter
 } from "../../../script/proposal-104/params/Constants.sol";
-import {v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
+import {rpcAlias, v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
 import {
   checkInboxEthereum,
   checkOPStackMessengerEthereum
@@ -51,20 +52,6 @@ interface IFxStateReceiver {
 
 /// @dev The system address that Polygon's state sync calls FxChild from.
 address constant POLYGON_STATE_SYNC_CALLER = 0x0000000000000000000000000000000000001001;
-
-/// @dev The eight chains in the order of the proposal's actions.
-function proposalChains() pure returns (uint256[8] memory) {
-  return [
-    ChainId.Ethereum,
-    ChainId.Arbitrum,
-    ChainId.Base,
-    ChainId.Optimism,
-    ChainId.BNBChain,
-    ChainId.Polygon,
-    ChainId.Robinhood,
-    Arc.CHAIN_ID
-  ];
-}
 
 /// @dev The prerequisite script, pointed at the specified record.
 contract DeployV4FeePolicyHarness is DeployV4FeePolicy {
@@ -104,9 +91,6 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
   /// @dev The chain's EIP-155 chain id.
   function _chainId() internal pure virtual returns (uint256);
 
-  /// @dev The chain's RPC alias in `foundry.toml`.
-  function _rpcAlias() internal pure virtual returns (string memory);
-
   function setUp() public {
     bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
     vm.skip(!shouldRun);
@@ -114,7 +98,7 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
     uint256 remoteBlock = _loadFixture(
       string.concat("test/end-to-end/proposal-104/fixtures/", vm.toString(_chainId()), ".json")
     );
-    remoteFork = vm.createSelectFork(_rpcAlias(), remoteBlock);
+    remoteFork = vm.createSelectFork(rpcAlias(_chainId()), remoteBlock);
     mainnetFork = vm.createFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();
   }
@@ -163,11 +147,11 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
   ///      the chain's fork selected.
   function _runAction() internal {
     vm.selectFork(mainnetFork);
-    uint256[8] memory chains = proposalChains();
+    uint256[8] memory list = chains();
     uint256 index;
-    for (uint256 i; i < chains.length; i++) {
-      if (chains[i] == _chainId()) index = i;
-      else recorder.write(chains[i], Records.V4_FEE_POLICY, address(uint160(0xB000 + i)));
+    for (uint256 i; i < list.length; i++) {
+      if (list[i] == _chainId()) index = i;
+      else recorder.write(list[i], Records.V4_FEE_POLICY, address(uint160(0xB000 + i)));
     }
     Call memory action = buildProposal(uniswap, recorder).calls[index];
     address executor = v4Accounts(uniswap, _chainId()).governanceExecutor;
@@ -289,19 +273,11 @@ contract Proposal104EthereumRemoteForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Ethereum;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "mainnet";
-  }
 }
 
 contract Proposal104ArbitrumForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Arbitrum;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "arbitrum";
   }
 }
 
@@ -309,19 +285,11 @@ contract Proposal104BaseForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Base;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "base";
-  }
 }
 
 contract Proposal104OptimismForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Optimism;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "optimism";
   }
 }
 
@@ -329,19 +297,11 @@ contract Proposal104BNBChainForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.BNBChain;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "bnb_chain";
-  }
 }
 
 contract Proposal104PolygonForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Polygon;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "polygon";
   }
 }
 
@@ -349,18 +309,10 @@ contract Proposal104RobinhoodForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Robinhood;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "robinhood";
-  }
 }
 
 contract Proposal104ArcForkTest is Proposal104RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return Arc.CHAIN_ID;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "arc";
   }
 }

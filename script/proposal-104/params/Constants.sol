@@ -2,6 +2,8 @@
 pragma solidity 0.8.29;
 
 import {ChainId} from "govkit/constants/ChainId.sol";
+import {vm} from "govkit/forge/Constants.sol";
+import {Recorder} from "govkit/forge/Recorder.sol";
 
 import {FeeBucket} from "../../../src/interfaces/IV4StaticCurveRuleset.sol";
 import {Arc} from "../../proposal-7/params/Constants.sol";
@@ -36,6 +38,20 @@ string constant RECORD_NAME = "Proposal104";
 ///        report flag 4096 instead and are in no list, because they pay no fee.
 string constant POLICY_PARAMS_JSON = "script/proposal-104/params/v4-fee-policy.json";
 
+/// @dev The eight chains, in the order of the proposal's actions.
+function chains() pure returns (uint256[8] memory) {
+  return [
+    ChainId.Ethereum,
+    ChainId.Arbitrum,
+    ChainId.Base,
+    ChainId.Optimism,
+    ChainId.BNBChain,
+    ChainId.Polygon,
+    ChainId.Robinhood,
+    Arc.CHAIN_ID
+  ];
+}
+
 /// @dev Keys in the record file, one per deployment.
 library Records {
   string constant V4_FEE_POLICY = "V4FeePolicy";
@@ -43,6 +59,28 @@ library Records {
   string constant V4_AGGREGATOR_HOOK_RULESET = "V4AggregatorHookRuleset";
   string constant V4_STABLE_PAIR_HOOK_RULESET = "V4StablePairHookRuleset";
   string constant V4_VOLATILE_PAIR_HOOK_RULESET = "V4VolatilePairHookRuleset";
+}
+
+/// @dev Returns the address recorded under `key` for `chainId` in `recorder`'s file. Reverts
+///      naming the chain, the key and the file if the file has no such entry, as when the
+///      prerequisite script has not run on that chain.
+function readRecord(Recorder storage recorder, uint256 chainId, string memory key)
+  view
+  returns (address)
+{
+  require(
+    recorder.exists(chainId, key),
+    string.concat(
+      "no ",
+      key,
+      " recorded for chain ",
+      vm.toString(chainId),
+      " in ",
+      recorder.path(),
+      ": run the prerequisite script on that chain"
+    )
+  );
+  return recorder.read(chainId, key);
 }
 
 /// @dev The hookless fee curve. These are the buckets proposal 6 set on each v1 `V4FeePolicy`,
@@ -59,35 +97,38 @@ function hooklessFeeBuckets() pure returns (FeeBucket[] memory buckets) {
   buckets[7] = FeeBucket({lpFeeFloor: 5500, alphaPips: 1000, betaPips: 0});
 }
 
+/// @dev The record file in which proposal 6 recorded the v1 `V4FeeAdapter` and `V4FeePolicy` of
+///      every chain but Arc.
+string constant V1_RECORD = ".records/DeployV4FeeInfra.json";
+
+/// @dev The record file in which proposal 7 recorded Arc's v1 `V4FeeAdapter` and `V4FeePolicy`.
+string constant ARC_RECORD = ".records/Arc.json";
+
 /// @dev Returns the `V4FeeAdapter` that is the PoolManager's `protocolFeeController` on
-///      `chainId`. Proposal 6 deployed the first seven and recorded them in
-///      `.records/DeployV4FeeInfra.json`; proposal 7 deployed Arc's and recorded it in
-///      `.records/Arc.json`.
-function v4FeeAdapter(uint256 chainId) pure returns (address) {
-  if (chainId == ChainId.Ethereum) return 0x89A5D5bF00a27D55c02951E49078a5C5771051dB;
-  if (chainId == ChainId.Arbitrum) return 0x6b3C04567CC62fc5D6AB8D50f1bc1Dee161eb2Cc;
-  if (chainId == ChainId.Base) return 0xc53DD825dedBE7814562528A1A30e8e5BCbB4b55;
-  if (chainId == ChainId.Optimism) return 0xd85393784234fB2ee4f077867A8B78E1aD4cE56B;
-  if (chainId == ChainId.BNBChain) return 0x66276D2e80784180E4B9b859e4327b9C5646B87c;
-  if (chainId == ChainId.Polygon) return 0x59e84309Afa65F084F9c03668583d231afB12cc6;
-  if (chainId == ChainId.Robinhood) return 0x6d0009504D129CF5002Dba61D9Ae8575AA79314c;
-  if (chainId == Arc.CHAIN_ID) return 0x2f2bd3F43880b9644211f16d861b0672aaB23782;
-  revert("no V4FeeAdapter for chain");
+///      `chainId`, from its v1 record.
+function v4FeeAdapter(uint256 chainId) view returns (address) {
+  return _v1Deployment(chainId, "V4FeeAdapter");
 }
 
-/// @dev Returns the v1 `V4FeePolicy` that the adapter on `chainId` uses before the proposal.
-///      Proposal 6 deployed the first seven and recorded them in `.records/DeployV4FeeInfra.json`;
-///      proposal 7 deployed Arc's and recorded it in `.records/Arc.json`.
-function replacedV4FeePolicy(uint256 chainId) pure returns (address) {
-  if (chainId == ChainId.Ethereum) return 0x1cd822b70a0591420F65E94b9B3A0D0b0fB3a314;
-  if (chainId == ChainId.Arbitrum) return 0x8F6a5A19Ff1adc6AA9456d6b201fA4FC7589BD0B;
-  if (chainId == ChainId.Base) return 0xf963bdbe8BA2aABBB3190fF2268F3d833393ab71;
-  if (chainId == ChainId.Optimism) return 0x13d9D19802660b8167B3c84C1fcDCD0163672eB8;
-  if (chainId == ChainId.BNBChain) return 0x020B1Ad79037f02feC357Ec4601fFbe5f7ED6872;
-  if (chainId == ChainId.Polygon) return 0x600c29d3Ce95Ce503FAb43753cbcb5Fa87EE6093;
-  if (chainId == ChainId.Robinhood) return 0x6ee984309ba26c224f12Bb85D6F7f3C019483DFc;
-  if (chainId == Arc.CHAIN_ID) return 0x9671B518dA771c5c73d8115b3800FA7653a72015;
-  revert("no replaced V4FeePolicy for chain");
+/// @dev Returns the v1 `V4FeePolicy` that the adapter on `chainId` uses before the proposal, from
+///      its v1 record.
+function replacedV4FeePolicy(uint256 chainId) view returns (address) {
+  return _v1Deployment(chainId, "V4FeePolicy");
+}
+
+/// @dev Returns the address recorded under `key` for `chainId` in `ARC_RECORD` for Arc, and in
+///      `V1_RECORD` for the other chains. Reverts for a chain the proposal does not act on, since
+///      `V1_RECORD` also holds Celo's, which no PoolManager uses.
+function _v1Deployment(uint256 chainId, string memory key) view returns (address) {
+  bool found;
+  uint256[8] memory list = chains();
+  for (uint256 i; i < list.length; i++) {
+    if (list[i] == chainId) found = true;
+  }
+  require(found, string.concat("no v1 ", key, " for chain"));
+
+  string memory path = chainId == Arc.CHAIN_ID ? ARC_RECORD : V1_RECORD;
+  return vm.parseJsonAddress(vm.readFile(path), string.concat(".", vm.toString(chainId), ".", key));
 }
 
 /// @dev Polygon's FxChild, which delivers FxRoot messages to the governance-owned

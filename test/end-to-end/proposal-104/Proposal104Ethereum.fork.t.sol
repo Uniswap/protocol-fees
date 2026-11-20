@@ -17,10 +17,10 @@ import {
 
 import {IV4FeeAdapter} from "../../../src/interfaces/IV4FeeAdapter.sol";
 import {Proposal104, buildProposal} from "../../../script/proposal-104/Proposal104.s.sol";
-import {Records, v4FeeAdapter} from "../../../script/proposal-104/params/Constants.sol";
+import {Records, chains, v4FeeAdapter} from "../../../script/proposal-104/params/Constants.sol";
 import {executeAsTimelock} from "../../utils/TimelockExecution.sol";
 import {countOPStackSentMessages} from "../../utils/OPStackSentMessages.sol";
-import {MAINNET_BLOCK, StateSynced, proposalChains} from "./Proposal104Remote.fork.t.sol";
+import {MAINNET_BLOCK, StateSynced} from "./Proposal104Remote.fork.t.sol";
 
 /// @dev Record file these tests write, gitignored as `.records/*Test.json`.
 string constant RECORD_NAME = "Proposal104EthereumForkTest";
@@ -41,9 +41,9 @@ contract Proposal104EthereumForkTest is Test {
     string memory recordPath = string.concat(".records/", RECORD_NAME, ".json");
     if (vm.exists(recordPath)) vm.removeFile(recordPath);
     recorder.initialize({scriptName: RECORD_NAME});
-    uint256[8] memory chains = proposalChains();
-    for (uint256 i; i < chains.length; i++) {
-      recorder.write(chains[i], Records.V4_FEE_POLICY, _standIn(i));
+    uint256[8] memory list = chains();
+    for (uint256 i; i < list.length; i++) {
+      recorder.write(list[i], Records.V4_FEE_POLICY, _standIn(i));
     }
   }
 
@@ -102,7 +102,7 @@ contract Proposal104EthereumForkTest is Test {
     );
   }
 
-  /// @dev Returns the stand-in policy of the chain at `index` in `proposalChains`.
+  /// @dev Returns the stand-in policy of the chain at `index` in `chains`.
   function _standIn(uint256 index) internal pure returns (address) {
     return address(uint160(0xB000 + index));
   }

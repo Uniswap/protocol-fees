@@ -67,3 +67,23 @@ function v4Accounts(Uniswap storage uniswap, uint256 chainId) view returns (V4Ac
   }
   revert("no v4 accounts for chain");
 }
+
+/// @notice Returns the `foundry.toml` RPC alias of `chainId`, for the 13 chains proposals 104 and
+///         105 configure.
+/// @dev Reverts for any other chain.
+function rpcAlias(uint256 chainId) pure returns (string memory) {
+  if (chainId == ChainId.Ethereum) return "mainnet";
+  if (chainId == ChainId.Arbitrum) return "arbitrum";
+  if (chainId == ChainId.Base) return "base";
+  if (chainId == ChainId.Optimism) return "optimism";
+  if (chainId == ChainId.BNBChain) return "bnb_chain";
+  if (chainId == ChainId.Polygon) return "polygon";
+  if (chainId == ChainId.Robinhood) return "robinhood";
+  if (chainId == Arc.CHAIN_ID) return "arc";
+  if (chainId == ChainId.Celo) return "celo";
+  if (chainId == ChainId.Soneium) return "soneium";
+  if (chainId == ChainId.XLayer) return "xlayer";
+  if (chainId == ChainId.WorldChain) return "world_chain";
+  if (chainId == ChainId.Zora) return "zora";
+  revert("no RPC alias for chain");
+}

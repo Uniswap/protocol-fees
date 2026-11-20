@@ -31,10 +31,12 @@ import {
   POLICY_PARAMS_JSON,
   POLYGON_FX_CHILD,
   Records,
+  chains,
+  readRecord,
   replacedV4FeePolicy,
   v4FeeAdapter
 } from "./params/Constants.sol";
-import {V4Accounts, v4Accounts} from "./params/Chains.sol";
+import {V4Accounts, rpcAlias, v4Accounts} from "./params/Chains.sol";
 import {loadPolicyParams} from "./params/PolicyParams.sol";
 import {checkNewPolicy} from "./PolicyCheck.sol";
 import {readPolicyDeployment} from "./prereq/DeployV4FeePolicy.s.sol";
@@ -58,10 +60,12 @@ import {
 //
 // 1. Run `prereq/DeployV4FeePolicy.s.sol` on each chain. It records the new policies in
 //    `.records/Proposal104.json`, where `buildProposal` reads them.
-// 2. Run `preflightRemote()` against each chain before proposing:
+// 2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then `preflightRemote()`
+//    against each chain, each at the chain's latest block, and needs every chain's RPC URL:
 //
-//    forge script script/proposal-104/Proposal104.s.sol --sig "preflightRemote()" \
-//      --rpc-url <chain>
+//    forge script script/proposal-104/Proposal104.s.sol --sig "preflight()"
+//
+//    To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
 //
 // 3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt:
 //
@@ -74,7 +78,10 @@ import {
 // 5. Wormhole does not deliver the messages of actions 04 and 07. After execution, someone must
 //    fetch each message's VAA from Wormhole's API and call `receiveMessage` on the chain's
 //    receiver, as proposals 4 and 7 did.
-// 6. After each message runs, run `postflightRemote()` against its chain.
+// 6. After each message runs, run `postflightRemote()` against its chain. Once every message has
+//    run, `postflight()` checks all eight chains in one run:
+//
+//    forge script script/proposal-104/Proposal104.s.sol --sig "postflight()"
 //
 
 /// @notice Returns the proposal's calls.
@@ -178,7 +185,7 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
 
 /// @notice Returns the call that sets the new policy on the adapter of `chainId`.
 function _setPolicyCall(Recorder storage recorder, uint256 chainId) view returns (Call memory) {
-  address policy = recorder.read(chainId, Records.V4_FEE_POLICY);
+  address policy = readRecord(recorder, chainId, Records.V4_FEE_POLICY);
   require(policy != address(0), "recorded V4FeePolicy is zero");
   return Call({
     target: v4FeeAdapter(chainId),
@@ -210,6 +217,30 @@ contract Proposal104 is Script {
       })
     });
     console.log("wrote", path);
+  }
+
+  /// @notice Runs {preflightEthereum} on a fork of Ethereum, then {preflightRemote} on a fork of
+  ///         each of the eight chains, each at the chain's latest block.
+  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias.
+  function preflight() external {
+    vm.createSelectFork(rpcAlias(ChainId.Ethereum));
+    preflightEthereum();
+    uint256[8] memory list = chains();
+    for (uint256 i; i < list.length; i++) {
+      vm.createSelectFork(rpcAlias(list[i]));
+      preflightRemote();
+    }
+  }
+
+  /// @notice Runs {postflightRemote} on a fork of each of the eight chains, each at the chain's
+  ///         latest block.
+  /// @dev Run without `--rpc-url`, once every action's message has run.
+  function postflight() external {
+    uint256[8] memory list = chains();
+    for (uint256 i; i < list.length; i++) {
+      vm.createSelectFork(rpcAlias(list[i]));
+      postflightRemote();
+    }
   }
 
   /// @notice Runs {preflightEthereum} at block `blockNumber`.
@@ -294,7 +325,7 @@ contract Proposal104 is Script {
     console.log("postflightRemote Proposal104 on chain", block.chainid, "at block", _blockNumber());
 
     address adapter = v4FeeAdapter(block.chainid);
-    address policy = recorder.read(block.chainid, Records.V4_FEE_POLICY);
+    address policy = readRecord(recorder, block.chainid, Records.V4_FEE_POLICY);
     require(policy.code.length != 0, "policy.code");
     require(
       IPoolManager(v4Accounts(uniswap, block.chainid).poolManager).protocolFeeController()

@@ -14,7 +14,7 @@ import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
 import {V4FeeAdapter} from "../../src/feeAdapters/V4FeeAdapter.sol";
 
-import {V4Accounts, v4Accounts} from "../proposal-104/params/Chains.sol";
+import {V4Accounts, rpcAlias, v4Accounts} from "../proposal-104/params/Chains.sol";
 import {loadPolicyParams} from "../proposal-104/params/PolicyParams.sol";
 import {checkNewPolicy} from "../proposal-104/PolicyCheck.sol";
 import {readPolicyDeployment} from "../proposal-104/prereq/DeployV4FeePolicy.s.sol";
@@ -33,6 +33,7 @@ import {
   tokenJar,
   v3OpenFeeAdapter
 } from "./params/Constants.sol";
+import {readRecord} from "../proposal-104/params/Constants.sol";
 import {checkNewAdapter} from "./AdapterCheck.sol";
 
 // -------------------------------------------------------------------------------------------------
@@ -47,17 +48,22 @@ import {checkNewAdapter} from "./AdapterCheck.sol";
 //
 // 1. Run `prereq/DeployV4FeeAdapter.s.sol` on each chain. It records the new adapters and
 //    policies in `.records/Proposal105.json`, where `buildProposal` reads them.
-// 2. Run `preflightRemote()` against each chain before proposing:
+// 2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then `preflightRemote()`
+//    against each chain, each at the chain's latest block, and needs every chain's RPC URL:
 //
-//    forge script script/proposal-105/Proposal105.s.sol --sig "preflightRemote()" \
-//      --rpc-url <chain>
+//    forge script script/proposal-105/Proposal105.s.sol --sig "preflight()"
+//
+//    To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
 //
 // 3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt:
 //
 //    forge script script/proposal-105/Proposal105.s.sol --rpc-url mainnet
 //
 // 4. The OP Stack bridges relay each message by themselves once the proposal executes. After each
-//    message runs, run `postflightRemote()` against its chain.
+//    message runs, run `postflightRemote()` against its chain. Once every message has run,
+//    `postflight()` checks all five chains in one run:
+//
+//    forge script script/proposal-105/Proposal105.s.sol --sig "postflight()"
 //
 
 /// @notice Returns the proposal's calls, one per chain in the order of `chains`.
@@ -85,7 +91,7 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   for (uint256 i; i < chains().length; i++) {
     uint256 chainId = chains()[i];
     V4Accounts memory accounts = v4Accounts(uniswap, chainId);
-    address adapter = recorder.read(chainId, V4_FEE_ADAPTER_RECORD);
+    address adapter = readRecord(recorder, chainId, V4_FEE_ADAPTER_RECORD);
     require(adapter != address(0), "recorded V4FeeAdapter is zero");
     proposal.calls[i] = L1CrossDomainMessengerEncoder.encode({
       l1CrossDomainMessenger: l1Messenger(uniswap, chainId),
@@ -122,6 +128,30 @@ contract Proposal105 is Script {
       })
     });
     console.log("wrote", path);
+  }
+
+  /// @notice Runs {preflightEthereum} on a fork of Ethereum, then {preflightRemote} on a fork of
+  ///         each of the five chains, each at the chain's latest block.
+  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias.
+  function preflight() external {
+    vm.createSelectFork(rpcAlias(ChainId.Ethereum));
+    preflightEthereum();
+    uint256[5] memory list = chains();
+    for (uint256 i; i < list.length; i++) {
+      vm.createSelectFork(rpcAlias(list[i]));
+      preflightRemote();
+    }
+  }
+
+  /// @notice Runs {postflightRemote} on a fork of each of the five chains, each at the chain's
+  ///         latest block.
+  /// @dev Run without `--rpc-url`, once every action's message has run.
+  function postflight() external {
+    uint256[5] memory list = chains();
+    for (uint256 i; i < list.length; i++) {
+      vm.createSelectFork(rpcAlias(list[i]));
+      postflightRemote();
+    }
   }
 
   /// @notice Runs {preflightEthereum} at block `blockNumber`.
@@ -174,7 +204,7 @@ contract Proposal105 is Script {
 
     address policy = address(readPolicyDeployment(recorder, block.chainid).policy);
     checkNewAdapter(
-      V4FeeAdapter(recorder.read(block.chainid, V4_FEE_ADAPTER_RECORD)),
+      V4FeeAdapter(readRecord(recorder, block.chainid, V4_FEE_ADAPTER_RECORD)),
       accounts.poolManager,
       tokenJar(uniswap, block.chainid),
       v3OpenFeeAdapter(uniswap, block.chainid),
@@ -195,7 +225,7 @@ contract Proposal105 is Script {
     recorder.initialize({scriptName: _recordName()});
     console.log("postflightRemote Proposal105 on chain", block.chainid, "at block", block.number);
 
-    address adapter = recorder.read(block.chainid, V4_FEE_ADAPTER_RECORD);
+    address adapter = readRecord(recorder, block.chainid, V4_FEE_ADAPTER_RECORD);
     require(adapter.code.length != 0, "adapter.code");
     require(
       IPoolManager(v4Accounts(uniswap, block.chainid).poolManager).protocolFeeController()

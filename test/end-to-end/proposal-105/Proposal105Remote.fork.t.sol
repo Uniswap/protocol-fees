@@ -13,7 +13,7 @@ import {V4FeeAdapter} from "../../../src/feeAdapters/V4FeeAdapter.sol";
 import {Proposal105, buildProposal} from "../../../script/proposal-105/Proposal105.s.sol";
 import {DeployV4FeeAdapter} from "../../../script/proposal-105/prereq/DeployV4FeeAdapter.s.sol";
 import {V4_FEE_ADAPTER_RECORD, chains} from "../../../script/proposal-105/params/Constants.sol";
-import {v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
+import {rpcAlias, v4Accounts} from "../../../script/proposal-104/params/Chains.sol";
 import {V4FeeFixtureTest} from "../../utils/V4FeeFixtureTest.sol";
 import {relayOPStackMessage} from "../../utils/OPStackDeposit.sol";
 import {checkOPStackMessengerEthereum} from "../../../script/proposal-104/BridgeChecks.sol";
@@ -59,9 +59,6 @@ abstract contract Proposal105RemoteForkTest is V4FeeFixtureTest {
   /// @dev The chain's EIP-155 chain id.
   function _chainId() internal pure virtual returns (uint256);
 
-  /// @dev The chain's RPC alias in `foundry.toml`.
-  function _rpcAlias() internal pure virtual returns (string memory);
-
   function setUp() public {
     bool shouldRun = vm.envOr("SHOULD_FORK_TEST", false);
     vm.skip(!shouldRun);
@@ -69,7 +66,7 @@ abstract contract Proposal105RemoteForkTest is V4FeeFixtureTest {
     uint256 remoteBlock = _loadFixture(
       string.concat("test/end-to-end/proposal-105/fixtures/", vm.toString(_chainId()), ".json")
     );
-    remoteFork = vm.createSelectFork(_rpcAlias(), remoteBlock);
+    remoteFork = vm.createSelectFork(rpcAlias(_chainId()), remoteBlock);
     mainnetFork = vm.createFork("mainnet", MAINNET_BLOCK);
     uniswap.loadLatest();
   }
@@ -136,19 +133,11 @@ contract Proposal105CeloForkTest is Proposal105RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Celo;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "celo";
-  }
 }
 
 contract Proposal105SoneiumForkTest is Proposal105RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Soneium;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "soneium";
   }
 }
 
@@ -156,28 +145,16 @@ contract Proposal105XLayerForkTest is Proposal105RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.XLayer;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "xlayer";
-  }
 }
 
 contract Proposal105WorldChainForkTest is Proposal105RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.WorldChain;
   }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "world_chain";
-  }
 }
 
 contract Proposal105ZoraForkTest is Proposal105RemoteForkTest {
   function _chainId() internal pure override returns (uint256) {
     return ChainId.Zora;
-  }
-
-  function _rpcAlias() internal pure override returns (string memory) {
-    return "zora";
   }
 }
