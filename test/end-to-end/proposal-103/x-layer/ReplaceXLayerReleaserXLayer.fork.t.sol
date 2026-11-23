@@ -26,7 +26,26 @@ import {
 } from "../../../../script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol";
 import {RECORD_NAME, Records, XLayer} from "../../../../script/proposal-103/x-layer/Constants.sol";
 import {IXLayerBridge} from "../../../../src/interfaces/external/IXLayerBridge.sol";
+import {IXLayerBridgeFull} from "../../../interfaces/IXLayerBridgeFull.sol";
+import {IGlobalExitRootManagerL1} from "../../../interfaces/IGlobalExitRootManagerL1.sol";
+import {IGlobalExitRootManagerL2} from "../../../interfaces/IGlobalExitRootManagerL2.sol";
+import {IRollupManager} from "../../../interfaces/IRollupManager.sol";
 import {executeAsTimelock} from "../../../utils/TimelockExecution.sol";
+import {
+  ETHEREUM_NETWORK_ID,
+  ETHEREUM_TOKEN_BRIDGE,
+  ExitLeaf,
+  GLOBAL_INDEX_MAINNET_FLAG,
+  UniClaim,
+  UniDeposit,
+  XLAYER_NETWORK_ID,
+  XLAYER_ROLLUP_INDEX,
+  ethereumExitRootManager,
+  globalExitRoot,
+  merkleRootAndProof,
+  nextExitLeaf,
+  uniMetadata
+} from "../../../utils/XLayerBridging.sol";
 
 /// @dev X Layer block the fork is pinned to. Chosen while the TokenJar still had the old releaser,
 /// which `preflightXLayer` requires; the tests stay green at this block after the message relays.
@@ -42,150 +61,6 @@ address constant USDT_WOKB_V2_PAIR = 0xD5da3993f982C13190139b6f45E6e8023C15515D;
 
 /// @dev The Ethereum address the new releaser sends UNI to, where no one can spend it.
 address constant BURN_ADDRESS = address(0xdead);
-
-/// @dev Ethereum's network ID in the unified bridge.
-uint32 constant ETHEREUM_NETWORK_ID = 0;
-
-/// @dev X Layer's network ID in the unified bridge.
-uint32 constant XLAYER_NETWORK_ID = 3;
-
-/// @dev The unified bridge on Ethereum, which escrows UNI bridged to X Layer. It has the
-/// same address as `XLayer.TOKEN_BRIDGE`.
-/// https://etherscan.io/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
-address constant ETHEREUM_TOKEN_BRIDGE = 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe;
-
-/// @dev The storage slot of `_branch[0]` in the unified bridge, on Ethereum and on X Layer.
-/// `DepositContractBase` declares `bytes32[32] _branch` and then `depositCount` after
-/// OpenZeppelin's `Initializable` and `ReentrancyGuardUpgradeable`, which take slots 0 to 50, so
-/// `_branch` takes slots 51 to 82 and `depositCount` slot 83.
-uint256 constant BRANCH_SLOT = 51;
-
-/// @dev The height of the unified bridge's exit trees and of the RollupManager's rollup exit tree.
-uint256 constant EXIT_TREE_HEIGHT = 32;
-
-/// @dev The bit a claim's `globalIndex` sets when the deposit it claims was made on Ethereum. The
-/// low 32 bits then hold the deposit's index in Ethereum's exit tree.
-uint256 constant GLOBAL_INDEX_MAINNET_FLAG = 1 << 64;
-
-/// @dev X Layer's index in the RollupManager's rollup exit tree: its rollup ID, which equals its
-/// network ID, less one. A claim of a deposit made on X Layer puts it in bits 32 to 63 of
-/// `globalIndex`.
-uint32 constant XLAYER_ROLLUP_INDEX = XLAYER_NETWORK_ID - 1;
-
-/// @dev Functions of the unified bridge that `IXLayerBridge` does not expose.
-interface IXLayerBridgeFull {
-  /// @dev Emitted when the bridge pays out a claimed deposit.
-  event ClaimEvent(
-    uint256 globalIndex,
-    uint32 originNetwork,
-    address originAddress,
-    address destinationAddress,
-    uint256 amount
-  );
-
-  function depositCount() external view returns (uint256);
-  function getRoot() external view returns (bytes32);
-  function globalExitRootManager() external view returns (address);
-
-  function getLeafValue(
-    uint8 leafType,
-    uint32 originNetwork,
-    address originAddress,
-    uint32 destinationNetwork,
-    address destinationAddress,
-    uint256 amount,
-    bytes32 metadataHash
-  ) external pure returns (bytes32);
-
-  function calculateRoot(bytes32 leafHash, bytes32[32] calldata smtProof, uint32 index)
-    external
-    pure
-    returns (bytes32);
-
-  function claimAsset(
-    bytes32[32] calldata smtProofLocalExitRoot,
-    bytes32[32] calldata smtProofRollupExitRoot,
-    uint256 globalIndex,
-    bytes32 mainnetExitRoot,
-    bytes32 rollupExitRoot,
-    uint32 originNetwork,
-    address originTokenAddress,
-    uint32 destinationNetwork,
-    address destinationAddress,
-    uint256 amount,
-    bytes calldata metadata
-  ) external;
-}
-
-/// @dev The global exit root manager on Ethereum. The unified bridge updates its mainnet exit root
-/// on a deposit, and the RollupManager updates its rollup exit root when a rollup settles.
-interface IGlobalExitRootManagerL1 {
-  function rollupManager() external view returns (address);
-  function lastMainnetExitRoot() external view returns (bytes32);
-  function lastRollupExitRoot() external view returns (bytes32);
-  function getLastGlobalExitRoot() external view returns (bytes32);
-  function updateExitRoot(bytes32 newRoot) external;
-}
-
-/// @dev The RollupManager on Ethereum, which keeps each rollup's last settled local exit
-/// root.
-interface IRollupManager {
-  function rollupCount() external view returns (uint32);
-  function getRollupExitRoot() external view returns (bytes32);
-  function rollupIDToRollupData(uint32 rollupID)
-    external
-    view
-    returns (
-      address rollupContract,
-      uint64 chainID,
-      address verifier,
-      uint64 forkID,
-      bytes32 lastLocalExitRoot,
-      uint64 lastBatchSequenced,
-      uint64 lastVerifiedBatch,
-      uint64 legacyLastPendingState,
-      uint64 legacyLastPendingStateConsolidated,
-      uint64 lastVerifiedBatchBeforeUpgrade,
-      uint64 rollupTypeID,
-      uint8 rollupVerifierType
-    );
-}
-
-/// @dev A leaf a deposit appends to a unified bridge's local exit tree, with its merkle proof.
-struct ExitLeaf {
-  uint32 index;
-  bytes32[32] proof;
-}
-
-/// @dev The arguments of a claim of a deposit of Ethereum UNI that vary between claims, and the
-/// bridge the claim is submitted to.
-struct UniClaim {
-  address bridge;
-  uint256 globalIndex;
-  bytes32[32] localExitRootProof;
-  bytes32[32] rollupExitRootProof;
-  bytes32 mainnetExitRoot;
-  bytes32 rollupExitRoot;
-  uint32 destinationNetwork;
-  address destinationAddress;
-  uint256 amount;
-}
-
-/// @dev A deposit of UNI in the Ethereum unified bridge, with what a claim of it on X Layer needs.
-struct UniDeposit {
-  address recipient;
-  uint256 amount;
-  ExitLeaf leaf;
-  bytes32 mainnetExitRoot;
-  bytes32 rollupExitRoot;
-}
-
-/// @dev The global exit root manager on X Layer, into which X Layer's updater inserts Ethereum's
-/// global exit roots.
-interface IGlobalExitRootManagerL2 {
-  function globalExitRootUpdater() external view returns (address);
-  function insertGlobalExitRoot(bytes32 newRoot) external;
-}
 
 /// @dev The prerequisite script, pointed at the specified record.
 contract DeployXLayerReleaserHarness is DeployXLayerReleaser {
@@ -306,7 +181,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
 
     // Build the proof of the leaf the release will append to X Layer's local exit tree, which the
     // claim on Ethereum needs.
-    ExitLeaf memory burnLeaf = _nextExitLeaf(XLayer.TOKEN_BRIDGE);
+    ExitLeaf memory burnLeaf = nextExitLeaf(XLayer.TOKEN_BRIDGE);
 
     // Assert the release deposits the threshold in the bridge, to reach the Ethereum burn address
     // as Ethereum UNI. The bridge encodes the wrapped token's metadata into the deposit.
@@ -318,7 +193,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
       ETHEREUM_NETWORK_ID,
       BURN_ADDRESS,
       threshold,
-      _uniMetadata(),
+      uniMetadata(),
       burnLeaf.index
     );
     vm.prank(searcher);
@@ -508,7 +383,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     IERC20 uni = IERC20(uniswap.ethereum.uni);
     deposit.recipient = to;
     deposit.amount = amount;
-    deposit.leaf = _nextExitLeaf(ETHEREUM_TOKEN_BRIDGE);
+    deposit.leaf = nextExitLeaf(ETHEREUM_TOKEN_BRIDGE);
 
     // Have `to` deposit `amount` of UNI for itself on X Layer, asserting the bridge appends a leaf
     // at the index the proof is for.
@@ -524,11 +399,10 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
       XLAYER_NETWORK_ID,
       to,
       amount,
-      _uniMetadata(),
+      uniMetadata(),
       deposit.leaf.index
     );
-    IXLayerBridge(ETHEREUM_TOKEN_BRIDGE)
-      .bridgeAsset(XLAYER_NETWORK_ID, to, amount, address(uni), true, "");
+    bridge.bridgeAsset(XLAYER_NETWORK_ID, to, amount, address(uni), true, "");
     vm.stopPrank();
 
     // Assert the bridge escrowed the UNI.
@@ -543,7 +417,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     deposit.rollupExitRoot = manager.lastRollupExitRoot();
     assertEq(
       manager.getLastGlobalExitRoot(),
-      _globalExitRoot(deposit.mainnetExitRoot, deposit.rollupExitRoot),
+      globalExitRoot(deposit.mainnetExitRoot, deposit.rollupExitRoot),
       "getLastGlobalExitRoot"
     );
   }
@@ -559,7 +433,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     IGlobalExitRootManagerL2 manager =
       IGlobalExitRootManagerL2(IXLayerBridgeFull(XLayer.TOKEN_BRIDGE).globalExitRootManager());
     vm.prank(manager.globalExitRootUpdater());
-    manager.insertGlobalExitRoot(_globalExitRoot(deposit.mainnetExitRoot, deposit.rollupExitRoot));
+    manager.insertGlobalExitRoot(globalExitRoot(deposit.mainnetExitRoot, deposit.rollupExitRoot));
 
     // Claim the deposit. It was made on Ethereum, so the claim proves the leaf against the mainnet
     // exit root alone and leaves the rollup exit root proof empty.
@@ -599,7 +473,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     claim.globalIndex = (uint256(XLAYER_ROLLUP_INDEX) << 32) | leaf.index;
     claim.localExitRootProof = leaf.proof;
     (claim.rollupExitRoot, claim.rollupExitRootProof) = _settleXLayerExitRoot(localExitRoot);
-    claim.mainnetExitRoot = _ethereumExitRootManager().lastMainnetExitRoot();
+    claim.mainnetExitRoot = ethereumExitRootManager().lastMainnetExitRoot();
     claim.destinationNetwork = ETHEREUM_NETWORK_ID;
     claim.destinationAddress = BURN_ADDRESS;
     claim.amount = amount;
@@ -635,7 +509,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
         claim.destinationNetwork,
         claim.destinationAddress,
         claim.amount,
-        _uniMetadata()
+        uniMetadata()
       );
   }
 
@@ -646,7 +520,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     internal
     returns (bytes32 rollupExitRoot, bytes32[32] memory rollupProof)
   {
-    IGlobalExitRootManagerL1 manager = _ethereumExitRootManager();
+    IGlobalExitRootManagerL1 manager = ethereumExitRootManager();
     IRollupManager rollupManager = IRollupManager(manager.rollupManager());
 
     // Read each rollup's last settled local exit root. Rollup ID `i + 1` is leaf `i` of the rollup
@@ -657,39 +531,15 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     }
 
     // Assert we build the rollup exit tree as the RollupManager does.
-    (rollupExitRoot,) = _merkleRootAndProof(localExitRoots, XLAYER_ROLLUP_INDEX);
+    (rollupExitRoot,) = merkleRootAndProof(localExitRoots, XLAYER_ROLLUP_INDEX);
     assertEq(rollupExitRoot, rollupManager.getRollupExitRoot(), "getRollupExitRoot");
 
     // Replace X Layer's leaf with `localExitRoot`, and push the new rollup exit root to the global
     // exit root manager, as the RollupManager does once it settles X Layer's certificate.
     localExitRoots[XLAYER_ROLLUP_INDEX] = localExitRoot;
-    (rollupExitRoot, rollupProof) = _merkleRootAndProof(localExitRoots, XLAYER_ROLLUP_INDEX);
+    (rollupExitRoot, rollupProof) = merkleRootAndProof(localExitRoots, XLAYER_ROLLUP_INDEX);
     vm.prank(address(rollupManager));
     manager.updateExitRoot(rollupExitRoot);
-  }
-
-  /// @dev Returns the global exit root manager of the unified bridge on Ethereum. Reads the bridge
-  /// on the selected fork, which must be the Ethereum fork.
-  function _ethereumExitRootManager() internal view returns (IGlobalExitRootManagerL1) {
-    return
-      IGlobalExitRootManagerL1(IXLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE).globalExitRootManager());
-  }
-
-  /// @dev Returns the leaf the next deposit in `bridge` will append to its local exit tree, with
-  /// the leaf's merkle proof. Reads `bridge` on the selected fork.
-  function _nextExitLeaf(address bridge) internal view returns (ExitLeaf memory leaf) {
-    // The next deposit appends its leaf at index `depositCount`, so every subtree to the leaf's
-    // right is empty. At each height where the index has a 1 bit, the leaf's sibling is the full
-    // subtree to its left, whose root the bridge keeps in `_branch`. At every other height, the
-    // sibling is the root of an empty subtree of that height.
-    leaf.index = uint32(IXLayerBridgeFull(bridge).depositCount());
-    bytes32 emptySubtreeRoot;
-    for (uint256 height; height < EXIT_TREE_HEIGHT; height++) {
-      leaf.proof[height] = (leaf.index >> height) & 1 == 1
-        ? vm.load(bridge, bytes32(BRANCH_SLOT + height))
-        : emptySubtreeRoot;
-      emptySubtreeRoot = keccak256(abi.encodePacked(emptySubtreeRoot, emptySubtreeRoot));
-    }
   }
 
   /// @dev Asserts `leaf`'s proof places a deposit of `amount` Ethereum UNI to `destinationAddress`
@@ -710,7 +560,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
         destinationNetwork,
         destinationAddress,
         amount,
-        keccak256(_uniMetadata())
+        keccak256(uniMetadata())
       );
     localExitRoot = IXLayerBridgeFull(bridge).getRoot();
     assertEq(
@@ -718,49 +568,5 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
       localExitRoot,
       "localExitRoot"
     );
-  }
-
-  /// @dev Returns the root of the exit tree whose first leaves are `leaves` and whose other leaves
-  /// are empty, with the merkle proof of leaf `index`.
-  function _merkleRootAndProof(bytes32[] memory leaves, uint256 index)
-    internal
-    pure
-    returns (bytes32 root, bytes32[32] memory proof)
-  {
-    bytes32[] memory nodes = leaves;
-    bytes32 emptySubtreeRoot;
-    for (uint256 height; height < EXIT_TREE_HEIGHT; height++) {
-      // Take the sibling of the node on the proof's path, which is empty past the last node.
-      uint256 sibling = index ^ 1;
-      proof[height] = sibling < nodes.length ? nodes[sibling] : emptySubtreeRoot;
-
-      // Hash each pair of nodes into the level above, pairing an odd last node with an empty
-      // subtree.
-      bytes32[] memory parents = new bytes32[]((nodes.length + 1) / 2);
-      for (uint256 i; i < parents.length; i++) {
-        bytes32 right = 2 * i + 1 < nodes.length ? nodes[2 * i + 1] : emptySubtreeRoot;
-        parents[i] = keccak256(abi.encodePacked(nodes[2 * i], right));
-      }
-      nodes = parents;
-      index >>= 1;
-      emptySubtreeRoot = keccak256(abi.encodePacked(emptySubtreeRoot, emptySubtreeRoot));
-    }
-    root = nodes[0];
-  }
-
-  /// @dev Returns the global exit root of `mainnetExitRoot` and `rollupExitRoot`, computed as the
-  /// unified bridge computes it.
-  function _globalExitRoot(bytes32 mainnetExitRoot, bytes32 rollupExitRoot)
-    internal
-    pure
-    returns (bytes32)
-  {
-    return keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot));
-  }
-
-  /// @dev Returns the metadata the unified bridge encodes into a deposit of Ethereum UNI or of its
-  /// wrapped UNI: the name, symbol and decimals.
-  function _uniMetadata() internal pure returns (bytes memory) {
-    return abi.encode("Uniswap", "UNI", uint8(18));
   }
 }
