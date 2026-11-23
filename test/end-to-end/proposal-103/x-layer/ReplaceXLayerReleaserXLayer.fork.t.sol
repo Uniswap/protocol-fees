@@ -19,13 +19,16 @@ import {AddressAliasHelper} from "@eth-optimism-bedrock/src/vendor/AddressAliasH
 import {
   ReplaceXLayerReleaser,
   buildReplaceReleaserCall,
-  readNewReleaser
+  buildStartDecayCall,
+  readNewReleaser,
+  readThresholdSetter
 } from "../../../../script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol";
 import {
   DeployXLayerReleaser
 } from "../../../../script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol";
 import {RECORD_NAME, Records, XLayer} from "../../../../script/proposal-103/x-layer/Constants.sol";
 import {IXLayerBridge} from "../../../../src/interfaces/external/IXLayerBridge.sol";
+import {IDecayingThresholdSetter} from "../../../../src/interfaces/IDecayingThresholdSetter.sol";
 import {IXLayerBridgeFull} from "../../../interfaces/IXLayerBridgeFull.sol";
 import {IGlobalExitRootManagerL1} from "../../../interfaces/IGlobalExitRootManagerL1.sol";
 import {IGlobalExitRootManagerL2} from "../../../interfaces/IGlobalExitRootManagerL2.sol";
@@ -62,6 +65,16 @@ address constant USDT_WOKB_V2_PAIR = 0xD5da3993f982C13190139b6f45E6e8023C15515D;
 
 /// @dev The Ethereum address the new releaser sends UNI to, where no one can spend it.
 address constant BURN_ADDRESS = address(0xdead);
+
+/// @dev A call X Layer makes to {L2CrossDomainMessenger-relayMessage} to relay one of the
+/// proposal's messages, as a {TransactionDeposited} event from X Layer's OptimismPortal records it.
+struct RelayMessageCall {
+  address from;
+  address to;
+  uint256 value;
+  uint64 gasLimit;
+  bytes data;
+}
 
 /// @dev The prerequisite script, pointed at the specified record.
 contract DeployXLayerReleaserHarness is DeployXLayerReleaser {
@@ -111,12 +124,13 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     new ReplaceXLayerReleaserHarness(recordName).preflightXLayer(XLAYER_BLOCK);
   }
 
-  /// @dev Executes the proposal on Ethereum, then on X Layer executes the deposit transaction the
-  /// proposal created through X Layer's OptimismPortal, and asserts the TokenJar accepts releases
-  /// from the new releaser and refuses them from the old one.
+  /// @dev Executes the proposal on Ethereum, then makes the two calls that relay its messages on X
+  /// Layer. Asserts the TokenJar accepts releases from the new releaser and refuses them from the
+  /// old one, and the {DecayingThresholdSetter} started its decay at `XLayer.START_THRESHOLD`.
   function test_relayMessage() public {
     string memory recordName = _loadNewReleaser("XLayerForkRelayTest");
     address newReleaser = readNewReleaser(recorder);
+    address thresholdSetter = readThresholdSetter(recorder);
     ITokenJar tokenJar = ITokenJar(uniswap.xLayer.tokenJar);
     address oldReleaser = uniswap.xLayer.releaser;
 
@@ -125,13 +139,21 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     vm.prank(oldReleaser);
     tokenJar.release(new address[](0), address(this));
 
-    // Execute the proposal on Ethereum and its deposit transaction on X Layer. The helper also
-    // asserts the proposal created exactly one deposit to the L2CrossDomainMessenger, and that the
-    // deposit transaction does not revert.
-    _executeProposalAndDeposit();
+    // Execute the proposal on Ethereum and relay its messages on X Layer.
+    // {_executeProposalAndRelay} asserts the proposal sent two messages and that no relay call
+    // reverts.
+    _executeProposalAndRelay();
 
-    // Assert the new releaser has been set on the TokenJar
+    // Assert the TokenJar releases through the new releaser and the decay has started.
     new ReplaceXLayerReleaserHarness(recordName).postflightXLayer();
+
+    // Assert {DecayingThresholdSetter-start} started the decay and took the threshold-setter role,
+    // and the threshold is `XLayer.START_THRESHOLD`.
+    assertEq(
+      IDecayingThresholdSetter(thresholdSetter).startTime(), block.timestamp, "setter.startTime"
+    );
+    assertEq(IReleaser(newReleaser).thresholdSetter(), thresholdSetter, "releaser.thresholdSetter");
+    assertEq(IReleaser(newReleaser).threshold(), XLayer.START_THRESHOLD, "releaser.threshold");
 
     // Assert the TokenJar refuses the old releaser's address and accepts the new releaser's.
     // `test_release` covers a full release through the new releaser.
@@ -143,18 +165,28 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     tokenJar.release(new address[](0), address(this));
   }
 
-  /// @dev Asserts that, once the proposal executes, a searcher can bridge the threshold in UNI from
-  /// Ethereum to X Layer, pay it into a release of a TokenJar fee asset through the new releaser,
-  /// and receive the fee asset, and that the paid UNI reaches the Ethereum burn address. The test
-  /// stands in for X Layer's global exit root updater and for Ethereum's RollupManager, and does
-  /// not cover finality or the generation and verification of X Layer's certificates.
+  /// @dev Asserts the release flow once the proposal executes and the threshold decays for two
+  /// half-lives:
+  ///
+  /// - A searcher writes the decayed threshold with {DecayingThresholdSetter-poke}.
+  /// - The searcher bridges that much UNI from Ethereum to X Layer.
+  /// - The searcher pays it into a release of a TokenJar fee asset and receives the fee asset.
+  /// - The paid UNI reaches the Ethereum burn address.
+  ///
+  /// Two is an arbitrary whole number of half-lives. After a whole number `n` of half-lives the
+  /// threshold is exactly `XLayer.START_THRESHOLD >> n` while it stays above
+  /// `XLayer.FLOOR_THRESHOLD`, so the test can assert its exact value.
+  ///
+  /// The test makes the calls of X Layer's global exit root updater and Ethereum's RollupManager
+  /// itself. It does not cover finality, or the generation and verification of X Layer's
+  /// certificates.
   function test_release() public {
     // Assert X Layer is in the state the proposal assumes, including a deployed and handed-over
     // new releaser.
     string memory recordName = _loadNewReleaser("XLayerForkReleaseTest");
     new ReplaceXLayerReleaserHarness(recordName).preflightXLayer(XLAYER_BLOCK);
 
-    _executeProposalAndDeposit();
+    _executeProposalAndRelay();
 
     IReleaser releaser = IReleaser(readNewReleaser(recorder));
     IERC20 uni = IERC20(XLayer.RESOURCE);
@@ -162,10 +194,16 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     address tokenJar = uniswap.xLayer.tokenJar;
     address searcher = makeAddr("searcher");
 
+    // Let the threshold decay for two half-lives, to a quarter of the start threshold, and have the
+    // searcher write it to the releaser.
+    vm.warp(block.timestamp + 2 * XLayer.HALF_LIFE);
+    vm.prank(searcher);
+    uint256 threshold = IDecayingThresholdSetter(readThresholdSetter(recorder)).poke();
+    assertEq(threshold, XLayer.START_THRESHOLD / 4, "poke");
+    assertEq(releaser.threshold(), threshold, "releaser.threshold");
+
     // Have the searcher bridge the threshold in UNI from Ethereum to X Layer, and approve the
     // releaser to take it.
-    // TODO: pay the amount the deployed releaser requires, if it is not `threshold()`.
-    uint256 threshold = releaser.threshold();
     _bridgeUniToXLayer(searcher, threshold);
     vm.prank(searcher);
     uni.approve(address(releaser), threshold);
@@ -245,7 +283,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     new DeployXLayerReleaserHarness(testRecordName).run();
 
     // `run()` initialized the harness's own recorder. This one is the test's handle on the same
-    // file, which `readNewReleaser` and `buildReplaceReleaserCall` require initialized.
+    // file. The proposal builders and readers assume it is initialized.
     recorder.initialize({scriptName: testRecordName});
     return testRecordName;
   }
@@ -269,41 +307,71 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     if (vm.exists(recordPath)) vm.removeFile(recordPath);
   }
 
-  /// @dev Executes the proposal on Ethereum, then on X Layer executes the deposit transaction the
-  /// proposal created through X Layer's OptimismPortal, as X Layer does once it reads the deposit
-  /// from Ethereum. Asserts the proposal created exactly one deposit to the L2CrossDomainMessenger
-  /// and that the deposit transaction does not revert. Builds the proposal from `recorder`, which
-  /// must be initialized. Leaves the X Layer fork selected.
-  function _executeProposalAndDeposit() internal {
+  /// @dev Executes the proposal's two X Layer calls on Ethereum, then makes the calls that relay
+  /// their messages on X Layer, in order. Asserts the calls sent exactly two messages and that no
+  /// relay call reverts. Assumes `recorder` is initialized. Leaves the X Layer fork selected.
+  function _executeProposalAndRelay() internal {
     vm.selectFork(mainnetFork);
-    Call[] memory calls = LibCall.newCalls([buildReplaceReleaserCall(uniswap, recorder)]);
+    Call[] memory calls = LibCall.newCalls(
+      [buildReplaceReleaserCall(uniswap, recorder), buildStartDecayCall(uniswap, recorder)]
+    );
     address portal = IL1CrossDomainMessenger(uniswap.ethereum.bridge.xLayer).PORTAL();
 
     vm.recordLogs();
     executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
-    (address from, address to, uint256 value, uint64 gasLimit, bytes memory data) =
-      _depositFromLogs(vm.getRecordedLogs(), portal);
+    RelayMessageCall[] memory relayCalls = _relayMessageCallsFromLogs(vm.getRecordedLogs(), portal);
+
+    // Assert the calls sent two messages. The relay calls follow log order, which is proposal
+    // order.
+    assertEq(relayCalls.length, 2, "TransactionDeposited.count");
 
     vm.selectFork(xLayerFork);
 
-    // Send the deposit's calldata from its sender to its recipient with the gas its execution gets
-    // on X Layer: the deposit's gas limit less the transaction's intrinsic gas. The calldata is
-    // the L2CrossDomainMessenger's `relayMessage`, which forwards the proposal's message to the
-    // CrossChainAccount. If the message's gas limit is too low, the messenger records the message
-    // as failed instead of reverting, and the postflight check catches it.
-    vm.prank(from);
-    (bool success,) = to.call{value: value, gas: gasLimit - _intrinsicGas(data)}(data);
-    require(success, "deposit reverted");
+    // Make each relay call with the gas its execution gets on X Layer: the call's gas limit less
+    // the transaction's intrinsic gas. If a message's gas limit is too low, the
+    // L2CrossDomainMessenger records the message as failed instead of reverting, and the
+    // postflight check catches it.
+    for (uint256 i; i < relayCalls.length; i++) {
+      RelayMessageCall memory relayCall = relayCalls[i];
+      vm.prank(relayCall.from);
+      (bool success,) = relayCall.to
+      .call{value: relayCall.value, gas: relayCall.gasLimit - _intrinsicGas(relayCall.data)}(
+        relayCall.data
+      );
+      require(success, "relay call reverted");
+    }
   }
 
-  /// @dev Returns the fields of the one `TransactionDeposited` in `logs` that X Layer's
-  /// OptimismPortal at `portal` emitted for a deposit from X Layer's L1CrossDomainMessenger to the
-  /// L2CrossDomainMessenger.
-  function _depositFromLogs(Vm.Log[] memory logs, address portal)
+  /// @dev Returns, in log order, the relay calls that `portal`, X Layer's OptimismPortal, recorded
+  /// in `logs` for messages from X Layer's L1CrossDomainMessenger to the L2CrossDomainMessenger.
+  function _relayMessageCallsFromLogs(Vm.Log[] memory logs, address portal)
     internal
     view
-    returns (address from, address to, uint256 value, uint64 gasLimit, bytes memory data)
+    returns (RelayMessageCall[] memory relayCalls)
   {
+    uint256 count;
+    for (uint256 i; i < logs.length; i++) {
+      if (_isRelayedMessage(logs[i], portal)) count++;
+    }
+
+    relayCalls = new RelayMessageCall[](count);
+    uint256 next;
+    for (uint256 i; i < logs.length; i++) {
+      if (!_isRelayedMessage(logs[i], portal)) continue;
+      // Assert the event is version 0, the `opaqueData` layout {decodeOpaqueData} reads.
+      assertEq(uint256(logs[i].topics[3]), 0, "TransactionDeposited.version");
+      RelayMessageCall memory relayCall = relayCalls[next++];
+      relayCall.from = AddressAliasHelper.applyL1ToL2Alias(uniswap.ethereum.bridge.xLayer);
+      relayCall.to = Predeploys.L2_CROSS_DOMAIN_MESSENGER;
+      (relayCall.value, relayCall.gasLimit, relayCall.data) =
+        this.decodeOpaqueData(abi.decode(logs[i].data, (bytes)));
+    }
+  }
+
+  /// @dev Returns whether `portal`, X Layer's OptimismPortal, emitted `log` as a
+  /// {TransactionDeposited} for a message from X Layer's L1CrossDomainMessenger to the
+  /// L2CrossDomainMessenger.
+  function _isRelayedMessage(Vm.Log memory log, address portal) internal view returns (bool) {
     // event TransactionDeposited(
     //    address indexed from,
     //    address indexed to,
@@ -311,29 +379,16 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     //    bytes opaqueData
     // );
     //
-    // The portal names the L1 messenger by its aliased address, which is the deposit's sender on
-    // X Layer.
-    from = AddressAliasHelper.applyL1ToL2Alias(uniswap.ethereum.bridge.xLayer);
-    to = Predeploys.L2_CROSS_DOMAIN_MESSENGER;
-
-    uint256 found;
-    for (uint256 i; i < logs.length; i++) {
-      if (logs[i].emitter != portal) continue;
-      if (logs[i].topics[0] != IOptimismPortal2.TransactionDeposited.selector) continue;
-      // An indexed address is left-padded to the 32-byte topic.
-      if (logs[i].topics[1] != bytes32(uint256(uint160(from)))) continue;
-      if (logs[i].topics[2] != bytes32(uint256(uint160(to)))) continue;
-      // Assert the deposit is version 0, the `opaqueData` layout `decodeOpaqueData` reads.
-      assertEq(uint256(logs[i].topics[3]), 0, "TransactionDeposited.version");
-      (value, gasLimit, data) = this.decodeOpaqueData(abi.decode(logs[i].data, (bytes)));
-      found++;
-    }
-    // There should be exactly one such event.
-    assertEq(found, 1, "TransactionDeposited.count");
+    // The portal names the L1 messenger by its aliased address, which is the relay call's sender
+    // on X Layer.
+    address from = AddressAliasHelper.applyL1ToL2Alias(uniswap.ethereum.bridge.xLayer);
+    return log.emitter == portal && log.topics[0] == IOptimismPortal2.TransactionDeposited.selector
+      && log.topics[1] == bytes32(uint256(uint160(from)))
+      && log.topics[2] == bytes32(uint256(uint160(Predeploys.L2_CROSS_DOMAIN_MESSENGER)));
   }
 
-  /// @dev Decodes a version 0 deposit's `opaqueData` into the fields the deposit transaction uses.
-  /// External so it can slice calldata.
+  /// @dev Decodes the `opaqueData` of a version 0 {TransactionDeposited} event into the fields of
+  /// the relay call it records. External so it can slice calldata.
   ///
   /// The Optimism contracts have no Solidity decoder for `opaqueData`, so we write one here. The
   /// layout is `mint` (32 bytes), `value` (32 bytes), `gasLimit` (8 bytes), `isCreation` (1 byte),
@@ -342,7 +397,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
   /// - The encoder: `OptimismPortal2.depositTransaction` packs it as
   ///   `abi.encodePacked(msg.value, _value, _gasLimit, _isCreation, _data)`, in
   ///   `packages/contracts-bedrock/src/L1/OptimismPortal2.sol`.
-  /// - The decoder: the OP Stack node builds the deposit transaction from the same layout in
+  /// - The decoder: the OP Stack node builds the relay call from the same layout in
   ///   `unmarshalDepositVersion0`, in `op-node/rollup/derive/deposit_log.go`.
   function decodeOpaqueData(bytes calldata opaqueData)
     external
@@ -358,9 +413,9 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
   /// and 16 per non-zero byte of calldata, as set out in the Ethereum Yellow Paper's Appendix G and
   /// EIP-2028.
   ///
-  /// We subtract it on the assumption that X Layer charges deposit transactions intrinsic gas like
-  /// any other transaction. If it does not, execution gets more gas than we give it, so the test
-  /// errs strict.
+  /// We subtract it because we assume X Layer charges relay calls intrinsic gas like any other
+  /// transaction. If it does not, execution gets more gas than we give it, so the test errs
+  /// strict.
   function _intrinsicGas(bytes memory data) internal pure returns (uint256 gas) {
     gas = 21_000;
     for (uint256 i; i < data.length; i++) {

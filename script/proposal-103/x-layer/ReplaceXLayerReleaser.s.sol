@@ -15,33 +15,45 @@ import {
   ICrossDomainMessenger
 } from "@eth-optimism-bedrock/interfaces/universal/ICrossDomainMessenger.sol";
 
+import {IDecayingThresholdSetter} from "../../../src/interfaces/IDecayingThresholdSetter.sol";
 import {RECORD_NAME, Records, smokeCheck} from "./Constants.sol";
-import {checkNewReleaser} from "./ReleaserCheck.sol";
+import {checkNewReleaser, checkThresholdSetter} from "./ReleaserCheck.sol";
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// This action is one Ethereum call that sends one message to X Layer. The X Layer TokenJar is owned
-// by Uniswap's CrossChainAccount there, which only forwards calls relayed from the Timelock via
-// L2CrossDomainMessenger. The Timelock sends through X Layer's L1CrossDomainMessenger, the
-// message is delivered to the CrossChainAccount, which calls the TokenJar.
+// This action is two Ethereum calls, each of which sends one message to X Layer. Uniswap's
+// CrossChainAccount on X Layer owns the TokenJar and is the {DecayingThresholdSetter}'s governance.
+// It makes one call per message, and only for messages the Timelock sends through X Layer's
+// L1CrossDomainMessenger:
 //
-// The new releaser is deployed ahead of the vote by `prereq/DeployXLayerReleaser.s.sol`, which
-// records its address in `.records/XLayer.json`. This script reads it from there.
+// - Message 00, {buildReplaceReleaserCall}: set the TokenJar's releaser to the new releaser.
+// - Message 01, {buildStartDecayCall}: start the {DecayingThresholdSetter}. It follows message 00
+//   because {DecayingThresholdSetter-start} requires the TokenJar to release through the new
+//   releaser.
 //
-// `../Proposal103.s.sol` runs `preflightEthereum()`. Run `preflightXLayer()` against X Layer before
-// proposing, to check that the new releaser is deployed and authority is transferred, and that the
+// X Layer relays the messages in the order the proposal sends them. If message 01 fails on X Layer,
+// the L2CrossDomainMessenger records it as failed, and anyone can replay it. Until then the new
+// releaser charges `XLayer.START_THRESHOLD`.
+//
+// `prereq/DeployXLayerReleaser.s.sol` deploys the new releaser and the {DecayingThresholdSetter}
+// before the vote, and records their addresses in `.records/XLayer.json`. This script reads them
+// from there.
+//
+// `../Proposal103.s.sol` runs `preflightEthereum()`. Before proposing, run `preflightXLayer()`
+// against X Layer. It checks the settings of the new releaser and the setter, and that the
 // Timelock still controls the CrossChainAccount:
 //
 //    forge script script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol \
 //      --sig "preflightXLayer()" --rpc-url xlayer
 //
-// The OP Stack bridge relays the message to X Layer by itself once the proposal executes.
+// The OP Stack bridge relays the messages to X Layer by itself once the proposal executes.
 //
 
-/// @dev Returns the call that replaces the X Layer releaser. A free function so the fork tests, and
-///      anything outside this repo, build the same call the proposal carries without deploying a
-///      script. Reads the new releaser from `recorder`, which must be initialized.
+/// @dev Returns the call that sends message 00, which replaces the X Layer releaser. A free
+///      function, so the fork tests and anything outside this repo build the call in the proposal
+///      without deploying a script. Reads the new releaser from `recorder`. Assumes
+///      `recorder` is initialized.
 function buildReplaceReleaserCall(Uniswap storage uniswap, Recorder storage recorder)
   view
   returns (Call memory)
@@ -52,7 +64,7 @@ function buildReplaceReleaserCall(Uniswap storage uniswap, Recorder storage reco
   // Set the X Layer TokenJar's releaser to the new releaser, as one message through X Layer's
   // L1CrossDomainMessenger to the CrossChainAccount, which owns the TokenJar.
 
-  // Remote call 00
+  // Message 00, remote call 00
   //
   // Set `TokenJar.releaser` to the new releaser. Requires the CrossChainAccount to be the
   // TokenJar's `owner`.
@@ -81,9 +93,52 @@ function buildReplaceReleaserCall(Uniswap storage uniswap, Recorder storage reco
   });
 }
 
-/// @dev Returns the new releaser's address from `recorder`, which must be initialized.
+/// @dev Returns the call that sends message 01, which starts the {DecayingThresholdSetter}'s decay.
+///      A free function for the same reason as {buildReplaceReleaserCall}. Reads the setter from
+///      `recorder`. Assumes `recorder` is initialized.
+function buildStartDecayCall(Uniswap storage uniswap, Recorder storage recorder)
+  view
+  returns (Call memory)
+{
+  smokeCheck();
+  address thresholdSetter = readThresholdSetter(recorder);
+
+  // Message 01, remote call 00
+  //
+  // Start the decay. {DecayingThresholdSetter-start} makes the setter the releaser's
+  // threshold-setter and sets the threshold to `START_THRESHOLD`. It requires:
+  //
+  // - the CrossChainAccount to be the setter's `GOVERNANCE`;
+  // - the setter to own the releaser;
+  // - the TokenJar to release through the releaser, which message 00 sets;
+  // - the releaser's threshold to be at least `START_THRESHOLD`.
+  //
+  // Parameters:
+  //
+  // - `target`: the {DecayingThresholdSetter}.
+  //
+  Call memory start = Call({
+    target: thresholdSetter, value: 0, data: abi.encodeCall(IDecayingThresholdSetter.start, ())
+  });
+
+  // The `sendMessage` envelope, as for message 00, with the encoder's default `_minGasLimit`,
+  // 200,000.
+  return L1CrossDomainMessengerEncoder.encode({
+    l1CrossDomainMessenger: uniswap.ethereum.bridge.xLayer,
+    crossChainAccount: uniswap.xLayer.crossChainAccount,
+    remoteCall: start
+  });
+}
+
+/// @dev Returns the new releaser's address from `recorder`. Assumes `recorder` is initialized.
 function readNewReleaser(Recorder storage recorder) view returns (address) {
   return recorder.read({chainId: ChainId.XLayer, deploymentName: Records.RELEASER});
+}
+
+/// @dev Returns the {DecayingThresholdSetter}'s address from `recorder`. Assumes `recorder` is
+///      initialized.
+function readThresholdSetter(Recorder storage recorder) view returns (address) {
+  return recorder.read({chainId: ChainId.XLayer, deploymentName: Records.THRESHOLD_SETTER});
 }
 
 contract ReplaceXLayerReleaser is Script {
@@ -127,8 +182,9 @@ contract ReplaceXLayerReleaser is Script {
 
   /// @dev Asserts X Layer is in the state this action assumes: the message path from the Timelock
   ///      reaches the CrossChainAccount, the CrossChainAccount owns the TokenJar, the TokenJar
-  ///      still has the old releaser, and the recorded new releaser passes `checkNewReleaser`.
-  ///      Run against X Layer. Logs the block it ran at.
+  ///      still has the old releaser, and the recorded new releaser and {DecayingThresholdSetter}
+  ///      pass {checkNewReleaser} and {checkThresholdSetter}. Run against X Layer. Logs the block
+  ///      it ran at.
   function preflightXLayer() public {
     smokeCheck();
     _initializeRecorder();
@@ -159,15 +215,20 @@ contract ReplaceXLayerReleaser is Script {
     require(tokenJar.owner() == crossChainAccount, "tokenJar.owner");
     require(tokenJar.releaser() == uniswap.xLayer.releaser, "tokenJar.releaser");
 
-    // New releaser
+    // New releaser and {DecayingThresholdSetter}
     address newReleaser = readNewReleaser(recorder);
-    checkNewReleaser(uniswap, newReleaser);
+    address thresholdSetter = readThresholdSetter(recorder);
+    checkNewReleaser(uniswap, newReleaser, thresholdSetter);
+    checkThresholdSetter(uniswap, thresholdSetter, newReleaser);
     console.log("new releaser ready", newReleaser);
+    console.log("threshold setter ready", thresholdSetter);
   }
 
-  /// @dev Asserts the TokenJar's releaser is the new releaser. The fork tests call this after
-  ///      relaying the proposal's message; after the message lands onchain, run it against X
-  ///      Layer to verify the outcome: `--sig "postflightXLayer()" --rpc-url xlayer`.
+  /// @dev Asserts the TokenJar releases through the new releaser and the
+  /// {DecayingThresholdSetter}'s decay has started. The fork tests call it after they relay the
+  /// proposal's messages. After
+  ///      the messages execute on X Layer, run it there:
+  ///      `--sig "postflightXLayer()" --rpc-url xlayer`.
   function postflightXLayer() public {
     require(block.chainid == ChainId.XLayer, "not X Layer");
     console.log("postflightXLayer ReplaceXLayerReleaser at block", block.number);
@@ -176,6 +237,16 @@ contract ReplaceXLayerReleaser is Script {
     address newReleaser = readNewReleaser(recorder);
     require(ITokenJar(uniswap.xLayer.tokenJar).releaser() == newReleaser, "tokenJar.releaser");
     console.log("releaser replaced", newReleaser);
+
+    // Assert the recorded setter belongs to the new releaser, so its `startTime` describes the
+    // releaser the TokenJar now uses.
+    IDecayingThresholdSetter setter = IDecayingThresholdSetter(readThresholdSetter(recorder));
+    require(address(setter.RELEASER()) == newReleaser, "thresholdSetter.RELEASER");
+
+    // Assert message 01 started the decay. A message 01 that failed on X Layer, for example by
+    // arriving before message 00, leaves `startTime` at 0.
+    require(setter.startTime() != 0, "thresholdSetter.startTime");
+    console.log("decay started", address(setter));
   }
 
   /// @dev Points `recorder` at the record the prerequisite script wrote.
@@ -183,8 +254,8 @@ contract ReplaceXLayerReleaser is Script {
     recorder.initialize({scriptName: _recordName()});
   }
 
-  /// @dev The record file to read the new releaser from. Tests override this with a test record
-  ///      name to read a deployment they made on the fork.
+  /// @dev Returns the record file that holds the new releaser and the {DecayingThresholdSetter}.
+  ///      Tests override it to read a deployment they made on the fork.
   function _recordName() internal view virtual returns (string memory) {
     return RECORD_NAME;
   }

@@ -55,12 +55,12 @@ contract Proposal103ForkTest is Test {
     // Assert the hook runs the new implementation
     new UpgradeVolatileHook().postflightEthereum();
 
-    // Assert X Layer's messenger sent a single message, to the CrossChainAccount
+    // Assert X Layer's messenger sent two messages, both to the CrossChainAccount
     assertEq(
       countOPStackSentMessages(
         logs, uniswap.ethereum.bridge.xLayer, uniswap.xLayer.crossChainAccount
       ),
-      1,
+      2,
       "SentMessage.count"
     );
 

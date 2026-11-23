@@ -10,7 +10,8 @@ import {Call, LibCall} from "govkit/types/Call.sol";
 
 import {
   ReplaceXLayerReleaser,
-  buildReplaceReleaserCall
+  buildReplaceReleaserCall,
+  buildStartDecayCall
 } from "../../../../script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol";
 import {executeAsTimelock} from "../../../utils/TimelockExecution.sol";
 import {XLayerStandIns} from "../../../utils/XLayerStandIns.sol";
@@ -42,23 +43,26 @@ contract ReplaceXLayerReleaserEthereumForkTest is Test {
     new ReplaceXLayerReleaser().preflightEthereum(MAINNET_BLOCK);
   }
 
-  /// @dev Executes the X Layer action as the Timelock and asserts it sent exactly one message
-  /// through X Layer's real L1CrossDomainMessenger, addressed to the X Layer CrossChainAccount. The
-  /// message is not compared here; the X Layer fork test relays it and asserts its effect.
+  /// @dev Executes the two X Layer calls as the Timelock, and asserts they sent exactly two
+  /// messages through X Layer's L1CrossDomainMessenger, both to the X Layer CrossChainAccount. The
+  /// X Layer
+  /// fork test relays the messages and asserts their effect.
   function test_execute() public {
-    Call[] memory calls = LibCall.newCalls([buildReplaceReleaserCall(uniswap, recorder)]);
+    Call[] memory calls = LibCall.newCalls(
+      [buildReplaceReleaserCall(uniswap, recorder), buildStartDecayCall(uniswap, recorder)]
+    );
 
     // Execute the proposal as the Timelock, recording what it emits.
     vm.recordLogs();
     executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
     Vm.Log[] memory logs = vm.getRecordedLogs();
 
-    // Assert X Layer's messenger sent a single message, to the CrossChainAccount.
+    // Assert X Layer's messenger sent two messages, both to the CrossChainAccount.
     assertEq(
       countOPStackSentMessages(
         logs, uniswap.ethereum.bridge.xLayer, uniswap.xLayer.crossChainAccount
       ),
-      1,
+      2,
       "SentMessage.count"
     );
   }

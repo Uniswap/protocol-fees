@@ -10,7 +10,8 @@ import {Proposal} from "govkit/types/Proposal.sol";
 
 import {buildProposal} from "../../../script/proposal-103/Proposal103.s.sol";
 import {
-  buildReplaceReleaserCall
+  buildReplaceReleaserCall,
+  buildStartDecayCall
 } from "../../../script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol";
 import {
   buildUpgradeVolatileHookCall
@@ -33,15 +34,16 @@ contract Proposal103Test is Test {
     XLayerStandIns.writeRecord(recorder, RECORD_NAME);
   }
 
-  /// @dev Asserts the proposal is exactly the hook upgrade, then the X Layer action, then the
-  /// Arbitrum fee config update.
+  /// @dev Asserts the proposal is exactly the hook upgrade, then the two X Layer messages in
+  /// order, then the Arbitrum fee config update.
   function test_buildProposal() public view {
     Proposal memory proposal = buildProposal(uniswap, recorder);
 
-    assertEq(proposal.calls.length, 3, "calls.length");
+    assertEq(proposal.calls.length, 4, "calls.length");
     _assertEq(proposal.calls[0], buildUpgradeVolatileHookCall(), "calls[0]");
     _assertEq(proposal.calls[1], buildReplaceReleaserCall(uniswap, recorder), "calls[1]");
-    _assertEq(proposal.calls[2], buildUpdateStableHookFeeConfigCall(uniswap), "calls[2]");
+    _assertEq(proposal.calls[2], buildStartDecayCall(uniswap, recorder), "calls[2]");
+    _assertEq(proposal.calls[3], buildUpdateStableHookFeeConfigCall(uniswap), "calls[3]");
   }
 
   /// @dev Asserts `actual` and `expected` are the same call.

@@ -8,15 +8,18 @@ import {Uniswap} from "govkit/types/Uniswap.sol";
 import {ChainId} from "govkit/constants/ChainId.sol";
 
 import {XLayerReleaser} from "../../../../src/releasers/XLayerReleaser.sol";
+import {DecayingThresholdSetter} from "../../../../src/DecayingThresholdSetter.sol";
 import {RECORD_NAME, Records, XLayer, smokeCheck} from "../Constants.sol";
-import {checkNewReleaser} from "../ReleaserCheck.sol";
+import {checkNewReleaser, checkThresholdSetter} from "../ReleaserCheck.sol";
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// Deploys the releaser the proposal installs on the X Layer TokenJar, hands it to the
-// CrossChainAccount, and records its address in `.records/XLayer.json`, where the proposal reads
-// it. Anyone can run it; the deployer holds no authority once it finishes.
+// Deploys the releaser the proposal installs on the X Layer TokenJar, and the
+// {DecayingThresholdSetter} the proposal starts. Makes the setter the releaser's owner and the
+// CrossChainAccount its threshold-setter, then records both addresses in `.records/XLayer.json`,
+// where the proposal reads them. Anyone can run it. The deployer holds no authority once it
+// finishes.
 //
 // forge script script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol --rpc-url xlayer \
 //   --broadcast
@@ -32,15 +35,17 @@ contract DeployXLayerReleaser is Script {
   Uniswap internal uniswap;
 
   XLayerReleaser internal releaser;
+  DecayingThresholdSetter internal thresholdSetter;
 
   function run() external {
     _initialize();
 
-    // The recorder writes only after `checkNewReleaser` passes and never during a dry run, so a
-    // record here means an earlier `--broadcast` run simulated cleanly. Overwriting it would
-    // strand the proposal on the old address, so to redeploy, deliberately clear the record.
+    // The recorder writes only after the checks pass, and never in a dry run, so a record here
+    // means an earlier `--broadcast` run simulated cleanly. Overwriting it would make the record
+    // disagree with a proposal built from it. To redeploy, clear the record first.
     require(
-      !recorder.exists({chainId: ChainId.XLayer, deploymentName: Records.RELEASER}),
+      !recorder.exists({chainId: ChainId.XLayer, deploymentName: Records.RELEASER})
+        && !recorder.exists({chainId: ChainId.XLayer, deploymentName: Records.THRESHOLD_SETTER}),
       "already deployed: clear .records/ to redeploy"
     );
 
@@ -51,58 +56,88 @@ contract DeployXLayerReleaser is Script {
     // -----------------------------------------------------------------------------------------
     // Transaction 00
     //
-    // Deploy `XLayerReleaser`. The deployer is its owner until transaction 02.
+    // Deploy {XLayerReleaser}. The deployer owns it until transaction 03.
     //
     // Parameters:
     //
     // - `_bridge`: the unified bridge on X Layer.
     // - `_resource`: the bridge's wrapped UNI.
     // - `_l1Resource`: UNI on Ethereum, which the bridge maps `_resource` to.
-    // - `_threshold`: the initial threshold.
+    // - `_threshold`: the setter's start threshold, which {DecayingThresholdSetter-start} requires
+    //   the releaser to meet.
     // - `_tokenJar`: the X Layer TokenJar.
     //
     releaser = new XLayerReleaser({
       _bridge: XLayer.TOKEN_BRIDGE,
       _resource: XLayer.RESOURCE,
       _l1Resource: uniswap.ethereum.uni,
-      _threshold: XLayer.INITIAL_THRESHOLD,
+      _threshold: XLayer.START_THRESHOLD,
       _tokenJar: uniswap.xLayer.tokenJar
     });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 01
     //
-    // Set the releaser's threshold-setter to the CrossChainAccount.
+    // Deploy {DecayingThresholdSetter} for the releaser. Its constructor reads its governance from
+    // the TokenJar's owner, the CrossChainAccount.
     //
-    // TODO: once the decaying threshold setter is deployed, make it both the threshold-setter here
-    // and the owner in transaction 02, and assert both in `checkNewReleaser`. It takes the
-    // threshold from 60,000 UNI to 2,000 UNI, then sets the CrossChainAccount as threshold-setter
-    // and owner; it needs ownership because only the owner can change the threshold-setter.
-    releaser.setThresholdSetter({_thresholdSetter: crossChainAccount});
+    // Parameters:
+    //
+    // - `_releaser`: the releaser from transaction 00.
+    // - `_startThreshold`: the threshold when the decay starts.
+    // - `_floorThreshold`: the threshold the decay ends at.
+    // - `_halfLife`: the time over which the threshold halves.
+    //
+    thresholdSetter = new DecayingThresholdSetter({
+      _releaser: address(releaser),
+      _startThreshold: XLayer.START_THRESHOLD,
+      _floorThreshold: XLayer.FLOOR_THRESHOLD,
+      _halfLife: XLayer.HALF_LIFE
+    });
 
     // -----------------------------------------------------------------------------------------
     // Transaction 02
     //
-    // Transfer ownership of the releaser to the CrossChainAccount.
-    releaser.transferOwnership({newOwner: crossChainAccount});
+    // Make the CrossChainAccount the releaser's threshold-setter. The proposal's
+    // {DecayingThresholdSetter-start} makes the setter the threshold-setter in its place.
+    releaser.setThresholdSetter({_thresholdSetter: crossChainAccount});
+
+    // -----------------------------------------------------------------------------------------
+    // Transaction 03
+    //
+    // Transfer ownership of the releaser to the {DecayingThresholdSetter}, which
+    // {DecayingThresholdSetter-start} requires. The setter returns ownership to the
+    // CrossChainAccount once the threshold reaches the floor.
+    releaser.transferOwnership({newOwner: address(thresholdSetter)});
 
     vm.stopBroadcast();
 
-    checkNewReleaser(uniswap, address(releaser));
+    checkNewReleaser(uniswap, address(releaser), address(thresholdSetter));
+    checkThresholdSetter(uniswap, address(thresholdSetter), address(releaser));
     recorder.write({
       chainId: ChainId.XLayer, deploymentName: Records.RELEASER, deployment: address(releaser)
     });
+    recorder.write({
+      chainId: ChainId.XLayer,
+      deploymentName: Records.THRESHOLD_SETTER,
+      deployment: address(thresholdSetter)
+    });
     console.log("XLayerReleaser:", address(releaser));
+    console.log("DecayingThresholdSetter:", address(thresholdSetter));
   }
 
-  /// @dev Verifies a recorded deployment against the chain the script is pointed at. `run`
-  ///      applies the same assertions to its own simulation before recording; this applies them
-  ///      to live state, reading the deployment out of the record.
+  /// @dev Verifies a recorded deployment against the chain the script points at. {run} applies the
+  ///      same assertions to its own simulation before it records. {check} applies them to live
+  ///      state, reading the deployment from the record. It passes only before the proposal
+  ///      executes, because {DecayingThresholdSetter-start} sets the setter's `startTime`.
   function check() external {
     _initialize();
-    checkNewReleaser(
-      uniswap, recorder.read({chainId: ChainId.XLayer, deploymentName: Records.RELEASER})
-    );
+    address recordedReleaser =
+      recorder.read({chainId: ChainId.XLayer, deploymentName: Records.RELEASER});
+    address recordedThresholdSetter =
+      recorder.read({chainId: ChainId.XLayer, deploymentName: Records.THRESHOLD_SETTER});
+    checkNewReleaser(uniswap, recordedReleaser, recordedThresholdSetter);
+    checkThresholdSetter(uniswap, recordedThresholdSetter, recordedReleaser);
   }
 
   /// @dev Preamble shared by `run` and `check`.
