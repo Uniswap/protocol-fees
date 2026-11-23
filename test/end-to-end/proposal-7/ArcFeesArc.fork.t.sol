@@ -23,7 +23,6 @@ import {
 } from "lib/native-token-transfers/evm/src/interfaces/IWormholeTransceiver.sol";
 
 import {ArcFees, buildProposal} from "../../../script/proposal-7/ArcFees.s.sol";
-import {DeployFeeInfraArc} from "../../../script/proposal-7/prereq/DeployFeeInfraArc.s.sol";
 import {IUniswapWormholeMessageReceiver} from "../../../script/proposal-7/Interfaces.sol";
 import "../../../script/proposal-7/params/Constants.sol" as Constants;
 import {WormholeDecode} from "../../utils/WormholeDecode.sol";
@@ -42,22 +41,6 @@ uint256 constant MAINNET_BLOCK = 25_992_796;
 
 address constant BURN_ADDRESS = address(0xdead);
 
-/// @dev The prerequisite script, pointed at the record named at construction.
-contract DeployFeeInfraArcHarness is DeployFeeInfraArc {
-  string internal recordName;
-
-  constructor(string memory recordName_) {
-    // Each test deploys under its own name: forge runs test functions in parallel and `run()`
-    // writes the record to disk.
-    recordName = recordName_;
-  }
-
-  function _recordName() internal view override returns (string memory) {
-    return recordName;
-  }
-}
-
-/// @dev Tests for the Arc half of the proposal, against an Arc fork.
 contract ArcFeesArcForkTest is Test {
   Uniswap internal uniswap;
   Recorder internal recorder;
@@ -78,67 +61,10 @@ contract ArcFeesArcForkTest is Test {
     new ArcFees().preflightArc(ARC_BLOCK);
   }
 
-  /// @dev Assert a missing governance handoff stops the prerequisite before deployment.
-  function test_DeployFeeInfraArc_rejectsMissingFactoryAuthority() public {
-    DeployFeeInfraArcHarness deployer = new DeployFeeInfraArcHarness("ArcForkPreflightTest");
-    vm.mockCall(
-      Constants.Arc.V2_FACTORY,
-      abi.encodeCall(IUniswapV2Factory.feeToSetter, ()),
-      abi.encode(address(0))
-    );
-
-    vm.expectRevert(bytes("v2Factory.feeToSetter"));
-    deployer.run();
-  }
-
-  /// @dev Assert a V3 owner other than the receiver stops the prerequisite before deployment.
-  function test_DeployFeeInfraArc_rejectsWrongV3Owner() public {
-    DeployFeeInfraArcHarness deployer = new DeployFeeInfraArcHarness("ArcForkWrongV3OwnerTest");
-    vm.mockCall(
-      Constants.Arc.V3_FACTORY,
-      abi.encodeCall(IUniswapV3Factory.owner, ()),
-      abi.encode(address(0xBEEF))
-    );
-
-    vm.expectRevert(bytes("v3Factory.owner"));
-    deployer.run();
-  }
-
-  /// @dev Asserts the Arc deployment passes the prerequisite script's own checks.
-  function test_DeployFeeInfraArc() public {
-    // Against the live deployment, `check()` loads the real record and runs `_check` on it.
-    if (_liveRecordExists()) {
-      new DeployFeeInfraArc().check();
-      return;
-    }
-
-    // Otherwise deploy. Inside `run()`, `_check` asserts the deployment against the script's own
-    // params before `_record` writes it, so a record with every key means the deployment passed
-    // its own check.
-    _loadArcDeployment(false, "ArcForkDeployTest");
-
-    uint256 chainId = Constants.Arc.CHAIN_ID;
-    string[10] memory keys = [
-      Constants.Records.SYNTHETIC_NTT_UNI,
-      Constants.Records.NTT_MANAGER_IMPLEMENTATION,
-      Constants.Records.NTT_MANAGER,
-      Constants.Records.WORMHOLE_TRANSCEIVER_IMPLEMENTATION,
-      Constants.Records.WORMHOLE_TRANSCEIVER,
-      Constants.Records.TOKEN_JAR,
-      Constants.Records.RELEASER,
-      Constants.Records.V3_OPEN_FEE_ADAPTER,
-      Constants.Records.V4_FEE_ADAPTER,
-      Constants.Records.V4_FEE_POLICY
-    ];
-    for (uint256 i; i < keys.length; i++) {
-      assertTrue(recorder.exists(chainId, keys[i]), keys[i]);
-    }
-  }
-
   /// @dev Delivers the proposal's Arc message through the deployed receiver and asserts it
   /// dispatched exactly the calls decoded from the proposal and flipped the three fee switches.
   function test_receiveMessage() public {
-    _loadArcDeployment(_liveRecordExists(), "ArcForkActivateTest");
+    _loadArcDeployment();
 
     uint256 chainId = Constants.Arc.CHAIN_ID;
     address tokenJar = recorder.read(chainId, Constants.Records.TOKEN_JAR);
@@ -170,7 +96,7 @@ contract ArcFeesArcForkTest is Test {
   /// to Ethereum, asserting UNI unlocks to the burn address once the proposal has registered the
   /// Arc peers, and not before.
   function test_burnOnArcReleasesOnEthereum() public {
-    _loadArcDeployment(_liveRecordExists(), "ArcForkBurnTest");
+    _loadArcDeployment();
 
     uint256 chainId = Constants.Arc.CHAIN_ID;
     // Get the deployed contracts from the test record.
@@ -236,36 +162,13 @@ contract ArcFeesArcForkTest is Test {
 
   // -- helpers ----------------------------------------------------------------------------------
 
-  /// @dev Whether the prerequisite script has recorded the live Arc deployment.
-  function _liveRecordExists() internal view returns (bool) {
-    // Checked with `vm.exists` rather than through the recorder, whose `initialize` would create
-    // an empty real record if none existed.
-    return vm.exists(string.concat(".records/", Constants.RECORD_NAME, ".json"));
-  }
-
-  /// @dev Points `recorder` at the live Arc deployment if `isLive`, else runs the prerequisite
-  /// script on the fork under `testRecordName` and points `recorder` at that.
-  function _loadArcDeployment(bool isLive, string memory testRecordName) internal {
-    if (isLive) {
-      recorder.initialize({scriptName: Constants.RECORD_NAME});
-      // The fee switches only store addresses, so a test could pass against a record whose
-      // contracts do not exist yet at the pinned block. Fail here instead, naming the cause.
-      address tokenJar = recorder.read(Constants.Arc.CHAIN_ID, Constants.Records.TOKEN_JAR);
-      require(tokenJar.code.length != 0, "ARC_BLOCK predates the live deployment");
-      return;
-    }
-
-    // Remove any record an earlier run left, or `run()` refuses to deploy over it. The name is
-    // specific to the test and distinct from the real record.
-    string memory recordPath = string.concat(".records/", testRecordName, ".json");
-    if (vm.exists(recordPath)) vm.removeFile(recordPath);
-
-    new DeployFeeInfraArcHarness(testRecordName).run();
-
-    // `run()` initialized the harness's own recorder, a different storage struct in a different
-    // contract. This one is the test's handle on the same file: `read` and `buildProposal`
-    // require it initialized. Initializing it does not touch a file that already exists.
-    recorder.initialize({scriptName: testRecordName});
+  /// @dev Points `recorder` at the live Arc deployment.
+  function _loadArcDeployment() internal {
+    recorder.initialize({scriptName: Constants.RECORD_NAME});
+    // The fee switches only store addresses, so a test could pass against a record whose
+    // contracts do not exist yet at the pinned block. Fail here instead, naming the cause.
+    address tokenJar = recorder.read(Constants.Arc.CHAIN_ID, Constants.Records.TOKEN_JAR);
+    require(tokenJar.code.length != 0, "ARC_BLOCK predates the live deployment");
   }
 
   /// @dev Executes the proposal on Ethereum and returns the payload published by its real

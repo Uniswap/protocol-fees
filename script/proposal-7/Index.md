@@ -36,6 +36,8 @@ Separately, the governance-owned `UniswapWormholeMessageReceiver` must be deploy
 
 ### 1. Deploy fee infra
 
+> Note: This step is complete. `.records/Arc.json` records the deployment. The deploy script and its helpers (`script/shared/FeeSchedule.sol` and `script/shared/V4FeePolicyAssignments.sol`) use the v1 `V4FeePolicy`. This branch has the v2 `V4FeePolicy` and does not contain these files. The links below go to the files on `main` at `eacc9c013c`.
+
 **Overview**:
 
 On Arc we deploy `SyntheticNttUni`, `NttManagerNoRateLimiting`, `WormholeTransceiver`, and `ERC1967Proxy` contracts for the latter. We initialize the proxies, register the transceiver with the manager, set `SyntheticNttUni`'s minting authority to the manager, and register Ethereum as a peer on both. We then transfer everything to the governance receiver and renounce the pauser capability on both proxies.
@@ -48,7 +50,7 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 
 **V4 fee policy assignments**:
 
-[`params/v4-fee-policy.json`](./params/v4-fee-policy.json) holds the per-chain `V4FeePolicy` assignments, keyed by EIP-155 chain id. The script reads the entry for the chain it is running on, through [`script/shared/V4FeePolicyAssignments.sol`](../shared/V4FeePolicyAssignments.sol), and fails if that chain has no entry.
+[`params/v4-fee-policy.json`](./params/v4-fee-policy.json) holds the per-chain `V4FeePolicy` assignments, keyed by EIP-155 chain id. The script reads the entry for the chain it is running on, through [`script/shared/V4FeePolicyAssignments.sol`](https://github.com/Uniswap/protocol-fees/blob/eacc9c013c/script/shared/V4FeePolicyAssignments.sol), and fails if that chain has no entry.
 
 ```json
 {
@@ -69,7 +71,7 @@ The v3 tier defaults match every chain where fees are live. The v4 fee buckets, 
 
 **Foundry Script**:
 
-[`./prereq/DeployFeeInfraArc.s.sol`](./prereq/DeployFeeInfraArc.s.sol)
+[`./prereq/DeployFeeInfraArc.s.sol`](https://github.com/Uniswap/protocol-fees/blob/eacc9c013c/script/proposal-7/prereq/DeployFeeInfraArc.s.sol)
 
 **Shell Command**:
 
@@ -383,7 +385,7 @@ Persistent tests for both halves of the proposal live in [`test/end-to-end/propo
 | ---- | ---- | ------ |
 | `ArcFeesProposal.t.sol` | none | `encodeWormhole` inverts under [`test/utils/WormholeDecode.sol`](../../test/utils/WormholeDecode.sol), and `buildProposal` emits the three actions with the expected targets, values, and calldata |
 | `ArcFeesEthereum.fork.t.sol` | Ethereum, pinned | `preflightEthereum()` holds; executing the proposal as the Timelock registers the Arc peers on the live NTT contracts, and publishes the Arc message from the live sender |
-| `ArcFeesArc.fork.t.sol` | Arc and Ethereum, pinned | `preflightArc()` holds; step 1 runs and records every deployment; executing the proposal on Ethereum publishes an Arc message from the live sender, whose payload is delivered to the deployed receiver with the Arc core's `parseAndVerifyVM` mocked; the receiver dispatches exactly the calls decoded from the proposal and sets `feeTo`, the v3 `owner`, and the `protocolFeeController`; a release through the Arc `WormholeReleaser`, delivered to the live Ethereum transceiver with the mainnet core's `parseAndVerifyVM` mocked, is refused before actions 00 and 01 execute and unlocks UNI to the burn address after. Until `.records/Arc.json` exists, each test deploys under its own record name; once it does, the tests read it and run against the live deployment, with `ARC_BLOCK` moved past it |
+| `ArcFeesArc.fork.t.sol` | Arc and Ethereum, pinned | `preflightArc()` holds; executing the proposal on Ethereum publishes an Arc message from the live sender, whose payload is delivered to the deployed receiver with the Arc core's `parseAndVerifyVM` mocked; the receiver dispatches exactly the calls decoded from the proposal and sets `feeTo`, the v3 `owner`, and the `protocolFeeController`; a release through the Arc `WormholeReleaser`, delivered to the live Ethereum transceiver with the mainnet core's `parseAndVerifyVM` mocked, is refused before actions 00 and 01 execute and unlocks UNI to the burn address after. The tests read `.records/Arc.json` and run against the live deployment, with `ARC_BLOCK` after it |
 
 Each test writes its own record under `.records/*Test.json`, which is gitignored, so a fork deployment can never be mistaken for `.records/Arc.json`. The Arc fork reads `ARC_RPC_URL`, and forge fails loudly if it is unset.
 
