@@ -14,17 +14,17 @@ string constant RECORD_NAME = "XLayer";
 
 /// @dev Keys in the record file, one per deployment.
 library Records {
-  string constant RELEASER = "AggLayerReleaser";
+  string constant RELEASER = "XLayerReleaser";
 }
 
 /// @dev X Layer parameters this proposal introduces. Addresses the proposal reads but does not
 ///      change come from govkit's `uniswap.xLayer`.
 library XLayer {
-  /// @dev The AggLayer unified bridge on X Layer, the bridge the new releaser sends UNI through.
+  /// @dev The unified bridge on X Layer, the bridge the new releaser sends UNI through.
   ///      https://www.oklink.com/xlayer/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
   address constant TOKEN_BRIDGE = 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe;
 
-  /// @dev The UNI token the new releaser takes as its resource: the AggLayer unified bridge's
+  /// @dev The UNI token the new releaser takes as its resource: the unified bridge's
   ///      wrapped UNI, which the bridge maps to UNI on Ethereum (network 0).
   ///      https://www.oklink.com/xlayer/address/0x2548C94A3092494dB3aF864cc2cF781a72f55678
   address constant RESOURCE = 0x2548C94A3092494dB3aF864cc2cF781a72f55678;

@@ -3,19 +3,19 @@ pragma solidity 0.8.29;
 
 import {Uniswap} from "govkit/types/Uniswap.sol";
 
-import {AggLayerReleaser} from "../../../src/releasers/AggLayerReleaser.sol";
-import {IAggLayerBridge} from "../../../src/interfaces/external/IAggLayerBridge.sol";
+import {XLayerReleaser} from "../../../src/releasers/XLayerReleaser.sol";
+import {IXLayerBridge} from "../../../src/interfaces/external/IXLayerBridge.sol";
 import {XLayer} from "./Constants.sol";
 
 /// @dev Asserts `releaser` answers as the releaser the prerequisite script deploys: an
-///      `AggLayerReleaser` that sends `XLayer.RESOURCE` to Ethereum through `XLayer.TOKEN_BRIDGE`,
+///      `XLayerReleaser` that sends `XLayer.RESOURCE` to Ethereum through `XLayer.TOKEN_BRIDGE`,
 ///      releases from the X Layer TokenJar at `XLayer.INITIAL_THRESHOLD`, and answers to the
 ///      CrossChainAccount. The prerequisite script runs it on its own deployment, and
 ///      `preflightXLayer` runs it on the recorded deployment. It reads getters and does not compare
 ///      code, so it cannot tell the audited releaser from a contract that answers the same way.
 function checkNewReleaser(Uniswap storage uniswap, address releaser) view {
   require(releaser.code.length != 0, "newReleaser.code");
-  AggLayerReleaser newReleaser = AggLayerReleaser(releaser);
+  XLayerReleaser newReleaser = XLayerReleaser(releaser);
 
   // Assert the constructor arguments. The releaser checks the bridge's mapping of its resource on
   // every release, but it trusts `BRIDGE` to answer truthfully, so only this check pins the
@@ -36,9 +36,9 @@ function checkNewReleaser(Uniswap storage uniswap, address releaser) view {
   // Assert the bridge maps the resource to UNI on Ethereum, so releases do not revert with
   // `ResourceNotWrappedL1Resource`.
   (uint32 originNetwork, address originTokenAddress) =
-    IAggLayerBridge(XLayer.TOKEN_BRIDGE).wrappedTokenToTokenInfo(XLayer.RESOURCE);
+    IXLayerBridge(XLayer.TOKEN_BRIDGE).wrappedTokenToTokenInfo(XLayer.RESOURCE);
   require(
-    originNetwork == newReleaser.AGGLAYER_ETHEREUM_NETWORK_ID(), "bridge.resource.originNetwork"
+    originNetwork == newReleaser.XLAYER_ETHEREUM_NETWORK_ID(), "bridge.resource.originNetwork"
   );
   require(originTokenAddress == uniswap.ethereum.uni, "bridge.resource.originTokenAddress");
 }

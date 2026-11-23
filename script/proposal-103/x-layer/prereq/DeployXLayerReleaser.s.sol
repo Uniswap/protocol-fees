@@ -7,7 +7,7 @@ import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {ChainId} from "govkit/constants/ChainId.sol";
 
-import {AggLayerReleaser} from "../../../../src/releasers/AggLayerReleaser.sol";
+import {XLayerReleaser} from "../../../../src/releasers/XLayerReleaser.sol";
 import {RECORD_NAME, Records, XLayer, smokeCheck} from "../Constants.sol";
 import {checkNewReleaser} from "../ReleaserCheck.sol";
 
@@ -18,20 +18,20 @@ import {checkNewReleaser} from "../ReleaserCheck.sol";
 // CrossChainAccount, and records its address in `.records/XLayer.json`, where the proposal reads
 // it. Anyone can run it; the deployer holds no authority once it finishes.
 //
-// forge script script/proposal-103/x-layer/prereq/DeployAggLayerReleaser.s.sol --rpc-url xlayer \
+// forge script script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol --rpc-url xlayer \
 //   --broadcast
 //
 // `run` asserts the result in its own simulation before it records anything. To apply the same
 // assertions to the live chain afterwards, from the record alone:
 //
-// forge script script/proposal-103/x-layer/prereq/DeployAggLayerReleaser.s.sol --sig "check()" \
+// forge script script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol --sig "check()" \
 //   --rpc-url xlayer
 //
-contract DeployAggLayerReleaser is Script {
+contract DeployXLayerReleaser is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;
 
-  AggLayerReleaser internal releaser;
+  XLayerReleaser internal releaser;
 
   function run() external {
     _initialize();
@@ -51,17 +51,17 @@ contract DeployAggLayerReleaser is Script {
     // -----------------------------------------------------------------------------------------
     // Transaction 00
     //
-    // Deploy `AggLayerReleaser`. The deployer is its owner until transaction 02.
+    // Deploy `XLayerReleaser`. The deployer is its owner until transaction 02.
     //
     // Parameters:
     //
-    // - `_bridge`: the AggLayer unified bridge on X Layer.
+    // - `_bridge`: the unified bridge on X Layer.
     // - `_resource`: the bridge's wrapped UNI.
     // - `_l1Resource`: UNI on Ethereum, which the bridge maps `_resource` to.
     // - `_threshold`: the initial threshold.
     // - `_tokenJar`: the X Layer TokenJar.
     //
-    releaser = new AggLayerReleaser({
+    releaser = new XLayerReleaser({
       _bridge: XLayer.TOKEN_BRIDGE,
       _resource: XLayer.RESOURCE,
       _l1Resource: uniswap.ethereum.uni,
@@ -92,7 +92,7 @@ contract DeployAggLayerReleaser is Script {
     recorder.write({
       chainId: ChainId.XLayer, deploymentName: Records.RELEASER, deployment: address(releaser)
     });
-    console.log("AggLayerReleaser:", address(releaser));
+    console.log("XLayerReleaser:", address(releaser));
   }
 
   /// @dev Verifies a recorded deployment against the chain the script is pointed at. `run`

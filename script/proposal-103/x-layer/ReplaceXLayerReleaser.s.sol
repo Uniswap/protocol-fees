@@ -26,7 +26,7 @@ import {checkNewReleaser} from "./ReleaserCheck.sol";
 // L2CrossDomainMessenger. The Timelock sends through X Layer's L1CrossDomainMessenger, the
 // message is delivered to the CrossChainAccount, which calls the TokenJar.
 //
-// The new releaser is deployed ahead of the vote by `prereq/DeployAggLayerReleaser.s.sol`, which
+// The new releaser is deployed ahead of the vote by `prereq/DeployXLayerReleaser.s.sol`, which
 // records its address in `.records/XLayer.json`. This script reads it from there.
 //
 // `../Proposal103.s.sol` runs `preflightEthereum()`. Run `preflightXLayer()` against X Layer before

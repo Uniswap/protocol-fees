@@ -22,10 +22,10 @@ import {
   readNewReleaser
 } from "../../../../script/proposal-103/x-layer/ReplaceXLayerReleaser.s.sol";
 import {
-  DeployAggLayerReleaser
-} from "../../../../script/proposal-103/x-layer/prereq/DeployAggLayerReleaser.s.sol";
+  DeployXLayerReleaser
+} from "../../../../script/proposal-103/x-layer/prereq/DeployXLayerReleaser.s.sol";
 import {RECORD_NAME, Records, XLayer} from "../../../../script/proposal-103/x-layer/Constants.sol";
-import {IAggLayerBridge} from "../../../../src/interfaces/external/IAggLayerBridge.sol";
+import {IXLayerBridge} from "../../../../src/interfaces/external/IXLayerBridge.sol";
 import {executeAsTimelock} from "../../../utils/TimelockExecution.sol";
 
 /// @dev X Layer block the fork is pinned to. Chosen while the TokenJar still had the old releaser,
@@ -43,13 +43,13 @@ address constant USDT_WOKB_V2_PAIR = 0xD5da3993f982C13190139b6f45E6e8023C15515D;
 /// @dev The Ethereum address the new releaser sends UNI to, where no one can spend it.
 address constant BURN_ADDRESS = address(0xdead);
 
-/// @dev Ethereum's network ID in the AggLayer unified bridge.
+/// @dev Ethereum's network ID in the unified bridge.
 uint32 constant ETHEREUM_NETWORK_ID = 0;
 
-/// @dev X Layer's network ID in the AggLayer unified bridge.
+/// @dev X Layer's network ID in the unified bridge.
 uint32 constant XLAYER_NETWORK_ID = 3;
 
-/// @dev The AggLayer unified bridge on Ethereum, which escrows UNI bridged to X Layer. It has the
+/// @dev The unified bridge on Ethereum, which escrows UNI bridged to X Layer. It has the
 /// same address as `XLayer.TOKEN_BRIDGE`.
 /// https://etherscan.io/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
 address constant ETHEREUM_TOKEN_BRIDGE = 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe;
@@ -72,8 +72,8 @@ uint256 constant GLOBAL_INDEX_MAINNET_FLAG = 1 << 64;
 /// `globalIndex`.
 uint32 constant XLAYER_ROLLUP_INDEX = XLAYER_NETWORK_ID - 1;
 
-/// @dev Functions of the unified bridge that `IAggLayerBridge` does not expose.
-interface IAggLayerBridgeFull {
+/// @dev Functions of the unified bridge that `IXLayerBridge` does not expose.
+interface IXLayerBridgeFull {
   /// @dev Emitted when the bridge pays out a claimed deposit.
   event ClaimEvent(
     uint256 globalIndex,
@@ -127,7 +127,7 @@ interface IGlobalExitRootManagerL1 {
   function updateExitRoot(bytes32 newRoot) external;
 }
 
-/// @dev The AggLayer RollupManager on Ethereum, which keeps each rollup's last settled local exit
+/// @dev The RollupManager on Ethereum, which keeps each rollup's last settled local exit
 /// root.
 interface IRollupManager {
   function rollupCount() external view returns (uint32);
@@ -188,7 +188,7 @@ interface IGlobalExitRootManagerL2 {
 }
 
 /// @dev The prerequisite script, pointed at the specified record.
-contract DeployAggLayerReleaserHarness is DeployAggLayerReleaser {
+contract DeployXLayerReleaserHarness is DeployXLayerReleaser {
   string internal recordName;
 
   constructor(string memory recordName_) {
@@ -311,7 +311,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     // Assert the release deposits the threshold in the bridge, to reach the Ethereum burn address
     // as Ethereum UNI. The bridge encodes the wrapped token's metadata into the deposit.
     vm.expectEmit(XLayer.TOKEN_BRIDGE);
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0,
       ETHEREUM_NETWORK_ID,
       uniswap.ethereum.uni,
@@ -359,7 +359,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     }
 
     _clearRecord(testRecordName);
-    new DeployAggLayerReleaserHarness(testRecordName).run();
+    new DeployXLayerReleaserHarness(testRecordName).run();
 
     // `run()` initialized the harness's own recorder. This one is the test's handle on the same
     // file, which `readNewReleaser` and `buildReplaceReleaserCall` require initialized.
@@ -504,7 +504,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     internal
     returns (UniDeposit memory deposit)
   {
-    IAggLayerBridgeFull bridge = IAggLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE);
+    IXLayerBridgeFull bridge = IXLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE);
     IERC20 uni = IERC20(uniswap.ethereum.uni);
     deposit.recipient = to;
     deposit.amount = amount;
@@ -517,7 +517,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     vm.startPrank(to);
     uni.approve(ETHEREUM_TOKEN_BRIDGE, amount);
     vm.expectEmit(ETHEREUM_TOKEN_BRIDGE);
-    emit IAggLayerBridge.BridgeEvent(
+    emit IXLayerBridge.BridgeEvent(
       0,
       ETHEREUM_NETWORK_ID,
       address(uni),
@@ -527,7 +527,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
       _uniMetadata(),
       deposit.leaf.index
     );
-    IAggLayerBridge(ETHEREUM_TOKEN_BRIDGE)
+    IXLayerBridge(ETHEREUM_TOKEN_BRIDGE)
       .bridgeAsset(XLAYER_NETWORK_ID, to, amount, address(uni), true, "");
     vm.stopPrank();
 
@@ -557,7 +557,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     // Insert the global exit root on X Layer, as X Layer's updater does once it reads the root
     // from Ethereum.
     IGlobalExitRootManagerL2 manager =
-      IGlobalExitRootManagerL2(IAggLayerBridgeFull(XLayer.TOKEN_BRIDGE).globalExitRootManager());
+      IGlobalExitRootManagerL2(IXLayerBridgeFull(XLayer.TOKEN_BRIDGE).globalExitRootManager());
     vm.prank(manager.globalExitRootUpdater());
     manager.insertGlobalExitRoot(_globalExitRoot(deposit.mainnetExitRoot, deposit.rollupExitRoot));
 
@@ -616,14 +616,14 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
   /// the claim. Runs on the selected fork, which must be the fork `claim.bridge` is on.
   function _claimUni(UniClaim memory claim) internal {
     vm.expectEmit(claim.bridge);
-    emit IAggLayerBridgeFull.ClaimEvent(
+    emit IXLayerBridgeFull.ClaimEvent(
       claim.globalIndex,
       ETHEREUM_NETWORK_ID,
       uniswap.ethereum.uni,
       claim.destinationAddress,
       claim.amount
     );
-    IAggLayerBridgeFull(claim.bridge)
+    IXLayerBridgeFull(claim.bridge)
       .claimAsset(
         claim.localExitRootProof,
         claim.rollupExitRootProof,
@@ -672,7 +672,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
   /// on the selected fork, which must be the Ethereum fork.
   function _ethereumExitRootManager() internal view returns (IGlobalExitRootManagerL1) {
     return
-      IGlobalExitRootManagerL1(IAggLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE).globalExitRootManager());
+      IGlobalExitRootManagerL1(IXLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE).globalExitRootManager());
   }
 
   /// @dev Returns the leaf the next deposit in `bridge` will append to its local exit tree, with
@@ -682,7 +682,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     // right is empty. At each height where the index has a 1 bit, the leaf's sibling is the full
     // subtree to its left, whose root the bridge keeps in `_branch`. At every other height, the
     // sibling is the root of an empty subtree of that height.
-    leaf.index = uint32(IAggLayerBridgeFull(bridge).depositCount());
+    leaf.index = uint32(IXLayerBridgeFull(bridge).depositCount());
     bytes32 emptySubtreeRoot;
     for (uint256 height; height < EXIT_TREE_HEIGHT; height++) {
       leaf.proof[height] = (leaf.index >> height) & 1 == 1
@@ -702,7 +702,7 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
     address destinationAddress,
     uint256 amount
   ) internal view returns (bytes32 localExitRoot) {
-    bytes32 leafValue = IAggLayerBridgeFull(bridge)
+    bytes32 leafValue = IXLayerBridgeFull(bridge)
       .getLeafValue(
         0,
         ETHEREUM_NETWORK_ID,
@@ -712,9 +712,9 @@ contract ReplaceXLayerReleaserXLayerForkTest is Test {
         amount,
         keccak256(_uniMetadata())
       );
-    localExitRoot = IAggLayerBridgeFull(bridge).getRoot();
+    localExitRoot = IXLayerBridgeFull(bridge).getRoot();
     assertEq(
-      IAggLayerBridgeFull(bridge).calculateRoot(leafValue, leaf.proof, leaf.index),
+      IXLayerBridgeFull(bridge).calculateRoot(leafValue, leaf.proof, leaf.index),
       localExitRoot,
       "localExitRoot"
     );
