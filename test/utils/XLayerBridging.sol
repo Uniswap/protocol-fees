@@ -5,6 +5,7 @@ import {vm} from "govkit/forge/Constants.sol";
 
 import {IXLayerBridgeFull} from "../interfaces/IXLayerBridgeFull.sol";
 import {IGlobalExitRootManagerL1} from "../interfaces/IGlobalExitRootManagerL1.sol";
+import {IGlobalExitRootManagerL2} from "../interfaces/IGlobalExitRootManagerL2.sol";
 
 /// @dev Ethereum's network ID in the unified bridge.
 uint32 constant ETHEREUM_NETWORK_ID = 0;
@@ -13,7 +14,7 @@ uint32 constant ETHEREUM_NETWORK_ID = 0;
 uint32 constant XLAYER_NETWORK_ID = 3;
 
 /// @dev The unified bridge on Ethereum, which escrows UNI bridged to X Layer. It has the same
-/// address as the unified bridge on X Layer.
+/// address as the unified bridge on X Layer, `XLayer.TOKEN_BRIDGE`.
 /// https://etherscan.io/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
 address constant ETHEREUM_TOKEN_BRIDGE = 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe;
 
@@ -35,7 +36,8 @@ uint256 constant GLOBAL_INDEX_MAINNET_FLAG = 1 << 64;
 /// `globalIndex`.
 uint32 constant XLAYER_ROLLUP_INDEX = XLAYER_NETWORK_ID - 1;
 
-/// @dev A leaf a deposit appends to a unified bridge's local exit tree, with its merkle proof.
+/// @dev A leaf a unified bridge appends to its local exit tree for a deposit, with the leaf's
+/// merkle proof.
 struct ExitLeaf {
   uint32 index;
   bytes32[32] proof;
@@ -64,12 +66,12 @@ struct UniDeposit {
   bytes32 rollupExitRoot;
 }
 
-/// @dev Returns the leaf the next deposit in `bridge` will append to its local exit tree, with the
+/// @dev Returns the leaf `bridge` will append to its local exit tree for its next deposit, with the
 /// leaf's merkle proof. Reads `bridge` on the selected fork.
 function nextExitLeaf(address bridge) view returns (ExitLeaf memory leaf) {
-  // The next deposit appends its leaf at index `depositCount`, so every subtree to the leaf's
-  // right is empty. At each height where the index has a 1 bit, the leaf's sibling is the full
-  // subtree to its left, whose root the bridge keeps in `_branch`. At every other height, the
+  // The bridge appends the next deposit's leaf at index `depositCount`, so every subtree to the
+  // leaf's right is empty. At each height where the index has a 1 bit, the leaf's sibling is the
+  // full subtree to its left, whose root the bridge keeps in `_branch`. At every other height, the
   // sibling is the root of an empty subtree of that height.
   leaf.index = uint32(IXLayerBridgeFull(bridge).depositCount());
   bytes32 emptySubtreeRoot;
@@ -118,6 +120,12 @@ function globalExitRoot(bytes32 mainnetExitRoot, bytes32 rollupExitRoot) pure re
 /// the selected fork, which must be the Ethereum fork.
 function ethereumExitRootManager() view returns (IGlobalExitRootManagerL1) {
   return IGlobalExitRootManagerL1(IXLayerBridgeFull(ETHEREUM_TOKEN_BRIDGE).globalExitRootManager());
+}
+
+/// @dev Returns the global exit root manager of the unified bridge `bridge` on X Layer. Reads
+/// `bridge` on the selected fork, which must be the X Layer fork.
+function xLayerExitRootManager(address bridge) view returns (IGlobalExitRootManagerL2) {
+  return IGlobalExitRootManagerL2(IXLayerBridgeFull(bridge).globalExitRootManager());
 }
 
 /// @dev Returns the metadata the unified bridge encodes into a deposit of Ethereum UNI or of its

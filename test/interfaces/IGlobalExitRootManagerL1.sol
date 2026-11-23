@@ -7,6 +7,6 @@ interface IGlobalExitRootManagerL1 {
   function rollupManager() external view returns (address);
   function lastMainnetExitRoot() external view returns (bytes32);
   function lastRollupExitRoot() external view returns (bytes32);
-  function getLastGlobalExitRoot() external view returns (bytes32);
+  function globalExitRootMap(bytes32 globalExitRoot) external view returns (uint256);
   function updateExitRoot(bytes32 newRoot) external;
 }

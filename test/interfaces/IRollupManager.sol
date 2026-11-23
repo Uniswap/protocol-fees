@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 /// @dev The RollupManager on Ethereum, which keeps each rollup's last settled local exit root.
 interface IRollupManager {
   function rollupCount() external view returns (uint32);
+  function chainIDToRollupID(uint64 chainID) external view returns (uint32);
   function getRollupExitRoot() external view returns (bytes32);
   function rollupIDToRollupData(uint32 rollupID)
     external
