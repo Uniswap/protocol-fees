@@ -18,6 +18,9 @@ interface IDecayingThresholdSetter {
   /// @notice Thrown when the token jar does not release through the releaser.
   error ReleaserNotActive();
 
+  /// @notice Thrown when the releaser's threshold is below `START_THRESHOLD`.
+  error ThresholdBelowStart();
+
   /// @notice Thrown when the decay has already started.
   error AlreadyStarted();
 
@@ -62,8 +65,8 @@ interface IDecayingThresholdSetter {
   function currentThreshold() external view returns (uint256);
 
   /// @notice Writes `START_THRESHOLD` to the releaser and starts the decay.
-  /// @dev Only callable by `GOVERNANCE`. Reverts unless this contract owns the releaser and the
-  /// token jar releases through it.
+  /// @dev Only callable by `GOVERNANCE`. Reverts unless this contract owns the releaser, the
+  /// token jar releases through it, and its threshold is at least `START_THRESHOLD`.
   function start() external;
 
   /// @notice Writes the current threshold to the releaser, and returns control once it reaches

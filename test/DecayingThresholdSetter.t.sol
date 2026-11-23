@@ -42,10 +42,11 @@ contract DecayingThresholdSetterTest is Test {
     bridge.setWrappedToken(address(resource), ETHEREUM_NETWORK_ID, L1_UNI);
     feeToken = new MockERC20("Fee", "FEE", 18);
 
-    // Mirror production: governance owns the releaser and is its threshold setter
+    // Mirror production: governance owns the releaser and is its threshold setter, and the
+    // releaser is deployed at `START`, as `start` requires
     vm.startPrank(governance);
     tokenJar = new TokenJar();
-    releaser = _newReleaser(FLOOR);
+    releaser = _newReleaser(START);
     tokenJar.setReleaser(address(releaser));
     releaser.setThresholdSetter(governance);
     vm.stopPrank();
@@ -203,6 +204,22 @@ contract DecayingThresholdSetterTest is Test {
     assertEq(releaser.threshold(), START);
   }
 
+  function test_start_revertsWhenThresholdBelowStart() public {
+    vm.startPrank(governance);
+    releaser.setThreshold(START - 1);
+    releaser.transferOwnership(address(setter));
+
+    vm.expectRevert(IDecayingThresholdSetter.ThresholdBelowStart.selector);
+    setter.start();
+
+    // A releaser priced above the opening price can start, and is written down to it
+    releaser.setThreshold(START + 1);
+    setter.start();
+    vm.stopPrank();
+
+    assertEq(releaser.threshold(), START);
+  }
+
   function test_start_revertsAfterControlReturned() public {
     _start();
     vm.warp(T0 + 30 days);
@@ -275,6 +292,8 @@ contract DecayingThresholdSetterTest is Test {
     t1 = bound(t1, 0, type(uint64).max);
     t2 = bound(t2, t1, type(uint64).max);
 
+    vm.prank(governance);
+    releaser.setThreshold(start);
     setter = new DecayingThresholdSetter(address(releaser), start, floor, halfLife);
     _start();
 

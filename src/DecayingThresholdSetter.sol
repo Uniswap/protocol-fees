@@ -84,6 +84,8 @@ contract DecayingThresholdSetter is IDecayingThresholdSetter {
     require(startTime == 0, AlreadyStarted());
     // Searchers must be able to release while the threshold decays.
     require(RELEASER.TOKEN_JAR().releaser() == address(RELEASER), ReleaserNotActive());
+    // A cheaper live releaser would let searchers skip the auction.
+    require(RELEASER.threshold() >= START_THRESHOLD, ThresholdBelowStart());
     startTime = block.timestamp;
     RELEASER.setThresholdSetter(address(this));
     emit Started(block.timestamp, START_THRESHOLD);
