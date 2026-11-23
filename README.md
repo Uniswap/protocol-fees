@@ -17,6 +17,8 @@
     - [3. Releasers](#3-releasers)
       - [UNI Burn (Mainnet)](#uni-burn-mainnet)
       - [Cross-Chain UNI Burn (OP Stack L2s)](#cross-chain-uni-burn-op-stack-l2s)
+      - [Cross-Chain UNI Burn (X Layer)](#cross-chain-uni-burn-x-layer)
+      - [Decaying Threshold](#decaying-threshold)
       - [(Future) Hub-and-Spoke Cross-Chain](#future-hub-and-spoke-cross-chain)
   - [Economic Incentives](#economic-incentives)
   - [Fault Tolerance (In-Progress)](#fault-tolerance-in-progress)
@@ -167,7 +169,8 @@ Searcher → Pay UNI → Releaser → Release Assets → Burn UNI
 
 **Mechanism:**
 
-1. Searcher pays a fixed UNI amount to Releaser
+1. Searcher pays the releaser's `threshold` in UNI. It is fixed unless a
+   [`DecayingThresholdSetter`](#decaying-threshold) is lowering it.
 2. Releaser releases Token Jar contents to searcher's specified recipient
 3. UNI tokens are burned (sent to `0xdead`), reducing total supply
 4. Searcher profits from asset value exceeding UNI burn cost
@@ -208,7 +211,7 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 **Stage 1 - L2 Collection:**
 
 1. Searcher calls `release()` with the current nonce, assets to release, and recipient
-2. Searcher pays a fixed amount of bridged UNI tokens
+2. Searcher pays the releaser's `threshold` in bridged UNI
 3. UNI is transferred to the Firepit contract (not burned yet)
 4. Token Jar contents are released to the searcher's specified recipient
 
@@ -223,7 +226,8 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 
 - **Same Economics**: Searchers profit when fee asset value exceeds UNI threshold cost
 - **Nonce Protection**: Sequential nonces prevent front-running and ensure deterministic ordering
-- **Fault Tolerant**: If bridge is unavailable, fees safely accumulate in TokenJar until recovery
+- **Fault Tolerant**: If bridge is unavailable, fees safely accumulate in TokenJar until recovery.
+  Under a [decaying threshold](#decaying-threshold), the threshold keeps falling during an outage.
 - **Native Bridge Security**: Uses Optimism's canonical bridge infrastructure
 
 **Configuration:**
@@ -234,6 +238,45 @@ The `OptimismBridgedResourceFirepit` implements a two-stage burn process:
 | THRESHOLD             | 2000 UNI    | Amount required per release         |
 | WITHDRAWAL_MIN_GAS    | 100,000     | Gas for L1 transfer to burn address |
 | L1_RESOURCE_RECIPIENT | `0xdead`    | Final burn destination on mainnet   |
+
+#### Cross-Chain UNI Burn (X Layer)
+
+X Layer's OP Stack bridge does not accept ERC20 deposits, so X Layer uses `XLayerReleaser`, which
+burns through the chain's unified bridge instead.
+
+1. Searcher pays the releaser's `threshold` in the unified bridge's wrapped UNI
+2. Token Jar contents are released to the searcher's specified recipient
+3. `_afterRelease()` calls `bridgeAsset` on the unified bridge, which burns the wrapped UNI on X
+   Layer and sends it to `0xdead` on Ethereum
+
+There is no challenge period, but exits to Ethereum are not claimed automatically. The burn
+completes once someone submits `claimAsset` on the Ethereum bridge. Until then, the UNI stays
+escrowed in the Ethereum bridge.
+
+#### Decaying Threshold
+
+A fixed threshold lets the first searcher keep any value in the jar above it. Where a jar has
+built up far more than the threshold, as on X Layer, a `DecayingThresholdSetter` runs a
+descending-price auction on one releaser's threshold instead.
+
+1. A new releaser is deployed with its threshold at `START_THRESHOLD`, and its ownership is
+   transferred to the setter
+2. Governance (the TokenJar owner) points the jar at the releaser and calls `start()`
+3. The threshold halves every `HALF_LIFE`, falling linearly within each half-life, until it reaches
+   `FLOOR_THRESHOLD`
+4. The first `poke()` at the floor writes the floor and returns the releaser's ownership and
+   threshold setter role to governance
+
+**For searchers:** the releaser charges the last threshold written to it, not the live price.
+Read the price from `currentThreshold()` on the releaser's `thresholdSetter()`, and call `poke()`
+in the same transaction as `release()`. Once `controlReturned()` is true, `poke()` reverts, so call
+`release()` on its own.
+
+**Caveats:**
+
+- The decay depends only on time. It keeps running while releases are impossible, for example
+  while the bridge is paused, and governance cannot pause it.
+- Not compatible with `WormholeReleaser`, which trims amounts to multiples of 1e10.
 
 #### (Future) Hub-and-Spoke Cross-Chain
 
@@ -252,7 +295,11 @@ The system relies on economic competition to ensure efficient operation:
 - **Profit Motive**: Searchers compete when asset value exceeds burn costs
 - **Automatic Timing**: No manual intervention required
 - **Gas Optimization**: Bundled operations reduce transaction costs
-- **MEV Resistance**: Fixed burn amounts prevent extraction
+- **Ordering Protection**: Sequential nonces stop a release from landing on a jar the searcher did
+  not see
+- **Surplus Capture**: Where a jar holds far more than its threshold, a
+  [decaying threshold](#decaying-threshold) auctions the price down instead of giving the surplus to
+  the first searcher
 
 ## Fault Tolerance (In-Progress)
 
@@ -466,7 +513,7 @@ forge coverage
 src/
 ├── TokenJar.sol             // General purpose contract for receiving fees
 ├── Deployer.sol              // A deployer contract to instantiate the initial contracts
-├── DecayingThresholdSetter.sol // Temporarily owns a releaser and decays its threshold to a floor
+├── DecayingThresholdSetter.sol // Owns a releaser while it decays its threshold to a floor
 ├── base
 │   ├── Nonce.sol             // Utility contract to safely sequence multiple pending transactions
 │   └── ResourceManager.sol.  // Utility contract for defining the `RESOURCE` token and its amount requirements
@@ -481,7 +528,11 @@ src/
 └── releasers
     ├── ExchangeReleaser.sol              // Abstract contract to exchange a RESOURCE for Token Jar assets
     ├── Firepit.sol                       // Burns UNI directly on mainnet (RESOURCE_RECIPIENT = 0xdead)
-    └── OptimismBridgedResourceFirepit.sol // Two-stage burn for OP Stack L2s via bridge withdrawal
+    ├── OptimismBridgedResourceFirepit.sol // Two-stage burn for OP Stack L2s via bridge withdrawal
+    ├── ArbitrumBridgedResourceFirepit.sol // Two-stage burn for Arbitrum via bridge withdrawal
+    ├── ArbitrumOrbitResourceFirepit.sol  // Two-stage burn for Arbitrum Orbit chains
+    ├── WormholeReleaser.sol              // Sends UNI back to Ethereum through Wormhole NTT
+    └── XLayerReleaser.sol                // Two-stage burn for X Layer via its unified bridge
 
 test
 ├── TokenJar.t.sol
@@ -494,6 +545,7 @@ test
 ├── V3FeeAdapter.t.sol
 ├── V4FeeAdapter.t.sol
 ├── V4FeeAdapter.fork.t.sol               // V4 integration tests against a real PoolManager
+├── XLayerReleaser.t.sol
 ├── interfaces/                           // interfaces for integrations
 ├── mocks/                                // mocks and examples
 └── utils

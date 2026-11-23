@@ -25,6 +25,13 @@ For a contract-interaction guide, see [Flash Borrow](/guides/flash-borrow)
 The `Firepit` contract requires integrators to hold a minimum amount of UNI to call `release()`.
 Participants can view the `threshold` by calling [`Firepit.threshold()`](/technical-reference/IResourceManager#threshold)
 
+:::note
+If the releaser's `thresholdSetter()` is a `DecayingThresholdSetter`, `threshold()` can be higher
+than the live price. Read `currentThreshold()` on the setter instead, and call `poke()` in the same
+transaction as `release()`. Once the setter's `controlReturned()` is true, `poke()` reverts, so call
+`release()` on its own.
+:::
+
 :::code-group
 ```bash [cast]
 cast call 0x1 "threshold()(uint256)" --rpc-url <RPC_URL>
