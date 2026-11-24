@@ -6004,10 +6004,6 @@
           {
             "hook": "0xd061f665d1c4816787fceaa168fa66c59d3abcc0",
             "name": "StablePairHook"
-          },
-          {
-            "hook": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
-            "name": "StablePairHook"
           }
         ]
       }

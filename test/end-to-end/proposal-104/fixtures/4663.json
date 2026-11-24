@@ -1061,7 +1061,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "3687300"
+   "expected": "0"
   },
   {
    "currency0": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
@@ -1070,7 +1070,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "2048500"
+   "expected": "0"
   },
   {
    "currency0": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
@@ -1079,7 +1079,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "2048500"
+   "expected": "0"
   },
   {
    "currency0": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",
@@ -1088,7 +1088,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "2048500"
+   "expected": "0"
   },
   {
    "currency0": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
@@ -1097,7 +1097,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "3687300"
+   "expected": "0"
   },
   {
    "currency0": "0x86923f96303d656e4aa86d9d42d1e57ad2023fdc",
@@ -1106,7 +1106,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "3687300"
+   "expected": "0"
   },
   {
    "currency0": "0x12f190a9f9d7d37a250758b26824b97ce941bf54",
@@ -1115,7 +1115,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "2048500"
+   "expected": "0"
   },
   {
    "currency0": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35",
@@ -1124,7 +1124,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "2048500"
+   "expected": "0"
   },
   {
    "currency0": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
@@ -1133,7 +1133,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "3687300"
+   "expected": "0"
   },
   {
    "currency0": "0x156e175dd063a8ce274c50654ef40e0032b3fbcf",
@@ -1142,7 +1142,7 @@
    "tickSpacing": 10,
    "hooks": "0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0",
    "before": 0,
-   "expected": "3687300"
+   "expected": "0"
   },
   {
    "currency0": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",

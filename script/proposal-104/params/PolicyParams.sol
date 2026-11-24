@@ -32,8 +32,8 @@ import {IV4AggregatorHookRuleset} from "../../../src/interfaces/IV4AggregatorHoo
 // - `V4AggregatorHookRuleset.labs`: Uniswap Labs hooks whose `protocolFeeFlags()` returns 2048.
 // - `V4AggregatorHookRuleset.thirdParty`: other hooks whose `protocolFeeFlags()` returns 2048,
 //   including other teams' aggregator hooks, that keep the fee they opted into.
-// - `V4StablePairHookRuleset.labs` and `V4VolatilePairHookRuleset.labs`: the hook proxies whose
-//   `feeConfig` returns the StablePairHook or VolatilePairHook configuration.
+// - `V4StablePairHookRuleset.labs` and `V4VolatilePairHookRuleset.labs`: the StablePairHook and
+//   VolatilePairHook proxies that Uniswap Labs built.
 // - `V4StaticCurveRuleset.v1NativeMathFamily`: the hooks that the v1 policy currently assigns to
 //    its native-math family, 255.
 // - `V4StaticCurveRuleset.liquidityLauncher`: Uniswap liquidity-launcher hooks that the v1 policy

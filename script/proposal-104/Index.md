@@ -35,6 +35,7 @@ Each chain's policy uses four rulesets:
   - other hooks with no `protocolFeeMultiplier` getter, for which the aggregator ruleset would revert and so break any `batchTriggerFeeUpdate` that includes their pools;
   - hooks whose `protocolFeeFlags()` is not 2048.
 - The `LitePSMAggregator` hooks don't have a fee and are not listed in this file. Neither are the LBP and CCA hooks that Uniswap Labs marked for exclusion.
+- The StablePairHook proxy `0xd5711b1f57e75b1c91c32ad96c4d4e5019d6bcc0` on Robinhood Chain is not listed either. It runs StablePairHook code, but nobody knows who deployed it, and its roles are held by the account that deployed it, so whoever that is could change its pools' fee without governance.
 - Later per-launch `InitializerHook`s are expected to opt in through ERC165, so they don't need to be listed in this file.
 
 ## What changes for existing pools
