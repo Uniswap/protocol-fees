@@ -1,0 +1,275 @@
+{
+ "block": 54208747,
+ "pools": [
+  {
+   "currency0": "0x4200000000000000000000000000000000000006",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 500,
+   "tickSpacing": 10,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "512125"
+  },
+  {
+   "currency0": "0x4200000000000000000000000000000000000006",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 100,
+   "tickSpacing": 1,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "102425"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 3000,
+   "tickSpacing": 60,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "2048500"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xa6b280b42cb0b7c4a4f789ec6ccc3a7609a1bc39",
+   "fee": 10000,
+   "tickSpacing": 200,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xa6b280b42cb0b7c4a4f789ec6ccc3a7609a1bc39",
+   "fee": 100000,
+   "tickSpacing": 2000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x078540eecc8b6d89949c9c7d5e8e91eab64f6696",
+   "currency1": "0xa6b280b42cb0b7c4a4f789ec6ccc3a7609a1bc39",
+   "fee": 690000,
+   "tickSpacing": 13800,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 999996,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x840ec06b935c5f8812f66dc9ff618cef37c8b2a4",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 45600,
+   "tickSpacing": 912,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x840ec06b935c5f8812f66dc9ff618cef37c8b2a4",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 999978,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0x840ec06b935c5f8812f66dc9ff618cef37c8b2a4",
+   "fee": 999983,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0xb716140e5d4b9f2ac188fe78497d3fd4531f37f3",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 999993,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x840ec06b935c5f8812f66dc9ff618cef37c8b2a4",
+   "currency1": "0xb716140e5d4b9f2ac188fe78497d3fd4531f37f3",
+   "fee": 999998,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xe162041f717b19feb062f9cbb088f3eedb1762d8",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0xc0649188074993dfae60ce25e6d64c1df1906844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0x19193ac1d5fbe4ca71b3230853c96d76bc342529",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0x3f44fc96dd34bf0dd2c8c5a3daebf669eedaa844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0x93e55273922b78f2211721aa64fe4191f8d3fb50",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0x1f141a2f4eb256c58a6e008885c6fdc966576844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0x12c3d2c1984e62b80d5fa7a6a1375495082c3117",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0x7ae8de9614436814b985acccf450cef1c744e844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xede16f0ba75710ba25c6c39906bb8164940b2dd0",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0xcf42d10596858706f823ec8116c5a800ece76844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xf62697692bf47dd93956dc79fe5894ee7cf30803",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0x422c20b4147e3b3b2d035f38a421d5cf79362844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0x790533653ca527fa0892eb188301325cc435905e",
+   "fee": 0,
+   "tickSpacing": 60,
+   "hooks": "0x228ee9f02eae140be28faef17f619adcea85e844",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x840ec06b935c5f8812f66dc9ff618cef37c8b2a4",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 999985,
+   "tickSpacing": 20000,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 375,
+   "tickSpacing": 4,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "409700"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 10000,
+   "tickSpacing": 200,
+   "hooks": "0xb216070c3509047ea597e2e626a29cea427a60c8",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 75,
+   "tickSpacing": 1,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "81940"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xde55ff6506b8730a8d9a3e8e5c66083af9992b93",
+   "fee": 9000,
+   "tickSpacing": 90,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x078540eecc8b6d89949c9c7d5e8e91eab64f6696",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 2500,
+   "tickSpacing": 25,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "1638800"
+  },
+  {
+   "currency0": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "currency1": "0xde55ff6506b8730a8d9a3e8e5c66083af9992b93",
+   "fee": 20000,
+   "tickSpacing": 200,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "currency1": "0xde55ff6506b8730a8d9a3e8e5c66083af9992b93",
+   "fee": 50000,
+   "tickSpacing": 500,
+   "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
+   "expected": "4097000"
+  },
+  {
+   "currency0": "0x4200000000000000000000000000000000000006",
+   "currency1": "0x6f1c540513da9d623872b38c86a504ca96d70bd7",
+   "fee": 3000,
+   "tickSpacing": 60,
+   "hooks": "0xb30d1cfc07e6e2036776bc1cfa74090c8e1f0044",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x4200000000000000000000000000000000000006",
+   "currency1": "0x68897687b0aa7801ba36879c081a5101c7e8066d",
+   "fee": 3000,
+   "tickSpacing": 60,
+   "hooks": "0xb30d1cfc07e6e2036776bc1cfa74090c8e1f0044",
+   "before": 0,
+   "expected": "0"
+  },
+  {
+   "currency0": "0x0000000000000000000000000000000000000000",
+   "currency1": "0xcccccccc7021b32ebb4e8c08314bd62f7c653ec4",
+   "fee": 8388608,
+   "tickSpacing": 60,
+   "hooks": "0xdb9b5b54b613d72c441cbdc8d391da0e70a4a0cc",
+   "before": 0,
+   "expected": "0"
+  }
+ ]
+}
