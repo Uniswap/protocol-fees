@@ -6,6 +6,8 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
+import {Call} from "govkit/types/Call.sol";
+import {IInbox} from "govkit/interfaces/bridges/IInbox.sol";
 
 import {Proposal105, buildProposal} from "../../../script/proposal-105/Proposal105.s.sol";
 import {
@@ -47,11 +49,19 @@ contract Proposal105EthereumForkTest is Test {
     new Proposal105().preflightEthereum(MAINNET_BLOCK);
   }
 
-  /// @dev Executes the proposal as the Timelock and asserts that each action sends one message,
-  ///      through its chain's L1CrossDomainMessenger to its CrossChainAccount.
+  /// @dev Executes the proposal as the Timelock and asserts that each of actions 00 to 04 sends one
+  ///      message, through its chain's L1CrossDomainMessenger to its CrossChainAccount, and that
+  ///      action 05 sends one retryable ticket through Arbitrum's Inbox.
   function test_execute() public {
+    Call[] memory calls = buildProposal(uniswap, recorder).calls;
+    uint256 value;
+    for (uint256 i; i < calls.length; i++) {
+      value += calls[i].value;
+    }
+    vm.deal(uniswap.ethereum.timelock, value);
+
     vm.recordLogs();
-    executeAsTimelock(vm, uniswap.ethereum.timelock, buildProposal(uniswap, recorder).calls);
+    executeAsTimelock(vm, uniswap.ethereum.timelock, calls);
     Vm.Log[] memory logs = vm.getRecordedLogs();
 
     uint256[5] memory list = chains();
@@ -64,5 +74,14 @@ contract Proposal105EthereumForkTest is Test {
         string.concat("SentMessage ", vm.toString(list[i]))
       );
     }
+
+    uint256 delivered;
+    for (uint256 i; i < logs.length; i++) {
+      if (
+        logs[i].emitter == uniswap.ethereum.bridge.arbitrum
+          && logs[i].topics[0] == IInbox.InboxMessageDelivered.selector
+      ) delivered++;
+    }
+    assertEq(delivered, 1, "arbitrum.InboxMessageDelivered");
   }
 }
