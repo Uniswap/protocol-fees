@@ -20,15 +20,11 @@ import {
   UpgradeVolatileHook,
   buildUpgradeVolatileHookCall
 } from "./volatile-hook/UpgradeVolatileHook.s.sol";
-import {
-  UpdateStableHookFeeConfig,
-  buildUpdateStableHookFeeConfigCall
-} from "./stable-hook/UpdateStableHookFeeConfig.s.sol";
 
 // -------------------------------------------------------------------------------------------------
 // NOTICE:
 //
-// The proposal has four actions, defined in three directories, each with its own parameters,
+// The proposal has three actions, defined in two directories, each with its own parameters,
 // preflights and tests. This script joins them.
 //
 // - Action 00, `volatile-hook/`: upgrade the VolatilePairHook on Ethereum, the proposal's headline.
@@ -36,18 +32,12 @@ import {
 // - Action 02, `x-layer/`: start the new releaser's {DecayingThresholdSetter}. It follows action
 //   01 because {DecayingThresholdSetter-start} requires the TokenJar to release through the new
 //   releaser.
-// - Action 03, `stable-hook/`: update two StablePairHook pools' fee configs on Arbitrum.
 //
-// 1. Run the X Layer and Arbitrum preflights before proposing; see `x-layer/` and `stable-hook/`.
+// 1. Run the X Layer preflight before proposing; see `x-layer/`.
 // 2. `run()` against Ethereum runs every action's Ethereum preflight, then writes the proposal for
 //    Seatbelt:
 //
 //    forge script script/proposal-103/Proposal103.s.sol --rpc-url mainnet
-//
-// 3. Execute with ETH attached. Action 03's call sends ETH to pay for its retryable ticket, and
-//    GovernorBravo's `execute` pays each action's value from the Governor's own balance. If that
-//    balance holds less than action 03's value, attach the difference to `execute`, or execution
-//    reverts.
 //
 
 /// @dev Returns the proposal's calls. A free function, so the fork tests and anything outside this
@@ -63,8 +53,7 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
       [
         buildUpgradeVolatileHookCall(),
         buildReplaceReleaserCall(uniswap, recorder),
-        buildStartDecayCall(uniswap, recorder),
-        buildUpdateStableHookFeeConfigCall(uniswap)
+        buildStartDecayCall(uniswap, recorder)
       ]
     )
   });
@@ -100,7 +89,6 @@ contract Proposal103 is Script {
   function preflightEthereum() public {
     new ReplaceXLayerReleaser().preflightEthereum();
     new UpgradeVolatileHook().preflightEthereum();
-    new UpdateStableHookFeeConfig().preflightEthereum();
   }
 
   /// @dev Returns the record file that holds the new releaser and the {DecayingThresholdSetter}.

@@ -7,7 +7,6 @@ import {Vm} from "forge-std/Vm.sol";
 import {Recorder} from "govkit/forge/Recorder.sol";
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {Proposal} from "govkit/types/Proposal.sol";
-import {IInbox} from "govkit/interfaces/bridges/IInbox.sol";
 
 import {Proposal103, buildProposal} from "../../../script/proposal-103/Proposal103.s.sol";
 import {
@@ -63,15 +62,5 @@ contract Proposal103ForkTest is Test {
       2,
       "SentMessage.count"
     );
-
-    // Assert Arbitrum's Inbox delivered a single message, the fee config update's retryable ticket
-    uint256 delivered;
-    for (uint256 i; i < logs.length; i++) {
-      if (
-        logs[i].emitter == uniswap.ethereum.bridge.arbitrum
-          && logs[i].topics[0] == IInbox.InboxMessageDelivered.selector
-      ) delivered++;
-    }
-    assertEq(delivered, 1, "InboxMessageDelivered.count");
   }
 }

@@ -16,9 +16,6 @@ import {
 import {
   buildUpgradeVolatileHookCall
 } from "../../../script/proposal-103/volatile-hook/UpgradeVolatileHook.s.sol";
-import {
-  buildUpdateStableHookFeeConfigCall
-} from "../../../script/proposal-103/stable-hook/UpdateStableHookFeeConfig.s.sol";
 import {XLayerStandIns} from "../../utils/XLayerStandIns.sol";
 
 /// @dev Record file these tests write, gitignored as `.records/*Test.json`.
@@ -35,15 +32,14 @@ contract Proposal103Test is Test {
   }
 
   /// @dev Asserts the proposal is exactly the hook upgrade, then the two X Layer messages in
-  /// order, then the Arbitrum fee config update.
+  /// order.
   function test_buildProposal() public view {
     Proposal memory proposal = buildProposal(uniswap, recorder);
 
-    assertEq(proposal.calls.length, 4, "calls.length");
+    assertEq(proposal.calls.length, 3, "calls.length");
     _assertEq(proposal.calls[0], buildUpgradeVolatileHookCall(), "calls[0]");
     _assertEq(proposal.calls[1], buildReplaceReleaserCall(uniswap, recorder), "calls[1]");
     _assertEq(proposal.calls[2], buildStartDecayCall(uniswap, recorder), "calls[2]");
-    _assertEq(proposal.calls[3], buildUpdateStableHookFeeConfigCall(uniswap), "calls[3]");
   }
 
   /// @dev Asserts `actual` and `expected` are the same call.
