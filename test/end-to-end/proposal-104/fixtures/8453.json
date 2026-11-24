@@ -1484,7 +1484,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1493,7 +1493,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1502,7 +1502,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x3055913c90fcc1a6ce9a358911721eeb942013a1",
@@ -1511,7 +1511,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x3055913c90fcc1a6ce9a358911721eeb942013a1",
@@ -1520,7 +1520,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1529,7 +1529,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1538,7 +1538,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",
@@ -1547,7 +1547,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1556,7 +1556,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1565,7 +1565,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22",
@@ -1574,7 +1574,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1583,7 +1583,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1592,7 +1592,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1601,7 +1601,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1610,7 +1610,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1619,7 +1619,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1628,7 +1628,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1637,7 +1637,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1646,7 +1646,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1655,7 +1655,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1664,7 +1664,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1673,7 +1673,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1682,7 +1682,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
@@ -1691,7 +1691,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1700,7 +1700,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1709,7 +1709,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1718,7 +1718,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x3055913c90fcc1a6ce9a358911721eeb942013a1",
@@ -1727,7 +1727,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x236aa50979d5f3de3bd1eeb40e81137f22ab794b",
@@ -1736,7 +1736,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1745,7 +1745,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1754,7 +1754,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb",
@@ -1763,7 +1763,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4f9fd6be4a90f2620860d680c0d4d5fb53d1a825",
@@ -1772,7 +1772,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22",
@@ -1781,7 +1781,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1790,7 +1790,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1799,7 +1799,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1808,7 +1808,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1817,7 +1817,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1826,7 +1826,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1835,7 +1835,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1844,7 +1844,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1853,7 +1853,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1111111111166b7fe7bd91427724b487980afc69",
@@ -1862,7 +1862,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1871,7 +1871,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1880,7 +1880,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0xcb585250f852c6c6bf90434ab21a00f02833a4af",
@@ -1889,7 +1889,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1898,7 +1898,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1907,7 +1907,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -1916,7 +1916,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf",
@@ -1925,7 +1925,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1934,7 +1934,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1943,7 +1943,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189",
@@ -1952,7 +1952,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
@@ -1961,7 +1961,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1111111111166b7fe7bd91427724b487980afc69",
@@ -1970,7 +1970,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -1979,7 +1979,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -1988,7 +1988,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2",
@@ -1997,7 +1997,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2006,7 +2006,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2015,7 +2015,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2024,7 +2024,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x15d0e0c55a3e7ee67152ad7e89acf164253ff68d",
@@ -2033,7 +2033,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x15d0e0c55a3e7ee67152ad7e89acf164253ff68d",
@@ -2042,7 +2042,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2051,7 +2051,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2060,7 +2060,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2069,7 +2069,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82",
@@ -2078,7 +2078,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82",
@@ -2087,7 +2087,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2096,7 +2096,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82",
@@ -2105,7 +2105,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2114,7 +2114,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x29cc30f9d113b356ce408667aa6433589cecbdca",
@@ -2123,7 +2123,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x000000000d564d5be76f7f0d28fe52605afc7cf8",
@@ -2132,7 +2132,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x65053fea6c7240a13b597157d91379370769942a",
@@ -2141,7 +2141,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2150,7 +2150,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2159,7 +2159,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
@@ -2168,7 +2168,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2177,7 +2177,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2186,7 +2186,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2195,7 +2195,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2204,7 +2204,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2213,7 +2213,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1aa8fd5bcce2231c6100d55bf8b377cff33acfc3",
@@ -2222,7 +2222,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1aa8fd5bcce2231c6100d55bf8b377cff33acfc3",
@@ -2231,7 +2231,7 @@
    "tickSpacing": 50,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2240,7 +2240,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82",
@@ -2249,7 +2249,7 @@
    "tickSpacing": 10,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -2258,7 +2258,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2267,7 +2267,7 @@
    "tickSpacing": 200,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x5534e74226054248636b5e1dff3a3b9995db6a94",
@@ -2276,7 +2276,7 @@
    "tickSpacing": 1,
    "hooks": "0x932812ff52bfcd8c3fd753602f78a93363406888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2285,7 +2285,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22",
@@ -2294,7 +2294,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2303,7 +2303,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2312,7 +2312,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2321,7 +2321,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2330,7 +2330,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 16388,
-   "expected": "16388"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2339,7 +2339,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
@@ -2348,7 +2348,7 @@
    "tickSpacing": 50,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2357,7 +2357,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2366,7 +2366,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2375,7 +2375,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2384,7 +2384,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
@@ -2393,7 +2393,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -2402,7 +2402,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42",
@@ -2411,7 +2411,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2420,7 +2420,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -2429,7 +2429,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2438,7 +2438,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189",
@@ -2447,7 +2447,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189",
@@ -2456,7 +2456,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2465,7 +2465,7 @@
    "tickSpacing": 2000,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2",
@@ -2474,7 +2474,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1111111111166b7fe7bd91427724b487980afc69",
@@ -2483,7 +2483,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2492,7 +2492,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x6985884c4392d348587b19cb9eaaf157f13271cd",
@@ -2501,7 +2501,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2510,7 +2510,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2519,7 +2519,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2528,7 +2528,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2537,7 +2537,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2546,7 +2546,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x696f9436b67233384889472cd7cd58a6fb5df4f1",
@@ -2555,7 +2555,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1f16e03c1a5908818f47f6ee7bb16690b40d0671",
@@ -2564,7 +2564,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x1f16e03c1a5908818f47f6ee7bb16690b40d0671",
@@ -2573,7 +2573,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2",
@@ -2582,7 +2582,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2591,7 +2591,7 @@
    "tickSpacing": 200,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2600,7 +2600,7 @@
    "tickSpacing": 100,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2609,7 +2609,7 @@
    "tickSpacing": 1,
    "hooks": "0xa167c254ef8a24bda465760dc1969a5ce37ae888",
    "before": 49164,
-   "expected": "49164"
+   "expected": "0"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2726,7 +2726,7 @@
    "tickSpacing": 60,
    "hooks": "0x6b5d44884e86c26a7c4c0b2ed8dd1af03451a0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xa13e7effa885f3ffe6eed556cf8666a67d0cd267",
@@ -2735,7 +2735,7 @@
    "tickSpacing": 60,
    "hooks": "0x6b5d44884e86c26a7c4c0b2ed8dd1af03451a0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x2ad1041e391a07d8eb6ae51e20a94f0df095fb84",
@@ -2744,7 +2744,7 @@
    "tickSpacing": 60,
    "hooks": "0x9aba9b393ab17c0a2cfcdf168a03b30a44a3e0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x0d0f2aaa5761d54f3a2b10e93078ecce13baecf8",
@@ -2753,7 +2753,7 @@
    "tickSpacing": 60,
    "hooks": "0x9aba9b393ab17c0a2cfcdf168a03b30a44a3e0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x2846d6e9f44a2fea6d914ca333046e428cce10aa",
@@ -2762,7 +2762,7 @@
    "tickSpacing": 60,
    "hooks": "0x0e6917480b51c18c49e315d53aa5b7b9dd1ae0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x01736a328c8823850cbe4523a27861d7030247aa",
@@ -2771,7 +2771,7 @@
    "tickSpacing": 60,
    "hooks": "0x0e6917480b51c18c49e315d53aa5b7b9dd1ae0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2780,7 +2780,7 @@
    "tickSpacing": 60,
    "hooks": "0x11f6db41d793079350a02a06e378aae76487a0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x8874f7dc8492b9d27e4aed6b6fa9697333531071",
@@ -2789,7 +2789,7 @@
    "tickSpacing": 60,
    "hooks": "0x11f6db41d793079350a02a06e378aae76487a0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2798,7 +2798,7 @@
    "tickSpacing": 60,
    "hooks": "0x11f6db41d793079350a02a06e378aae76487a0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2807,7 +2807,7 @@
    "tickSpacing": 60,
    "hooks": "0xd78039101a4c8f94ef5dfec58033cc074f46e0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2816,7 +2816,7 @@
    "tickSpacing": 60,
    "hooks": "0x968520de27fb61be8104fe8dce67a9844bd860cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x83b637fdb7593887073a478b9b4bff51c5038234",
@@ -2825,7 +2825,7 @@
    "tickSpacing": 60,
    "hooks": "0x968520de27fb61be8104fe8dce67a9844bd860cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x664df60c1bad3314a45dd362434ed33e9f95aa84",
@@ -2834,7 +2834,7 @@
    "tickSpacing": 60,
    "hooks": "0x968520de27fb61be8104fe8dce67a9844bd860cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000007d9640993d01f94199",
@@ -2843,7 +2843,7 @@
    "tickSpacing": 60,
    "hooks": "0x968520de27fb61be8104fe8dce67a9844bd860cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2852,7 +2852,7 @@
    "tickSpacing": 60,
    "hooks": "0x48a011cb654327c3209c00110832190a364760cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000007d9640993d01f94199",
@@ -2861,7 +2861,7 @@
    "tickSpacing": 60,
    "hooks": "0x48a011cb654327c3209c00110832190a364760cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2870,7 +2870,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000007d9640993d01f94199",
@@ -2879,7 +2879,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -2888,7 +2888,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000004c74fa972857bbf4cd",
@@ -2897,7 +2897,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000007d9640993d01f94199",
@@ -2906,7 +2906,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000005fd91ce7790dec797c",
@@ -2915,7 +2915,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2924,7 +2924,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000000845e8b1858934a814",
@@ -2933,7 +2933,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000000845e8b1858934a814",
@@ -2942,7 +2942,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2951,7 +2951,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000021eba466f94c0f164a",
@@ -2960,7 +2960,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2969,7 +2969,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000085663d1f2e40a750c8",
@@ -2978,7 +2978,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000b4f3c4cd7b172d5a35",
@@ -2987,7 +2987,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -2996,7 +2996,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000008a6f4003768808f399",
@@ -3005,7 +3005,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3014,7 +3014,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000dddcf454346c3b8394",
@@ -3023,7 +3023,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3032,7 +3032,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000018e5b632639508be87",
@@ -3041,7 +3041,7 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3050,7 +3050,61 @@
    "tickSpacing": 60,
    "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000075383736e7a73c55ab",
+   "currency1": "0xb200000000000000000000bc62ffb3b75c780522",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000075383736e7a73c55ab",
+   "currency1": "0xb200000000000000000000f717963d72cdd67a87",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000075383736e7a73c55ab",
+   "currency1": "0xb200000000000000000000cfce60aba26afafcf0",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000075383736e7a73c55ab",
+   "currency1": "0xb200000000000000000000e912874ab9fd7358e6",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000053af1e3d537aea36d4",
+   "currency1": "0xb20000000000000000000075383736e7a73c55ab",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
+  },
+  {
+   "currency0": "0xb20000000000000000000075383736e7a73c55ab",
+   "currency1": "0xb2000000000000000000007acd464cf89b714e49",
+   "fee": 6000,
+   "tickSpacing": 60,
+   "hooks": "0xaf07116f1892c5fae4b55234a57ea20cf4e960cc",
+   "before": 49164,
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -3068,7 +3122,7 @@
    "tickSpacing": 60,
    "hooks": "0x2fbbbf421115a7ad0e839b16e55ca8757c98e0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3077,7 +3131,7 @@
    "tickSpacing": 60,
    "hooks": "0x3994497d9c9fa5d9c47e67d1e8dc38c7ef2fe0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb1e694dcdcb6f7890b3d6ad8135910eb50691f04",
@@ -3086,7 +3140,7 @@
    "tickSpacing": 60,
    "hooks": "0x3994497d9c9fa5d9c47e67d1e8dc38c7ef2fe0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x28489baa5d3ad2091e469cba5e7664eb6bb41f0a",
@@ -3095,7 +3149,7 @@
    "tickSpacing": 200,
    "hooks": "0x3994497d9c9fa5d9c47e67d1e8dc38c7ef2fe0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3104,7 +3158,7 @@
    "tickSpacing": 60,
    "hooks": "0x181dd61311fe431fa794b0a1a177d9f0fd5a20cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000075383736e7a73c55ab",
@@ -3113,7 +3167,7 @@
    "tickSpacing": 60,
    "hooks": "0x181dd61311fe431fa794b0a1a177d9f0fd5a20cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x81acd0aa33b28a7958191f2fdabd49f5ff49742e",
@@ -3122,7 +3176,7 @@
    "tickSpacing": 200,
    "hooks": "0x181dd61311fe431fa794b0a1a177d9f0fd5a20cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x0fa42bf185e1cc3c589cf9728deafd3287d717f9",
@@ -3131,7 +3185,7 @@
    "tickSpacing": 200,
    "hooks": "0x181dd61311fe431fa794b0a1a177d9f0fd5a20cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3140,7 +3194,7 @@
    "tickSpacing": 60,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -3149,7 +3203,7 @@
    "tickSpacing": 60,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000b2317cce3dbc82ff29",
@@ -3158,7 +3212,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000009a9c1f482bbfb1fb0",
@@ -3167,7 +3221,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000004f7d1617684918b3e3",
@@ -3176,7 +3230,7 @@
    "tickSpacing": 60,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x1bcc54a513b657afbe9911068ec45cf8e036e222",
@@ -3185,7 +3239,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x1bcc54a513b657afbe9911068ec45cf8e036e222",
@@ -3194,7 +3248,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb20000000000000000000053122bb949d22e6889",
@@ -3203,7 +3257,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000a7b9738dd749b3abc2",
@@ -3212,7 +3266,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000a7b9738dd749b3abc2",
@@ -3221,7 +3275,7 @@
    "tickSpacing": 200,
    "hooks": "0xa5e6a2bc9ee39df8d76664f6e479791cf18ca0cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000bf5e79c4fc38fe3504",
@@ -3230,7 +3284,7 @@
    "tickSpacing": 200,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb2000000000000000000002a5d4a3cf28302ff6a",
@@ -3239,7 +3293,7 @@
    "tickSpacing": 60,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xb200000000000000000000dfd241f9a0cce0807a",
@@ -3248,7 +3302,7 @@
    "tickSpacing": 60,
    "hooks": "0x9c91eb3879c469a124a6ed6e95dfc485b7dd60cc",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -3257,7 +3311,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -3266,7 +3320,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -3275,7 +3329,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -3284,7 +3338,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x0000000000000000000000000000000000000000",
@@ -3293,7 +3347,7 @@
    "tickSpacing": 1,
    "hooks": "0xb23f731949145e158e656e1abe128c5e617a6888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -6983,7 +7037,7 @@
    "tickSpacing": 200,
    "hooks": "0x081f55861b08eda8a3e13a89e026d9127f842888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -6992,7 +7046,7 @@
    "tickSpacing": 1,
    "hooks": "0x77132a6b5760651447da262b1180430ae84e2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -7001,7 +7055,7 @@
    "tickSpacing": 1,
    "hooks": "0x77132a6b5760651447da262b1180430ae84e2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -7010,7 +7064,7 @@
    "tickSpacing": 1,
    "hooks": "0x77132a6b5760651447da262b1180430ae84e2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x23cd099eb438cca50349ee2bc809196b1ae00861",
@@ -7019,7 +7073,7 @@
    "tickSpacing": 1,
    "hooks": "0x1a35d13ae02a834e9b35a98ca1b9c87b30d72888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf",
@@ -7028,7 +7082,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -7037,7 +7091,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -7046,7 +7100,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -7055,7 +7109,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x000096630066820566162c94874a776532705231",
@@ -7064,7 +7118,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -7073,7 +7127,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -7082,7 +7136,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
@@ -7091,7 +7145,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -7100,7 +7154,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf",
@@ -7109,7 +7163,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",
@@ -7118,7 +7172,7 @@
    "tickSpacing": 1,
    "hooks": "0xa27c837fff49db0089f639a5ae2362c17f7b2888",
    "before": 49164,
-   "expected": "0"
+   "expected": "49164"
   },
   {
    "currency0": "0x4200000000000000000000000000000000000006",

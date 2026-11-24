@@ -14,7 +14,7 @@ The policy, its rulesets and the parameter format are proposal 104's. [Proposal 
 
 - Every chain uses the fee levels set by proposal 104's existing policy: `volatilePairFee` 1000 and `stablePairFee` 300.
 - None of the five chains has an aggregator hook, so no hook is assigned the aggregator ruleset.
-- Celo's currency IDs are from the existing `V4FeePolicy`, which proposal 6 deployed but never connected to the PoolManager. The other four chains don't have any.
+- Celo's currency IDs are from the existing `V4FeePolicy`, which proposal 6 deployed but never connected to the PoolManager. The other four chains don't have any.
 - X Layer's StablePairHook proxy is assigned the stable pair ruleset, and its liquidity-launcher hooks are assigned the static curve ruleset.
 
 Each new adapter sends fees to the chain's TokenJar. `tokenJar()` in [`params/Constants.sol`](./params/Constants.sol) returns the TokenJar only if the chain's `V3OpenFeeAdapter` sends its fees to the same one, so v3 and v4 fees on a chain reach the same TokenJar.

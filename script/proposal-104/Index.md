@@ -29,28 +29,27 @@ Each chain's policy uses four rulesets:
 [`params/v4-fee-policy.json`](./params/v4-fee-policy.json) holds each chain's fee levels, currency IDs and the hooks assigned to each ruleset, in named groups. The header of [`params/PolicyParams.sol`](./params/PolicyParams.sol) defines the file's layout and what each group holds. The prerequisite script and the preflight read the file through `loadPolicyParams`, which refuses a missing or misplaced key and a fee that does not fit in `uint24`.
 
 - The fee levels stay at the levels set by the existing policy: `volatilePairFee` 1000 and `stablePairFee` 300, except on Base, which keeps 300 and 100.
-- Some hooks are not assigned any ruleset but are listed in `excludedAggregatorHooks` for documentation purposes:
-  - versions Uniswap Labs no longer routes to, which have `protocolFeeMultiplier` 10;
-  - aggregator hooks from other teams, except Pons on Robinhood Chain;
-  - aggregator hooks not confirmed as Uniswap Labs hooks;
+- Aggregator hooks that opted into a fee through `protocolFeeFlags()` but are not Uniswap Labs hooks keep their fee: they are in the `thirdParty` group. These include Pons on Robinhood Chain and other teams' hooks such as Aerodrome, WOOFi and Flash V2.
+- Some hooks are not assigned any ruleset but are listed in `excludedAggregatorHooks` for documentation purposes:
+  - versions Uniswap Labs no longer routes to: those with `protocolFeeMultiplier` 10, and those with no `protocolFeeMultiplier` getter;
+  - other hooks with no `protocolFeeMultiplier` getter, for which the aggregator ruleset would revert and so break any `batchTriggerFeeUpdate` that includes their pools;
   - hooks whose `protocolFeeFlags()` is not 2048.
 - The `LitePSMAggregator` hooks don't have a fee and are not listed in this file. Neither are the LBP and CCA hooks that Uniswap Labs marked for exclusion.
-- Hooks whose `protocolFeeMultiplier()` reverts (i.e. because they don't have the getter) are in the aggregator group. The ruleset reverts for their pools, so a fee update reverts and their stored fee stays as it is.
 - Later per-launch `InitializerHook`s are expected to opt in through ERC165, so they don't need to be listed in this file.
 
 ## What changes for existing pools
 
-Each fixture in [`test/end-to-end/proposal-104/fixtures/`](../../test/end-to-end/proposal-104/fixtures/) gives every listed pool's `before` policy fee, and its `expected` fee after the new policy is set by the proposal. These are the kinds of change, in pips per direction:
+Each fixture in [`test/end-to-end/proposal-104/fixtures/`](../../test/end-to-end/proposal-104/fixtures/) gives every listed pool's `before` policy fee, and its `expected` fee after the new policy is set by the proposal. These are the kinds of change, in pips per direction:
 
 
-| Change                                                                            | Before            | After                             |
-| --------------------------------------------------------------------------------- | ----------------- | --------------------------------- |
-| Aggregator pools whose currencies now share a currency ID, such as two ETH tokens | 40, or 12 on Base | 12, or 4 on Base                  |
-| Pools with excluded aggregator hooks                                              | 40, 12 or 4       | 0                                 |
-| Pools with StablePairHook and VolatilePairHook proxies                            | 0                 | The pair ruleset's fee            |
-| Pools with liquidity-launcher hooks the v1 policy did not assign                  | 0                 | The hookless curve's fee          |
-| Pools with hooks whose multiplier call reverts                                    | 40 or 12          | Unchanged: the fee update reverts |
+| Change                                                                            | Before            | After                    |
+| --------------------------------------------------------------------------------- | ----------------- | ------------------------ |
+| Aggregator pools whose currencies now share a currency ID, such as two ETH tokens | 40, or 12 on Base | 12, or 4 on Base         |
+| Pools with StablePairHook and VolatilePairHook proxies                            | 0                 | The pair ruleset's fee   |
+| Pools with liquidity-launcher hooks the v1 policy did not assign                  | 0                 | The hookless curve's fee |
 
+
+The table leaves out some pools  with aggregator hooks that are in the excluded group in the `v4-fee-policy.json`. Their nominal fee drops to 0, but, since they are old Uniswap Labs hooks that have either expired are no longer routed to, that means there is effectively no change.
 
 Every other pool's fee is unchanged:
 
@@ -60,7 +59,7 @@ Every other pool's fee is unchanged:
 | Aggregator pools with Uniswap Labs-deployed hooks whose pair class is the same as in v1 | 40, 12 or 4              |
 | Hookless pools                                                                          | The hookless curve's fee |
 | Pools with hooks the policy does not assign, including the `LitePSMAggregator` hooks    | 0                        |
-| Pons pools on Robinhood Chain                                                           | 40                       |
+| Pools with third-party aggregator hooks                                                 | 40, 12 or 4              |
 | Pools with hooks whose `protocolFeeFlags()` is not 2048                                 | 0                        |
 | Pools with hooks in the v1 native-math family                                           | The hookless curve's fee |
 
