@@ -36,7 +36,7 @@ import {
   replacedV4FeePolicy,
   v4FeeAdapter
 } from "./params/Constants.sol";
-import {V4Accounts, rpcAlias, v4Accounts} from "./params/Chains.sol";
+import {V4Accounts, selectChain, v4Accounts} from "./params/Chains.sol";
 import {loadPolicyParams} from "./params/PolicyParams.sol";
 import {checkNewPolicy} from "./PolicyCheck.sol";
 import {readPolicyDeployment} from "./prereq/DeployV4FeePolicy.s.sol";
@@ -45,7 +45,7 @@ import {
   checkCrossChainAccount,
   checkEthereumProxy,
   checkInboxEthereum,
-  checkOlderWormholeReceiver,
+  checkBNBChainWormholeReceiver,
   checkOPStackMessengerEthereum,
   checkWormholeReceiver
 } from "./BridgeChecks.sol";
@@ -185,7 +185,10 @@ function _setPolicyCall(Recorder storage recorder, uint256 chainId) view returns
 ///         holds less than the sum, attach the difference to `execute`, or execution reverts.
 ///      5. Wormhole does not deliver the messages of actions 04 and 07. After execution, someone
 ///         must fetch each message's VAA from Wormhole's API and call `receiveMessage` on the
-///         chain's receiver, as proposals 4 and 7 did.
+///         chain's receiver, as proposals 4 and 7 did. If Arbitrum's or Robinhood Chain's base fee
+///         is above the retryable ticket's gas bid when action 01 or 06 arrives, the chain does
+///         not redeem the ticket, and someone must call `redeem` on ArbRetryableTx with the
+///         ticket's ID within seven days.
 ///      6. After each message runs, run `postflightRemote()` against its chain. Once every
 ///         message has run, `postflight()` checks all eight chains in one run:
 ///
@@ -217,13 +220,14 @@ contract Proposal104 is Script {
 
   /// @notice Runs {preflightEthereum} on a fork of Ethereum, then {preflightRemote} on a fork of
   ///         each of the eight chains, each at the chain's latest block.
-  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias.
+  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias, and
+  ///      reverts if an alias reaches another chain.
   function preflight() external {
-    vm.createSelectFork(rpcAlias(ChainId.Ethereum));
+    selectChain(ChainId.Ethereum);
     preflightEthereum();
     uint256[8] memory list = chains();
     for (uint256 i; i < list.length; i++) {
-      vm.createSelectFork(rpcAlias(list[i]));
+      selectChain(list[i]);
       preflightRemote();
     }
   }
@@ -234,7 +238,7 @@ contract Proposal104 is Script {
   function postflight() external {
     uint256[8] memory list = chains();
     for (uint256 i; i < list.length; i++) {
-      vm.createSelectFork(rpcAlias(list[i]));
+      selectChain(list[i]);
       postflightRemote();
     }
   }
@@ -332,7 +336,9 @@ contract Proposal104 is Script {
     console.log("policy set", policy);
   }
 
-  /// @notice Asserts that the chain's route runs the Timelock's messages as `governanceExecutor`.
+  /// @notice Asserts that the chain's route runs the Timelock's messages as `governanceExecutor`,
+  ///         and on Arbitrum and Robinhood Chain that the chain's base fee is under the retryable
+  ///         ticket's gas bid.
   /// @dev On Ethereum the Timelock calls the adapter itself. On Arbitrum and Robinhood Chain the
   ///      executor is the Timelock's alias, which only the Timelock's retryable tickets run as.
   function _checkRoute(address governanceExecutor) internal view {
@@ -342,7 +348,7 @@ contract Proposal104 is Script {
     } else if (block.chainid == ChainId.Optimism) {
       checkCrossChainAccount(governanceExecutor, uniswap.ethereum.bridge.optimism, timelock);
     } else if (block.chainid == ChainId.BNBChain) {
-      checkOlderWormholeReceiver(governanceExecutor, uniswap.ethereum.bridge.bnbChain);
+      checkBNBChainWormholeReceiver(governanceExecutor, uniswap.ethereum.bridge.bnbChain);
     } else if (block.chainid == Arc.CHAIN_ID) {
       checkWormholeReceiver(
         governanceExecutor, Proposal7Ethereum.WORMHOLE_SENDER, Arc.WORMHOLE_CHAIN_ID
@@ -351,6 +357,10 @@ contract Proposal104 is Script {
       checkEthereumProxy(
         governanceExecutor, POLYGON_FX_CHILD, uniswap.ethereum.bridge.polygon, timelock
       );
+    } else if (block.chainid == ChainId.Arbitrum || block.chainid == ChainId.Robinhood) {
+      // Assert the chain's base fee is under the gas bid that `InboxEncoder.encode` gives the
+      // action's retryable ticket, so the chain redeems the ticket when it arrives.
+      require(block.basefee <= InboxEncoder.MAX_FEE_PER_GAS, "retryable.maxFeePerGas");
     }
   }
 

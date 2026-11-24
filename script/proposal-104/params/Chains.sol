@@ -4,8 +4,13 @@ pragma solidity 0.8.29;
 import {Uniswap} from "govkit/types/Uniswap.sol";
 import {ChainId} from "govkit/constants/ChainId.sol";
 import {InboxEncoder} from "govkit/bridges/InboxEncoder.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {Arc} from "../../proposal-7/params/Constants.sol";
+
+/// @dev Foundry's cheatcode contract, at the address forge-std's `Base` gives it. govkit's `vm`
+///      is `VmSafe`, which cannot fork.
+Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
 /// @notice Uniswap's v4 accounts on a given chain.
 struct V4Accounts {
@@ -86,4 +91,16 @@ function rpcAlias(uint256 chainId) pure returns (string memory) {
   if (chainId == ChainId.WorldChain) return "world_chain";
   if (chainId == ChainId.Zora) return "zora";
   revert("no RPC alias for chain");
+}
+
+/// @notice Forks `chainId` at its latest block through its `foundry.toml` RPC alias and selects
+///         the fork.
+/// @dev Reverts if the alias reaches another chain, so a misconfigured RPC URL cannot make a
+///      multi-chain check skip `chainId`.
+function selectChain(uint256 chainId) {
+  vm.createSelectFork(rpcAlias(chainId));
+  require(
+    block.chainid == chainId,
+    string.concat("RPC alias ", rpcAlias(chainId), " reaches another chain")
+  );
 }

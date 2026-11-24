@@ -18,7 +18,9 @@ struct FixturePool {
   int24 tickSpacing;
   address hooks;
   /// @dev "unchanged" for the fee the pool has before the proposal, "reverts" for a pool whose
-  ///      fee computation reverts, or the fee in pips as a decimal string.
+  ///      fee computation reverts, or the protocol fee as a decimal string in the PoolManager's
+  ///      packed form: the zero-for-one fee in pips in the low 12 bits and the one-for-zero fee
+  ///      in the next 12, so 49164 is 12 pips each way.
   string expected;
 }
 

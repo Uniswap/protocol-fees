@@ -14,7 +14,7 @@ import {IPoolManager} from "govkit/interfaces/IPoolManager.sol";
 
 import {V4FeeAdapter} from "../../src/feeAdapters/V4FeeAdapter.sol";
 
-import {V4Accounts, rpcAlias, v4Accounts} from "../proposal-104/params/Chains.sol";
+import {V4Accounts, selectChain, v4Accounts} from "../proposal-104/params/Chains.sol";
 import {loadPolicyParams} from "../proposal-104/params/PolicyParams.sol";
 import {checkNewPolicy} from "../proposal-104/PolicyCheck.sol";
 import {readPolicyDeployment} from "../proposal-104/prereq/DeployV4FeePolicy.s.sol";
@@ -126,13 +126,14 @@ contract Proposal105 is Script {
 
   /// @notice Runs {preflightEthereum} on a fork of Ethereum, then {preflightRemote} on a fork of
   ///         each of the five chains, each at the chain's latest block.
-  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias.
+  /// @dev Run without `--rpc-url`; it forks each chain through its `foundry.toml` alias, and
+  ///      reverts if an alias reaches another chain.
   function preflight() external {
-    vm.createSelectFork(rpcAlias(ChainId.Ethereum));
+    selectChain(ChainId.Ethereum);
     preflightEthereum();
     uint256[5] memory list = chains();
     for (uint256 i; i < list.length; i++) {
-      vm.createSelectFork(rpcAlias(list[i]));
+      selectChain(list[i]);
       preflightRemote();
     }
   }
@@ -143,7 +144,7 @@ contract Proposal105 is Script {
   function postflight() external {
     uint256[5] memory list = chains();
     for (uint256 i; i < list.length; i++) {
-      vm.createSelectFork(rpcAlias(list[i]));
+      selectChain(list[i]);
       postflightRemote();
     }
   }

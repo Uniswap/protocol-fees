@@ -41,6 +41,12 @@ interface IOPStackSystemConfig {
   function l2ChainId() external view returns (uint256);
 }
 
+/// @dev The getter that BNB Chain's older `UniswapWormholeMessageReceiver` has in place of
+///      `chainId()`.
+interface IBNBChainWormholeReceiver {
+  function BSC_CHAIN_ID() external view returns (uint16);
+}
+
 /// @dev The getters of Polygon's `EthereumProxy` that the preflights read.
 interface IEthereumProxy {
   function fxChild() external view returns (address);
@@ -115,16 +121,26 @@ function checkInboxEthereum(address inbox, uint256 chainId, string memory label)
 /// @notice Asserts that `receiver`, a `UniswapWormholeMessageReceiver`, runs only messages that
 ///         `sender` publishes on Ethereum for the Wormhole chain `wormholeChainId`.
 function checkWormholeReceiver(address receiver, address sender, uint16 wormholeChainId) view {
-  checkOlderWormholeReceiver(receiver, sender);
+  _checkWormholeMessageSender(receiver, sender);
   require(
     IUniswapWormholeMessageReceiver(receiver).chainId() == wormholeChainId, "receiver.chainId"
   );
 }
 
-/// @notice Asserts that `receiver`, an older `UniswapWormholeMessageReceiver` such as BNB Chain's,
-///         runs only messages that `sender` publishes on Ethereum. The older receiver has no
-///         `chainId()` and does not check the chain a message is addressed to.
-function checkOlderWormholeReceiver(address receiver, address sender) view {
+/// @notice Asserts that `receiver`, BNB Chain's `UniswapWormholeMessageReceiver`, runs only
+///         messages that `sender` publishes on Ethereum for BNB Chain. BNB Chain's receiver is an
+///         older version that reads the chain a message is for from `BSC_CHAIN_ID()` instead of
+///         `chainId()`.
+function checkBNBChainWormholeReceiver(address receiver, address sender) view {
+  _checkWormholeMessageSender(receiver, sender);
+  require(
+    IBNBChainWormholeReceiver(receiver).BSC_CHAIN_ID() == WormholeChainId.BNBChain,
+    "receiver.BSC_CHAIN_ID"
+  );
+}
+
+/// @dev Asserts that `receiver` accepts only messages that `sender` publishes on Ethereum.
+function _checkWormholeMessageSender(address receiver, address sender) view {
   IUniswapWormholeMessageReceiver wormholeReceiver = IUniswapWormholeMessageReceiver(receiver);
   require(
     wormholeReceiver.messageSender() == WormholeEncoder.toWormholeFormat(sender),
