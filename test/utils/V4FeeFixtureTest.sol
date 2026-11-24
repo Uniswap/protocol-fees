@@ -6,30 +6,33 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 
 import {V4FeeAdapter} from "../../src/feeAdapters/V4FeeAdapter.sol";
 
-/// @dev One pool of a fixture file and the protocol fee it should have after the proposal.
+/// @dev One pool of a fixture file, its protocol fee before the proposal and the protocol fee it
+///      should have after. Fees are in the PoolManager's packed form: the zero-for-one fee in pips
+///      in the low 12 bits and the one-for-zero fee in the next 12, so 49164 is 12 pips each way.
 struct FixturePool {
   address currency0;
   address currency1;
   uint24 fee;
   int24 tickSpacing;
   address hooks;
-  /// @dev "unchanged" for the fee the pool has before the proposal, "reverts" for a pool whose
-  ///      fee computation reverts, or the protocol fee as a decimal string in the PoolManager's
-  ///      packed form: the zero-for-one fee in pips in the low 12 bits and the one-for-zero fee
-  ///      in the next 12, so 49164 is 12 pips each way.
+  /// @dev The fee the chain's fee controller sets at the fixture block, as {_feeBefore} reads it.
+  uint24 before;
+  /// @dev The fee after the proposal as a decimal string, or "reverts" for a pool whose fee
+  ///      computation reverts.
   string expected;
 }
 
-/// @dev Base of the fork tests that check pool fees against a fixture file. Each fixture lists the
-///      pools of every hook the policy assigns a ruleset to, the pools of the hooks it leaves out,
-///      a hookless pool for each LP fee, and a sample of other hooked pools. We generated the
-///      fixtures from a scan of each chain's PoolManager `Initialize` events, with each expected
-///      fee calculated from the fee targets and the hookless curve, independently of the
-///      rulesets.
+/// @dev Base of the fork tests that check pool fees against a fixture file. Each fixture lists
+///      every pool with a hook the policy assigns a ruleset to, up to 20 pools with each hook it
+///      leaves out, a hookless pool for each LP fee, and a sample of other hooked pools, from a
+///      scan of each chain's PoolManager `Initialize` events. We read each `before` from the
+///      chain, and calculated each changed `expected` fee from the parameter file's fee levels, the
+///      hookless curve and each pair hook's `feeConfig`, in a model separate from the rulesets.
 abstract contract V4FeeFixtureTest is Test {
   using StateLibrary for *;
   using PoolIdLibrary for PoolKey;
@@ -37,10 +40,12 @@ abstract contract V4FeeFixtureTest is Test {
   /// @dev The fixture's pools, read by {_loadFixture}.
   FixturePool[] internal fixturePools;
 
-  /// @dev Each pool's fee before the proposal, read by {_readFeesBefore}: the adapter's fee for
-  ///      pools expected to keep it, and the PoolManager's stored fee for pools whose fee
-  ///      computation reverts.
-  mapping(uint256 index => uint24) internal feesBefore;
+  /// @dev The PoolManager's stored fee before the proposal for each pool whose fee computation
+  ///      reverts, read by {_readStoredFeesBefore}.
+  mapping(uint256 index => uint24) internal storedFeesBefore;
+
+  /// @dev Returns the fee the chain's fee controller sets for pool `index` before the proposal.
+  function _feeBefore(uint256 index) internal view virtual returns (uint24);
 
   /// @dev Reads the fixture at `path` into `fixturePools`, and returns its block.
   function _loadFixture(string memory path) internal returns (uint256 blockNumber) {
@@ -50,7 +55,7 @@ abstract contract V4FeeFixtureTest is Test {
       vm.parseJsonTypeArray(
         json,
         ".pools",
-        "FixturePool(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks,string expected)"
+        "FixturePool(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks,uint24 before,string expected)"
       ),
       (FixturePool[])
     );
@@ -59,12 +64,18 @@ abstract contract V4FeeFixtureTest is Test {
     }
   }
 
-  /// @dev Records the fee that `adapter` gives each pool expected to keep its fee, and the
-  ///      PoolManager's stored fee for each pool whose fee computation is expected to revert.
-  function _readFeesBefore(V4FeeAdapter adapter) internal {
+  /// @dev Asserts that each pool's `before` is the fee the chain's fee controller sets for it.
+  function _assertFeesBefore() internal view {
     for (uint256 i; i < fixturePools.length; i++) {
-      if (_is(fixturePools[i].expected, "unchanged")) feesBefore[i] = adapter.getFee(_key(i));
-      if (_is(fixturePools[i].expected, "reverts")) feesBefore[i] = _storedFee(adapter, i);
+      assertEq(_feeBefore(i), fixturePools[i].before, _label("before", i));
+    }
+  }
+
+  /// @dev Records the PoolManager's stored fee for each pool whose fee computation is expected to
+  ///      revert.
+  function _readStoredFeesBefore(V4FeeAdapter adapter) internal {
+    for (uint256 i; i < fixturePools.length; i++) {
+      if (_is(fixturePools[i].expected, "reverts")) storedFeesBefore[i] = _storedFee(adapter, i);
     }
   }
 
@@ -80,7 +91,7 @@ abstract contract V4FeeFixtureTest is Test {
       if (_is(fixturePools[i].expected, "reverts")) {
         vm.expectRevert();
         adapter.triggerFeeUpdate(_key(i));
-        assertEq(_storedFee(adapter, i), feesBefore[i], _label("storedFee", i));
+        assertEq(_storedFee(adapter, i), storedFeesBefore[i], _label("storedFee", i));
         continue;
       }
       assertEq(adapter.getFee(_key(i)), _expectedFee(i), _label("getFee", i));
@@ -101,16 +112,19 @@ abstract contract V4FeeFixtureTest is Test {
     }
   }
 
-  /// @dev Returns the protocol fee the PoolManager stores for pool `index`.
-  function _storedFee(V4FeeAdapter adapter, uint256 index) internal view returns (uint24 fee) {
-    (,, fee,) = adapter.POOL_MANAGER().getSlot0(_key(index).toId());
+  /// @dev Returns the protocol fee the PoolManager of `adapter` stores for pool `index`.
+  function _storedFee(V4FeeAdapter adapter, uint256 index) internal view returns (uint24) {
+    return _storedFee(adapter.POOL_MANAGER(), index);
+  }
+
+  /// @dev Returns the protocol fee `poolManager` stores for pool `index`.
+  function _storedFee(IPoolManager poolManager, uint256 index) internal view returns (uint24 fee) {
+    (,, fee,) = poolManager.getSlot0(_key(index).toId());
   }
 
   /// @dev Returns the fee pool `index` should have after the proposal.
   function _expectedFee(uint256 index) internal view returns (uint24) {
-    string memory expected = fixturePools[index].expected;
-    if (_is(expected, "unchanged")) return feesBefore[index];
-    return uint24(vm.parseUint(expected));
+    return uint24(vm.parseUint(fixturePools[index].expected));
   }
 
   /// @dev Returns the key of pool `index`.

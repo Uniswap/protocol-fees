@@ -99,25 +99,8 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
 ///         new `V4FeeAdapter`. Pools pay no protocol fee until someone calls
 ///         `batchTriggerFeeUpdate` with their keys. Action 05 sends a retryable ticket through
 ///         Arbitrum's Inbox that updates the StablePairHook's fee configs.
-/// @dev 1. Run `prereq/DeployV4FeeAdapter.s.sol` on each chain. It records the new adapters and
-///         policies in `.records/Proposal105.json`, where `buildProposal` reads them.
-///      2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then
-///         `preflightRemote()` against each chain, each at the chain's latest block, and needs
-///         every chain's RPC URL:
-///
-///         forge script script/proposal-105/Proposal105.s.sol --sig "preflight()"
-///
-///         To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
-///      3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for
-///         Seatbelt:
-///
-///         forge script script/proposal-105/Proposal105.s.sol --rpc-url mainnet
-///
-///      4. The OP Stack bridges relay each message by themselves once the proposal executes.
-///         After each message runs, run `postflightRemote()` against its chain. Once every
-///         message has run, `postflight()` checks all five chains in one run:
-///
-///         forge script script/proposal-105/Proposal105.s.sol --sig "postflight()"
+/// @dev `Index.md` in this directory gives the steps to deploy, check, write and execute the
+///      proposal.
 contract Proposal105 is Script {
   Uniswap internal uniswap;
   Recorder internal recorder;

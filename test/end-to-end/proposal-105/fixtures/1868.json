@@ -7,6 +7,7 @@
    "fee": 3000,
    "tickSpacing": 60,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "2048500"
   },
   {
@@ -15,6 +16,7 @@
    "fee": 500,
    "tickSpacing": 10,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "512125"
   },
   {
@@ -23,6 +25,7 @@
    "fee": 100,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "102425"
   },
   {
@@ -31,6 +34,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -39,6 +43,7 @@
    "fee": 900000,
    "tickSpacing": 18000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -47,6 +52,7 @@
    "fee": 50000,
    "tickSpacing": 1000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -55,6 +61,7 @@
    "fee": 5000,
    "tickSpacing": 100,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "3687300"
   },
   {
@@ -63,6 +70,7 @@
    "fee": 50,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "53261"
   },
   {
@@ -71,6 +79,7 @@
    "fee": 9900,
    "tickSpacing": 198,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -79,6 +88,7 @@
    "fee": 63,
    "tickSpacing": 60,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "65552"
   },
   {
@@ -87,6 +97,7 @@
    "fee": 10,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "8194"
   },
   {
@@ -95,6 +106,7 @@
    "fee": 999999,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -103,6 +115,7 @@
    "fee": 8,
    "tickSpacing": 60,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "8194"
   },
   {
@@ -111,6 +124,7 @@
    "fee": 0,
    "tickSpacing": 1,
    "hooks": "0xb9583e7bcc42e6627a1c119b09bac07b14594800",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -119,6 +133,7 @@
    "fee": 0,
    "tickSpacing": 1,
    "hooks": "0xf023529cb21581d8460539781849b756f4698800",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -127,6 +142,7 @@
    "fee": 990000,
    "tickSpacing": 19800,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -135,6 +151,7 @@
    "fee": 550000,
    "tickSpacing": 11000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -143,6 +160,7 @@
    "fee": 250000,
    "tickSpacing": 5000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -151,6 +169,7 @@
    "fee": 100000,
    "tickSpacing": 2000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -159,6 +178,7 @@
    "fee": 300000,
    "tickSpacing": 6000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -167,6 +187,7 @@
    "fee": 500000,
    "tickSpacing": 10000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -175,6 +196,7 @@
    "fee": 500,
    "tickSpacing": 10,
    "hooks": "0xa6c8d7514785c4314ee05ed566cb41151d43c0c0",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -183,6 +205,7 @@
    "fee": 100,
    "tickSpacing": 1,
    "hooks": "0xa6c8d7514785c4314ee05ed566cb41151d43c0c0",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -191,6 +214,7 @@
    "fee": 880000,
    "tickSpacing": 17600,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -199,6 +223,7 @@
    "fee": 890000,
    "tickSpacing": 17800,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -207,6 +232,7 @@
    "fee": 770000,
    "tickSpacing": 15400,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -215,6 +241,7 @@
    "fee": 899000,
    "tickSpacing": 17800,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -223,6 +250,7 @@
    "fee": 850000,
    "tickSpacing": 18000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -231,6 +259,7 @@
    "fee": 30000,
    "tickSpacing": 600,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -239,6 +268,7 @@
    "fee": 870000,
    "tickSpacing": 17400,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -247,6 +277,7 @@
    "fee": 950000,
    "tickSpacing": 19000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -255,6 +286,7 @@
    "fee": 860000,
    "tickSpacing": 17200,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -263,6 +295,7 @@
    "fee": 930000,
    "tickSpacing": 18600,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -271,6 +304,7 @@
    "fee": 600000,
    "tickSpacing": 12000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -279,6 +313,7 @@
    "fee": 960000,
    "tickSpacing": 19200,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -287,6 +322,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0x1c4eb49d70738b1001c331273a906e57ce5b8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -295,6 +331,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0x1c4eb49d70738b1001c331273a906e57ce5b8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -303,6 +340,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0x1c4eb49d70738b1001c331273a906e57ce5b8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -311,6 +349,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -319,6 +358,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -327,6 +367,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -335,6 +376,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -343,6 +385,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -351,6 +394,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -359,6 +403,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -367,6 +412,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -375,6 +421,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -383,6 +430,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -391,6 +439,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -399,6 +448,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -407,6 +457,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -415,6 +466,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -423,6 +475,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -431,6 +484,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -439,6 +493,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -447,6 +502,7 @@
    "fee": 0,
    "tickSpacing": 10,
    "hooks": "0xd1c0d8ce9710d4c74f03e7e3ac14654d337a8088",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -455,6 +511,7 @@
    "fee": 997000,
    "tickSpacing": 19940,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -463,6 +520,7 @@
    "fee": 993000,
    "tickSpacing": 19860,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -471,6 +529,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0x35bf74f583c88c0daef3bdb6a77d18da6ada00cc",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -479,6 +538,7 @@
    "fee": 75,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "81940"
   },
   {
@@ -487,6 +547,7 @@
    "fee": 1000,
    "tickSpacing": 10,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "790721"
   },
   {
@@ -495,6 +556,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0xa6ebac50514cc260d81ba68996d4355d678d40cc",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -503,6 +565,7 @@
    "fee": 500,
    "tickSpacing": 10,
    "hooks": "0xb216070c3509047ea597e2e626a29cea427a60c8",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -511,6 +574,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0x5cdcf55649883bfe728f04f957062043580540cc",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -519,6 +583,7 @@
    "fee": 9000,
    "tickSpacing": 90,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -527,6 +592,7 @@
    "fee": 2500,
    "tickSpacing": 25,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "1638800"
   },
   {
@@ -535,6 +601,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0x9e94e85660be00af1bfdd065b14380311204c0cc",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -543,6 +610,7 @@
    "fee": 375,
    "tickSpacing": 4,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "409700"
   }
  ]

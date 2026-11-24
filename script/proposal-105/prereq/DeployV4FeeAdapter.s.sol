@@ -21,15 +21,7 @@ import {checkNewAdapter} from "../AdapterCheck.sol";
 ///         uses the new policy, hands both to the chain's CrossChainAccount, and records the
 ///         addresses in `.records/Proposal105.json`, where the proposal reads them. Anyone can run
 ///         it; the deployer holds no authority once it finishes.
-/// @dev Run it once on each of the five proposal 105 chains:
-///
-///      forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --rpc-url <chain> \
-///        --broadcast
-///
-///      To assert the recorded deployment against the live chain afterwards:
-///
-///      forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --sig "check()" \
-///        --rpc-url <chain>
+/// @dev `Index.md` in proposal 105's directory gives the commands to run and check it.
 contract DeployV4FeeAdapter is DeployV4FeePolicy {
   V4FeeAdapter internal adapter;
 

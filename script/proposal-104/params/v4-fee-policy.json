@@ -3839,7 +3839,7 @@
         ]
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0x60ba0b87055ad06d5430bca353140c85c586e888",
         "protocolFeeMultiplier": "25",
@@ -4488,7 +4488,7 @@
         ]
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0xc4f2be5a31697dcbc7c7faa0d6bdfaf2b57d2888",
         "protocolFeeMultiplier": "25",
@@ -4865,7 +4865,7 @@
         ]
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0x081f55861b08eda8a3e13a89e026d9127f842888",
         "protocolFeeMultiplier": "25",
@@ -5135,7 +5135,7 @@
         "liquidityLauncher": []
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0xdcb0c5ed62e12e5a39acbf710fdf6dcd75ec2888",
         "protocolFeeMultiplier": "25",
@@ -5275,7 +5275,7 @@
         "liquidityLauncher": []
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0x0ad00977a83da4c408252a0ebdee2f083aa1cacc",
         "protocolFeeMultiplier": "484755339",
@@ -5409,7 +5409,7 @@
         "liquidityLauncher": []
       }
     },
-    "excludedAggregatorFlagHooks": []
+    "excludedAggregatorHooks": []
   },
   "4663": {
     "V4AggregatorHookRuleset": {
@@ -5539,7 +5539,7 @@
         ]
       }
     },
-    "excludedAggregatorFlagHooks": [
+    "excludedAggregatorHooks": [
       {
         "hook": "0x183741cf69dd1b4b9fc9dd191bf3bf123f8ca888",
         "protocolFeeMultiplier": "25",
@@ -5738,6 +5738,6 @@
         ]
       }
     },
-    "excludedAggregatorFlagHooks": []
+    "excludedAggregatorHooks": []
   }
 }

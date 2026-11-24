@@ -45,18 +45,9 @@ uint256 constant ASSIGNMENTS_PER_TRANSACTION = 400;
 ///         its hooks, hands the policy to the chain's governance executor, and records the
 ///         addresses in `.records/Proposal104.json`, where the proposal reads them. Anyone can run
 ///         it; the deployer holds no authority once it finishes.
-/// @dev Run it once on each of the eight proposal 104 chains:
-///
-///      forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --rpc-url <chain> \
-///        --broadcast
-///
-///      `run` asserts the result in its own simulation before it records anything. To apply the
-///      same assertions to the live chain afterwards, from the record alone:
-///
-///      forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --sig "check()" \
-///        --rpc-url <chain>
-///
-///      Proposal 105 extends this script to also deploy a `V4FeeAdapter`.
+/// @dev `Index.md` in proposal 104's directory gives the commands to run and check it. Proposal
+///      105 extends this script to also deploy a `V4FeeAdapter`; its overrides go through the
+///      internal functions, which are virtual for that reason.
 contract DeployV4FeePolicy is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;

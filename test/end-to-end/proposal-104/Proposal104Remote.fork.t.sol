@@ -103,6 +103,12 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
     uniswap.loadLatest();
   }
 
+  /// @dev Asserts that each fixture pool's `before` is the fee the v1 adapter sets for it at the
+  ///      fixture block.
+  function test_feesBefore() public view {
+    _assertFeesBefore();
+  }
+
   /// @dev Runs the prerequisite script on the fork, then the chain's preflight.
   function test_preflightRemote() public {
     string memory recordName = _deploy("PreflightTest");
@@ -115,12 +121,18 @@ abstract contract Proposal104RemoteForkTest is V4FeeFixtureTest {
   function test_execute() public {
     string memory recordName = _deploy("ExecuteTest");
     V4FeeAdapter adapter = V4FeeAdapter(v4FeeAdapter(_chainId()));
-    _readFeesBefore(adapter);
+    _readStoredFeesBefore(adapter);
 
     _runAction();
 
     new Proposal104Harness(recordName).postflightRemote();
     _assertFees(adapter);
+  }
+
+  /// @inheritdoc V4FeeFixtureTest
+  /// @dev The fee the chain's v1 adapter gives the pool.
+  function _feeBefore(uint256 index) internal view override returns (uint24) {
+    return V4FeeAdapter(v4FeeAdapter(_chainId())).getFee(_key(index));
   }
 
   /// @dev Runs the prerequisite script on the fork under a record name unique to this chain and

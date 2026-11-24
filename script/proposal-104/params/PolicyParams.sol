@@ -22,7 +22,7 @@ import {IV4AggregatorHookRuleset} from "../../../src/interfaces/IV4AggregatorHoo
 //       "V4StablePairHookRuleset": {"hooks": {"labs": []}},
 //       "V4VolatilePairHookRuleset": {"hooks": {"labs": []}},
 //       "V4StaticCurveRuleset": {"hooks": {"v1NativeMathFamily": [], "liquidityLauncher": []}},
-//       "excludedAggregatorFlagHooks": [{"hook": "0x…", "reason": "…"}]
+//       "excludedAggregatorHooks": [{"hook": "0x…", "reason": "…"}]
 //     }
 //   }
 //
@@ -38,7 +38,7 @@ import {IV4AggregatorHookRuleset} from "../../../src/interfaces/IV4AggregatorHoo
 // - `V4StaticCurveRuleset.liquidityLauncher`: Uniswap liquidity-launcher hooks that the v1 policy
 //    does not currently assign.
 //
-// `excludedAggregatorFlagHooks` lists hooks with the aggregator flag that won't be configured by
+// `excludedAggregatorHooks` lists hooks with the aggregator flag that won't be configured by
 // these proposals, for documentation purposes only. (The `LitePSMAggregator` hooks are not listed
 // at all.)
 
@@ -82,11 +82,11 @@ string constant AGGREGATOR = "V4AggregatorHookRuleset";
 string constant STABLE_PAIR = "V4StablePairHookRuleset";
 string constant VOLATILE_PAIR = "V4VolatilePairHookRuleset";
 string constant STATIC_CURVE = "V4StaticCurveRuleset";
-string constant EXCLUDED = "excludedAggregatorFlagHooks";
+string constant EXCLUDED = "excludedAggregatorHooks";
 
 /// @notice Reads the parameters of `chainId` from the JSON file at `path`.
 /// @dev Joins every hook group under each ruleset. Reverts if the chain, a ruleset, a fee,
-/// `currencyIds`, `hooks` or `excludedAggregatorFlagHooks` is missing, if a chain or ruleset object
+/// `currencyIds`, `hooks` or `excludedAggregatorHooks` is missing, if a chain or ruleset object
 /// has any other key, if a fee does not fit in `uint24`, or if an ID is empty or longer than
 /// 32 bytes.
 function loadPolicyParams(string memory path, uint256 chainId)

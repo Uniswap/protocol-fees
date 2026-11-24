@@ -9,6 +9,8 @@ import {
   L1CrossDomainMessengerDecoder
 } from "govkit/bridges/decoders/L1CrossDomainMessengerDecoder.sol";
 
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+
 import {V4FeeAdapter} from "../../../src/feeAdapters/V4FeeAdapter.sol";
 import {Proposal105, buildProposal} from "../../../script/proposal-105/Proposal105.s.sol";
 import {DeployV4FeeAdapter} from "../../../script/proposal-105/prereq/DeployV4FeeAdapter.s.sol";
@@ -71,6 +73,12 @@ abstract contract Proposal105RemoteForkTest is V4FeeFixtureTest {
     uniswap.loadLatest();
   }
 
+  /// @dev Asserts that each fixture pool's `before` is the fee the PoolManager stores for it at the
+  ///      fixture block.
+  function test_feesBefore() public view {
+    _assertFeesBefore();
+  }
+
   /// @dev Runs the prerequisite script on the fork, then the chain's preflight.
   function test_preflightRemote() public {
     string memory recordName = _deploy("PreflightTest");
@@ -82,11 +90,20 @@ abstract contract Proposal105RemoteForkTest is V4FeeFixtureTest {
   ///      PoolManager's fee controller and each fixture pool's fee.
   function test_execute() public {
     string memory recordName = _deploy("ExecuteTest");
+    V4FeeAdapter adapter = V4FeeAdapter(recorder.read(_chainId(), V4_FEE_ADAPTER_RECORD));
+    _readStoredFeesBefore(adapter);
 
     _runAction();
 
     new Proposal105Harness(recordName).postflightRemote();
-    _assertFees(V4FeeAdapter(recorder.read(_chainId(), V4_FEE_ADAPTER_RECORD)));
+    _assertFees(adapter);
+  }
+
+  /// @inheritdoc V4FeeFixtureTest
+  /// @dev The chain has no fee controller before the proposal, so the fee is the one the
+  ///      PoolManager stores.
+  function _feeBefore(uint256 index) internal view override returns (uint24) {
+    return _storedFee(IPoolManager(v4Accounts(uniswap, _chainId()).poolManager), index);
   }
 
   /// @dev Runs the prerequisite script on the fork under a record name unique to this chain and

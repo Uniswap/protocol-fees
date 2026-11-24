@@ -7,6 +7,7 @@
    "fee": 500,
    "tickSpacing": 10,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "512125"
   },
   {
@@ -15,6 +16,7 @@
    "fee": 100,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "102425"
   },
   {
@@ -23,6 +25,7 @@
    "fee": 3000,
    "tickSpacing": 60,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "2048500"
   },
   {
@@ -31,6 +34,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -39,6 +43,7 @@
    "fee": 100000,
    "tickSpacing": 2000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -47,6 +52,7 @@
    "fee": 690000,
    "tickSpacing": 13800,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -55,6 +61,7 @@
    "fee": 999996,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -63,6 +70,7 @@
    "fee": 45600,
    "tickSpacing": 912,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -71,6 +79,7 @@
    "fee": 999978,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -79,6 +88,7 @@
    "fee": 999983,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -87,6 +97,7 @@
    "fee": 999993,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -95,6 +106,7 @@
    "fee": 999998,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -103,6 +115,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0xc0649188074993dfae60ce25e6d64c1df1906844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -111,6 +124,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0x3f44fc96dd34bf0dd2c8c5a3daebf669eedaa844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -119,6 +133,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0x1f141a2f4eb256c58a6e008885c6fdc966576844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -127,6 +142,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0x7ae8de9614436814b985acccf450cef1c744e844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -135,6 +151,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0xcf42d10596858706f823ec8116c5a800ece76844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -143,6 +160,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0x422c20b4147e3b3b2d035f38a421d5cf79362844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -151,6 +169,7 @@
    "fee": 0,
    "tickSpacing": 60,
    "hooks": "0x228ee9f02eae140be28faef17f619adcea85e844",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -159,6 +178,7 @@
    "fee": 999985,
    "tickSpacing": 20000,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -167,6 +187,7 @@
    "fee": 375,
    "tickSpacing": 4,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "409700"
   },
   {
@@ -175,6 +196,7 @@
    "fee": 10000,
    "tickSpacing": 200,
    "hooks": "0xb216070c3509047ea597e2e626a29cea427a60c8",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -183,6 +205,7 @@
    "fee": 75,
    "tickSpacing": 1,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "81940"
   },
   {
@@ -191,6 +214,7 @@
    "fee": 9000,
    "tickSpacing": 90,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -199,6 +223,7 @@
    "fee": 2500,
    "tickSpacing": 25,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "1638800"
   },
   {
@@ -207,6 +232,7 @@
    "fee": 20000,
    "tickSpacing": 200,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -215,6 +241,7 @@
    "fee": 50000,
    "tickSpacing": 500,
    "hooks": "0x0000000000000000000000000000000000000000",
+   "before": 0,
    "expected": "4097000"
   },
   {
@@ -223,6 +250,7 @@
    "fee": 3000,
    "tickSpacing": 60,
    "hooks": "0xb30d1cfc07e6e2036776bc1cfa74090c8e1f0044",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -231,6 +259,7 @@
    "fee": 3000,
    "tickSpacing": 60,
    "hooks": "0xb30d1cfc07e6e2036776bc1cfa74090c8e1f0044",
+   "before": 0,
    "expected": "0"
   },
   {
@@ -239,6 +268,7 @@
    "fee": 8388608,
    "tickSpacing": 60,
    "hooks": "0xdb9b5b54b613d72c441cbdc8d391da0e70a4a0cc",
+   "before": 0,
    "expected": "0"
   }
  ]
