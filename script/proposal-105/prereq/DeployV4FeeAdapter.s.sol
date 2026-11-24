@@ -12,26 +12,24 @@ import {
   RECORD_NAME,
   POLICY_PARAMS_JSON,
   V4_FEE_ADAPTER_RECORD,
-  tokenJar,
-  v3OpenFeeAdapter
+  tokenJar
 } from "../params/Constants.sol";
 import {checkNewAdapter} from "../AdapterCheck.sol";
 
-// -------------------------------------------------------------------------------------------------
-// NOTICE:
-//
-// Deploys what proposal 104's `DeployV4FeePolicy` deploys, plus a `V4FeeAdapter` that uses the new
-// policy, hands both to the chain's CrossChainAccount, and records the addresses in
-// `.records/Proposal105.json`, where the proposal reads them. Anyone can run it; the deployer holds
-// no authority once it finishes. Run it once on each of the five proposal 105 chains:
-//
-// forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --rpc-url <chain> --broadcast
-//
-// To assert the recorded deployment against the live chain afterwards:
-//
-// forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --sig "check()" \
-//   --rpc-url <chain>
-//
+/// @title DeployV4FeeAdapter
+/// @notice Deploys what proposal 104's `DeployV4FeePolicy` deploys, plus a `V4FeeAdapter` that
+///         uses the new policy, hands both to the chain's CrossChainAccount, and records the
+///         addresses in `.records/Proposal105.json`, where the proposal reads them. Anyone can run
+///         it; the deployer holds no authority once it finishes.
+/// @dev Run it once on each of the five proposal 105 chains:
+///
+///      forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --rpc-url <chain> \
+///        --broadcast
+///
+///      To assert the recorded deployment against the live chain afterwards:
+///
+///      forge script script/proposal-105/prereq/DeployV4FeeAdapter.s.sol --sig "check()" \
+///        --rpc-url <chain>
 contract DeployV4FeeAdapter is DeployV4FeePolicy {
   V4FeeAdapter internal adapter;
 
@@ -67,7 +65,6 @@ contract DeployV4FeeAdapter is DeployV4FeePolicy {
       adapter,
       v4Accounts(uniswap, block.chainid).poolManager,
       tokenJar(uniswap, block.chainid),
-      v3OpenFeeAdapter(uniswap, block.chainid),
       address(deployment.policy),
       governanceExecutor
     );

@@ -6,7 +6,43 @@ import {vm} from "govkit/forge/Constants.sol";
 
 import {IV4AggregatorHookRuleset} from "../../../src/interfaces/IV4AggregatorHookRuleset.sol";
 
-/// @notice One chain's parameters for `V4FeePolicy` and its rulesets.
+// -------------------------------------------------------------------------------------------------
+// The parameter file
+//
+// The file is keyed by EIP-155 chain id and ruleset:
+//
+//   {
+//     "<chainId>": {
+//       "V4AggregatorHookRuleset": {
+//         "volatilePairFee": 1000,
+//         "stablePairFee": 300,
+//         "currencyIds": [{"currency": "0x…", "id": "USD", "symbol": "USDC"}],
+//         "hooks": {"labs": [{"hook": "0x…"}], "thirdParty": []}
+//       },
+//       "V4StablePairHookRuleset": {"hooks": {"labs": []}},
+//       "V4VolatilePairHookRuleset": {"hooks": {"labs": []}},
+//       "V4StaticCurveRuleset": {"hooks": {"v1NativeMathFamily": [], "liquidityLauncher": []}},
+//       "excludedAggregatorFlagHooks": [{"hook": "0x…", "reason": "…"}]
+//     }
+//   }
+//
+// Each ruleset's `hooks` lists the hooks that will be assigned to it, grouped by category for
+// documentation purposes.
+//
+// - `V4AggregatorHookRuleset.labs`: Uniswap Labs hooks whose `protocolFeeFlags()` returns 2048.
+// - `V4AggregatorHookRuleset.thirdParty`: aggregator hooks from other teams.
+// - `V4StablePairHookRuleset.labs` and `V4VolatilePairHookRuleset.labs`: the hook proxies whose
+//   `feeConfig` returns the StablePairHook or VolatilePairHook configuration.
+// - `V4StaticCurveRuleset.v1NativeMathFamily`: the hooks that the v1 policy currently assigns to
+//    its native-math family, 255.
+// - `V4StaticCurveRuleset.liquidityLauncher`: Uniswap liquidity-launcher hooks that the v1 policy
+//    does not currently assign.
+//
+// `excludedAggregatorFlagHooks` lists hooks with the aggregator flag that won't be configured by
+// these proposals, for documentation purposes only. (The `LitePSMAggregator` hooks are not listed
+// at all.)
+
+/// @notice Parameters for `V4FeePolicy` and its rulesets, for a given chain.
 struct PolicyParams {
   /// @dev The fee that aggregator hooks charge on pairs that are not stable pairs, in pips per
   ///      direction, after the hook's multiplier.
@@ -27,7 +63,7 @@ struct PolicyParams {
   address[] staticCurveHooks;
 }
 
-/// @dev One `ids` entry as the file writes it. The ID is a string such as "USD", which
+/// @dev One `currencyIds` entry as the file writes it. The ID is a string such as "USD", which
 ///      `loadPolicyParams` converts to `bytes32`.
 struct CurrencyIdEntry {
   address currency;
@@ -49,29 +85,10 @@ string constant STATIC_CURVE = "V4StaticCurveRuleset";
 string constant EXCLUDED = "excludedAggregatorFlagHooks";
 
 /// @notice Reads the parameters of `chainId` from the JSON file at `path`.
-/// @dev The file is keyed by EIP-155 chain id, then by the ruleset each object configures. Each
-///      ruleset's `hooks` holds named groups of the hooks it is assigned; the loader joins every
-///      group, so the group names only document why each hook is there.
-///
-///   {
-///     "<chainId>": {
-///       "V4AggregatorHookRuleset": {
-///         "volatilePairFee": 1000,
-///         "stablePairFee": 300,
-///         "ids": [{"currency": "0x…", "id": "USD", "symbol": "USDC"}],
-///         "hooks": {"labs": [{"hook": "0x…"}], "thirdParty": []}
-///       },
-///       "V4StablePairHookRuleset": {"hooks": {"labs": []}},
-///       "V4VolatilePairHookRuleset": {"hooks": {"labs": []}},
-///       "V4StaticCurveRuleset": {"hooks": {"v1NativeMathFamily": [], "liquidityLauncher": []}}
-///     }
-///   }
-///
-/// Entries match by field name, so extra fields such as `symbol` or `name` document an entry
-/// without changing it. A chain's entry may also hold `excludedAggregatorFlagHooks`, which the
-/// loader does not read. Reverts if the chain, a ruleset, a fee, `ids` or `hooks` is missing, if a
-/// chain or ruleset object has any other key, if a fee does not fit in `uint24`, or if an ID is
-/// empty or longer than 32 bytes.
+/// @dev Joins every hook group under each ruleset. Reverts if the chain, a ruleset, a fee,
+/// `currencyIds`, `hooks` or `excludedAggregatorFlagHooks` is missing, if a chain or ruleset object
+/// has any other key, if a fee does not fit in `uint24`, or if an ID is empty or longer than
+/// 32 bytes.
 function loadPolicyParams(string memory path, uint256 chainId)
   view
   returns (PolicyParams memory params)
@@ -86,7 +103,7 @@ function loadPolicyParams(string memory path, uint256 chainId)
   _key(json, chainKey, EXCLUDED, path);
   _requireKeyCount(json, chainKey, 5, path);
 
-  // Require the two fees, `ids` and `hooks`, and no other key.
+  // Require the two fees, `currencyIds` and `hooks`, and no other key.
   string memory aggregator = _key(json, chainKey, AGGREGATOR, path);
   _requireKeyCount(json, aggregator, 4, path);
 
@@ -94,7 +111,7 @@ function loadPolicyParams(string memory path, uint256 chainId)
   params.stablePairFeePips = _fee(json, _key(json, aggregator, "stablePairFee", path), path);
 
   CurrencyIdEntry[] memory entries = abi.decode(
-    vm.parseJsonTypeArray(json, _key(json, aggregator, "ids", path), CURRENCY_ID_TYPE),
+    vm.parseJsonTypeArray(json, _key(json, aggregator, "currencyIds", path), CURRENCY_ID_TYPE),
     (CurrencyIdEntry[])
   );
   params.currencyIds = new IV4AggregatorHookRuleset.CurrencyId[](entries.length);

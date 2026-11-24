@@ -50,40 +50,6 @@ import {
   checkWormholeReceiver
 } from "./BridgeChecks.sol";
 
-// -------------------------------------------------------------------------------------------------
-// NOTICE:
-//
-// The proposal replaces the `V4FeePolicy` of the `V4FeeAdapter` on eight chains. Each action is one
-// Ethereum call that calls `setPolicy` on one chain's adapter, through that chain's governance
-// route. The adapters stay; existing pools keep their protocol fee until someone calls
-// `batchTriggerFeeUpdate` with their keys.
-//
-// 1. Run `prereq/DeployV4FeePolicy.s.sol` on each chain. It records the new policies in
-//    `.records/Proposal104.json`, where `buildProposal` reads them.
-// 2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then `preflightRemote()`
-//    against each chain, each at the chain's latest block, and needs every chain's RPC URL:
-//
-//    forge script script/proposal-104/Proposal104.s.sol --sig "preflight()"
-//
-//    To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
-//
-// 3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt:
-//
-//    forge script script/proposal-104/Proposal104.s.sol --rpc-url mainnet
-//
-// 4. Execute with ETH attached. Actions 01 and 06 carry ETH to pay for their retryable tickets,
-//    and actions 04 and 07 carry the Wormhole message fee. GovernorBravo's `execute` pays each
-//    action's value from the Governor's own balance. If that balance holds less than the sum,
-// attach the difference to `execute`, or execution reverts.
-// 5. Wormhole does not deliver the messages of actions 04 and 07. After execution, someone must
-//    fetch each message's VAA from Wormhole's API and call `receiveMessage` on the chain's
-//    receiver, as proposals 4 and 7 did.
-// 6. After each message runs, run `postflightRemote()` against its chain. Once every message has
-//    run, `postflight()` checks all eight chains in one run:
-//
-//    forge script script/proposal-104/Proposal104.s.sol --sig "postflight()"
-//
-
 /// @notice Returns the proposal's calls.
 /// @dev A free function, so the fork tests, and callers outside this repo, build the same calls
 ///      the script writes without deploying the script. Assumes an Ethereum fork and an
@@ -194,6 +160,36 @@ function _setPolicyCall(Recorder storage recorder, uint256 chainId) view returns
   });
 }
 
+/// @title Proposal104
+/// @notice Replaces the `V4FeePolicy` of the `V4FeeAdapter` on eight chains. Each action is one
+///         Ethereum call that calls `setPolicy` on one chain's adapter, through that chain's
+///         governance route. The adapters stay; existing pools keep their protocol fee until
+///         someone calls `batchTriggerFeeUpdate` with their keys.
+/// @dev 1. Run `prereq/DeployV4FeePolicy.s.sol` on each chain. It records the new policies in
+///         `.records/Proposal104.json`, where `buildProposal` reads them.
+///      2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then
+///         `preflightRemote()` against each chain, each at the chain's latest block, and needs
+///         every chain's RPC URL:
+///
+///         forge script script/proposal-104/Proposal104.s.sol --sig "preflight()"
+///
+///         To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
+///      3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for
+///         Seatbelt:
+///
+///         forge script script/proposal-104/Proposal104.s.sol --rpc-url mainnet
+///
+///      4. Execute with ETH attached. Actions 01 and 06 carry ETH to pay for their retryable
+///         tickets, and actions 04 and 07 carry the Wormhole message fee. GovernorBravo's
+///         `execute` pays each action's value from the Governor's own balance. If that balance
+///         holds less than the sum, attach the difference to `execute`, or execution reverts.
+///      5. Wormhole does not deliver the messages of actions 04 and 07. After execution, someone
+///         must fetch each message's VAA from Wormhole's API and call `receiveMessage` on the
+///         chain's receiver, as proposals 4 and 7 did.
+///      6. After each message runs, run `postflightRemote()` against its chain. Once every
+///         message has run, `postflight()` checks all eight chains in one run:
+///
+///         forge script script/proposal-104/Proposal104.s.sol --sig "postflight()"
 contract Proposal104 is Script {
   Uniswap internal uniswap;
   Recorder internal recorder;

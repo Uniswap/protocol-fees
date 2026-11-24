@@ -7,17 +7,17 @@ import {InboxEncoder} from "govkit/bridges/InboxEncoder.sol";
 
 import {Arc} from "../../proposal-7/params/Constants.sol";
 
-/// @notice Uniswap's v4 accounts on one chain.
+/// @notice Uniswap's v4 accounts on a given chain.
 struct V4Accounts {
   /// @dev The v4 PoolManager.
   address poolManager;
-  /// @dev The account that the Timelock's calls to the chain run as. It owns the PoolManager, and
-  ///      the prerequisite scripts make it the owner and fee setter of each contract they deploy.
+  /// @dev Governance's avatar. It owns the PoolManager and will be set as the owner
+  ///      of the contracts deployed by the prerequisite scripts.
   address governanceExecutor;
 }
 
-/// @notice Returns Uniswap's v4 accounts on `chainId`, for the 13 chains proposals 104 and 105
-///         configure.
+/// @notice Returns Uniswap's v4 accounts on `chainId`, for the 13 chains configured by
+///         proposals 104 and 105.
 /// @dev Reverts for any other chain.
 function v4Accounts(Uniswap storage uniswap, uint256 chainId) view returns (V4Accounts memory) {
   // Proposal 104
@@ -68,8 +68,8 @@ function v4Accounts(Uniswap storage uniswap, uint256 chainId) view returns (V4Ac
   revert("no v4 accounts for chain");
 }
 
-/// @notice Returns the `foundry.toml` RPC alias of `chainId`, for the 13 chains proposals 104 and
-///         105 configure.
+/// @notice Returns the `foundry.toml` RPC alias of `chainId`, for the 13 chains configured by
+///         proposals 104 and 105.
 /// @dev Reverts for any other chain.
 function rpcAlias(uint256 chainId) pure returns (string memory) {
   if (chainId == ChainId.Ethereum) return "mainnet";

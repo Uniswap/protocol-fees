@@ -3,7 +3,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x004e9c3ef86bc1ca1f0bb5c7662861ee93350568",
           "id": "BTC",
@@ -4352,7 +4352,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x2297aebd383787a160dd0d9f71508148769342e3",
           "id": "BTC",
@@ -4501,7 +4501,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 300,
       "stablePairFee": 100,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x0555e30da8f98308edb960aa94c0db47230d2b9c",
           "id": "BTC",
@@ -5028,7 +5028,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x657e8c867d8b37dcc18fa4caead9c45eb088c642",
           "id": "BTC",
@@ -5148,7 +5148,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x0555e30da8f98308edb960aa94c0db47230d2b9c",
           "id": "BTC",
@@ -5317,7 +5317,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x00000000efe302beaa2b3e6e1b18d08d69a9012a",
           "id": "USD",
@@ -5415,7 +5415,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x0000000000000000000000000000000000000000",
           "id": "ETH",
@@ -5692,7 +5692,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x0dc6b79f3c3854e4d74514fd4d29be6c96beee39",
           "id": "USD",

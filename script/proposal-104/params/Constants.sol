@@ -18,24 +18,7 @@ import {Arc} from "../../proposal-7/params/Constants.sol";
 ///      `.records/<RECORD_NAME>.json`.
 string constant RECORD_NAME = "Proposal104";
 
-/// @dev Per-chain policy parameters, read by `loadPolicyParams`. Each chain's entry has one object
-///      per ruleset, keyed by the ruleset's contract name, with the hooks it is assigned in named
-///      groups:
-///
-///      - `V4AggregatorHookRuleset`: the constructor's `volatilePairFee`, `stablePairFee` and
-///        `ids`, and the aggregator hooks. `labs` holds the Uniswap Labs hooks whose
-///        `protocolFeeFlags()` returns 2048, and `thirdParty` holds aggregator hooks from other
-///        teams. `ids` gives one ID to each group of currencies that trade at parity: USD,
-///        BTC, ETH, GOLD, EUR, JPY, SOL, XRP and LINK. A pair of two currencies with the same ID
-///        pays `stablePairFee`.
-///      - `V4StablePairHookRuleset` and `V4VolatilePairHookRuleset`: the hook proxies whose
-///        `feeConfig` returns the StablePairHook or VolatilePairHook configuration.
-///      - `V4StaticCurveRuleset`: `v1NativeMathFamily` holds the hooks the v1 policy assigns to its
-///        native-math family, 255. `liquidityLauncher` holds the Uniswap liquidity-launcher hooks
-///        that the v1 policy does not assign.
-///      - `excludedAggregatorFlagHooks`: hooks with the aggregator flag that get no ruleset, each
-///        with its reason. `loadPolicyParams` does not read it. The `LitePSMAggregator` hooks
-///        report flag 4096 instead and are in no list, because they pay no fee.
+/// @dev Per-chain policy parameters, in the format described by `PolicyParams.sol`.
 string constant POLICY_PARAMS_JSON = "script/proposal-104/params/v4-fee-policy.json";
 
 /// @dev The eight chains, in the order of the proposal's actions.

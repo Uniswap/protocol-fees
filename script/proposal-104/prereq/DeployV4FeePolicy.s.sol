@@ -34,32 +34,29 @@ import {v4Accounts} from "../params/Chains.sol";
 import {PolicyParams, loadPolicyParams} from "../params/PolicyParams.sol";
 import {PolicyDeployment, checkNewPolicy} from "../PolicyCheck.sol";
 
-// -------------------------------------------------------------------------------------------------
-// NOTICE:
-//
-// Deploys a `V4FeePolicy` and its four rulesets on one chain, assigns each ruleset to its hooks,
-// hands the policy to the chain's governance executor, and records the addresses in
-// `.records/Proposal104.json`, where the proposal reads them. Anyone can run it; the deployer
-// holds no authority once it finishes. Run it once on each of the eight proposal 104 chains:
-//
-// forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --rpc-url <chain> --broadcast
-//
-// `run` asserts the result in its own simulation before it records anything. To apply the same
-// assertions to the live chain afterwards, from the record alone:
-//
-// forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --sig "check()" \
-//   --rpc-url <chain>
-//
-// Proposal 105 extends this script to also deploy a `V4FeeAdapter`. Its overrides go through the
-// internal functions below, which are virtual for that reason.
-//
-
 /// @dev The number of ruleset assignments per `batchSetProtocolFeeRulesets` call. Each new
 ///      assignment costs about 26,000 gas, and `forge script` sets a transaction's gas limit 30%
 ///      above its estimate, so 400 keep the limit under Ethereum's per-transaction gas cap of
 ///      16,777,216 (EIP-7825).
 uint256 constant ASSIGNMENTS_PER_TRANSACTION = 400;
 
+/// @title DeployV4FeePolicy
+/// @notice Deploys a `V4FeePolicy` and its four rulesets on one chain, assigns each ruleset to
+///         its hooks, hands the policy to the chain's governance executor, and records the
+///         addresses in `.records/Proposal104.json`, where the proposal reads them. Anyone can run
+///         it; the deployer holds no authority once it finishes.
+/// @dev Run it once on each of the eight proposal 104 chains:
+///
+///      forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --rpc-url <chain> \
+///        --broadcast
+///
+///      `run` asserts the result in its own simulation before it records anything. To apply the
+///      same assertions to the live chain afterwards, from the record alone:
+///
+///      forge script script/proposal-104/prereq/DeployV4FeePolicy.s.sol --sig "check()" \
+///        --rpc-url <chain>
+///
+///      Proposal 105 extends this script to also deploy a `V4FeeAdapter`.
 contract DeployV4FeePolicy is Script {
   Recorder internal recorder;
   Uniswap internal uniswap;

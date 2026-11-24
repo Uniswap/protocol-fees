@@ -3,7 +3,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [
+      "currencyIds": [
         {
           "currency": "0x37f750b7cc259a2f741af45294f6a16572cf5cad",
           "id": "USD",
@@ -61,7 +61,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [],
+      "currencyIds": [],
       "hooks": {
         "labs": []
       }
@@ -88,7 +88,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [],
+      "currencyIds": [],
       "hooks": {
         "labs": []
       }
@@ -115,7 +115,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [],
+      "currencyIds": [],
       "hooks": {
         "labs": []
       }
@@ -164,7 +164,7 @@
     "V4AggregatorHookRuleset": {
       "volatilePairFee": 1000,
       "stablePairFee": 300,
-      "ids": [],
+      "currencyIds": [],
       "hooks": {
         "labs": []
       }

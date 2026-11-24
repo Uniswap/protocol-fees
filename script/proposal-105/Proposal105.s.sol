@@ -30,41 +30,10 @@ import {
   V4_FEE_ADAPTER_RECORD,
   chains,
   l1Messenger,
-  tokenJar,
-  v3OpenFeeAdapter
+  tokenJar
 } from "./params/Constants.sol";
 import {readRecord} from "../proposal-104/params/Constants.sol";
 import {checkNewAdapter} from "./AdapterCheck.sol";
-
-// -------------------------------------------------------------------------------------------------
-// NOTICE:
-//
-// The proposal turns on v4 fees on Celo, Soneium, X Layer, World Chain and Zora. Each action is
-// one Ethereum call that sends one message through the chain's L1CrossDomainMessenger. The chain's
-// CrossChainAccount owns the PoolManager, and runs the message's one call:
-// `setProtocolFeeController` with the new `V4FeeAdapter`. Pools pay no protocol fee until someone
-// calls `batchTriggerFeeUpdate`
-// with their keys.
-//
-// 1. Run `prereq/DeployV4FeeAdapter.s.sol` on each chain. It records the new adapters and
-//    policies in `.records/Proposal105.json`, where `buildProposal` reads them.
-// 2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then `preflightRemote()`
-//    against each chain, each at the chain's latest block, and needs every chain's RPC URL:
-//
-//    forge script script/proposal-105/Proposal105.s.sol --sig "preflight()"
-//
-//    To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
-//
-// 3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for Seatbelt:
-//
-//    forge script script/proposal-105/Proposal105.s.sol --rpc-url mainnet
-//
-// 4. The OP Stack bridges relay each message by themselves once the proposal executes. After each
-//    message runs, run `postflightRemote()` against its chain. Once every message has run,
-//    `postflight()` checks all five chains in one run:
-//
-//    forge script script/proposal-105/Proposal105.s.sol --sig "postflight()"
-//
 
 /// @notice Returns the proposal's calls, one per chain in the order of `chains`.
 /// @dev A free function, so the fork tests, and callers outside this repo, build the same calls
@@ -105,6 +74,31 @@ function buildProposal(Uniswap storage uniswap, Recorder storage recorder)
   }
 }
 
+/// @title Proposal105
+/// @notice Turns on v4 fees on Celo, Soneium, X Layer, World Chain and Zora. Each action is one
+///         Ethereum call that sends one message through the chain's L1CrossDomainMessenger. The
+///         chain's CrossChainAccount owns the PoolManager, and runs the message's one call:
+///         `setProtocolFeeController` with the new `V4FeeAdapter`. Pools pay no protocol fee
+///         until someone calls `batchTriggerFeeUpdate` with their keys.
+/// @dev 1. Run `prereq/DeployV4FeeAdapter.s.sol` on each chain. It records the new adapters and
+///         policies in `.records/Proposal105.json`, where `buildProposal` reads them.
+///      2. Run `preflight()` before proposing. It runs `preflightEthereum()`, then
+///         `preflightRemote()` against each chain, each at the chain's latest block, and needs
+///         every chain's RPC URL:
+///
+///         forge script script/proposal-105/Proposal105.s.sol --sig "preflight()"
+///
+///         To check one chain at a pinned block, run `preflightRemote(uint256)` against it.
+///      3. `run()` against Ethereum runs `preflightEthereum()`, then writes the proposal for
+///         Seatbelt:
+///
+///         forge script script/proposal-105/Proposal105.s.sol --rpc-url mainnet
+///
+///      4. The OP Stack bridges relay each message by themselves once the proposal executes.
+///         After each message runs, run `postflightRemote()` against its chain. Once every
+///         message has run, `postflight()` checks all five chains in one run:
+///
+///         forge script script/proposal-105/Proposal105.s.sol --sig "postflight()"
 contract Proposal105 is Script {
   Uniswap internal uniswap;
   Recorder internal recorder;
@@ -207,7 +201,6 @@ contract Proposal105 is Script {
       V4FeeAdapter(readRecord(recorder, block.chainid, V4_FEE_ADAPTER_RECORD)),
       accounts.poolManager,
       tokenJar(uniswap, block.chainid),
-      v3OpenFeeAdapter(uniswap, block.chainid),
       policy,
       accounts.governanceExecutor
     );
