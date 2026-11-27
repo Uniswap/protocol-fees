@@ -20,6 +20,15 @@ interface IV3FeeAdapter {
   /// requirements.
   error InvalidFeeValue();
 
+  /// @notice Emitted when a pool-specific fee override is set
+  /// @param pool The pool address the override applies to
+  /// @param feeOverride The override fee value (packed as token1Fee << 4 | token0Fee)
+  event PoolFeeOverrideSet(address indexed pool, uint8 feeOverride);
+
+  /// @notice Emitted when a pool-specific fee override is removed
+  /// @param pool The pool address the override was removed from
+  event PoolFeeOverrideRemoved(address indexed pool);
+
   /// @notice The input parameters for the collection.
   struct CollectParams {
     /// @param pool The pool to collect fees from.
@@ -104,6 +113,23 @@ interface IV3FeeAdapter {
   /// @param defaultFeeValue The default fee value to set, expressed as the denominator on the
   /// inclusive interval [4, 10]. The fee value is packed (token1Fee << 4 | token0Fee)
   function setDefaultFeeByFeeTier(uint24 feeTier, uint8 defaultFeeValue) external;
+
+  /// @notice Sets a fee override for a specific pool, bypassing the fee tier default
+  /// @dev Only callable by `feeSetter`. The override immediately updates the pool's fee.
+  /// @param pool The address of the pool to set the override for
+  /// @param feeOverride The fee override value (packed as token1Fee << 4 | token0Fee)
+  function overridePoolFee(address pool, uint8 feeOverride) external;
+
+  /// @notice Removes a fee override for a specific pool, reverting to fee tier defaults
+  /// @dev Only callable by `feeSetter`. Does not immediately update the pool's fee.
+  /// @param pool The address of the pool to remove the override from
+  function removePoolFeeOverride(address pool) external;
+
+  /// @notice Returns the stored fee override for a specific pool
+  /// @dev Returns 0 if no override, 255 (sentinel) if override to 0, otherwise the override value
+  /// @param pool The pool address to query
+  /// @return feeOverride The stored override value
+  function poolFeeOverrides(address pool) external view returns (uint8 feeOverride);
 
   /// @notice Triggers a fee update for a single pool with merkle proof verification.
   /// @param pool The pool address to update the fee for.
